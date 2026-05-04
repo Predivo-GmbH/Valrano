@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
-import { Sun, Moon, Upload, LayoutDashboard, ClipboardCheck, LogOut, User, Menu, X } from 'lucide-react'
+import { Sun, Moon, Upload, LayoutDashboard, ClipboardCheck, FileText, Settings, LogOut, User, Menu, X } from 'lucide-react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -81,6 +81,14 @@ export function AppLayout() {
                 <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
                 Review
               </NavLink>
+              <NavLink to="/documents" className={({ isActive }) => navLinkCls(isActive)}>
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                Documents
+              </NavLink>
+              <NavLink to="/settings/benchmark-rules" className={({ isActive }) => navLinkCls(isActive)}>
+                <Settings className="h-4 w-4" aria-hidden="true" />
+                Rules
+              </NavLink>
             </div>
 
             {/* Right side — theme toggle + user menu + mobile hamburger */}
@@ -147,6 +155,14 @@ export function AppLayout() {
               <NavLink to="/review" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
                 <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
                 Review
+              </NavLink>
+              <NavLink to="/documents" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                Documents
+              </NavLink>
+              <NavLink to="/settings/benchmark-rules" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
+                <Settings className="h-4 w-4" aria-hidden="true" />
+                Rules
               </NavLink>
             </div>
           )}

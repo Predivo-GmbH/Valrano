@@ -11,6 +11,9 @@ import LandingPage from '@/pages/LandingPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { UploadPage } from '@/pages/UploadPage'
 import { ReviewPage } from '@/pages/ReviewPage'
+import { DocumentsPage } from '@/pages/DocumentsPage'
+import { DocumentViewerPage } from '@/pages/DocumentViewerPage'
+import { BenchmarkRulesPage } from '@/pages/BenchmarkRulesPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import SignUpPage from '@/pages/auth/SignUpPage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
@@ -56,6 +59,9 @@ function App() {
                           <Route path="/dashboard" element={<DashboardPage />} />
                           <Route path="/upload" element={<UploadPage />} />
                           <Route path="/review" element={<ReviewPage />} />
+                          <Route path="/documents" element={<DocumentsPage />} />
+                          <Route path="/documents/:id" element={<DocumentViewerPage />} />
+                          <Route path="/settings/benchmark-rules" element={<BenchmarkRulesPage />} />
                         </Route>
                       </Route>
 

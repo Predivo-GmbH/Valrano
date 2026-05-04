@@ -1,0 +1,361 @@
+import { useParams, Link } from 'react-router-dom'
+import { useBenchmarkDocument, useUpdateDocumentStatus } from '@/hooks/useBenchmark'
+import type { DocumentStatus, BenchmarkContentJson } from '@/types/database'
+import {
+  ArrowLeft,
+  Printer,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  FileText,
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Loader2,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+
+// ---------------------------------------------------------------------------
+// Status config
+// ---------------------------------------------------------------------------
+
+const STATUS_CONFIG: Record<DocumentStatus, { label: string; className: string; icon: typeof Clock }> = {
+  draft: { label: 'Draft', className: 'text-muted-foreground', icon: Clock },
+  in_review: { label: 'In Review', className: 'text-[var(--color-signal-amber)]', icon: Clock },
+  approved: { label: 'Approved', className: 'text-[var(--color-signal-green)]', icon: CheckCircle2 },
+  delivered: { label: 'Delivered', className: 'text-[var(--color-accent)]', icon: CheckCircle2 },
+  rejected: { label: 'Rejected', className: 'text-[var(--color-signal-red)]', icon: XCircle },
+}
+
+const POSITION_CONFIG = {
+  improved: { label: 'Improved', color: 'text-[var(--color-signal-green)]', icon: TrendingUp },
+  stable: { label: 'Stable', color: 'text-[var(--color-accent)]', icon: Minus },
+  declined: { label: 'Declined', color: 'text-[var(--color-signal-red)]', icon: TrendingDown },
+}
+
+// ---------------------------------------------------------------------------
+// Signal badge
+// ---------------------------------------------------------------------------
+
+function SignalBadge({ signal }: { signal: string }) {
+  const config = {
+    risk: { label: 'Risk', className: 'bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)]' },
+    advantage: { label: 'Advantage', className: 'bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)]' },
+    neutral: { label: 'Neutral', className: 'bg-[var(--color-bg-tertiary)] text-muted-foreground' },
+  }[signal] ?? { label: signal, className: 'bg-[var(--color-bg-tertiary)] text-muted-foreground' }
+
+  return (
+    <span className={cn(
+      'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+      config.className,
+    )}>
+      {config.label}
+    </span>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Document content renderer
+// ---------------------------------------------------------------------------
+
+function DocumentContent({ content, triggerName, customerName }: {
+  content: BenchmarkContentJson
+  triggerName: string
+  customerName: string
+}) {
+  const posConfig = POSITION_CONFIG[content.competitive_position] ?? POSITION_CONFIG.stable
+  const PosIcon = posConfig.icon
+
+  return (
+    <div className="space-y-8">
+      {/* Competitive Position */}
+      <div className="flex items-center gap-2">
+        <PosIcon className={cn('h-5 w-5', posConfig.color)} />
+        <span className={cn('text-[15px] font-semibold', posConfig.color)}>
+          Competitive Position: {posConfig.label}
+        </span>
+      </div>
+
+      {/* Executive Summary */}
+      <div className="rounded-lg border border-border bg-[var(--color-bg-tertiary)] p-5">
+        <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+          Executive Summary
+        </h2>
+        <p className="text-[14px] leading-relaxed text-foreground">
+          {content.executive_summary}
+        </p>
+      </div>
+
+      {/* Key Findings */}
+      <div>
+        <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+          Key Findings
+        </h2>
+        <ul className="space-y-2">
+          {content.key_findings.map((finding, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span className="mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)]/10 text-[10px] font-bold text-[var(--color-accent)]">
+                {i + 1}
+              </span>
+              <span className="text-[13px] leading-relaxed text-foreground">{finding}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Sections */}
+      {content.sections.map((section, idx) => (
+        <div key={idx}>
+          <h2 className="mb-3 text-[17px] font-semibold text-foreground border-b border-border pb-2">
+            {section.title}
+          </h2>
+          <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
+            {section.narrative}
+          </p>
+
+          {section.kpi_comparisons.length > 0 && (
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full min-w-max border-collapse text-[13px]">
+                <thead>
+                  <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">KPI</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">{triggerName}</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">{customerName}</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Peer Median</th>
+                    <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Signal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {section.kpi_comparisons.map((kpi, ki) => (
+                    <tr key={ki} className="border-b border-border last:border-0 hover:bg-[var(--color-bg-tertiary)] transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-foreground">{kpi.kpi_name}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-foreground">
+                        {formatVal(kpi.trigger_company_value)}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-foreground">
+                        {formatVal(kpi.customer_company_value)}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                        {formatVal(kpi.peer_median)}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <SignalBadge signal={kpi.signal} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Risk Flags */}
+      {content.risk_flags.length > 0 && (
+        <div className="rounded-lg border border-[var(--color-signal-red)]/30 bg-[var(--color-signal-red)]/5 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="h-4 w-4 text-[var(--color-signal-red)]" />
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[var(--color-signal-red)]">
+              Risk Flags
+            </h2>
+          </div>
+          <ul className="space-y-1.5">
+            {content.risk_flags.map((flag, i) => (
+              <li key={i} className="text-[13px] text-[var(--color-signal-red)]/80 flex items-start gap-2">
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-[var(--color-signal-red)] flex-shrink-0" />
+                {flag}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Data Quality */}
+      <div className="border-t border-border pt-4 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap gap-x-6 gap-y-1">
+          <span>KPIs Compared: {content.data_quality.total_kpis_compared}</span>
+          <span>High Confidence: {content.data_quality.high_confidence_pct}%</span>
+          {content.data_quality.fx_rates_used.length > 0 && (
+            <span>FX Rates: {content.data_quality.fx_rates_used.join(', ')}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function formatVal(v: number | null | undefined): string {
+  if (v === null || v === undefined) return '—'
+  if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(1)}B`
+  return `${v.toFixed(0)}M`
+}
+
+// ---------------------------------------------------------------------------
+// Main viewer page
+// ---------------------------------------------------------------------------
+
+export function DocumentViewerPage() {
+  const { id } = useParams<{ id: string }>()
+  const { data: doc, isLoading } = useBenchmarkDocument(id)
+  const updateStatus = useUpdateDocumentStatus()
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!doc) return
+    try {
+      await updateStatus.mutateAsync({ id: doc.id, status: newStatus })
+      toast.success(`Status updated to ${newStatus}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update status')
+    }
+  }
+
+  const handlePrint = () => {
+    if (!doc?.content_html) return
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+    printWindow.document.write(doc.content_html)
+    printWindow.document.close()
+    printWindow.focus()
+    setTimeout(() => printWindow.print(), 500)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-[960px] px-6 py-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-48 rounded bg-[var(--color-bg-tertiary)]" />
+          <div className="h-4 w-96 rounded bg-[var(--color-bg-tertiary)]" />
+          <div className="h-[400px] rounded-lg bg-[var(--color-bg-tertiary)]" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!doc) {
+    return (
+      <div className="mx-auto max-w-[960px] px-6 py-8">
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+          <h2 className="text-[17px] font-semibold text-foreground mb-2">Document not found</h2>
+          <Link to="/documents" className="text-[13px] text-[var(--color-accent)] hover:underline">
+            Back to documents
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const statusCfg = STATUS_CONFIG[doc.status] ?? STATUS_CONFIG.draft
+  const StatusIcon = statusCfg.icon
+
+  return (
+    <div className="mx-auto max-w-[960px] px-6 py-8">
+      {/* Back link */}
+      <Link
+        to="/documents"
+        className="mb-6 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to documents
+      </Link>
+
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex-1">
+            <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground mb-2">
+              {doc.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <StatusIcon className={cn('h-4 w-4', statusCfg.className)} />
+                <span className={statusCfg.className}>{statusCfg.label}</span>
+              </div>
+              <span>FY {doc.fiscal_year}</span>
+              {doc.trigger_company && (
+                <span>vs {doc.trigger_company.name}</span>
+              )}
+              <span>Rule: {doc.benchmark_rules?.name}</span>
+              {doc.generated_at && (
+                <span>
+                  Generated {new Date(doc.generated_at).toLocaleDateString('en-CH', {
+                    day: '2-digit', month: 'short', year: 'numeric',
+                  })}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              disabled={!doc.content_html}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)] disabled:opacity-40"
+            >
+              <Printer className="h-4 w-4" />
+              Print / PDF
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Approval actions (Sprint 7 will expand this) */}
+      {(doc.status === 'draft' || doc.status === 'in_review') && (
+        <div className="mb-8 flex flex-wrap gap-2 rounded-lg border border-border bg-card p-4">
+          <span className="mr-auto self-center text-[13px] text-muted-foreground">
+            Change status:
+          </span>
+          {doc.status === 'draft' && (
+            <button
+              onClick={() => handleStatusChange('in_review')}
+              disabled={updateStatus.isPending}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-signal-amber)]/10 px-4 py-2 text-[13px] font-medium text-[var(--color-signal-amber)] transition-all duration-200 hover:bg-[var(--color-signal-amber)]/20 disabled:opacity-40"
+            >
+              {updateStatus.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+              Submit for Review
+            </button>
+          )}
+          {doc.status === 'in_review' && (
+            <>
+              <button
+                onClick={() => handleStatusChange('approved')}
+                disabled={updateStatus.isPending}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-signal-green)]/10 px-4 py-2 text-[13px] font-medium text-[var(--color-signal-green)] transition-all duration-200 hover:bg-[var(--color-signal-green)]/20 disabled:opacity-40"
+              >
+                {updateStatus.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                Approve
+              </button>
+              <button
+                onClick={() => handleStatusChange('rejected')}
+                disabled={updateStatus.isPending}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-signal-red)]/10 px-4 py-2 text-[13px] font-medium text-[var(--color-signal-red)] transition-all duration-200 hover:bg-[var(--color-signal-red)]/20 disabled:opacity-40"
+              >
+                Reject
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Document content */}
+      <div className="rounded-lg border border-border bg-card p-6 sm:p-8">
+        {doc.content_json ? (
+          <DocumentContent
+            content={doc.content_json}
+            triggerName={doc.trigger_company?.name ?? 'Competitor'}
+            customerName={doc.customer_company?.name ?? 'Customer'}
+          />
+        ) : (
+          <div className="py-12 text-center text-[13px] text-muted-foreground">
+            No content available for this document.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

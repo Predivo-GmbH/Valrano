@@ -28,6 +28,12 @@ export type SubscriptionTier = 'starter' | 'professional' | 'enterprise';
 
 export type SubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'incomplete' | 'trialing';
 
+export type NarrativeStyle = 'executive_brief' | 'detailed_analysis' | 'board_presentation';
+
+export type DocumentStatus = 'draft' | 'in_review' | 'approved' | 'delivered' | 'rejected';
+
+export type DocumentGeneratedBy = 'system' | 'manual';
+
 // ---------------------------------------------------------------------------
 // Row types — shape of a row returned from Supabase
 // ---------------------------------------------------------------------------
@@ -199,6 +205,79 @@ export interface UserProfile {
   updated_at: string;
 }
 
+export interface BenchmarkRule {
+  id: string;
+  customer_company_id: string;
+  name: string;
+  description: string | null;
+  peer_group_id: string | null;
+  kpi_selection: KpiSelectionItem[];
+  report_template: string | null;
+  narrative_style: NarrativeStyle;
+  auto_generate: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KpiSelectionItem {
+  kpi_definition_id: string;
+  code: string;
+  weight: number;
+  threshold_pct: number | null;
+}
+
+export interface BenchmarkDocument {
+  id: string;
+  benchmark_rule_id: string;
+  trigger_report_id: string | null;
+  trigger_company_id: string | null;
+  customer_company_id: string;
+  fiscal_year: number;
+  title: string;
+  status: DocumentStatus;
+  content_json: BenchmarkContentJson | null;
+  content_html: string | null;
+  pdf_storage_path: string | null;
+  generated_at: string | null;
+  generated_by: DocumentGeneratedBy;
+  ai_model_used: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkContentJson {
+  executive_summary: string;
+  key_findings: string[];
+  competitive_position: 'improved' | 'stable' | 'declined';
+  sections: BenchmarkSection[];
+  risk_flags: string[];
+  data_quality: {
+    total_kpis_compared: number;
+    high_confidence_pct: number;
+    fx_rates_used: string[];
+  };
+}
+
+export interface BenchmarkSection {
+  title: string;
+  narrative: string;
+  kpi_comparisons: BenchmarkKpiComparison[];
+}
+
+export interface BenchmarkKpiComparison {
+  kpi_code: string;
+  kpi_name: string;
+  trigger_company_value: number | null;
+  customer_company_value: number | null;
+  peer_median: number | null;
+  peer_rank: number | null;
+  peer_count: number;
+  yoy_change_pct: number | null;
+  assessment: string;
+  signal: 'risk' | 'neutral' | 'advantage';
+}
+
 // ---------------------------------------------------------------------------
 // Insert types — omit server-generated fields for INSERT operations
 // ---------------------------------------------------------------------------
@@ -227,6 +306,10 @@ export type SubscriptionInsert = Omit<Subscription, 'id' | 'created_at' | 'updat
 
 export type UserProfileInsert = Omit<UserProfile, 'created_at' | 'updated_at'>;
 
+export type BenchmarkRuleInsert = Omit<BenchmarkRule, 'id' | 'created_at' | 'updated_at'>;
+
+export type BenchmarkDocumentInsert = Omit<BenchmarkDocument, 'id' | 'created_at' | 'updated_at'>;
+
 // ---------------------------------------------------------------------------
 // Update types — all fields optional except id
 // ---------------------------------------------------------------------------
@@ -243,6 +326,8 @@ export type AlertUpdate = Partial<AlertInsert>;
 export type AlertHistoryUpdate = Partial<AlertHistoryInsert>;
 export type SubscriptionUpdate = Partial<SubscriptionInsert>;
 export type UserProfileUpdate = Partial<Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>>;
+export type BenchmarkRuleUpdate = Partial<BenchmarkRuleInsert>;
+export type BenchmarkDocumentUpdate = Partial<BenchmarkDocumentInsert>;
 
 // ---------------------------------------------------------------------------
 // Supabase Database shape (for createClient<Database> generic)
@@ -311,6 +396,16 @@ export interface Database {
         Insert: UserProfileInsert;
         Update: UserProfileUpdate;
       };
+      benchmark_rules: {
+        Row: BenchmarkRule;
+        Insert: BenchmarkRuleInsert;
+        Update: BenchmarkRuleUpdate;
+      };
+      benchmark_documents: {
+        Row: BenchmarkDocument;
+        Insert: BenchmarkDocumentInsert;
+        Update: BenchmarkDocumentUpdate;
+      };
     };
     Enums: {
       report_type: ReportType;
@@ -320,6 +415,9 @@ export interface Database {
       kpi_unit_type: KpiUnitType;
       fx_rate_type: FxRateType;
       alert_type: AlertType;
+      narrative_style: NarrativeStyle;
+      document_status: DocumentStatus;
+      document_generated_by: DocumentGeneratedBy;
     };
   };
 }

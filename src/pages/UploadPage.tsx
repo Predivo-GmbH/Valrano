@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { useCompanies } from '@/hooks/useData'
 import { useUploadReport, useExtractKpis, useNormalizeKpis } from '@/hooks/useExtraction'
+import { useGenerateBenchmark } from '@/hooks/useBenchmark'
 import type { ReportType } from '@/types/database'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
@@ -13,7 +14,7 @@ import { cn } from '@/lib/utils'
 // Types
 // ---------------------------------------------------------------------------
 
-type UploadStep = 'form' | 'uploaded' | 'extracted' | 'normalized'
+type UploadStep = 'form' | 'uploaded' | 'extracted' | 'normalized' | 'benchmark'
 
 interface UploadState {
   reportId: string | null
@@ -28,6 +29,13 @@ interface UploadState {
     updated: number
     skipped: number
   } | null
+  benchmarkResult: {
+    document_id: string
+    title: string
+    competitive_position: string
+    sections: number
+    risk_flags: number
+  } | null
 }
 
 // ---------------------------------------------------------------------------
@@ -38,10 +46,11 @@ const STEPS = [
   { key: 'form', label: 'Upload PDF' },
   { key: 'uploaded', label: 'Extract KPIs' },
   { key: 'extracted', label: 'Normalize' },
-  { key: 'normalized', label: 'Done' },
+  { key: 'normalized', label: 'Benchmark' },
+  { key: 'benchmark', label: 'Done' },
 ]
 
-const STEP_ORDER: UploadStep[] = ['form', 'uploaded', 'extracted', 'normalized']
+const STEP_ORDER: UploadStep[] = ['form', 'uploaded', 'extracted', 'normalized', 'benchmark']
 
 function StepIndicator({ currentStep }: { currentStep: UploadStep }) {
   const currentIdx = STEP_ORDER.indexOf(currentStep)
@@ -217,11 +226,13 @@ export function UploadPage() {
     step: 'form',
     extractionResult: null,
     normalizeResult: null,
+    benchmarkResult: null,
   })
 
   const uploadMutation = useUploadReport()
   const extractMutation = useExtractKpis()
   const normalizeMutation = useNormalizeKpis()
+  const benchmarkMutation = useGenerateBenchmark()
 
   // Upload handler
   const handleUpload = async () => {
@@ -268,9 +279,32 @@ export function UploadPage() {
     }
   }
 
+  // Generate benchmark handler
+  const handleGenerateBenchmark = async () => {
+    if (!state.reportId) return
+    try {
+      const result = await benchmarkMutation.mutateAsync({ report_id: state.reportId })
+      setState((s) => ({
+        ...s,
+        benchmarkResult: {
+          document_id: result.document_id,
+          title: result.title,
+          competitive_position: result.competitive_position,
+          sections: result.sections,
+          risk_flags: result.risk_flags,
+        },
+        step: 'benchmark',
+      }))
+      toast.success('Benchmark document generated')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Benchmark generation failed')
+    }
+  }
+
   const isUploading = uploadMutation.isPending
   const isExtracting = extractMutation.isPending
   const isNormalizing = normalizeMutation.isPending
+  const isGenerating = benchmarkMutation.isPending
 
   return (
     <div className="mx-auto max-w-[720px] px-6 py-8">
@@ -486,10 +520,52 @@ export function UploadPage() {
         </div>
       )}
 
-      {/* Done state */}
+      {/* Generate benchmark step */}
       {state.step === 'normalized' && state.normalizeResult && (
         <div className="space-y-4">
-          <ResultCard title="Extraction Results">
+          <ResultCard title="Normalization Results">
+            <StatRow label="Values Normalized" value={state.normalizeResult.updated} />
+            <StatRow label="Skipped" value={state.normalizeResult.skipped} />
+          </ResultCard>
+
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="mb-1 text-[15px] font-semibold text-foreground">Generate Benchmark</h3>
+            <p className="mb-5 text-[13px] text-muted-foreground">
+              AI will generate a competitive benchmark document comparing this company against your peer group.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleGenerateBenchmark}
+                disabled={isGenerating}
+                className="flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating…
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4" />
+                    Generate Benchmark
+                  </>
+                )}
+              </button>
+              <a
+                href="/dashboard"
+                className="flex items-center justify-center rounded-full border border-border bg-card px-6 py-2.5 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)]"
+              >
+                Skip — View Dashboard
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Done state */}
+      {state.step === 'benchmark' && (
+        <div className="space-y-4">
+          <ResultCard title="Pipeline Summary">
             <StatRow label="KPIs Extracted" value={state.extractionResult?.total_kpis_extracted ?? '—'} />
             <StatRow
               label="Average Confidence"
@@ -499,25 +575,27 @@ export function UploadPage() {
                   : '—'
               }
             />
-            <StatRow label="Needs Review" value={state.extractionResult?.needs_review_count ?? '—'} />
-          </ResultCard>
-
-          <ResultCard title="Normalization Results">
-            <StatRow label="Values Normalized" value={state.normalizeResult.updated} />
-            <StatRow label="Skipped" value={state.normalizeResult.skipped} />
+            <StatRow label="Values Normalized" value={state.normalizeResult?.updated ?? '—'} />
+            {state.benchmarkResult && (
+              <>
+                <StatRow label="Benchmark Sections" value={state.benchmarkResult.sections} />
+                <StatRow label="Risk Flags" value={state.benchmarkResult.risk_flags} />
+                <StatRow label="Position" value={state.benchmarkResult.competitive_position} />
+              </>
+            )}
           </ResultCard>
 
           <div className="flex items-center gap-3 rounded-lg border border-[var(--color-signal-green)]/30 bg-[var(--color-signal-green)]/5 px-5 py-4">
             <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-[var(--color-signal-green)]" />
             <p className="text-[13px] text-foreground font-medium">
-              Processing complete. Data is now available on the Dashboard.
+              Processing complete. Benchmark document is ready for review.
             </p>
           </div>
 
           <div className="flex gap-3">
             <button
               onClick={() => {
-                setState({ reportId: null, step: 'form', extractionResult: null, normalizeResult: null })
+                setState({ reportId: null, step: 'form', extractionResult: null, normalizeResult: null, benchmarkResult: null })
                 setFile(null)
                 setCompanyId('')
               }}
@@ -525,12 +603,21 @@ export function UploadPage() {
             >
               Upload Another Report
             </button>
-            <a
-              href="/dashboard"
-              className="flex-1 flex items-center justify-center rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
-            >
-              View Dashboard
-            </a>
+            {state.benchmarkResult ? (
+              <a
+                href={`/documents/${state.benchmarkResult.document_id}`}
+                className="flex-1 flex items-center justify-center rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
+              >
+                View Benchmark
+              </a>
+            ) : (
+              <a
+                href="/dashboard"
+                className="flex-1 flex items-center justify-center rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
+              >
+                View Dashboard
+              </a>
+            )}
           </div>
         </div>
       )}
