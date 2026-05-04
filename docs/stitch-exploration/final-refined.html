@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BenchmarkSignal - Institutional Intelligence</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container": "#1d2027",
+                        "background": "#10131a",
+                        "surface-bright": "#363941",
+                        "secondary-fixed-dim": "#c4c7ca",
+                        "surface-container-lowest": "#0b0e15",
+                        "surface": "#10131a",
+                        "on-background": "#e1e2ec",
+                        "tertiary-fixed": "#ffdcc6",
+                        "on-secondary-fixed-variant": "#44474a",
+                        "on-primary-fixed-variant": "#004395",
+                        "surface-container-highest": "#32353c",
+                        "on-tertiary-fixed-variant": "#723600",
+                        "on-tertiary-fixed": "#311400",
+                        "surface-container-high": "#272a31",
+                        "on-primary": "#002e6a",
+                        "primary-container": "#4d8eff",
+                        "on-tertiary-container": "#461f00",
+                        "on-surface-variant": "#c2c6d6",
+                        "surface-variant": "#32353c",
+                        "surface-tint": "#adc6ff",
+                        "secondary-fixed": "#e0e3e6",
+                        "primary-fixed": "#d8e2ff",
+                        "surface-dim": "#10131a",
+                        "tertiary-fixed-dim": "#ffb786",
+                        "surface-container-low": "#191b23",
+                        "inverse-surface": "#e1e2ec",
+                        "on-secondary-fixed": "#191c1e",
+                        "on-error": "#690005",
+                        "secondary": "#c4c7ca",
+                        "tertiary": "#ffb786",
+                        "on-secondary": "#2d3133",
+                        "primary-fixed-dim": "#adc6ff",
+                        "outline-variant": "#424754",
+                        "on-primary-fixed": "#001a42",
+                        "on-tertiary": "#502400",
+                        "on-surface": "#e1e2ec",
+                        "on-secondary-container": "#b3b5b8",
+                        "outline": "#8c909f",
+                        "on-error-container": "#ffdad6",
+                        "error-container": "#93000a",
+                        "inverse-on-surface": "#2e3038",
+                        "on-primary-container": "#00285d",
+                        "tertiary-container": "#df7412",
+                        "inverse-primary": "#005ac2",
+                        "error": "#ffb4ab",
+                        "primary": "#adc6ff",
+                        "secondary-container": "#44474a",
+                        "accent-blue": "#3B82F6"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "xl": "48px",
+                        "xxl": "80px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "base": "8px",
+                        "gutter": "24px"
+                    },
+                    fontFamily: {
+                        "body-sm": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "h1": ["Inter"],
+                        "h2": ["Inter"],
+                        "body-md": ["Inter"],
+                        "h3": ["Inter"]
+                    },
+                    fontSize: {
+                        "body-sm": ["13px", { lineHeight: "1.5", fontWeight: "400" }],
+                        "label-caps": ["11px", { lineHeight: "1", letterSpacing: "0.05em", fontWeight: "600" }],
+                        "h1": ["80px", { lineHeight: "1", letterSpacing: "-0.03em", fontWeight: "900" }],
+                        "h2": ["48px", { lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "body-md": ["15px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "h3": ["24px", { lineHeight: "1.4", fontWeight: "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .editorial-text { font-size: clamp(48px, 6vw, 100px); line-height: 0.95; font-weight: 900; letter-spacing: -0.04em; }
+        .grid-bg { background-image: linear-gradient(to right, #27282b 1px, transparent 1px), linear-gradient(to bottom, #27282b 1px, transparent 1px); background-size: 64px 64px; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-sm antialiased overflow-x-hidden selection:bg-accent-blue selection:text-white">
+<!-- TopAppBar -->
+<nav class="fixed top-0 w-full z-50 bg-[#0A0B0D]/80 backdrop-blur-md border-b border-[#27282B] font-inter tracking-tight">
+<div class="flex justify-between items-center px-8 py-4 w-full max-w-[1440px] mx-auto">
+<div class="text-lg font-bold tracking-tighter text-slate-50">BenchmarkSignal</div>
+<div class="hidden md:flex gap-8">
+<a class="text-blue-500 border-b border-blue-500 pb-1 cursor-pointer active:opacity-80" href="#">Platform</a>
+<a class="text-slate-400 hover:text-slate-100 cursor-pointer active:opacity-80 hover:bg-slate-800/50 transition-all px-2 rounded" href="#">Analysis</a>
+<a class="text-slate-400 hover:text-slate-100 cursor-pointer active:opacity-80 hover:bg-slate-800/50 transition-all px-2 rounded" href="#">Pricing</a>
+<a class="text-slate-400 hover:text-slate-100 cursor-pointer active:opacity-80 hover:bg-slate-800/50 transition-all px-2 rounded" href="#">Insights</a>
+</div>
+<button class="bg-[#E8EAED] text-[#0A0B0D] px-6 py-2 rounded-full font-semibold hover:bg-white transition-colors cursor-pointer active:opacity-80">Get Started</button>
+</div>
+</nav>
+<main class="pt-[100px] max-w-[1440px] mx-auto px-8 w-full relative">
+<!-- Background Grid Decoration -->
+<div class="absolute inset-0 grid-bg opacity-[0.03] z-0 pointer-events-none"></div>
+<!-- 2. Hero Section -->
+<section class="min-h-[870px] flex flex-col justify-center items-start py-xl relative z-10">
+<div class="max-w-5xl">
+<h1 class="editorial-text text-on-surface mb-lg">Your competitors publish. <br/> <span class="text-surface-bright/40">You know within 60 minutes.</span></h1>
+<p class="font-body-md text-on-surface-variant max-w-2xl mb-xl text-lg">BenchmarkSignal AI automatically extracts, normalizes, and compares unstructured financial data from earnings reports the moment they drop. Institutional-grade intelligence, delivered faster than humanly possible.</p>
+<div class="flex flex-wrap gap-4">
+<button class="bg-[#E8EAED] text-[#0A0B0D] px-8 py-4 rounded-full font-semibold hover:bg-white transition-colors">Start Your Pilot</button>
+<button class="bg-surface border border-[#27282B] text-[#E8EAED] px-8 py-4 rounded-full font-semibold hover:bg-surface-container transition-colors">See How It Works</button>
+</div>
+</div>
+</section>
+<!-- 3. Pain Point Section -->
+<section class="py-xxl border-t border-[#27282B] relative z-10">
+<h2 class="font-h2 text-on-surface mb-xl max-w-3xl">22 hours per quarter. <br/><span class="text-accent-blue">Manual. Incomplete. Late.</span></h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="bg-[#141518] p-lg rounded-lg border border-[#27282B] hover:shadow-[0_0_20px_rgba(59,130,246,0.05)] transition-shadow">
+<span class="material-symbols-outlined text-outline text-3xl mb-md">keyboard</span>
+<h3 class="font-h3 text-on-surface mb-sm">Manual Data Entry</h3>
+<p class="font-body-md text-on-surface-variant">Analysts waste countless hours transcribing PDFs into spreadsheets, introducing human error and delaying critical analysis.</p>
+</div>
+<div class="bg-[#141518] p-lg rounded-lg border border-[#27282B] hover:shadow-[0_0_20px_rgba(59,130,246,0.05)] transition-shadow">
+<span class="material-symbols-outlined text-outline text-3xl mb-md">compare_arrows</span>
+<h3 class="font-h3 text-on-surface mb-sm">Incomparable KPIs</h3>
+<p class="font-body-md text-on-surface-variant">Different companies report metrics in varying formats. Reconciling these manually is a complex, error-prone undertaking.</p>
+</div>
+<div class="bg-[#141518] p-lg rounded-lg border border-[#27282B] hover:shadow-[0_0_20px_rgba(59,130,246,0.05)] transition-shadow">
+<span class="material-symbols-outlined text-outline text-3xl mb-md">timer</span>
+<h3 class="font-h3 text-on-surface mb-sm">Always Behind</h3>
+<p class="font-body-md text-on-surface-variant">By the time the manual benchmarking is complete, the market has already reacted. Information advantage is lost.</p>
+</div>
+</div>
+</section>
+<!-- 4. Solution Section -->
+<section class="py-xxl border-t border-[#27282B] relative z-10">
+<h2 class="font-h2 text-on-surface mb-xl text-center">From PDF to Board-Ready in <span class="text-accent-blue">60 Minutes</span></h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="flex flex-col">
+<div class="text-[120px] font-black text-surface-bright/20 leading-none mb-sm">01</div>
+<h3 class="font-h3 text-on-surface mb-sm">AI Extraction</h3>
+<p class="font-body-md text-on-surface-variant">Proprietary models instantly ingest complex PDFs and identify relevant financial tables and unstructured text.</p>
+</div>
+<div class="flex flex-col">
+<div class="text-[120px] font-black text-surface-bright/20 leading-none mb-sm">02</div>
+<h3 class="font-h3 text-on-surface mb-sm">Smart Normalization</h3>
+<p class="font-body-md text-on-surface-variant">Data is automatically mapped to standardized metrics (IFRS/GAAP), ensuring apples-to-apples comparability.</p>
+</div>
+<div class="flex flex-col">
+<div class="text-[120px] font-black text-surface-bright/20 leading-none mb-sm">03</div>
+<h3 class="font-h3 text-on-surface mb-sm">Instant Comparison</h3>
+<p class="font-body-md text-on-surface-variant">View side-by-side performance across your entire peer group within minutes of publication.</p>
+</div>
+</div>
+</section>
+<!-- 5. Peer Group Table Section -->
+<section class="py-xxl border-t border-[#27282B] relative z-10">
+<h2 class="font-h2 text-on-surface mb-lg">See Every Peer at a Glance</h2>
+<div class="overflow-x-auto bg-[#141518] rounded-lg border border-[#27282B]">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-[#27282B] bg-[#1C1D20]">
+<th class="p-4 font-label-caps text-on-surface-variant">Company</th>
+<th class="p-4 font-label-caps text-on-surface-variant text-right">Revenue (CHF B)</th>
+<th class="p-4 font-label-caps text-on-surface-variant text-right">EBITDA Margin (%)</th>
+<th class="p-4 font-label-caps text-on-surface-variant text-right">Net Debt/EBITDA (x)</th>
+<th class="p-4 font-label-caps text-on-surface-variant text-right">CO2 Intensity (kg/t)</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-on-surface">
+<tr class="border-b border-[#27282B] hover:bg-[#1C1D20] transition-colors bg-[#1C1D20]/50">
+<td class="p-4 font-semibold text-accent-blue">Holcim (Focus)</td>
+<td class="p-4 text-right">29.19</td>
+<td class="p-4 text-right">20.5%</td>
+<td class="p-4 text-right">1.2x</td>
+<td class="p-4 text-right text-emerald-400">550</td>
+</tr>
+<tr class="border-b border-[#27282B] hover:bg-[#1C1D20] transition-colors">
+<td class="p-4">Heidelberg Materials</td>
+<td class="p-4 text-right">21.17</td>
+<td class="p-4 text-right">19.2%</td>
+<td class="p-4 text-right">1.4x</td>
+<td class="p-4 text-right text-error">580</td>
+</tr>
+<tr class="border-b border-[#27282B] hover:bg-[#1C1D20] transition-colors">
+<td class="p-4">CRH</td>
+<td class="p-4 text-right">32.72</td>
+<td class="p-4 text-right text-emerald-400">22.1%</td>
+<td class="p-4 text-right">1.1x</td>
+<td class="p-4 text-right">N/A</td>
+</tr>
+<tr class="border-b border-[#27282B] hover:bg-[#1C1D20] transition-colors">
+<td class="p-4">Buzzi</td>
+<td class="p-4 text-right">3.99</td>
+<td class="p-4 text-right">18.5%</td>
+<td class="p-4 text-right text-emerald-400">0.5x</td>
+<td class="p-4 text-right">610</td>
+</tr>
+<tr class="hover:bg-[#1C1D20] transition-colors">
+<td class="p-4">Cemex</td>
+<td class="p-4 text-right">15.57</td>
+<td class="p-4 text-right">17.8%</td>
+<td class="p-4 text-right text-error">2.1x</td>
+<td class="p-4 text-right text-error">620</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- 6. Trust Badges -->
+<section class="py-xl border-t border-[#27282B] relative z-10 text-center">
+<h3 class="font-h3 text-on-surface-variant mb-lg">Built for the Standards You Work With</h3>
+<div class="flex flex-wrap justify-center gap-8 md:gap-16">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline">account_balance</span>
+<span class="font-label-caps text-on-surface">IFRS / US GAAP / SWISS GAAP</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline">public</span>
+<span class="font-label-caps text-on-surface">9 GLOBAL EXCHANGES</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline">payments</span>
+<span class="font-label-caps text-on-surface">4 MAJOR CURRENCIES</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-accent-blue">verified</span>
+<span class="font-label-caps text-on-surface">95%+ EXTRACTION ACCURACY</span>
+</div>
+</div>
+</section>
+<!-- 7. Pricing Section -->
+<section class="py-xxl border-t border-[#27282B] relative z-10">
+<h2 class="font-h2 text-on-surface mb-xl text-center">Transparent Pricing. Institutional Grade.</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Starter -->
+<div class="bg-[#141518] p-8 rounded-lg border border-[#27282B] flex flex-col">
+<h3 class="font-h3 text-on-surface mb-2">Starter</h3>
+<div class="text-3xl font-bold text-on-surface mb-6">CHF 28,800<span class="text-sm font-normal text-on-surface-variant">/yr</span></div>
+<ul class="font-body-sm text-on-surface-variant space-y-4 mb-8 flex-grow">
+<li class="flex items-start gap-2"><span class="material-symbols-outlined text-accent-blue text-sm">check</span> Up to 5 Peers</li>
+<li class="flex items-start gap-2"><span class="material-symbols-outlined text-accent-blue text-sm">check</span> Standard Extraction</li>
+<li class="flex items-start gap-2"><span class="material-symbols-outlined text-accent-blue text-sm">check</span> Quarterly Updates</li>
+</ul>
+<button class="w-full bg-surface border border-[#27282B] text-[#E8EAED] px-6 py-3 rounded-full font-semibold hover:bg-surface-container transition-colors">Select Starter</button>
+</div>
+<!-- Professional -->
+<div class="bg-[#1C1D20] p-8 rounded-lg border border-accent-blue relative flex flex-col shadow-[0_0_30px_rgba(59,130,246,0.1)]">
+<div class="absolute top-0 right-8 -translate-y-1/2 bg-accent-blue text-[#0A0B0D] font-label-caps px-3 py-1 rounded-full">Most Popular</div>
+<h3 class="font-h3 text-on-surface mb-2">Professional</h3>
+<div class="text-3xl font-bold text-on-surface mb-6">CHF 58,800<span class="text-sm font-normal text-on-surface-variant">/yr</span></div>
+<ul class="font-body-sm text-on-surface-variant space-y-4 mb-8 flex-grow">
+<li class="flex items-start gap-2"><span class="material-symbols-outlined text-accent-blue text-sm">check</span> Up to 15 Peers</li>
+<li class="flex items-start gap-2"><span class="material-symbols-outlined text-accent-blue text-sm">check</span> AI Advanced Normalization</li>
+<li class="flex items-start gap-2"><span class="material-symbols-outlined text-accent-blue text-sm">check</span> Instant Alerts</li>
+<li class="flex items-start gap-2"><span class="material-symbols-outlined text-accent-blue text-sm">check</span> Excel Export</li>
+</ul>
+<button class="w-full bg-[#E8EAED] text-[#0A0B0D] px-6 py-3 rounded-full font-semibold hover:bg-white transition-colors">Select Professional</button>
+</div>
+<!-- Enterprise -->
+<div class="bg-[#141518] p-8 rounded-lg border border-[#27282B] flex flex-col">
+<h3 class="font-h3 text-on-surface mb-2">Enterprise</h3>
+<div class="text-3xl font-bold text-on-surface mb-6">CHF 118,800<span class="text-sm font-normal text-on-surface-variant">/yr</span></div>
+<ul class="font-body-sm text-on-surface-variant space-y-4 mb-8 flex-grow">
+<li class="flex items-start gap-2"><span class="material-symbols-outlined text-accent-blue text-sm">check</span> Unlimited Peers</li>
+<li class="flex items-start gap-2"><span class="material-symbols-outlined text-accent-blue text-sm">check</span> Custom API Access</li>
+<li class="flex items-start gap-2"><span class="material-symbols-outlined text-accent-blue text-sm">check</span> Dedicated Support</li>
+<li class="flex items-start gap-2"><span class="material-symbols-outlined text-accent-blue text-sm">check</span> Custom Integrations</li>
+</ul>
+<button class="w-full bg-surface border border-[#27282B] text-[#E8EAED] px-6 py-3 rounded-full font-semibold hover:bg-surface-container transition-colors">Contact Sales</button>
+</div>
+</div>
+</section>
+<!-- 8. Founding Partner CTA -->
+<section class="py-xxl my-xl bg-[#141518] border border-[#27282B] rounded-xl text-center relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-b from-accent-blue/5 to-transparent pointer-events-none"></div>
+<div class="relative z-10 max-w-3xl mx-auto px-8">
+<h2 class="font-h2 text-on-surface mb-md">Join as a Founding Partner</h2>
+<p class="font-body-md text-on-surface-variant mb-lg text-lg">Shape the future of institutional intelligence. Start with a CHF 9,500 pilot and lock in a preferred rate of CHF 48,000/yr for life.</p>
+<button class="bg-accent-blue text-white px-8 py-4 rounded-full font-semibold hover:bg-blue-600 transition-colors shadow-[0_0_20px_rgba(59,130,246,0.3)]">Apply for Founding Partner Program</button>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#0A0B0D] border-t border-[#27282B] w-full py-12 px-8 font-inter text-sm uppercase tracking-widest text-slate-500">
+<div class="flex flex-col md:flex-row justify-between items-center max-w-[1440px] mx-auto gap-8">
+<div class="text-sm font-black text-slate-100 normal-case tracking-normal">© 2024 BenchmarkSignal. High-performance institutional intelligence.</div>
+<div class="flex flex-wrap gap-6 justify-center">
+<a class="hover:text-blue-500 transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-blue-500 transition-colors" href="#">Terms of Service</a>
+<a class="hover:text-blue-500 transition-colors" href="#">API Documentation</a>
+<a class="hover:text-blue-500 transition-colors" href="#">System Status</a>
+</div>
+</div>
+</footer>
+</body></html>

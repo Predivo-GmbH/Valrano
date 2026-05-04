@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BenchmarkSignal - Institutional Grade Intelligence</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed-dim": "#c4c7ca",
+                        "surface-container-low": "#191b23",
+                        "tertiary-fixed": "#ffdcc6",
+                        "error": "#ffb4ab",
+                        "on-surface": "#e1e2ec",
+                        "surface-variant": "#32353c",
+                        "tertiary-fixed-dim": "#ffb786",
+                        "on-tertiary-container": "#461f00",
+                        "inverse-on-surface": "#2e3038",
+                        "on-primary": "#002e6a",
+                        "primary-container": "#4d8eff",
+                        "surface-bright": "#363941",
+                        "error-container": "#93000a",
+                        "on-surface-variant": "#c2c6d6",
+                        "secondary": "#c4c7ca",
+                        "background": "#10131a",
+                        "tertiary": "#ffb786",
+                        "surface-container-highest": "#32353c",
+                        "primary": "#adc6ff",
+                        "tertiary-container": "#df7412",
+                        "surface-container": "#1d2027",
+                        "secondary-container": "#44474a",
+                        "on-background": "#e1e2ec",
+                        "primary-fixed": "#d8e2ff",
+                        "on-error": "#690005",
+                        "outline-variant": "#424754",
+                        "on-primary-fixed": "#001a42",
+                        "on-tertiary-fixed-variant": "#723600",
+                        "secondary-fixed": "#e0e3e6",
+                        "primary-fixed-dim": "#adc6ff",
+                        "inverse-primary": "#005ac2",
+                        "on-secondary-fixed-variant": "#44474a",
+                        "on-primary-container": "#00285d",
+                        "on-tertiary": "#502400",
+                        "on-secondary": "#2d3133",
+                        "on-error-container": "#ffdad6",
+                        "inverse-surface": "#e1e2ec",
+                        "on-secondary-fixed": "#191c1e",
+                        "surface-container-high": "#272a31",
+                        "surface": "#10131a",
+                        "surface-tint": "#adc6ff",
+                        "on-tertiary-fixed": "#311400",
+                        "on-secondary-container": "#b3b5b8",
+                        "on-primary-fixed-variant": "#004395",
+                        "surface-container-lowest": "#0b0e15",
+                        "outline": "#8c909f",
+                        "surface-dim": "#10131a",
+                        "brand-blue": "#3B82F6",
+                        "surface-level-2": "#141518",
+                        "surface-level-3": "#1C1D20",
+                        "border-subtle": "#27282B"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "8px",
+                        "lg": "8px",
+                        "xl": "8px",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "base": "8px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "xl": "48px",
+                        "md": "16px",
+                        "xxl": "80px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "body-sm": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "body-md": ["Inter"],
+                        "h3": ["Inter"],
+                        "h1": ["Inter"],
+                        "h2": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-sm": ["13px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "label-caps": ["11px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-md": ["15px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "h3": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "h1": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "h2": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0A0B0D;
+            color: #e1e2ec;
+        }
+        .micro-shadow {
+            box-shadow: inset 0 0 0 1px #27282B, 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-background bg-background min-h-screen flex flex-col antialiased selection:bg-brand-blue selection:text-white">
+<!-- Shared Component: TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-transparent backdrop-blur-md border-b border-slate-800/50">
+<div class="max-w-[1440px] mx-auto px-8 py-4 flex justify-between items-center">
+<div class="text-xl font-bold tracking-tighter text-slate-100 font-h3">
+                BenchmarkSignal
+            </div>
+<div class="hidden md:flex items-center space-x-8">
+<a class="text-slate-400 hover:text-slate-100 transition-colors duration-200 font-body-sm tracking-tight font-medium" href="#">Product</a>
+<a class="text-slate-400 hover:text-slate-100 transition-colors duration-200 font-body-sm tracking-tight font-medium" href="#">Solutions</a>
+<a class="text-slate-400 hover:text-slate-100 transition-colors duration-200 font-body-sm tracking-tight font-medium" href="#">Pricing</a>
+<a class="text-slate-400 hover:text-slate-100 transition-colors duration-200 font-body-sm tracking-tight font-medium" href="#">About</a>
+</div>
+<div class="flex items-center space-x-4">
+<a class="text-slate-400 hover:text-slate-100 transition-colors duration-200 font-body-sm tracking-tight font-medium scale-95 active:scale-90 hidden md:block" href="#">Sign In</a>
+<a class="px-5 py-2.5 bg-[#E8EAED] text-[#0A0B0D] rounded-full font-body-sm font-semibold tracking-tight hover:bg-white transition-colors scale-95 active:scale-90" href="#">Get Started</a>
+</div>
+</div>
+</nav>
+<!-- Main Canvas -->
+<main class="flex-grow pt-[120px]">
+<!-- 1. HERO SECTION -->
+<section class="max-w-[1440px] mx-auto px-8 pt-xxl pb-[120px] text-center flex flex-col items-center justify-center min-h-[716px]">
+<h1 class="font-h1 text-h1 text-slate-100 max-w-4xl mx-auto mb-8 leading-tight">
+                Your competitors publish.<br/>You know within 60 minutes.
+            </h1>
+<p class="font-body-md text-body-md text-slate-400 max-w-3xl mx-auto mb-12 text-lg">
+                BenchmarkSignal automatically extracts, normalizes, and compares financial and ESG KPIs from every peer report — so your strategy team acts on data, not delays.
+            </p>
+<div class="flex flex-col sm:flex-row items-center justify-center gap-6">
+<a class="px-8 py-4 bg-[#E8EAED] text-[#0A0B0D] rounded-full font-body-sm font-semibold tracking-wide hover:bg-white transition-colors w-full sm:w-auto text-center" href="#">
+                    Start Your Pilot
+                </a>
+<a class="px-8 py-4 bg-surface-level-2 text-[#E8EAED] rounded-full font-body-sm font-medium tracking-wide border border-border-subtle hover:bg-surface-level-3 transition-colors w-full sm:w-auto text-center" href="#">
+                    See How It Works
+                </a>
+</div>
+</section>
+<!-- 2. PAIN POINT SECTION -->
+<section class="max-w-[1440px] mx-auto px-8 py-xxl border-t border-border-subtle">
+<div class="mb-xl">
+<h2 class="font-h2 text-h2 text-slate-100 mb-4">22 hours per quarter. Manual. Incomplete. Late.</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Card 1 -->
+<div class="bg-surface-level-2 border border-border-subtle rounded-DEFAULT p-8 hover:micro-shadow transition-shadow duration-300">
+<div class="mb-6 flex items-center justify-center w-12 h-12 bg-surface-level-3 rounded-full border border-border-subtle">
+<span class="material-symbols-outlined text-brand-blue" style="font-variation-settings: 'FILL' 0;">keyboard</span>
+</div>
+<h3 class="font-h3 text-h3 text-slate-100 mb-4">Manual Data Entry</h3>
+<p class="font-body-sm text-body-sm text-slate-400">
+                        Re-keying numbers from 15+ PDFs into Excel. Different formats, languages, currencies.
+                    </p>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-level-2 border border-border-subtle rounded-DEFAULT p-8 hover:micro-shadow transition-shadow duration-300">
+<div class="mb-6 flex items-center justify-center w-12 h-12 bg-surface-level-3 rounded-full border border-border-subtle">
+<span class="material-symbols-outlined text-brand-blue" style="font-variation-settings: 'FILL' 0;">compare_arrows</span>
+</div>
+<h3 class="font-h3 text-h3 text-slate-100 mb-4">Incomparable KPIs</h3>
+<p class="font-body-sm text-body-sm text-slate-400">
+                        Holcim reports "Recurring EBIT," Heidelberg uses "RCOBD," CRH calls it "Adjusted EBITDA." Same metric, different names.
+                    </p>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-level-2 border border-border-subtle rounded-DEFAULT p-8 hover:micro-shadow transition-shadow duration-300">
+<div class="mb-6 flex items-center justify-center w-12 h-12 bg-surface-level-3 rounded-full border border-border-subtle">
+<span class="material-symbols-outlined text-brand-blue" style="font-variation-settings: 'FILL' 0;">schedule</span>
+</div>
+<h3 class="font-h3 text-h3 text-slate-100 mb-4">Always Behind</h3>
+<p class="font-body-sm text-body-sm text-slate-400">
+                        By the time your comparison is ready, the data is weeks old. Your CEO asks about a competitor's results you haven't processed yet.
+                    </p>
+</div>
+</div>
+</section>
+</main>
+<!-- Shared Component: Footer -->
+<footer class="bg-[#0A0B0D] w-full py-12 border-t border-slate-800 mt-xxl">
+<div class="max-w-[1440px] mx-auto px-8 flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="text-lg font-black text-slate-100 font-h3 tracking-tighter">
+                BenchmarkSignal
+            </div>
+<div class="flex flex-wrap justify-center gap-8">
+<a class="text-slate-500 hover:text-slate-300 transition-colors font-label-caps text-label-caps opacity-80 hover:opacity-100" href="#">Terms</a>
+<a class="text-slate-500 hover:text-slate-300 transition-colors font-label-caps text-label-caps opacity-80 hover:opacity-100" href="#">Privacy</a>
+<a class="text-slate-500 hover:text-slate-300 transition-colors font-label-caps text-label-caps opacity-80 hover:opacity-100" href="#">Security</a>
+<a class="text-slate-500 hover:text-slate-300 transition-colors font-label-caps text-label-caps opacity-80 hover:opacity-100" href="#">Contact</a>
+</div>
+<div class="font-label-caps text-label-caps text-slate-500 opacity-80 text-center md:text-right">
+                © 2024 BenchmarkSignal by Predivo GmbH, Zug, Switzerland. Institutional grade intelligence.
+            </div>
+</div>
+</footer>
+</body></html>

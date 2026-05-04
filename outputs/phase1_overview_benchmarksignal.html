@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 1 — Idea Validation: BenchmarkSignal</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface-2: #1a1a26;
+    --border: #2a2a3a;
+    --text: #e4e4ed;
+    --text-muted: #8888a0;
+    --accent: #6366f1;
+    --accent-light: #818cf8;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --cyan: #06b6d4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 0;
+  }
+
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10, 10, 15, 0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    overflow-x: auto;
+  }
+  nav .brand {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--accent-light);
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+  }
+  nav a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 13px;
+    white-space: nowrap;
+    transition: color 0.2s;
+  }
+  nav a:hover { color: var(--text); }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  .hero {
+    text-align: center;
+    padding: 64px 24px 48px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(6,182,212,0.06) 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  .hero h1 {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, var(--accent-light), var(--cyan));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero .subtitle {
+    font-size: 18px;
+    color: var(--text-muted);
+    max-width: 760px;
+    margin: 0 auto 24px;
+  }
+  .hero .date {
+    font-size: 13px;
+    color: var(--text-muted);
+    opacity: 0.7;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 48px 0 24px;
+    scroll-margin-top: 72px;
+  }
+  .section-header .num {
+    background: var(--accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-header h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .card h3 {
+    font-size: 14px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .card .value {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -1px;
+  }
+  .card .detail {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .accent { color: var(--accent-light); }
+  .green { color: var(--green); }
+  .amber { color: var(--amber); }
+  .cyan { color: var(--cyan); }
+  .red { color: var(--red); }
+
+  .table-wrapper {
+    overflow-x: auto;
+    margin: 16px 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  thead th {
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tbody tr:hover { background: rgba(99,102,241,0.04); }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.3px;
+  }
+  .tag-green { background: rgba(34,197,94,0.15); color: var(--green); }
+  .tag-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .tag-amber { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .tag-accent { background: rgba(99,102,241,0.15); color: var(--accent-light); }
+  .tag-cyan { background: rgba(6,182,212,0.15); color: var(--cyan); }
+
+  .gap-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+  }
+  .gap-bar .bar {
+    height: 10px;
+    border-radius: 5px;
+    transition: width 0.4s;
+  }
+  .gap-bar .label { font-size: 13px; color: var(--text-muted); white-space: nowrap; min-width: 140px; }
+  .gap-bar .score { font-size: 13px; font-weight: 600; white-space: nowrap; }
+
+  .competitor-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 12px;
+  }
+  .competitor-card h4 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .competitor-card .meta {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .quote-block {
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 12px 0;
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .quote-block .src {
+    font-style: normal;
+    font-weight: 600;
+    color: var(--accent-light);
+    font-size: 12px;
+    display: block;
+    margin-top: 6px;
+  }
+
+  .score-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .score-badge .score { font-size: 28px; font-weight: 800; }
+
+  .verdict {
+    background: linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(6,182,212,0.08) 100%);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+    margin: 32px 0;
+  }
+  .verdict h3 {
+    font-size: 14px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+  }
+  .verdict .result {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .verdict .conditions {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 12px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .prose { max-width: 800px; }
+  .prose p { margin-bottom: 12px; }
+  .prose ul { padding-left: 20px; margin-bottom: 12px; }
+  .prose li { margin-bottom: 4px; }
+
+  footer {
+    text-align: center;
+    padding: 40px 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 26px; }
+    .card .value { font-size: 24px; }
+    nav { padding: 10px 16px; gap: 16px; }
+    .container { padding: 24px 16px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="brand">PHASE 1</span>
+  <a href="#market">Market</a>
+  <a href="#pain">Pain Points</a>
+  <a href="#competitors">Competitors</a>
+  <a href="#gap">Gap Matrix</a>
+  <a href="#moat">Moat</a>
+  <a href="#revenue">Revenue</a>
+  <a href="#risks">Risks</a>
+  <a href="#verdict">Verdict</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>BenchmarkSignal</h1>
+  <p class="subtitle">Fully automated competitive benchmarking for listed corporations. Vision-LLM extraction, multi-currency normalization, AI-powered briefings &mdash; within 60 minutes of any peer publication.</p>
+  <p class="date">Phase 1 &mdash; Idea Validation &bull; 4 May 2026 &bull; Predivo GmbH</p>
+</div>
+
+<div class="container">
+
+  <!-- 1. MARKET OVERVIEW -->
+  <div class="section-header" id="market">
+    <span class="num">1</span>
+    <h2>Market Opportunity</h2>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <h3>TAM</h3>
+      <div class="value accent">$2.0&ndash;3.4B</div>
+      <div class="detail">CI tools + ESG reporting software (2025)</div>
+    </div>
+    <div class="card">
+      <h3>SAM</h3>
+      <div class="value cyan">$300M&ndash;1.0B</div>
+      <div class="detail">Financial peer benchmarking for listed companies</div>
+    </div>
+    <div class="card">
+      <h3>SOM Year 1&ndash;3</h3>
+      <div class="value green">CHF 0.5&ndash;1.6M</div>
+      <div class="detail">Building materials vertical (150&ndash;200 companies)</div>
+    </div>
+    <div class="card">
+      <h3>SOM Year 3&ndash;5</h3>
+      <div class="value amber">CHF 1.6&ndash;12M</div>
+      <div class="detail">Broader industrials (2,000&ndash;3,000 companies)</div>
+    </div>
+    <div class="card">
+      <h3>Listed Companies Worldwide</h3>
+      <div class="value">60,633</div>
+      <div class="detail">WFE members, Dec 2025</div>
+    </div>
+    <div class="card">
+      <h3>Market CAGR</h3>
+      <div class="value cyan">10&ndash;21%</div>
+      <div class="detail">CI software market consensus growth rate</div>
+    </div>
+  </div>
+
+  <div style="margin-top: 24px;">
+    <h3 style="font-size: 16px; margin-bottom: 12px;">Pricing Sweet Spot</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Tier</th><th>Peers</th><th>Features</th><th>Price / Year</th></tr></thead>
+        <tbody>
+          <tr><td>Starter</td><td>5</td><td>Quarterly reports, financial KPIs</td><td>CHF 24,000&ndash;36,000</td></tr>
+          <tr><td style="color: var(--accent-light); font-weight: 600;">Professional</td><td style="font-weight: 600;">15</td><td style="font-weight: 600;">Quarterly + annual, financial + ESG</td><td style="color: var(--accent-light); font-weight: 600;">CHF 48,000&ndash;72,000</td></tr>
+          <tr><td>Enterprise</td><td>25+</td><td>Real-time, custom KPIs, API access</td><td>CHF 96,000&ndash;144,000</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pilot Peer Group -->
+  <div style="margin-top: 24px;">
+    <h3 style="font-size: 16px; margin-bottom: 12px;">Pilot Peer Group (Building Materials)</h3>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Company</th><th>HQ</th><th>Exchange</th><th>Market Cap</th><th>Std</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Holcim AG</strong></td><td>CH</td><td>SIX</td><td>$52.8B</td><td>IFRS</td></tr>
+          <tr><td>CRH plc</td><td>IE</td><td>NYSE</td><td>$56.5B</td><td>IFRS</td></tr>
+          <tr><td>Heidelberg Materials</td><td>DE</td><td>XETRA</td><td>$34.9B</td><td>IFRS</td></tr>
+          <tr><td>UltraTech Cement</td><td>IN</td><td>BSE/NSE</td><td>$28B</td><td>Ind AS</td></tr>
+          <tr><td>CEMEX</td><td>MX</td><td>NYSE/BMV</td><td>$8B</td><td>IFRS</td></tr>
+          <tr><td>Eagle Materials</td><td>US</td><td>NYSE</td><td>$8B</td><td>US GAAP</td></tr>
+          <tr><td>Buzzi SpA</td><td>IT</td><td>BIT</td><td>$7B</td><td>IFRS</td></tr>
+          <tr><td>Summit Materials</td><td>US</td><td>NYSE</td><td>$7B</td><td>US GAAP</td></tr>
+          <tr><td>Vicat SA</td><td>FR</td><td>Euronext</td><td>EUR 4B</td><td>IFRS</td></tr>
+          <tr><td>Saint-Gobain</td><td>FR</td><td>Euronext</td><td>EUR 45B</td><td>IFRS</td></tr>
+          <tr><td>Sika AG</td><td>CH</td><td>SIX</td><td>CHF 40B</td><td>IFRS</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">+ Cementir, Cementos Argos, Titan Cement, James Hardie, Boral, Ambuja, Anhui Conch, Taiheiyo, Amrize</p>
+  </div>
+
+  <!-- 2. PAIN POINTS -->
+  <div class="section-header" id="pain">
+    <span class="num">2</span>
+    <h2>Customer Pain &mdash; Exact Language</h2>
+  </div>
+
+  <div class="quote-block">"Peer benchmarking is a vexing task for financial analysts but one that is critical for forecasting earnings."<span class="src">CFA Institute, 2024</span></div>
+  <div class="quote-block">"Time-consuming manual research &mdash; aggregating data from disparate sources drains analyst hours."<span class="src">DFIN (Donnelley Financial Solutions)</span></div>
+  <div class="quote-block">"AI has the potential to turn weeks of manual peer review into minutes."<span class="src">DFIN</span></div>
+  <div class="quote-block">"While the information may be publicly available, it is likely to be widely dispersed and time-consuming to gather."<span class="src">Corporate Finance Institute</span></div>
+  <div class="quote-block">64% of IR professionals cited "lack of customization" as the primary reason for switching tools.<span class="src">IR Magazine, 2025</span></div>
+
+  <h3 style="font-size: 16px; margin: 24px 0 12px;">Quantified Pain</h3>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Manual Time per Cycle</h3>
+      <div class="value red">22&ndash;44h</div>
+      <div class="detail">3&ndash;5 working days to benchmark 15 peers</div>
+    </div>
+    <div class="card">
+      <h3>Cycles per Year</h3>
+      <div class="value amber">4+</div>
+      <div class="detail">Earnings season + board meetings + ad-hoc</div>
+    </div>
+    <div class="card">
+      <h3>Analyst Salary</h3>
+      <div class="value">$80&ndash;105K</div>
+      <div class="detail">Strategy analyst doing the manual work</div>
+    </div>
+    <div class="card">
+      <h3>Consulting Alternative</h3>
+      <div class="value red">$300K&ndash;5M</div>
+      <div class="detail">McKinsey / BCG per engagement</div>
+    </div>
+  </div>
+
+  <h3 style="font-size: 16px; margin: 24px 0 12px;">The 6 Pain Dimensions</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>#</th><th>Problem</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>Asynchronous publications</strong></td><td>15 peers publish at different times in different formats</td></tr>
+        <tr><td>2</td><td><strong>Definitional heterogeneity</strong></td><td>Recurring EBIT (Holcim) vs RCO (Heidelberg) vs Adjusted EBITDA (CRH)</td></tr>
+        <tr><td>3</td><td><strong>Currency &amp; standard differences</strong></td><td>CHF, EUR, USD under IFRS, US GAAP, Swiss GAAP FER</td></tr>
+        <tr><td>4</td><td><strong>Structural breaks</strong></td><td>Holcim/Amrize spinoff 2025 distorts historical comparisons</td></tr>
+        <tr><td>5</td><td><strong>ESG data chaos</strong></td><td>CO2 intensity, clinker factor, alt fuel share &mdash; every peer reports differently</td></tr>
+        <tr><td>6</td><td><strong>Late reaction</strong></td><td>Management reacts days/weeks after competitor moves</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 3. COMPETITORS -->
+  <div class="section-header" id="competitors">
+    <span class="num">3</span>
+    <h2>Competitive Landscape</h2>
+  </div>
+
+  <p style="color: var(--text-muted); margin-bottom: 20px;">25 competitors analyzed across 5 categories. No tool combines automated PDF extraction + normalization + corporate benchmarking.</p>
+
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Category</th><th>Key Players</th><th>Price / Seat / Year</th><th>Corp. Benchmarking?</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Financial Terminals</strong></td>
+          <td>Bloomberg, FactSet, S&amp;P CapIQ, Refinitiv</td>
+          <td>$12K&ndash;32K</td>
+          <td><span class="tag tag-amber">Manual</span></td>
+        </tr>
+        <tr>
+          <td><strong>AI Financial Intel</strong></td>
+          <td>AlphaSense, Daloopa, Hebbia, Fintool, Brightwave</td>
+          <td>$10K&ndash;20K</td>
+          <td><span class="tag tag-amber">Partial</span></td>
+        </tr>
+        <tr>
+          <td><strong>CI Platforms</strong></td>
+          <td>Crayon, Klue, Contify, Kompyte</td>
+          <td>$15K&ndash;60K</td>
+          <td><span class="tag tag-red">No</span></td>
+        </tr>
+        <tr>
+          <td><strong>ESG Rating</strong></td>
+          <td>MSCI ESG, Sustainalytics, ISS, Clarity AI, CDP</td>
+          <td>$20K&ndash;100K+</td>
+          <td><span class="tag tag-red">No</span></td>
+        </tr>
+        <tr>
+          <td><strong>Consulting</strong></td>
+          <td>McKinsey, BCG, Bain, CW Group</td>
+          <td>$300K&ndash;5M / engagement</td>
+          <td><span class="tag tag-green">Yes</span> <span style="font-size: 12px; color: var(--text-muted);">(manual, slow)</span></td>
+        </tr>
+        <tr style="background: rgba(99,102,241,0.08); font-weight: 600;">
+          <td style="color: var(--accent-light);">BenchmarkSignal</td>
+          <td style="color: var(--accent-light);">New entrant</td>
+          <td style="color: var(--accent-light);">CHF 48&ndash;72K</td>
+          <td><span class="tag tag-green">Automated</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-size: 16px; margin: 24px 0 12px;">Closest Competitor: AlphaSense ($500M ARR)</h3>
+  <div class="card" style="border-color: var(--amber);">
+    <div class="prose" style="font-size: 14px;">
+      <p><strong>What they do:</strong> AI-powered document search across SEC filings, earnings transcripts, broker research, news. 7,000 enterprise customers.</p>
+      <p><strong>Why it's not BenchmarkSignal:</strong></p>
+      <ul>
+        <li>Search/retrieval tool, not a structured benchmarking platform</li>
+        <li>Cannot extract KPIs from European PDF reports (custom layouts, IFRS, multilingual)</li>
+        <li>No multi-currency normalization or KPI taxonomy mapping</li>
+        <li>Built for investors (hedge funds, equity research), not corporate strategy teams</li>
+        <li>G2/Gartner reviews cite "noisy/incomplete financial data"</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 4. GAP MATRIX -->
+  <div class="section-header" id="gap">
+    <span class="num">4</span>
+    <h2>Gap Matrix &mdash; 13-Feature Comparison</h2>
+  </div>
+
+  <h3 style="font-size: 16px; margin-bottom: 16px;">Feature Score (out of 13)</h3>
+  <div style="max-width: 700px;">
+    <div class="gap-bar">
+      <span class="label" style="color: var(--accent-light); font-weight: 700;">BenchmarkSignal</span>
+      <div class="bar" style="width: 100%; background: var(--accent); flex: 1;"></div>
+      <span class="score accent">13.0</span>
+    </div>
+    <div class="gap-bar">
+      <span class="label">AlphaSense</span>
+      <div class="bar" style="width: 50%; background: var(--amber); flex: 1; max-width: 50%;"></div>
+      <span class="score amber">6.5</span>
+    </div>
+    <div class="gap-bar">
+      <span class="label">Bloomberg</span>
+      <div class="bar" style="width: 42%; background: var(--amber); flex: 1; max-width: 42%;"></div>
+      <span class="score amber">5.5</span>
+    </div>
+    <div class="gap-bar">
+      <span class="label">Fintool (MSFT)</span>
+      <div class="bar" style="width: 38%; background: var(--text-muted); flex: 1; max-width: 38%;"></div>
+      <span class="score">5.0</span>
+    </div>
+    <div class="gap-bar">
+      <span class="label">FactSet / CapIQ</span>
+      <div class="bar" style="width: 35%; background: var(--text-muted); flex: 1; max-width: 35%;"></div>
+      <span class="score">4.5</span>
+    </div>
+    <div class="gap-bar">
+      <span class="label">Clarity AI (ESG)</span>
+      <div class="bar" style="width: 27%; background: var(--text-muted); flex: 1; max-width: 27%;"></div>
+      <span class="score">3.5</span>
+    </div>
+    <div class="gap-bar">
+      <span class="label">Crayon / Klue</span>
+      <div class="bar" style="width: 19%; background: var(--text-muted); flex: 1; max-width: 19%;"></div>
+      <span class="score">2.5</span>
+    </div>
+  </div>
+
+  <h3 style="font-size: 16px; margin: 32px 0 12px;">The 6 Gaps No Competitor Fills</h3>
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Gap</th><th>What's Missing</th><th>Closest Competitor</th><th>Their Limitation</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="tag tag-red">1</span></td>
+          <td><strong>Corporate buyer focus</strong></td>
+          <td>AlphaSense</td>
+          <td>Investor-focused workflows; corporate self-benchmarking is an afterthought</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-red">2</span></td>
+          <td><strong>Vision-LLM extraction from international PDFs</strong></td>
+          <td>Daloopa</td>
+          <td>&gt;99% accuracy but US SEC filings only; no European IFRS support</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-red">3</span></td>
+          <td><strong>Financial + ESG in one workflow</strong></td>
+          <td>Clarity AI</td>
+          <td>Strong ESG analytics but zero financial KPI extraction</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-red">4</span></td>
+          <td><strong>60-minute time to insight</strong></td>
+          <td>AlphaSense</td>
+          <td>Hours after ingestion; no structured extraction or normalization</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-red">5</span></td>
+          <td><strong>KPI taxonomy mapping</strong></td>
+          <td>Fintool</td>
+          <td>Partial GAAP line-item mapping, US-only</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-red">6</span></td>
+          <td><strong>Mid-cap price accessibility</strong></td>
+          <td>Koyfin</td>
+          <td>Affordable but no extraction, no ESG, no benchmarking workflow</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 5. MOAT -->
+  <div class="section-header" id="moat">
+    <span class="num">5</span>
+    <h2>Competitive Moat</h2>
+  </div>
+
+  <div class="card-grid">
+    <div class="card" style="border-color: var(--accent);">
+      <h3>Layer 1: Extraction Engine</h3>
+      <p style="font-size: 14px;">Vision-LLM extraction from heterogeneous international PDFs. Custom prompts tuned across 15+ report formats, 4 languages.</p>
+      <div class="detail" style="margin-top: 8px;">Time to replicate: <strong class="amber">6&ndash;12 months</strong></div>
+    </div>
+    <div class="card" style="border-color: var(--accent);">
+      <h3>Layer 2: KPI Taxonomy</h3>
+      <p style="font-size: 14px;">Canonical mapping of company-specific KPIs (Recurring EBIT, RCO, RCOBD, Adjusted EBITDA). Domain knowledge as data.</p>
+      <div class="detail" style="margin-top: 8px;">Time to replicate: <strong class="amber">3&ndash;6 months per vertical</strong></div>
+    </div>
+    <div class="card" style="border-color: var(--accent);">
+      <h3>Layer 3: Corporate-First UX</h3>
+      <p style="font-size: 14px;">Every screen designed for CFO/CSO/IRO workflows. Earnings prep, board packages, ESG trajectories. No investor paradigm.</p>
+      <div class="detail" style="margin-top: 8px;">Incumbents need: <strong class="amber">separate product line</strong></div>
+    </div>
+    <div class="card" style="border-color: var(--accent);">
+      <h3>Layer 4: Price Point</h3>
+      <p style="font-size: 14px;">CHF 48&ndash;72K/yr vs $100K+ for Bloomberg/FactSet bundles. No trading data, no portfolio analytics = leaner cost.</p>
+      <div class="detail" style="margin-top: 8px;">Incumbents: <strong class="red">can't unbundle</strong></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top: 16px; border-color: var(--green);">
+    <h3>Data Flywheel</h3>
+    <p style="font-size: 14px;">Every report processed improves extraction accuracy. Every company onboarded enriches the KPI taxonomy. This compounds over time and creates switching costs.</p>
+  </div>
+
+  <!-- 6. REVENUE -->
+  <div class="section-header" id="revenue">
+    <span class="num">6</span>
+    <h2>Revenue Projections</h2>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>Scenario</th><th>Year 1 ARR</th><th>Year 2 ARR</th><th>Year 3 ARR</th><th>Customers (Y3)</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Conservative</td>
+          <td>CHF 180K</td>
+          <td>CHF 540K</td>
+          <td>CHF 1.2M</td>
+          <td>18</td>
+        </tr>
+        <tr style="background: rgba(99,102,241,0.06);">
+          <td><strong>Base</strong></td>
+          <td><strong>CHF 360K</strong></td>
+          <td><strong>CHF 1.2M</strong></td>
+          <td><strong style="color: var(--accent-light);">CHF 3.0M</strong></td>
+          <td><strong>35</strong></td>
+        </tr>
+        <tr>
+          <td>Optimistic</td>
+          <td>CHF 600K</td>
+          <td>CHF 2.4M</td>
+          <td style="color: var(--green); font-weight: 600;">CHF 6.0M</td>
+          <td>55</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-size: 16px; margin: 24px 0 12px;">Monthly MRR Trajectory</h3>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Month 12 MRR (Base)</h3>
+      <div class="value accent">CHF 30K</div>
+      <div class="detail">6 customers, CHF 60K avg ACV</div>
+    </div>
+    <div class="card">
+      <h3>Month 24 MRR (Base)</h3>
+      <div class="value cyan">CHF 100K</div>
+      <div class="detail">15 customers, expansion to chemicals/metals</div>
+    </div>
+    <div class="card">
+      <h3>Month 36 MRR (Base)</h3>
+      <div class="value green">CHF 250K</div>
+      <div class="detail">35 customers, Professional + Enterprise mix</div>
+    </div>
+  </div>
+
+  <h3 style="font-size: 16px; margin: 24px 0 12px;">Expansion Path</h3>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div class="competitor-card" style="border-color: var(--accent);">
+      <h4>Year 1: Building Materials</h4>
+      <div class="meta">15 peers, Holcim anchor + 5&ndash;8 customers. CHF/EUR/USD/GBP, IFRS + US GAAP.</div>
+    </div>
+    <div class="competitor-card">
+      <h4>Year 2: Adjacent Industrials</h4>
+      <div class="meta">Chemicals (BASF/Linde peers), metals (ArcelorMittal peers). Reuses 80% of platform.</div>
+    </div>
+    <div class="competitor-card">
+      <h4>Year 3: Broader Industrials</h4>
+      <div class="meta">Construction, mining, automotive suppliers. Consulting channel partners (PwC, KPMG).</div>
+    </div>
+    <div class="competitor-card">
+      <h4>Year 4+: Cross-Sector</h4>
+      <div class="meta">Pharma, telecom, banking. Only KPI taxonomy needs vertical-specific config.</div>
+    </div>
+  </div>
+
+  <!-- 7. RISKS -->
+  <div class="section-header" id="risks">
+    <span class="num">7</span>
+    <h2>Key Risks</h2>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>#</th><th>Risk</th><th>Likelihood</th><th>Impact</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td><strong>Extraction accuracy &lt;98%</strong></td>
+          <td><span class="tag tag-amber">Medium</span></td>
+          <td><span class="tag tag-red">High</span></td>
+          <td>Multi-model voting, human review queue, iterative prompt tuning. Accept 95% for launch.</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><strong>LLM cost overrun</strong></td>
+          <td><span class="tag tag-amber">Medium</span></td>
+          <td><span class="tag tag-amber">Medium</span></td>
+          <td>Prompt caching, Sonnet-first routing, budget caps. Must stay &lt;CHF 50/report.</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td><strong>Enterprise sales cycle too long</strong></td>
+          <td><span class="tag tag-red">High</span></td>
+          <td><span class="tag tag-red">High</span></td>
+          <td>Holcim warm intro, free pilot, target strategy/IR (not IT), consulting channel.</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td><strong>Data access / compliance</strong></td>
+          <td><span class="tag tag-green">Low</span></td>
+          <td><span class="tag tag-red">High</span></td>
+          <td>Public data only. Compliance layer respects robots.txt and rate limits.</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td><strong>Single-vertical concentration</strong></td>
+          <td><span class="tag tag-amber">Medium</span></td>
+          <td><span class="tag tag-amber">Medium</span></td>
+          <td>Multi-vertical architecture from Day 1. Industry-specific config, not code.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- BUILDABILITY -->
+  <div style="margin-top: 32px;">
+    <h3 style="font-size: 16px; margin-bottom: 16px;">Buildability</h3>
+    <div class="card-grid">
+      <div class="card" style="border-color: var(--accent);">
+        <h3>Buildability Score</h3>
+        <div class="score-badge">
+          <span class="score amber">7</span> <span>/ 10</span>
+        </div>
+        <div class="detail" style="margin-top: 8px;">Full scope. Vision-LLM extraction + normalization are technically proven but require deep prompt engineering and domain knowledge.</div>
+      </div>
+      <div class="card" style="border-color: var(--green);">
+        <h3>Backup: BenchmarkSignal Lite</h3>
+        <div class="score-badge">
+          <span class="score green">8</span> <span>/ 10</span>
+        </div>
+        <div class="detail" style="margin-top: 8px;">Extraction + normalization + comparison tables only. No ESG/sentiment/AI features. 3&ndash;4 weeks. CHF 18&ndash;30K/yr. Still zero competitors.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. VERDICT -->
+  <div class="section-header" id="verdict">
+    <span class="num">8</span>
+    <h2>Verdict</h2>
+  </div>
+
+  <div class="verdict">
+    <h3>Recommendation</h3>
+    <div class="result amber">CONDITIONAL GO</div>
+    <div class="conditions">
+      <p style="margin-bottom: 12px;"><strong>Three conditions before full commitment:</strong></p>
+      <p><strong>1.</strong> Validate extraction accuracy on 5 real reports (Holcim, Heidelberg, CRH, Vicat, Buzzi) in Week 0&ndash;1. Target: 95%+ on core financial KPIs.</p>
+      <p style="margin-top: 8px;"><strong>2.</strong> Secure verbal pilot commitment from Holcim (or equivalent) before Week 3.</p>
+      <p style="margin-top: 8px;"><strong>3.</strong> Cap build investment at USD 5,000 in infrastructure/API costs for first 8 weeks.</p>
+    </div>
+  </div>
+
+  <h3 style="font-size: 16px; margin: 24px 0 12px;">Recommended First Milestone: Extraction PoC (Week 0&ndash;1)</h3>
+  <div class="card" style="border-color: var(--cyan);">
+    <div class="prose" style="font-size: 14px;">
+      <p><strong>Deliverable:</strong> Extract financial KPIs from 5 historical annual reports, normalize to CHF, map to canonical taxonomy, produce a single comparison table.</p>
+      <p><strong>Success criteria:</strong></p>
+      <ul>
+        <li>95%+ accuracy on core financial KPIs</li>
+        <li>Cross-currency normalization working</li>
+        <li>KPI taxonomy correctly maps company-specific definitions</li>
+        <li>Total extraction time under 10 minutes per report</li>
+      </ul>
+      <p style="margin-top: 8px;">This validates the core technical risk <strong>before</strong> committing to the full 8&ndash;10 week build.</p>
+    </div>
+  </div>
+
+  <!-- Regulatory Tailwinds -->
+  <h3 style="font-size: 16px; margin: 32px 0 12px;">Regulatory Tailwinds Creating Demand</h3>
+  <div class="card-grid">
+    <div class="card">
+      <h3>CSRD (EU)</h3>
+      <p style="font-size: 14px;">~11,700 companies reporting ESG from FY2024. Even post-Omnibus narrowing, creates flood of comparable ESG data.</p>
+    </div>
+    <div class="card">
+      <h3>ISSB (Global)</h3>
+      <p style="font-size: 14px;">21 jurisdictions adopted, 30+ moving toward mandatory. Global baseline for sustainability disclosures.</p>
+    </div>
+    <div class="card">
+      <h3>California Climate</h3>
+      <p style="font-size: 14px;">SB 253/261 mandatory from Jan 2026. SEC rules effectively dead, but state-level + investor pressure continues.</p>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Phase 1 &mdash; Idea Validation &bull; BenchmarkSignal &bull; Predivo GmbH &bull; 4 May 2026<br>
+  Sources: CFA Institute, DFIN, IR Magazine, WFE, Technavio, Fortune BI, Mordor Intelligence, Sacra, G2, Gartner, S&amp;P Global, KPMG, and 30+ additional sources cited in full reports.
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BenchmarkSignal Brand Book</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+  <style>
+    /* ===== CSS Custom Properties (Design Tokens) ===== */
+    :root {
+      /* Dark Mode (default) */
+      --bg-primary: #0A0B0D;
+      --bg-secondary: #141518;
+      --bg-tertiary: #1C1D20;
+      --bg-elevated: #272A31;
+      --text-primary: #E8EAED;
+      --text-secondary: #9CA3AF;
+      --text-muted: #94A3B8;
+      --accent: #3B82F6;
+      --accent-hover: #2563EB;
+      --accent-light: #ADC6FF;
+      --accent-container: #4D8EFF;
+      --signal-green: #22C55E;
+      --signal-red: #EF4444;
+      --signal-amber: #F59E0B;
+      --border: #27282B;
+      --border-subtle: #1C1D20;
+      --surface-container: #1D2027;
+      --surface-container-low: #191B23;
+      --surface-container-high: #272A31;
+      --surface-container-highest: #32353C;
+      --outline: #8C909F;
+      --outline-variant: #424754;
+
+      /* Light Mode */
+      --light-bg-primary: #FFFFFF;
+      --light-bg-secondary: #F8F9FA;
+      --light-bg-tertiary: #F1F3F5;
+      --light-bg-elevated: #FFFFFF;
+      --light-text-primary: #111827;
+      --light-text-secondary: #6B7280;
+      --light-text-muted: #9CA3AF;
+      --light-accent: #2563EB;
+      --light-accent-hover: #1D4ED8;
+      --light-signal-green: #16A34A;
+      --light-signal-red: #DC2626;
+      --light-signal-amber: #D97706;
+      --light-border: #E5E7EB;
+      --light-border-subtle: #F1F3F5;
+
+      /* Typography */
+      --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
+      /* Spacing */
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 48px;
+      --space-xxl: 80px;
+      --gutter: 24px;
+
+      /* Border Radius */
+      --radius-sm: 4px;
+      --radius-default: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      --radius-full: 9999px;
+
+      /* Layout */
+      --max-width: 1440px;
+      --nav-height: 64px;
+      --section-padding: 80px;
+      --card-padding: 32px;
+
+      /* Shadows */
+      --shadow-button-primary: rgba(0,0,0,0) 0px 8px 2px 0px, rgba(0,0,0,0.01) 0px 5px 2px 0px, rgba(0,0,0,0.04) 0px 3px 2px 0px, rgba(0,0,0,0.07) 0px 1px 1px 0px, rgba(0,0,0,0.08) 0px 0px 1px 0px;
+      --shadow-button-secondary: rgba(255,255,255,0.03) 0px 0px 0px 1px inset, rgba(255,255,255,0.04) 0px 1px 0px 0px inset, rgba(0,0,0,0.6) 0px 0px 0px 1px, rgba(0,0,0,0.1) 0px 4px 4px 0px;
+      --shadow-card-highlight: 0 0 40px rgba(59, 130, 246, 0.1);
+
+      /* Animation */
+      --transition: all 200ms ease;
+      --color-transition: color 200ms ease, background-color 200ms ease;
+    }
+
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: calc(var(--nav-height) + 24px);
+    }
+
+    body {
+      font-family: var(--font-primary);
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ===== Sticky Navigation ===== */
+    .brand-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: var(--nav-height);
+      background: rgba(10, 11, 13, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+    }
+
+    .brand-nav__inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 var(--gutter);
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: var(--space-lg);
+      overflow-x: auto;
+    }
+
+    .brand-nav__logo {
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .brand-nav__links {
+      display: flex;
+      gap: var(--space-md);
+      list-style: none;
+      flex-shrink: 0;
+    }
+
+    .brand-nav__links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      transition: var(--color-transition);
+    }
+
+    .brand-nav__links a:hover { color: var(--text-primary); }
+
+    /* ===== Section Layout ===== */
+    .section {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: var(--section-padding) var(--gutter);
+    }
+
+    .section + .section {
+      border-top: 1px solid var(--border);
+    }
+
+    .section__label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: var(--space-sm);
+    }
+
+    .section__title {
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      margin-bottom: var(--space-lg);
+    }
+
+    .section__subtitle {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      max-width: 640px;
+      margin-bottom: var(--space-xl);
+    }
+
+    /* ===== Hero / Cover ===== */
+    .hero {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 120px var(--gutter) var(--section-padding);
+      text-align: center;
+    }
+
+    .hero__badge {
+      display: inline-block;
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: var(--space-xs) var(--space-md);
+      border-radius: var(--radius-full);
+      margin-bottom: var(--space-lg);
+    }
+
+    .hero__title {
+      font-size: 80px;
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      color: var(--text-primary);
+      margin-bottom: var(--space-lg);
+    }
+
+    .hero__desc {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 0 auto var(--space-xl);
+    }
+
+    .hero__version {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ===== Grid Utilities ===== */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gutter); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gutter); }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gutter); }
+    .grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--gutter); }
+
+    /* ===== Color Swatch ===== */
+    .swatch-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-default);
+      overflow: hidden;
+    }
+
+    .swatch-card__color {
+      height: 80px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .swatch-card__info {
+      padding: var(--space-md);
+    }
+
+    .swatch-card__hex {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .swatch-card__role {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .swatch-card__name {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    /* ===== Typography Specimen ===== */
+    .type-specimen {
+      padding: var(--space-lg) 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .type-specimen:last-child { border-bottom: none; }
+
+    .type-specimen__meta {
+      display: flex;
+      gap: var(--space-md);
+      margin-bottom: var(--space-sm);
+      flex-wrap: wrap;
+    }
+
+    .type-specimen__tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* ===== Card ===== */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-default);
+      padding: var(--card-padding);
+    }
+
+    .card--highlighted {
+      border-color: var(--accent);
+      box-shadow: var(--shadow-card-highlight);
+    }
+
+    /* ===== Spacing Demo ===== */
+    .spacing-demo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      padding: var(--space-md) 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .spacing-demo__bar {
+      background: var(--accent);
+      height: 24px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      opacity: 0.8;
+    }
+
+    .spacing-demo__label {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      min-width: 100px;
+    }
+
+    .spacing-demo__value {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ===== Radius Demo ===== */
+    .radius-demo {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-lg);
+    }
+
+    .radius-demo__item {
+      text-align: center;
+    }
+
+    .radius-demo__box {
+      width: 80px;
+      height: 80px;
+      background: var(--bg-tertiary);
+      border: 2px solid var(--accent);
+      margin-bottom: var(--space-sm);
+    }
+
+    .radius-demo__label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .radius-demo__value {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* ===== Elevation Demo ===== */
+    .elevation-stack {
+      display: flex;
+      gap: var(--space-lg);
+      align-items: flex-end;
+      padding: var(--space-xl) 0;
+    }
+
+    .elevation-card {
+      padding: var(--card-padding);
+      border-radius: var(--radius-default);
+      border: 1px solid var(--border);
+      flex: 1;
+      min-height: 160px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .elevation-card__tier {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    .elevation-card__name {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .elevation-card__hex {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ===== Component Demos ===== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-primary);
+      font-size: 16px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: var(--transition);
+      text-decoration: none;
+    }
+
+    .btn--primary {
+      background: var(--text-primary);
+      color: var(--bg-primary);
+      padding: 16px 32px;
+      border-radius: var(--radius-full);
+      box-shadow: var(--shadow-button-primary);
+    }
+
+    .btn--primary:hover {
+      background: #FFFFFF;
+    }
+
+    .btn--secondary {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      padding: 16px 32px;
+      border-radius: var(--radius-full);
+      box-shadow: var(--shadow-button-secondary);
+    }
+
+    .btn--secondary:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .btn--ghost {
+      background: transparent;
+      color: var(--accent);
+      padding: 8px 0;
+      font-size: 15px;
+    }
+
+    .btn--ghost:hover { color: var(--accent-hover); }
+
+    .demo-badge {
+      display: inline-block;
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 16px;
+      border-radius: var(--radius-full);
+    }
+
+    /* ===== Data Table Demo ===== */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      text-align: left;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td {
+      font-size: 15px;
+      color: var(--text-primary);
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .data-table .val-pos { color: var(--signal-green); font-weight: 600; }
+    .data-table .val-neg { color: var(--signal-red); font-weight: 600; }
+    .data-table .val-warn { color: var(--signal-amber); font-weight: 600; }
+    .data-table .val-mono { font-family: var(--font-mono); }
+
+    /* ===== Stat Bar ===== */
+    .stat-bar {
+      display: flex;
+      gap: var(--space-xl);
+      flex-wrap: wrap;
+    }
+
+    .stat-bar__item { text-align: left; }
+
+    .stat-bar__value {
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--text-primary);
+    }
+
+    .stat-bar__label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    /* ===== Nav Demo ===== */
+    .nav-demo {
+      background: rgba(10, 11, 13, 0.8);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-default);
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 0 var(--space-lg);
+      gap: var(--space-xl);
+    }
+
+    .nav-demo__brand {
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--text-primary);
+    }
+
+    .nav-demo__links {
+      display: flex;
+      gap: var(--space-md);
+      list-style: none;
+      flex: 1;
+    }
+
+    .nav-demo__links li a {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+
+    .nav-demo__links li.active a { color: var(--text-primary); }
+
+    /* ===== Guidelines ===== */
+    .guidelines-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--gutter);
+    }
+
+    .guideline-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-default);
+      padding: var(--card-padding);
+    }
+
+    .guideline-card--do { border-top: 3px solid var(--signal-green); }
+    .guideline-card--dont { border-top: 3px solid var(--signal-red); }
+
+    .guideline-card__header {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: var(--space-md);
+    }
+
+    .guideline-card--do .guideline-card__header { color: var(--signal-green); }
+    .guideline-card--dont .guideline-card__header { color: var(--signal-red); }
+
+    .guideline-card ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+
+    .guideline-card li {
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      padding-left: 24px;
+      position: relative;
+    }
+
+    .guideline-card--do li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 6px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--signal-green);
+    }
+
+    .guideline-card--dont li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 6px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--signal-red);
+    }
+
+    /* ===== Voice Examples ===== */
+    .voice-example {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-default);
+      padding: var(--card-padding);
+      margin-bottom: var(--space-md);
+    }
+
+    .voice-example__type {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: var(--space-sm);
+    }
+
+    .voice-example__text {
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--text-primary);
+    }
+
+    .voice-example__text--body {
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    .voice-example__text--cta {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* ===== Logo Section ===== */
+    .logo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--gutter);
+    }
+
+    .logo-box {
+      border-radius: var(--radius-default);
+      padding: var(--space-xxl) var(--space-xl);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-box--dark {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+    }
+
+    .logo-box--light {
+      background: #FFFFFF;
+      border: 1px solid var(--light-border);
+    }
+
+    .logo-wordmark {
+      font-family: var(--font-primary);
+      font-weight: 700;
+      font-size: 32px;
+      letter-spacing: -0.02em;
+    }
+
+    .logo-wordmark--dark { color: var(--text-primary); }
+    .logo-wordmark--light { color: #111827; }
+
+    .clearspace-demo {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-default);
+      padding: var(--space-xl);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .clearspace-inner {
+      border: 1px dashed var(--accent);
+      padding: 40px 56px;
+      position: relative;
+    }
+
+    .clearspace-label {
+      position: absolute;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--accent);
+    }
+
+    .clearspace-label--top { top: 4px; left: 50%; transform: translateX(-50%); }
+    .clearspace-label--left { left: 4px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+
+    /* ===== Grid Visualization ===== */
+    .grid-viz {
+      display: flex;
+      gap: 0;
+      height: 200px;
+      border-radius: var(--radius-default);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .grid-viz__col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .grid-viz__col:nth-child(odd) .grid-viz__unit { background: rgba(59, 130, 246, 0.06); }
+    .grid-viz__col:nth-child(even) .grid-viz__unit { background: rgba(59, 130, 246, 0.03); }
+
+    .grid-viz__unit {
+      height: 8px;
+      border-bottom: 1px solid rgba(59, 130, 246, 0.08);
+    }
+
+    /* ===== Layout Constants ===== */
+    .layout-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .layout-table th,
+    .layout-table td {
+      text-align: left;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .layout-table th {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .layout-table td:first-child {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--accent);
+      width: 200px;
+    }
+
+    .layout-table td:nth-child(2) {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .layout-table td:last-child {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* ===== Personality Trait ===== */
+    .trait-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--gutter);
+    }
+
+    .trait {
+      text-align: center;
+      padding: var(--card-padding);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-default);
+    }
+
+    .trait__icon {
+      font-size: 32px;
+      color: var(--accent);
+      margin-bottom: var(--space-md);
+    }
+
+    .trait__name {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--space-xs);
+    }
+
+    .trait__desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ===== Print ===== */
+    @media print {
+      .brand-nav { display: none !important; }
+      html { scroll-padding-top: 0; }
+      body { background: #fff; color: #111; }
+      .section + .section { border-top-color: #ccc; }
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 1024px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-6 { grid-template-columns: repeat(3, 1fr); }
+      .trait-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .hero__title { font-size: 48px; }
+      .section__title { font-size: 36px; }
+      .section { padding: 48px var(--space-md); }
+      .hero { padding: 80px var(--space-md) 48px; }
+      .grid-2, .grid-3, .grid-4, .grid-6, .guidelines-grid, .logo-grid {
+        grid-template-columns: 1fr;
+      }
+      .trait-grid { grid-template-columns: 1fr; }
+      .elevation-stack { flex-direction: column; }
+      .stat-bar { gap: var(--space-lg); }
+      .nav-demo { overflow-x: auto; }
+      .brand-nav__links { gap: var(--space-sm); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Sticky Navigation ===== -->
+  <nav class="brand-nav">
+    <div class="brand-nav__inner">
+      <div class="brand-nav__logo">BenchmarkSignal</div>
+      <ul class="brand-nav__links">
+        <li><a href="#brand-story">Brand Story</a></li>
+        <li><a href="#logo">Logo</a></li>
+        <li><a href="#colors">Colors</a></li>
+        <li><a href="#typography">Typography</a></li>
+        <li><a href="#spacing">Spacing</a></li>
+        <li><a href="#effects">Effects</a></li>
+        <li><a href="#components">Components</a></li>
+        <li><a href="#guidelines">Guidelines</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ===== Hero Cover ===== -->
+  <header class="hero">
+    <div class="hero__badge">Brand Book v1.0</div>
+    <h1 class="hero__title">BenchmarkSignal</h1>
+    <p class="hero__desc">The definitive visual identity system for institutional-grade competitive intelligence.</p>
+    <p class="hero__version">Last updated: 2026-05-04 &middot; Design Tokens v1.0.0</p>
+  </header>
+
+  <!-- ===== 1. Brand Story ===== -->
+  <section id="brand-story" class="section">
+    <div class="section__label">01</div>
+    <h2 class="section__title">Brand Story</h2>
+    <p class="section__subtitle">BenchmarkSignal transforms how listed corporations understand their competitive landscape. Our brand reflects the precision and authority that C-suite decision makers demand.</p>
+
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">North Star</h3>
+    <div class="card" style="margin-bottom: var(--space-xl);">
+      <p style="font-size: 36px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; color: var(--text-primary);">Institutional intelligence, instantly.</p>
+    </div>
+
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Brand Personality</h3>
+    <div class="trait-grid" style="margin-bottom: var(--space-xl);">
+      <div class="trait">
+        <div class="trait__icon"><span class="material-symbols-outlined">precision_manufacturing</span></div>
+        <div class="trait__name">Precise</div>
+        <div class="trait__desc">Every data point is sourced, normalized, and verifiable. No approximations.</div>
+      </div>
+      <div class="trait">
+        <div class="trait__icon"><span class="material-symbols-outlined">verified</span></div>
+        <div class="trait__name">Authoritative</div>
+        <div class="trait__desc">We speak with the confidence of institutional-grade data infrastructure.</div>
+      </div>
+      <div class="trait">
+        <div class="trait__icon"><span class="material-symbols-outlined">shield</span></div>
+        <div class="trait__name">Trustworthy</div>
+        <div class="trait__desc">Enterprise-grade security. Auditable sources. Full data lineage.</div>
+      </div>
+      <div class="trait">
+        <div class="trait__icon"><span class="material-symbols-outlined">speed</span></div>
+        <div class="trait__name">Modern</div>
+        <div class="trait__desc">Vision-LLM extraction replaces 22-44 hours of manual work per quarter.</div>
+      </div>
+    </div>
+
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Voice &amp; Tone</h3>
+    <p style="color: var(--text-secondary); margin-bottom: var(--space-lg); max-width: 640px;">Confident, data-driven, no fluff. We respect the buyer's intelligence. Every word earns its place. No emojis. No casual greetings. Professional, direct, and clear.</p>
+
+    <div class="voice-example">
+      <div class="voice-example__type">Headline</div>
+      <div class="voice-example__text">Your competitors published. You know in 60 minutes.</div>
+    </div>
+    <div class="voice-example">
+      <div class="voice-example__type">Headline</div>
+      <div class="voice-example__text">Peer comparison without the spreadsheet.</div>
+    </div>
+    <div class="voice-example">
+      <div class="voice-example__type">Headline</div>
+      <div class="voice-example__text">Every KPI. Every competitor. One view.</div>
+    </div>
+    <div class="voice-example">
+      <div class="voice-example__type">Body Copy</div>
+      <div class="voice-example__text voice-example__text--body">BenchmarkSignal monitors 200+ competitor publications, extracts financial and ESG KPIs using vision-LLMs, and normalizes them across currencies and accounting standards. Your peer comparison is ready before the analyst call.</div>
+    </div>
+    <div class="voice-example">
+      <div class="voice-example__type">Call to Action</div>
+      <div class="voice-example__text voice-example__text--cta">Start benchmarking &rarr;</div>
+    </div>
+    <div class="voice-example">
+      <div class="voice-example__type">Call to Action</div>
+      <div class="voice-example__text voice-example__text--cta">Request a demo</div>
+    </div>
+    <div class="voice-example">
+      <div class="voice-example__type">Call to Action</div>
+      <div class="voice-example__text voice-example__text--cta">See the data</div>
+    </div>
+  </section>
+
+  <!-- ===== 2. Logo ===== -->
+  <section id="logo" class="section">
+    <div class="section__label">02</div>
+    <h2 class="section__title">Logo</h2>
+    <p class="section__subtitle">The BenchmarkSignal wordmark uses Inter Bold as a placeholder until the final logo is provided. The wordmark must always have sufficient clear space around it.</p>
+
+    <div class="logo-grid" style="margin-bottom: var(--space-xl);">
+      <div class="logo-box logo-box--dark">
+        <span class="logo-wordmark logo-wordmark--dark">BenchmarkSignal</span>
+      </div>
+      <div class="logo-box logo-box--light">
+        <span class="logo-wordmark logo-wordmark--light">BenchmarkSignal</span>
+      </div>
+    </div>
+
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Clear Space</h3>
+    <p style="color: var(--text-secondary); margin-bottom: var(--space-lg); max-width: 640px;">Maintain a minimum clear space around the wordmark equal to the cap height of the letter "B". No other elements may intrude into this protected zone.</p>
+
+    <div class="clearspace-demo">
+      <div class="clearspace-inner">
+        <span class="clearspace-label clearspace-label--top">1x cap height</span>
+        <span class="clearspace-label clearspace-label--left">1x</span>
+        <span class="logo-wordmark logo-wordmark--dark" style="font-size: 28px;">BenchmarkSignal</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3. Color System ===== -->
+  <section id="colors" class="section">
+    <div class="section__label">03</div>
+    <h2 class="section__title">Color System</h2>
+    <p class="section__subtitle">A tonal dark palette inspired by Bloomberg and Linear, paired with precise signal colors for financial data visualization.</p>
+
+    <!-- Dark Backgrounds -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Dark Mode &mdash; Backgrounds</h3>
+    <div class="grid-4" style="margin-bottom: var(--space-xl);">
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #0A0B0D;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">bg-primary</div>
+          <div class="swatch-card__hex">#0A0B0D</div>
+          <div class="swatch-card__role">Main background</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #141518;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">bg-secondary</div>
+          <div class="swatch-card__hex">#141518</div>
+          <div class="swatch-card__role">Card / panel backgrounds</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #1C1D20;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">bg-tertiary</div>
+          <div class="swatch-card__hex">#1C1D20</div>
+          <div class="swatch-card__role">Hover states, elevated</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #272A31;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">bg-elevated</div>
+          <div class="swatch-card__hex">#272A31</div>
+          <div class="swatch-card__role">Dropdowns, modals</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dark Text & Borders -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Dark Mode &mdash; Text &amp; Borders</h3>
+    <div class="grid-4" style="margin-bottom: var(--space-xl);">
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #E8EAED;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">text-primary</div>
+          <div class="swatch-card__hex">#E8EAED</div>
+          <div class="swatch-card__role">Primary text</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #9CA3AF;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">text-secondary</div>
+          <div class="swatch-card__hex">#9CA3AF</div>
+          <div class="swatch-card__role">Secondary text</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #94A3B8;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">text-muted</div>
+          <div class="swatch-card__hex">#94A3B8</div>
+          <div class="swatch-card__role">Muted / captions</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #27282B;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">border</div>
+          <div class="swatch-card__hex">#27282B</div>
+          <div class="swatch-card__role">Element borders</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Surface Containers -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Dark Mode &mdash; Surface Containers</h3>
+    <div class="grid-4" style="margin-bottom: var(--space-xl);">
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #191B23;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">surface-container-low</div>
+          <div class="swatch-card__hex">#191B23</div>
+          <div class="swatch-card__role">Low emphasis container</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #1D2027;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">surface-container</div>
+          <div class="swatch-card__hex">#1D2027</div>
+          <div class="swatch-card__role">Default container</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #272A31;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">surface-container-high</div>
+          <div class="swatch-card__hex">#272A31</div>
+          <div class="swatch-card__role">High emphasis container</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #32353C;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">surface-container-highest</div>
+          <div class="swatch-card__hex">#32353C</div>
+          <div class="swatch-card__role">Highest emphasis</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accent & Signal -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Accent &amp; Signal Colors</h3>
+    <div class="grid-6" style="margin-bottom: var(--space-xl);">
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #3B82F6;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">accent</div>
+          <div class="swatch-card__hex">#3B82F6</div>
+          <div class="swatch-card__role">Financial blue</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #2563EB;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">accent-hover</div>
+          <div class="swatch-card__hex">#2563EB</div>
+          <div class="swatch-card__role">Accent hover</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #ADC6FF;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">accent-light</div>
+          <div class="swatch-card__hex">#ADC6FF</div>
+          <div class="swatch-card__role">Light accent</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #22C55E;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">signal-green</div>
+          <div class="swatch-card__hex">#22C55E</div>
+          <div class="swatch-card__role">Positive / uptrend</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #EF4444;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">signal-red</div>
+          <div class="swatch-card__hex">#EF4444</div>
+          <div class="swatch-card__role">Negative / downtrend</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #F59E0B;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">signal-amber</div>
+          <div class="swatch-card__hex">#F59E0B</div>
+          <div class="swatch-card__role">Warning / attention</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Light Mode -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Light Mode Palette</h3>
+    <div class="grid-4" style="margin-bottom: var(--space-xl);">
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #FFFFFF; border-bottom: 1px solid #E5E7EB;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">bg-primary</div>
+          <div class="swatch-card__hex">#FFFFFF</div>
+          <div class="swatch-card__role">Main background</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #F8F9FA;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">bg-secondary</div>
+          <div class="swatch-card__hex">#F8F9FA</div>
+          <div class="swatch-card__role">Card backgrounds</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #F1F3F5;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">bg-tertiary</div>
+          <div class="swatch-card__hex">#F1F3F5</div>
+          <div class="swatch-card__role">Hover states</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #111827;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">text-primary</div>
+          <div class="swatch-card__hex">#111827</div>
+          <div class="swatch-card__role">Primary text</div>
+        </div>
+      </div>
+    </div>
+    <div class="grid-4">
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #6B7280;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">text-secondary</div>
+          <div class="swatch-card__hex">#6B7280</div>
+          <div class="swatch-card__role">Secondary text</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #2563EB;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">accent</div>
+          <div class="swatch-card__hex">#2563EB</div>
+          <div class="swatch-card__role">Financial blue (light)</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #16A34A;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">signal-green</div>
+          <div class="swatch-card__hex">#16A34A</div>
+          <div class="swatch-card__role">Positive (light)</div>
+        </div>
+      </div>
+      <div class="swatch-card">
+        <div class="swatch-card__color" style="background: #E5E7EB;"></div>
+        <div class="swatch-card__info">
+          <div class="swatch-card__name">border</div>
+          <div class="swatch-card__hex">#E5E7EB</div>
+          <div class="swatch-card__role">Borders (light)</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 4. Typography ===== -->
+  <section id="typography" class="section">
+    <div class="section__label">04</div>
+    <h2 class="section__title">Typography</h2>
+    <p class="section__subtitle">Inter is the sole typeface for all UI and marketing surfaces. JetBrains Mono is used exclusively for data tables and code references.</p>
+
+    <div class="type-specimen">
+      <div class="type-specimen__meta">
+        <span class="type-specimen__tag">h1-hero</span>
+        <span class="type-specimen__tag">80px</span>
+        <span class="type-specimen__tag">700</span>
+        <span class="type-specimen__tag">-0.03em</span>
+        <span class="type-specimen__tag">line-height: 1.05</span>
+      </div>
+      <p style="font-size: 80px; font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; color: var(--text-primary);">Benchmark</p>
+    </div>
+
+    <div class="type-specimen">
+      <div class="type-specimen__meta">
+        <span class="type-specimen__tag">h1</span>
+        <span class="type-specimen__tag">64px</span>
+        <span class="type-specimen__tag">700</span>
+        <span class="type-specimen__tag">-0.02em</span>
+        <span class="type-specimen__tag">line-height: 1.1</span>
+      </div>
+      <p style="font-size: 64px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; color: var(--text-primary);">Competitive Intelligence</p>
+    </div>
+
+    <div class="type-specimen">
+      <div class="type-specimen__meta">
+        <span class="type-specimen__tag">h2</span>
+        <span class="type-specimen__tag">48px</span>
+        <span class="type-specimen__tag">700</span>
+        <span class="type-specimen__tag">-0.02em</span>
+        <span class="type-specimen__tag">line-height: 1.2</span>
+      </div>
+      <p style="font-size: 48px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; color: var(--text-primary);">Peer Comparison</p>
+    </div>
+
+    <div class="type-specimen">
+      <div class="type-specimen__meta">
+        <span class="type-specimen__tag">h3</span>
+        <span class="type-specimen__tag">24px</span>
+        <span class="type-specimen__tag">600</span>
+        <span class="type-specimen__tag">line-height: 1.4</span>
+      </div>
+      <p style="font-size: 24px; font-weight: 600; line-height: 1.4; color: var(--text-primary);">Revenue growth normalized across IFRS and US GAAP</p>
+    </div>
+
+    <div class="type-specimen">
+      <div class="type-specimen__meta">
+        <span class="type-specimen__tag">body-md</span>
+        <span class="type-specimen__tag">15px</span>
+        <span class="type-specimen__tag">400</span>
+        <span class="type-specimen__tag">line-height: 1.6</span>
+      </div>
+      <p style="font-size: 15px; font-weight: 400; line-height: 1.6; color: var(--text-secondary);">BenchmarkSignal monitors 200+ competitor publications, extracts financial and ESG KPIs using vision-LLMs, and normalizes them across currencies and accounting standards. Your peer comparison is ready before the analyst call.</p>
+    </div>
+
+    <div class="type-specimen">
+      <div class="type-specimen__meta">
+        <span class="type-specimen__tag">body-sm</span>
+        <span class="type-specimen__tag">13px</span>
+        <span class="type-specimen__tag">400</span>
+        <span class="type-specimen__tag">line-height: 1.5</span>
+      </div>
+      <p style="font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--text-secondary);">Source: Q3 2026 Interim Report, published 2026-10-24. Confidence: 97%. Extracted via GPT-4o Vision.</p>
+    </div>
+
+    <div class="type-specimen">
+      <div class="type-specimen__meta">
+        <span class="type-specimen__tag">label-caps</span>
+        <span class="type-specimen__tag">11px</span>
+        <span class="type-specimen__tag">600</span>
+        <span class="type-specimen__tag">0.05em</span>
+        <span class="type-specimen__tag">uppercase</span>
+      </div>
+      <p style="font-size: 11px; font-weight: 600; line-height: 1; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted);">Revenue &middot; EBITDA Margin &middot; Net Debt / EBITDA &middot; ROIC</p>
+    </div>
+
+    <div class="type-specimen">
+      <div class="type-specimen__meta">
+        <span class="type-specimen__tag">data-display</span>
+        <span class="type-specimen__tag">36px</span>
+        <span class="type-specimen__tag">700</span>
+        <span class="type-specimen__tag">line-height: 1.1</span>
+      </div>
+      <p style="font-size: 36px; font-weight: 700; line-height: 1.1; color: var(--text-primary);">CHF 27.4B</p>
+    </div>
+
+    <div class="type-specimen">
+      <div class="type-specimen__meta">
+        <span class="type-specimen__tag">mono / tabular</span>
+        <span class="type-specimen__tag">JetBrains Mono</span>
+        <span class="type-specimen__tag">14px</span>
+        <span class="type-specimen__tag">500</span>
+      </div>
+      <p style="font-family: var(--font-mono); font-size: 14px; font-weight: 500; line-height: 1.6; color: var(--text-primary);">27,439 &nbsp; 18,234 &nbsp; 12.7% &nbsp; -3.2% &nbsp; 2.4x</p>
+    </div>
+  </section>
+
+  <!-- ===== 5. Spacing & Layout ===== -->
+  <section id="spacing" class="section">
+    <div class="section__label">05</div>
+    <h2 class="section__title">Spacing &amp; Layout</h2>
+    <p class="section__subtitle">An 8px base grid ensures consistent rhythm across all surfaces. All spacing values are multiples of the base unit.</p>
+
+    <!-- Spacing Scale -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Spacing Scale</h3>
+    <div style="margin-bottom: var(--space-xl);">
+      <div class="spacing-demo">
+        <div class="spacing-demo__label">xs</div>
+        <div class="spacing-demo__bar" style="width: 4px;"></div>
+        <div class="spacing-demo__value">4px</div>
+      </div>
+      <div class="spacing-demo">
+        <div class="spacing-demo__label">sm (base)</div>
+        <div class="spacing-demo__bar" style="width: 8px;"></div>
+        <div class="spacing-demo__value">8px</div>
+      </div>
+      <div class="spacing-demo">
+        <div class="spacing-demo__label">md</div>
+        <div class="spacing-demo__bar" style="width: 16px;"></div>
+        <div class="spacing-demo__value">16px</div>
+      </div>
+      <div class="spacing-demo">
+        <div class="spacing-demo__label">lg / gutter</div>
+        <div class="spacing-demo__bar" style="width: 24px;"></div>
+        <div class="spacing-demo__value">24px</div>
+      </div>
+      <div class="spacing-demo">
+        <div class="spacing-demo__label">xl</div>
+        <div class="spacing-demo__bar" style="width: 48px;"></div>
+        <div class="spacing-demo__value">48px</div>
+      </div>
+      <div class="spacing-demo">
+        <div class="spacing-demo__label">xxl</div>
+        <div class="spacing-demo__bar" style="width: 80px;"></div>
+        <div class="spacing-demo__value">80px</div>
+      </div>
+    </div>
+
+    <!-- Border Radius -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Border Radius Scale</h3>
+    <div class="radius-demo" style="margin-bottom: var(--space-xl);">
+      <div class="radius-demo__item">
+        <div class="radius-demo__box" style="border-radius: 4px;"></div>
+        <div class="radius-demo__label">sm</div>
+        <div class="radius-demo__value">4px</div>
+      </div>
+      <div class="radius-demo__item">
+        <div class="radius-demo__box" style="border-radius: 8px;"></div>
+        <div class="radius-demo__label">default</div>
+        <div class="radius-demo__value">8px</div>
+      </div>
+      <div class="radius-demo__item">
+        <div class="radius-demo__box" style="border-radius: 12px;"></div>
+        <div class="radius-demo__label">md</div>
+        <div class="radius-demo__value">12px</div>
+      </div>
+      <div class="radius-demo__item">
+        <div class="radius-demo__box" style="border-radius: 16px;"></div>
+        <div class="radius-demo__label">lg</div>
+        <div class="radius-demo__value">16px</div>
+      </div>
+      <div class="radius-demo__item">
+        <div class="radius-demo__box" style="border-radius: 9999px;"></div>
+        <div class="radius-demo__label">full</div>
+        <div class="radius-demo__value">pill</div>
+      </div>
+    </div>
+
+    <!-- 8px Grid Visualization -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">8px Base Grid</h3>
+    <div class="grid-viz" style="margin-bottom: var(--space-xl);">
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+      <div class="grid-viz__col"><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div><div class="grid-viz__unit"></div></div>
+    </div>
+
+    <!-- Layout Constants -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Layout Constants</h3>
+    <table class="layout-table">
+      <thead>
+        <tr>
+          <th>Token</th>
+          <th>Value</th>
+          <th>Usage</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>maxContentWidth</td>
+          <td>1440px</td>
+          <td>Maximum page content width</td>
+        </tr>
+        <tr>
+          <td>navHeight</td>
+          <td>64px</td>
+          <td>Fixed navigation bar height</td>
+        </tr>
+        <tr>
+          <td>sectionPaddingY</td>
+          <td>80px</td>
+          <td>Vertical section padding (desktop)</td>
+        </tr>
+        <tr>
+          <td>sectionPaddingYMobile</td>
+          <td>48px</td>
+          <td>Vertical section padding (mobile)</td>
+        </tr>
+        <tr>
+          <td>cardPadding</td>
+          <td>32px</td>
+          <td>Interior card padding</td>
+        </tr>
+        <tr>
+          <td>gridColumns</td>
+          <td>12</td>
+          <td>Column count for layout grid</td>
+        </tr>
+        <tr>
+          <td>gridGap</td>
+          <td>24px</td>
+          <td>Gutter between grid columns</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===== 6. Effects & Elevation ===== -->
+  <section id="effects" class="section">
+    <div class="section__label">06</div>
+    <h2 class="section__title">Effects &amp; Elevation</h2>
+    <p class="section__subtitle">A 3-tier tonal layering system creates depth without heavy shadows. Elevation is expressed through background color, not drop shadows.</p>
+
+    <!-- Tonal Layers -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">3-Tier Tonal Layering</h3>
+    <div class="elevation-stack" style="margin-bottom: var(--space-xl);">
+      <div class="elevation-card" style="background: #0A0B0D;">
+        <div class="elevation-card__tier">Tier 1</div>
+        <div class="elevation-card__name">Floor</div>
+        <div class="elevation-card__hex">#0A0B0D</div>
+      </div>
+      <div class="elevation-card" style="background: #141518;">
+        <div class="elevation-card__tier">Tier 2</div>
+        <div class="elevation-card__name">Surface</div>
+        <div class="elevation-card__hex">#141518</div>
+      </div>
+      <div class="elevation-card" style="background: #1C1D20;">
+        <div class="elevation-card__tier">Tier 3</div>
+        <div class="elevation-card__name">Elevated</div>
+        <div class="elevation-card__hex">#1C1D20</div>
+      </div>
+    </div>
+
+    <!-- Stacked Card Demo -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Stacked Elevation Demo</h3>
+    <div style="background: #0A0B0D; border: 1px solid var(--border); border-radius: var(--radius-default); padding: 48px; margin-bottom: var(--space-xl);">
+      <div style="background: #141518; border: 1px solid var(--border); border-radius: var(--radius-default); padding: 32px; margin-left: 24px;">
+        <div style="background: #1C1D20; border: 1px solid var(--border); border-radius: var(--radius-default); padding: 24px; margin-left: 24px;">
+          <p style="font-size: 13px; color: var(--text-secondary);">Each layer lifts content one tonal step. No drop shadows needed.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Button Shadows -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Multi-Layer Button Shadows</h3>
+    <div class="grid-2" style="margin-bottom: var(--space-xl);">
+      <div class="card">
+        <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--space-md);">Primary Button Shadow</div>
+        <div style="margin-bottom: var(--space-md);">
+          <button class="btn btn--primary">Start benchmarking</button>
+        </div>
+        <p style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); line-height: 1.6; word-break: break-all;">5 layers: 0/8/2, 0/5/2, 0/3/2, 0/1/1, 0/0/1</p>
+      </div>
+      <div class="card">
+        <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--space-md);">Secondary Button Shadow</div>
+        <div style="margin-bottom: var(--space-md);">
+          <button class="btn btn--secondary">Learn more</button>
+        </div>
+        <p style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); line-height: 1.6; word-break: break-all;">4 layers: inset 0/0/0/1, inset 0/1/0, 0/0/0/1, 0/4/4</p>
+      </div>
+    </div>
+
+    <!-- Transitions -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Transitions</h3>
+    <table class="layout-table">
+      <thead>
+        <tr><th>Token</th><th>Value</th><th>Usage</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>transition</td>
+          <td>all 200ms ease</td>
+          <td>Default for all interactive states</td>
+        </tr>
+        <tr>
+          <td>colorTransition</td>
+          <td>color 200ms ease, background-color 200ms ease</td>
+          <td>Color-only transitions (links, nav)</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===== 7. Components ===== -->
+  <section id="components" class="section">
+    <div class="section__label">07</div>
+    <h2 class="section__title">Components</h2>
+    <p class="section__subtitle">Core UI building blocks. Every component uses the design tokens above and follows the established elevation and color system.</p>
+
+    <!-- Buttons -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Buttons</h3>
+    <div class="card" style="margin-bottom: var(--space-xl);">
+      <div style="display: flex; align-items: center; gap: var(--space-lg); flex-wrap: wrap; margin-bottom: var(--space-lg);">
+        <button class="btn btn--primary">Primary Action</button>
+        <button class="btn btn--secondary">Secondary Action</button>
+        <button class="btn btn--ghost">Ghost Link &rarr;</button>
+      </div>
+      <table class="layout-table" style="font-size: 13px;">
+        <thead>
+          <tr><th>Variant</th><th>Background</th><th>Text</th><th>Radius</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Primary</td>
+            <td>#E8EAED (light pill)</td>
+            <td>#0A0B0D</td>
+            <td>9999px</td>
+          </tr>
+          <tr>
+            <td>Secondary</td>
+            <td>#141518 + border #27282B</td>
+            <td>#E8EAED</td>
+            <td>9999px</td>
+          </tr>
+          <tr>
+            <td>Ghost</td>
+            <td>transparent</td>
+            <td>#3B82F6</td>
+            <td>none</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Cards -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Cards</h3>
+    <div class="grid-2" style="margin-bottom: var(--space-xl);">
+      <div class="card">
+        <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--space-sm);">Standard Card</div>
+        <div style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-sm);">Revenue Growth</div>
+        <p style="font-size: 13px; color: var(--text-secondary);">bg-secondary #141518, border #27282B, radius 8px, padding 32px</p>
+      </div>
+      <div class="card card--highlighted">
+        <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); margin-bottom: var(--space-sm);">Highlighted Card</div>
+        <div style="font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-sm);">Top Performer</div>
+        <p style="font-size: 13px; color: var(--text-secondary);">Accent border #3B82F6, blue glow shadow 0 0 40px rgba(59,130,246,0.1)</p>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Data Table</h3>
+    <div class="card" style="padding: 0; margin-bottom: var(--space-xl); overflow-x: auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Revenue (CHF M)</th>
+            <th>EBITDA Margin</th>
+            <th>Net Debt / EBITDA</th>
+            <th>YoY Growth</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Holcim Ltd</td>
+            <td class="val-mono">27,439</td>
+            <td class="val-mono val-pos">22.8%</td>
+            <td class="val-mono">1.8x</td>
+            <td class="val-pos">+4.7%</td>
+          </tr>
+          <tr>
+            <td>HeidelbergCement</td>
+            <td class="val-mono">21,100</td>
+            <td class="val-mono val-pos">19.4%</td>
+            <td class="val-mono val-warn">2.4x</td>
+            <td class="val-pos">+2.1%</td>
+          </tr>
+          <tr>
+            <td>CRH plc</td>
+            <td class="val-mono">33,890</td>
+            <td class="val-mono val-pos">16.2%</td>
+            <td class="val-mono">1.5x</td>
+            <td class="val-neg">-1.3%</td>
+          </tr>
+          <tr>
+            <td>Cemex SAB</td>
+            <td class="val-mono">15,780</td>
+            <td class="val-mono">18.1%</td>
+            <td class="val-mono val-neg">3.2x</td>
+            <td class="val-pos">+6.8%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Stat Bar -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Stat Bar</h3>
+    <div class="card" style="margin-bottom: var(--space-xl);">
+      <div class="stat-bar">
+        <div class="stat-bar__item">
+          <div class="stat-bar__value">CHF 27.4B</div>
+          <div class="stat-bar__label">Revenue</div>
+        </div>
+        <div class="stat-bar__item">
+          <div class="stat-bar__value" style="color: var(--signal-green);">22.8%</div>
+          <div class="stat-bar__label">EBITDA Margin</div>
+        </div>
+        <div class="stat-bar__item">
+          <div class="stat-bar__value">1.8x</div>
+          <div class="stat-bar__label">Net Debt / EBITDA</div>
+        </div>
+        <div class="stat-bar__item">
+          <div class="stat-bar__value" style="color: var(--signal-green);">+4.7%</div>
+          <div class="stat-bar__label">YoY Growth</div>
+        </div>
+        <div class="stat-bar__item">
+          <div class="stat-bar__value">#2</div>
+          <div class="stat-bar__label">Peer Rank</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Badges -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Badges</h3>
+    <div class="card" style="margin-bottom: var(--space-xl);">
+      <div style="display: flex; gap: var(--space-md); flex-wrap: wrap; margin-bottom: var(--space-md);">
+        <span class="demo-badge">Financial KPI</span>
+        <span class="demo-badge">ESG</span>
+        <span class="demo-badge">Q3 2026</span>
+        <span class="demo-badge">Peer Group</span>
+        <span class="demo-badge">High Confidence</span>
+      </div>
+      <p style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">bg: rgba(59,130,246,0.1) &middot; text: #3B82F6 &middot; radius: 9999px &middot; padding: 4px 16px &middot; 11px/600</p>
+    </div>
+
+    <!-- Nav Bar -->
+    <h3 style="font-size: 24px; font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-lg);">Navigation Bar</h3>
+    <div style="margin-bottom: var(--space-xl);">
+      <div class="nav-demo">
+        <div class="nav-demo__brand">BenchmarkSignal</div>
+        <ul class="nav-demo__links">
+          <li class="active"><a href="#">Dashboard</a></li>
+          <li><a href="#">Reports</a></li>
+          <li><a href="#">Peer Groups</a></li>
+          <li><a href="#">Settings</a></li>
+        </ul>
+        <button class="btn btn--primary" style="padding: 8px 20px; font-size: 14px;">Upgrade</button>
+      </div>
+      <p style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-top: var(--space-sm);">bg: rgba(10,11,13,0.8) &middot; backdrop-filter: blur(12px) &middot; height: 64px &middot; border-bottom: #27282B &middot; position: fixed top</p>
+    </div>
+  </section>
+
+  <!-- ===== 8. Design Guidelines ===== -->
+  <section id="guidelines" class="section">
+    <div class="section__label">08</div>
+    <h2 class="section__title">Design Guidelines</h2>
+    <p class="section__subtitle">Clear rules for maintaining brand consistency across all surfaces. Follow these strictly to preserve the institutional, data-first aesthetic.</p>
+
+    <div class="guidelines-grid">
+      <div class="guideline-card guideline-card--do">
+        <div class="guideline-card__header">Do</div>
+        <ul>
+          <li>Use flat solid backgrounds from the tonal layering system</li>
+          <li>Maintain generous whitespace between sections (80px desktop)</li>
+          <li>Use pill-shaped buttons for all primary calls to action</li>
+          <li>Apply signal colors exclusively for data values (green/red/amber)</li>
+          <li>Use Inter everywhere -- headings, body, labels, data</li>
+          <li>Express elevation through background color, not shadows</li>
+          <li>Write confident, data-driven copy that respects intelligence</li>
+          <li>Use JetBrains Mono for tabular financial data alignment</li>
+          <li>Keep the 8px grid for all spacing decisions</li>
+          <li>Use the frosted glass nav bar pattern (blur + transparency)</li>
+        </ul>
+      </div>
+      <div class="guideline-card guideline-card--dont">
+        <div class="guideline-card__header">Do Not</div>
+        <ul>
+          <li>Use gradients on backgrounds -- solid colors only</li>
+          <li>Use emojis anywhere in the UI or marketing copy</li>
+          <li>Use playful illustrations or cartoon art</li>
+          <li>Use generic stock photos of people shaking hands</li>
+          <li>Use rounded-full avatars as decorative elements</li>
+          <li>Use Lucide icons as decorative filler -- icons must be functional</li>
+          <li>Use casual greetings like "Hey!" or "Welcome back!"</li>
+          <li>Apply excessive drop shadows -- only on interactive elements</li>
+          <li>Use bright lime, yellow, or orange as accent colors</li>
+          <li>Mix typefaces -- Inter is the only UI font</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Footer ===== -->
+  <footer style="max-width: var(--max-width); margin: 0 auto; padding: var(--space-xl) var(--gutter); border-top: 1px solid var(--border); text-align: center;">
+    <p style="font-size: 13px; color: var(--text-muted);">BenchmarkSignal Brand Book v1.0 &middot; 2026-05-04 &middot; Predivo GmbH</p>
+    <p style="font-size: 11px; color: var(--outline-variant); margin-top: var(--space-xs);">Design tokens sourced from design-tokens.json v1.0.0</p>
+  </footer>
+
+</body>
+</html>

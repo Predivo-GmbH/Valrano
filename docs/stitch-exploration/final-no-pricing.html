@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BenchmarkSignal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#44474a",
+                        "surface-container-high": "#272a31",
+                        "surface-dim": "#10131a",
+                        "surface-variant": "#32353c",
+                        "surface-container-low": "#191b23",
+                        "secondary": "#c4c7ca",
+                        "tertiary-container": "#df7412",
+                        "on-tertiary-fixed": "#311400",
+                        "surface-tint": "#adc6ff",
+                        "surface-container-lowest": "#0b0e15",
+                        "on-tertiary-fixed-variant": "#723600",
+                        "on-error": "#690005",
+                        "outline": "#8c909f",
+                        "surface-container-highest": "#32353c",
+                        "background": "#10131a",
+                        "primary": "#adc6ff",
+                        "on-primary": "#002e6a",
+                        "on-background": "#e1e2ec",
+                        "tertiary-fixed": "#ffdcc6",
+                        "tertiary-fixed-dim": "#ffb786",
+                        "primary-container": "#4d8eff",
+                        "inverse-on-surface": "#2e3038",
+                        "inverse-surface": "#e1e2ec",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-primary-fixed-variant": "#004395",
+                        "on-secondary-fixed": "#191c1e",
+                        "error": "#ffb4ab",
+                        "inverse-primary": "#005ac2",
+                        "surface-bright": "#363941",
+                        "on-secondary": "#2d3133",
+                        "on-primary-container": "#00285d",
+                        "on-secondary-fixed-variant": "#44474a",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-container": "#b3b5b8",
+                        "on-primary-fixed": "#001a42",
+                        "tertiary": "#ffb786",
+                        "on-surface": "#e1e2ec",
+                        "primary-fixed": "#d8e2ff",
+                        "on-tertiary-container": "#461f00",
+                        "surface": "#10131a",
+                        "secondary-fixed-dim": "#c4c7ca",
+                        "surface-container": "#1d2027",
+                        "on-tertiary": "#502400",
+                        "outline-variant": "#424754",
+                        "on-surface-variant": "#c2c6d6",
+                        "secondary-fixed": "#e0e3e6",
+                        "error-container": "#93000a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "48px",
+                        "sm": "8px",
+                        "xxl": "80px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "gutter": "24px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "h1": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "h2": ["Inter"],
+                        "h3": ["Inter"],
+                        "body-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["15px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "h1": ["64px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-caps": ["11px", { "lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "h2": ["48px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "h3": ["24px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "1.5", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-[#0A0B0D] text-on-background font-body-md antialiased selection:bg-primary selection:text-on-primary">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-[#0A0B0D]/80 backdrop-blur-md border-b border-[#27282B] flat no shadows">
+<div class="flex justify-between items-center px-8 h-16 max-w-[1440px] mx-auto">
+<div class="text-xl font-bold tracking-tighter text-[#E8EAED]">
+                BenchmarkSignal
+            </div>
+<div class="hidden md:flex items-center gap-8 font-inter text-sm font-medium tracking-tight">
+<a class="text-[#E8EAED] border-b border-[#E8EAED] transition-colors duration-200" href="#">See How It Works</a>
+<a class="text-[#94A3B8] hover:text-[#E8EAED] transition-colors duration-200" href="#">Pricing</a>
+<a class="text-[#94A3B8] hover:text-[#E8EAED] transition-colors duration-200" href="#">Login</a>
+</div>
+<button class="bg-[#E8EAED] text-[#0A0B0D] px-6 py-2 rounded-full font-inter text-sm font-medium tracking-tight hover:bg-white transition-colors duration-200">
+                Start Your Pilot
+            </button>
+</div>
+</nav>
+<main class="pt-32 pb-24">
+<!-- Hero Section -->
+<section class="max-w-[1440px] mx-auto px-8 pt-24 pb-32 flex flex-col items-center text-center">
+<h1 class="font-h1 text-[80px] leading-[1.05] tracking-[-0.03em] font-bold text-[#E8EAED] max-w-5xl mx-auto mb-8">
+                Your competitors publish. <br/>
+<span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-container">You know within 60 minutes.</span>
+</h1>
+<p class="font-body-md text-lg text-[#9CA3AF] max-w-3xl mx-auto mb-12">
+                BenchmarkSignal automatically extracts, normalizes, and compares financial and ESG KPIs from every peer report — so your strategy team acts on data, not delays.
+            </p>
+<div class="flex flex-col sm:flex-row gap-4">
+<button class="bg-[#E8EAED] text-[#0A0B0D] px-8 py-4 rounded-full font-medium text-base hover:bg-white transition-colors duration-200">
+                    Start Your Pilot
+                </button>
+<button class="bg-[#141518] text-[#E8EAED] px-8 py-4 rounded-full font-medium text-base border border-[#27282B] hover:bg-[#1C1D20] transition-colors duration-200">
+                    See How It Works
+                </button>
+</div>
+</section>
+<!-- Stat Bar -->
+<section class="border-y border-[#27282B] bg-[#141518]/50 mb-32">
+<div class="max-w-[1440px] mx-auto px-8 py-8 flex flex-col md:flex-row justify-between items-center gap-8 divide-y md:divide-y-0 md:divide-x divide-[#27282B]">
+<div class="flex-1 flex flex-col items-center justify-center text-center px-4 w-full pt-4 md:pt-0 first:pt-0">
+<span class="font-h2 text-4xl mb-2 text-[#E8EAED]">60 Min</span>
+<span class="font-label-caps text-[#9CA3AF] uppercase">TURNAROUND</span>
+</div>
+<div class="flex-1 flex flex-col items-center justify-center text-center px-4 w-full pt-4 md:pt-0">
+<span class="font-h2 text-4xl mb-2 text-[#E8EAED]">95%+</span>
+<span class="font-label-caps text-[#9CA3AF] uppercase">EXTRACTION ACCURACY</span>
+</div>
+<div class="flex-1 flex flex-col items-center justify-center text-center px-4 w-full pt-4 md:pt-0">
+<span class="font-h2 text-4xl mb-2 text-[#E8EAED]">50+</span>
+<span class="font-label-caps text-[#9CA3AF] uppercase">KPIs TRACKED</span>
+</div>
+<div class="flex-1 flex flex-col items-center justify-center text-center px-4 w-full pt-4 md:pt-0">
+<span class="font-h2 text-4xl mb-2 text-[#E8EAED]">9</span>
+<span class="font-label-caps text-[#9CA3AF] uppercase">GLOBAL EXCHANGES</span>
+</div>
+</div>
+</section>
+<!-- Data Table Section -->
+<section class="max-w-[1440px] mx-auto px-8 mb-32">
+<h2 class="font-h2 mb-12 text-[#E8EAED]">See Every Peer at a Glance</h2>
+<div class="bg-[#141518] rounded-lg border border-[#27282B] overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-[#27282B]">
+<th class="font-label-caps text-[#9CA3AF] py-6 px-6 font-semibold uppercase tracking-wider">Company</th>
+<th class="font-label-caps text-[#9CA3AF] py-6 px-6 font-semibold uppercase tracking-wider text-right">Revenue (CHF M)</th>
+<th class="font-label-caps text-[#9CA3AF] py-6 px-6 font-semibold uppercase tracking-wider text-right">EBITDA Margin (%)</th>
+<th class="font-label-caps text-[#9CA3AF] py-6 px-6 font-semibold uppercase tracking-wider text-right">Net Debt/EBITDA (x)</th>
+<th class="font-label-caps text-[#9CA3AF] py-6 px-6 font-semibold uppercase tracking-wider text-right">CO2 Intensity (kg/t)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#27282B] font-body-md">
+<tr class="hover:bg-[#1C1D20] transition-colors">
+<td class="py-5 px-6 text-[#E8EAED] font-medium flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-[#27282B] flex items-center justify-center text-xs font-bold">HO</div>
+                                Holcim
+                            </td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">27,009</td>
+<td class="py-5 px-6 text-right text-[#22C55E]">21.4%</td>
+<td class="py-5 px-6 text-right text-[#22C55E]">1.1x</td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">539</td>
+</tr>
+<tr class="hover:bg-[#1C1D20] transition-colors">
+<td class="py-5 px-6 text-[#E8EAED] font-medium flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-[#27282B] flex items-center justify-center text-xs font-bold">HM</div>
+                                Heidelberg Materials
+                            </td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">21,173</td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">19.8%</td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">1.4x</td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">551</td>
+</tr>
+<tr class="hover:bg-[#1C1D20] transition-colors">
+<td class="py-5 px-6 text-[#E8EAED] font-medium flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-[#27282B] flex items-center justify-center text-xs font-bold">CR</div>
+                                CRH
+                            </td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">34,900</td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">18.2%</td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">1.3x</td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">545</td>
+</tr>
+<tr class="hover:bg-[#1C1D20] transition-colors">
+<td class="py-5 px-6 text-[#E8EAED] font-medium flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-[#27282B] flex items-center justify-center text-xs font-bold">BU</div>
+                                Buzzi
+                            </td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">4,317</td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">22.1%</td>
+<td class="py-5 px-6 text-right text-[#EF4444]">0.2x</td>
+<td class="py-5 px-6 text-right text-[#EF4444]">662</td>
+</tr>
+<tr class="hover:bg-[#1C1D20] transition-colors">
+<td class="py-5 px-6 text-[#E8EAED] font-medium flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-[#27282B] flex items-center justify-center text-xs font-bold">VI</div>
+                                Vicat
+                            </td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">3,937</td>
+<td class="py-5 px-6 text-right text-[#EF4444]">16.5%</td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">2.1x</td>
+<td class="py-5 px-6 text-right text-[#E8EAED]">598</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Pricing Section -->
+<section class="max-w-[1440px] mx-auto px-8 mb-32">
+<h2 class="font-h2 mb-16 text-center text-[#E8EAED]">Pricing</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Starter -->
+<div class="bg-[#141518] rounded-lg border border-[#27282B] p-8 flex flex-col">
+<h3 class="font-h3 text-[#E8EAED] mb-2">Starter</h3>
+<div class="font-h2 text-3xl text-[#E8EAED] mb-8">CHF 28,800<span class="text-sm font-normal text-[#9CA3AF]">/yr</span></div>
+<ul class="space-y-4 font-body-md text-[#9CA3AF] mb-12 flex-1">
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-sm text-[#E8EAED]" data-icon="check">check</span> Up to 5 peers</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-sm text-[#E8EAED]" data-icon="check">check</span> Basic financial KPIs</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-sm text-[#E8EAED]" data-icon="check">check</span> Quarterly updates</li>
+</ul>
+<button class="w-full bg-[#1C1D20] text-[#E8EAED] py-3 rounded-full border border-[#27282B] hover:bg-[#27282B] transition-colors">Select Starter</button>
+</div>
+<!-- Professional -->
+<div class="bg-[#141518] rounded-lg border-2 border-primary p-8 flex flex-col relative transform md:-translate-y-4 shadow-[0_0_40px_rgba(59,130,246,0.1)]">
+<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-on-primary px-4 py-1 rounded-full font-label-caps text-xs uppercase tracking-wider font-bold">Most Popular</div>
+<h3 class="font-h3 text-[#E8EAED] mb-2">Professional</h3>
+<div class="font-h2 text-3xl text-[#E8EAED] mb-8">CHF 58,800<span class="text-sm font-normal text-[#9CA3AF]">/yr</span></div>
+<ul class="space-y-4 font-body-md text-[#E8EAED] mb-12 flex-1">
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-sm text-primary" data-icon="check">check</span> Up to 15 peers</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-sm text-primary" data-icon="check">check</span> Full financial &amp; ESG KPIs</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-sm text-primary" data-icon="check">check</span> 60-minute turnaround</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-sm text-primary" data-icon="check">check</span> Excel/API export</li>
+</ul>
+<button class="w-full bg-[#E8EAED] text-[#0A0B0D] py-3 rounded-full hover:bg-white transition-colors font-medium">Select Professional</button>
+</div>
+<!-- Enterprise -->
+<div class="bg-[#141518] rounded-lg border border-[#27282B] p-8 flex flex-col">
+<h3 class="font-h3 text-[#E8EAED] mb-2">Enterprise</h3>
+<div class="font-h2 text-3xl text-[#E8EAED] mb-8">CHF 118,800<span class="text-sm font-normal text-[#9CA3AF]">/yr</span></div>
+<ul class="space-y-4 font-body-md text-[#9CA3AF] mb-12 flex-1">
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-sm text-[#E8EAED]" data-icon="check">check</span> Unlimited peers</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-sm text-[#E8EAED]" data-icon="check">check</span> Custom KPIs &amp; taxonomy</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-sm text-[#E8EAED]" data-icon="check">check</span> Dedicated analyst team</li>
+<li class="flex items-center gap-3"><span class="material-symbols-outlined text-sm text-[#E8EAED]" data-icon="check">check</span> SSO &amp; custom integrations</li>
+</ul>
+<button class="w-full bg-[#1C1D20] text-[#E8EAED] py-3 rounded-full border border-[#27282B] hover:bg-[#27282B] transition-colors">Contact Sales</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full border-t border-[#27282B] mt-24 bg-[#0A0B0D]">
+<div class="max-w-[1440px] mx-auto px-8 py-12 flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="text-lg font-bold text-[#E8EAED]">
+                BenchmarkSignal
+            </div>
+<div class="font-inter text-xs text-[#94A3B8]">
+                © 2024 BenchmarkSignal. Institutional Grade Intelligence.
+            </div>
+<div class="flex items-center gap-6 font-inter text-xs text-[#94A3B8]">
+<a class="hover:text-[#3B82F6] transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-[#3B82F6] transition-colors" href="#">Terms of Service</a>
+<a class="hover:text-[#3B82F6] transition-colors" href="#">Security</a>
+<a class="hover:text-[#3B82F6] transition-colors" href="#">Status</a>
+</div>
+</div>
+</footer>
+</body></html>
