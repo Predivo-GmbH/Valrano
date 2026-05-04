@@ -346,7 +346,7 @@ export function DashboardPage() {
                         key={company.id}
                         className={`border-b border-border transition-colors duration-200 last:border-0 ${
                           isPrimary
-                            ? 'bg-[rgba(59,130,246,0.04)] hover:bg-[rgba(59,130,246,0.07)]'
+                            ? 'bg-[var(--color-accent)]/[0.04] hover:bg-[var(--color-accent)]/[0.07]'
                             : idx % 2 === 0
                             ? 'hover:bg-[var(--color-bg-tertiary)]'
                             : 'hover:bg-[var(--color-bg-tertiary)]'
@@ -366,11 +366,7 @@ export function DashboardPage() {
                                 </span>
                                 {isPrimary && (
                                   <span
-                                    className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                                    style={{
-                                      background: 'rgba(59,130,246,0.1)',
-                                      color: '#3B82F6',
-                                    }}
+                                    className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)]"
                                   >
                                     Primary
                                   </span>
@@ -414,7 +410,7 @@ export function DashboardPage() {
 
         {/* Legend */}
         {hasData && (
-          <div className="mt-4 flex items-center gap-6 text-[11px] text-muted-foreground">
+          <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-signal-green)]" />
               Best in peer group

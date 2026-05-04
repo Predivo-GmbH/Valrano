@@ -124,8 +124,7 @@ export function ReviewPage() {
 
         {!isLoading && pendingCount > 0 && (
           <span
-            className="rounded-full px-3 py-1 text-[12px] font-semibold"
-            style={{ background: 'rgba(245,158,11,0.1)', color: '#F59E0B' }}
+            className="rounded-full bg-[var(--color-signal-amber)]/10 px-3 py-1 text-[12px] font-semibold text-[var(--color-signal-amber)]"
           >
             {pendingCount} pending
           </span>

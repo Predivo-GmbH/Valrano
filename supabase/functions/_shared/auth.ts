@@ -14,21 +14,23 @@ export async function authenticateRequest(req: Request): Promise<AuthResult> {
     throw new AuthError('Missing authorization header', 401)
   }
 
-  const userClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } }
-  )
+  const sbUrl = Deno.env.get('SUPABASE_URL')
+  const sbAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+  const sbServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!sbUrl || !sbAnonKey || !sbServiceKey) {
+    throw new AuthError('Missing Supabase environment variables', 500)
+  }
+
+  const userClient = createClient(sbUrl, sbAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  })
 
   const { data: { user }, error } = await userClient.auth.getUser()
   if (error || !user) {
     throw new AuthError('Invalid or expired session', 401)
   }
 
-  const adminClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  )
+  const adminClient = createClient(sbUrl, sbServiceKey)
 
   return { user: { id: user.id, email: user.email }, userClient, adminClient }
 }

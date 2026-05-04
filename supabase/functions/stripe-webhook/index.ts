@@ -8,13 +8,20 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const STRIPE_WEBHOOK_SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET')!
+const STRIPE_WEBHOOK_SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET')
+if (!STRIPE_WEBHOOK_SECRET) throw new Error('Missing STRIPE_WEBHOOK_SECRET')
+
+const MAX_TIMESTAMP_AGE_S = 300 // 5 minutes — Stripe standard
 
 async function verifySignature(body: string, signature: string): Promise<boolean> {
   const parts = signature.split(',')
   const timestamp = parts.find((p) => p.startsWith('t='))?.slice(2)
   const v1Sig = parts.find((p) => p.startsWith('v1='))?.slice(3)
   if (!timestamp || !v1Sig) return false
+
+  // Reject replayed events older than 5 minutes
+  const age = Math.floor(Date.now() / 1000) - Number(timestamp)
+  if (Number.isNaN(age) || age > MAX_TIMESTAMP_AGE_S) return false
 
   const payload = `${timestamp}.${body}`
   const key = await crypto.subtle.importKey(
@@ -25,11 +32,18 @@ async function verifySignature(body: string, signature: string): Promise<boolean
     ['sign']
   )
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
-  const expected = Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
 
-  return expected === v1Sig
+  // Timing-safe comparison
+  const expectedBytes = new Uint8Array(sig)
+  const receivedHex = v1Sig.match(/.{2}/g)
+  if (!receivedHex || receivedHex.length !== expectedBytes.length) return false
+  const receivedBytes = new Uint8Array(receivedHex.map((h) => parseInt(h, 16)))
+
+  let result = 0
+  for (let i = 0; i < expectedBytes.length; i++) {
+    result |= expectedBytes[i] ^ receivedBytes[i]
+  }
+  return result === 0
 }
 
 function tierFromProductId(productId: string): string {
@@ -53,10 +67,10 @@ Deno.serve(async (req) => {
   }
 
   const event = JSON.parse(body)
-  const adminClient = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  )
+  const sbUrl = Deno.env.get('SUPABASE_URL')
+  const sbKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!sbUrl || !sbKey) throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+  const adminClient = createClient(sbUrl, sbKey)
 
   try {
     switch (event.type) {
@@ -69,7 +83,8 @@ Deno.serve(async (req) => {
         if (!userId) break
 
         // Fetch subscription details from Stripe
-        const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')!
+        const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
+        if (!stripeKey) throw new Error('Missing STRIPE_SECRET_KEY')
         const subRes = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
           headers: { Authorization: `Bearer ${stripeKey}` },
         })

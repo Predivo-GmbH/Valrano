@@ -81,7 +81,7 @@ export default function OtpInput({ length = 6, onComplete, disabled }: OtpInputP
   )
 
   return (
-    <div className="flex justify-center gap-2.5" role="group" aria-label="Verification code">
+    <div className="flex justify-center gap-1.5 sm:gap-2.5" role="group" aria-label="Verification code">
       {Array.from({ length }, (_, i) => (
         <input
           key={i}
@@ -97,7 +97,7 @@ export default function OtpInput({ length = 6, onComplete, disabled }: OtpInputP
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={i === 0 ? handlePaste : undefined}
-          className="h-14 w-10 sm:w-12 rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-card)] text-center text-2xl font-bold text-[var(--color-foreground)] transition-all focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 disabled:opacity-50"
+          className="h-14 w-11 rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-card)] text-center text-2xl font-bold text-[var(--color-foreground)] transition-all focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 disabled:opacity-50 sm:w-12"
         />
       ))}
     </div>

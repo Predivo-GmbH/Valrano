@@ -12,6 +12,8 @@ import {
   ArrowRight,
   Check,
   AlertCircle,
+  Menu,
+  X,
 } from 'lucide-react'
 
 /* ── Section label (uppercase accent badge) ──────────── */
@@ -35,6 +37,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
       >
         {q}
         <ChevronDown
+          aria-hidden="true"
           className={`h-4 w-4 shrink-0 text-[var(--color-muted-foreground)] transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
@@ -177,7 +180,7 @@ const jsonLd = {
       '@type': 'Organization',
       name: 'BenchmarkSignal',
       url: 'https://benchmarksignal.predivo.ch',
-      logo: 'https://benchmarksignal.predivo.ch/logo.svg',
+      logo: 'https://benchmarksignal.predivo.ch/og-image.svg',
       description:
         'Fully automated competitive benchmarking platform for listed corporations. AI-powered KPI extraction from peer reports.',
       sameAs: [],
@@ -218,6 +221,8 @@ const jsonLd = {
 
 /* ── Landing Page ─────────────────────────────────────── */
 export default function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   return (
     <>
       <Helmet>
@@ -244,7 +249,7 @@ export default function LandingPage() {
         />
         <meta
           property="og:image"
-          content="https://benchmarksignal.predivo.ch/og-image.png"
+          content="https://benchmarksignal.predivo.ch/og-image.svg"
         />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -253,13 +258,17 @@ export default function LandingPage() {
           rel="canonical"
           href="https://benchmarksignal.predivo.ch"
         />
+        <link
+          rel="preconnect"
+          href="https://iplfnausgpexckrrrhov.supabase.co"
+        />
         <script type="application/ld+json">
           {JSON.stringify(jsonLd)}
         </script>
       </Helmet>
 
       {/* ── Navbar ───────────────────────────────────── */}
-      <nav className="fixed top-0 z-50 w-full border-b border-[var(--color-border)] bg-[var(--color-background)]/80 backdrop-blur-xl">
+      <nav className="fixed top-0 z-50 w-full border-b border-[var(--color-border)] bg-[var(--color-background)]/80 backdrop-blur-xl" aria-label="Landing navigation">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link
             to="/"
@@ -270,36 +279,58 @@ export default function LandingPage() {
           <div className="hidden items-center gap-8 md:flex">
             <a
               href="#features"
-              className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+              className="inline-flex min-h-[44px] items-center text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
             >
               Features
             </a>
             <a
               href="#pricing"
-              className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+              className="inline-flex min-h-[44px] items-center text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
             >
               Pricing
             </a>
             <a
               href="#faq"
-              className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+              className="inline-flex min-h-[44px] items-center text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
             >
               FAQ
             </a>
             <Link
               to="/login"
-              className="text-sm font-medium text-[var(--color-foreground)] transition-colors hover:text-[var(--color-accent)]"
+              className="inline-flex min-h-[44px] items-center text-sm font-medium text-[var(--color-foreground)] transition-colors hover:text-[var(--color-accent)]"
             >
               Sign in
             </Link>
           </div>
-          <Link
-            to="/signup"
-            className="rounded-full bg-[var(--color-primary)] px-5 py-2 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90 md:hidden"
-          >
-            Get Started
-          </Link>
+
+          {/* Mobile: hamburger + CTA */}
+          <div className="flex items-center gap-2 md:hidden">
+            <Link
+              to="/signup"
+              className="rounded-full bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
+            >
+              Get Started
+            </Link>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileMenuOpen}
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile dropdown */}
+        {mobileMenuOpen && (
+          <div className="border-t border-[var(--color-border)] bg-[var(--color-background)] px-6 pb-4 pt-2 md:hidden">
+            <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block min-h-[44px] py-3 text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Features</a>
+            <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block min-h-[44px] py-3 text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Pricing</a>
+            <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block min-h-[44px] py-3 text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">FAQ</a>
+            <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block min-h-[44px] py-3 text-sm font-medium text-[var(--color-foreground)]">Sign in</Link>
+          </div>
+        )}
       </nav>
 
       <main>
@@ -315,7 +346,7 @@ export default function LandingPage() {
                 in 60 minutes
               </span>
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[var(--color-muted-foreground)]">
+            <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg">
               Replace CHF 300K consulting engagements and 200 hours of manual
               analyst work with a single platform that extracts, normalizes,
               and compares financial and ESG KPIs from peer reports
@@ -327,7 +358,7 @@ export default function LandingPage() {
                 className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-8 py-3.5 text-[15px] font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
               >
                 Request a Demo
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <a
                 href="#features"
@@ -360,9 +391,9 @@ export default function LandingPage() {
               {PAIN_POINTS.map((p) => (
                 <div
                   key={p.title}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-8"
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-5 sm:p-8"
                 >
-                  <p.icon className="h-6 w-6 text-[var(--color-accent)]" />
+                  <p.icon className="h-6 w-6 text-[var(--color-accent)]" aria-hidden="true" />
                   <h3 className="mt-4 text-lg font-semibold text-[var(--color-foreground)]">
                     {p.title}
                   </h3>
@@ -411,7 +442,7 @@ export default function LandingPage() {
               ].map((s) => (
                 <div
                   key={s.step}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-8"
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-5 sm:p-8"
                 >
                   <span className="text-sm font-bold text-[var(--color-accent)]">
                     {s.step}
@@ -448,10 +479,10 @@ export default function LandingPage() {
               {FEATURES.map((f) => (
                 <div
                   key={f.title}
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-8 transition-colors hover:bg-[var(--color-bg-tertiary)]"
+                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-5 transition-colors hover:bg-[var(--color-bg-tertiary)] sm:p-8"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-accent)]/10">
-                    <f.icon className="h-5 w-5 text-[var(--color-accent)]" />
+                    <f.icon className="h-5 w-5 text-[var(--color-accent)]" aria-hidden="true" />
                   </div>
                   <h3 className="mt-4 text-[15px] font-semibold text-[var(--color-foreground)]">
                     {f.title}
@@ -486,9 +517,9 @@ export default function LandingPage() {
               {TIERS.map((tier) => (
                 <div
                   key={tier.name}
-                  className={`relative rounded-lg border p-8 ${
+                  className={`relative overflow-visible rounded-lg border p-5 sm:p-8 ${
                     tier.featured
-                      ? 'border-[var(--color-accent)] bg-[var(--color-card)] shadow-[0_0_40px_rgba(59,130,246,0.1)]'
+                      ? 'border-[var(--color-accent)] bg-[var(--color-card)] shadow-[0_0_40px_var(--color-accent)/10]'
                       : 'border-[var(--color-border)] bg-[var(--color-card)]'
                   }`}
                 >
@@ -516,14 +547,14 @@ export default function LandingPage() {
                         key={h}
                         className="flex items-start gap-3 text-sm text-[var(--color-muted-foreground)]"
                       >
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-signal-green)]" />
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-signal-green)]" aria-hidden="true" />
                         {h}
                       </li>
                     ))}
                   </ul>
                   <a
                     href="mailto:roger@predivo.ch?subject=BenchmarkSignal%20Demo%20Request"
-                    className={`mt-8 block w-full rounded-full py-3 text-center text-sm font-medium transition-opacity hover:opacity-90 ${
+                    className={`mt-8 block min-h-[44px] w-full rounded-full py-3 text-center text-sm font-medium transition-opacity hover:opacity-90 ${
                       tier.featured
                         ? 'bg-[var(--color-accent)] text-white'
                         : 'border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)]'
@@ -563,7 +594,7 @@ export default function LandingPage() {
             <h2 className="text-[clamp(1.75rem,4vw,3rem)] font-bold tracking-[-0.02em] text-[var(--color-foreground)]">
               Stop building peer comparisons manually
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-[var(--color-muted-foreground)]">
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg">
               Your team spends 3-5 days building peer comparisons that are
               outdated before the board meeting. BenchmarkSignal delivers them
               in 60 minutes, continuously, for less than a single Bloomberg
@@ -575,7 +606,7 @@ export default function LandingPage() {
                 className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-8 py-3.5 text-[15px] font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90"
               >
                 Request a Demo
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
               <Link
                 to="/signup"
@@ -597,13 +628,13 @@ export default function LandingPage() {
             <div className="flex gap-6">
               <Link
                 to="/login"
-                className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+                className="inline-flex min-h-[44px] items-center text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
               >
                 Sign in
               </Link>
               <a
                 href="mailto:roger@predivo.ch"
-                className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+                className="inline-flex min-h-[44px] items-center text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
               >
                 Contact
               </a>

@@ -23,7 +23,7 @@ export default defineConfig({
           if (id.includes('node_modules/@supabase/supabase-js')) {
             return 'supabase-vendor'
           }
-          if (id.includes('node_modules/radix-ui')) {
+          if (id.includes('node_modules/@radix-ui')) {
             return 'ui-vendor'
           }
           if (id.includes('node_modules/lucide-react')) {

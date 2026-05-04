@@ -117,20 +117,20 @@ export default function LoginPage() {
           <div>
             <label htmlFor="login-email" className="block text-sm font-medium text-[var(--color-foreground)]">Email</label>
             <input id="login-email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 sm:text-sm"
               placeholder="you@company.com" />
           </div>
           <div>
             <div className="flex items-center justify-between">
               <label htmlFor="login-password" className="block text-sm font-medium text-[var(--color-foreground)]">Password</label>
-              <Link to="/forgot-password" className="text-xs font-medium text-[var(--color-primary)] hover:underline">Forgot password?</Link>
+              <Link to="/forgot-password" className="inline-flex min-h-[44px] items-center text-xs font-medium text-[var(--color-primary)] hover:underline">Forgot password?</Link>
             </div>
             <input id="login-password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 sm:text-sm"
               placeholder="Enter your password" />
           </div>
           <button type="submit" disabled={loading}
-            className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50">
+            className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50">
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
@@ -146,11 +146,11 @@ export default function LoginPage() {
           <div>
             <label htmlFor="code-email" className="block text-sm font-medium text-[var(--color-foreground)]">Email</label>
             <input id="code-email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 sm:text-sm"
               placeholder="you@company.com" />
           </div>
           <button type="submit" disabled={loading}
-            className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50">
+            className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50">
             {loading ? 'Sending code...' : 'Send Sign-In Code'}
           </button>
         </form>
@@ -169,7 +169,7 @@ export default function LoginPage() {
           {loading && <p className="text-center text-sm text-[var(--color-muted-foreground)]">Verifying...</p>}
           <ResendTimer onResend={handleResend} />
           <button onClick={() => { setCodeStep('email'); setError(null) }}
-            className="block w-full text-center text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]">
+            className="block w-full py-3 text-center text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]">
             &larr; Use a different email
           </button>
         </div>
