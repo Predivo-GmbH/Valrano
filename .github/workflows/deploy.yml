@@ -37,7 +37,7 @@ jobs:
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-allow no
           mirror --reverse --verbose --no-perms \
-            ./dist/assets/ /httpdocs/assets/
+            ./dist/assets/ benchmarksignal.predivo.ch/assets/
           bye
           SCRIPT
         env:
@@ -49,8 +49,8 @@ jobs:
         run: |
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-allow no
-          put ./dist/index.html -o /httpdocs/index.html
-          put ./dist/.htaccess -o /httpdocs/.htaccess
+          put ./dist/index.html -o benchmarksignal.predivo.ch/index.html
+          put ./dist/.htaccess -o benchmarksignal.predivo.ch/.htaccess
           bye
           SCRIPT
         env:
@@ -63,7 +63,7 @@ jobs:
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-allow no
           mirror --reverse --verbose --no-perms --delete \
-            ./dist/assets/ /httpdocs/assets/
+            ./dist/assets/ benchmarksignal.predivo.ch/assets/
           bye
           SCRIPT
         env:
