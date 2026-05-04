@@ -1,0 +1,116 @@
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
+import type {
+  Company,
+  KpiDefinition,
+  KpiValue,
+  PeerGroup,
+  PeerGroupMember,
+  Report,
+} from '@/types/database'
+
+export function useCompanies() {
+  return useQuery({
+    queryKey: ['companies'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('is_active', true)
+        .order('name')
+      if (error) throw error
+      return data as Company[]
+    },
+  })
+}
+
+export function useKpiDefinitions() {
+  return useQuery({
+    queryKey: ['kpi-definitions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kpi_definitions')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order')
+      if (error) throw error
+      return data as KpiDefinition[]
+    },
+  })
+}
+
+export function usePeerGroups() {
+  return useQuery({
+    queryKey: ['peer-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('peer_groups')
+        .select('*, peer_group_members(*, companies(*))')
+        .order('name')
+      if (error) throw error
+      return data as (PeerGroup & {
+        peer_group_members: (PeerGroupMember & { companies: Company })[]
+      })[]
+    },
+  })
+}
+
+export function useKpiValues(params: {
+  companyIds?: string[]
+  kpiCodes?: string[]
+  fiscalYear?: number
+}) {
+  return useQuery({
+    queryKey: ['kpi-values', params],
+    queryFn: async () => {
+      let query = supabase
+        .from('kpi_values')
+        .select('*, kpi_definitions(*), companies(*)')
+
+      if (params.companyIds?.length) {
+        query = query.in('company_id', params.companyIds)
+      }
+      if (params.fiscalYear) {
+        query = query.eq('fiscal_year', params.fiscalYear)
+      }
+      // kpiCodes filter requires joining with kpi_definitions — use a sub-query approach
+      // by filtering after fetch when kpiCodes are provided (avoids complex PostgREST syntax)
+
+      const { data, error } = await query.order('company_id')
+      if (error) throw error
+
+      const rows = data as (KpiValue & {
+        kpi_definitions: KpiDefinition
+        companies: Company
+      })[]
+
+      if (params.kpiCodes?.length) {
+        const codeSet = new Set(params.kpiCodes)
+        return rows.filter((r) => codeSet.has(r.kpi_definitions?.code))
+      }
+
+      return rows
+    },
+    enabled: !!(params.companyIds?.length || params.fiscalYear),
+  })
+}
+
+export function useReports(companyId?: string) {
+  return useQuery({
+    queryKey: ['reports', companyId],
+    queryFn: async () => {
+      let query = supabase
+        .from('reports')
+        .select('*, companies(*)')
+        .order('fiscal_year', { ascending: false })
+
+      if (companyId) {
+        query = query.eq('company_id', companyId)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
+      return data as (Report & { companies: Company })[]
+    },
+  })
+}

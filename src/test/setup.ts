@@ -1,5 +1,20 @@
 import '@testing-library/jest-dom/vitest'
 
+// jsdom does not implement window.matchMedia — required by next-themes and media query hooks
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
+
 // Global Supabase mock to prevent CI crashes
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({

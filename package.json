@@ -17,6 +17,8 @@
     "test:all": "vitest run && npx playwright test"
   },
   "dependencies": {
+    "@base-ui/react": "^1.4.1",
+    "@fontsource-variable/geist": "^5.2.8",
     "@supabase/supabase-js": "^2.105.2",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.4",

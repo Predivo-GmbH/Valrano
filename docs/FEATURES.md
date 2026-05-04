@@ -3,13 +3,20 @@
 **Project:** BenchmarkSignal (Automated Competitive Benchmarking for Listed Corporations)
 **Last Updated:** 2026-05-04
 **Total Features:** 16
-**Implemented:** 0 / Unit Tests: 0 files / E2E Tests: 0 spec files / Accessibility: 0 spec files
+**Implemented:** 4 / Unit Tests: 4 files / E2E Tests: 1 spec file / Accessibility: 0 spec files
 
 ---
 
 ## Overview
 
 This document defines all features in the BenchmarkSignal project with their status, routes, critical assertions, and test coverage. Every feature with status "implemented" or "tested" must have test files referenced below.
+
+### Utility Test Coverage
+
+| File | Test File | Tests |
+|------|-----------|-------|
+| `src/lib/format.ts` | `src/lib/__tests__/format.test.ts` | 13 tests (formatKpiValue + formatCurrency) |
+| `src/lib/supabase.ts` | `src/lib/__tests__/supabase.test.ts` | 1 test |
 
 ---
 
@@ -47,9 +54,9 @@ This document defines all features in the BenchmarkSignal project with their sta
 
 ### F-003: Theme Toggle (Dark/Light)
 
-**Status:** planned
+**Status:** implemented
 **Route:** Global (nav bar)
-**Components:** TBD
+**Components:** `src/components/layout/AppLayout.tsx`
 
 **Description:** Dark mode default, light mode toggle. Stored in localStorage, respects system preference on first visit.
 
@@ -58,13 +65,17 @@ This document defines all features in the BenchmarkSignal project with their sta
 2. Toggle switches theme and persists
 3. Respects prefers-color-scheme on first visit
 
+**Test Files:**
+- Unit/Component: `src/components/layout/__tests__/AppLayout.test.tsx`
+- E2E: `e2e/features.spec.ts` (F-003: Navigation), `e2e/smoke.spec.ts` (dark mode default)
+
 ---
 
 ### F-004: Dashboard (Peer Comparison)
 
-**Status:** planned
+**Status:** implemented
 **Route:** `/dashboard`
-**Components:** TBD
+**Components:** `src/pages/DashboardPage.tsx`
 
 **Description:** Main app view showing peer comparison table/chart, KPI selector, peer group filter, ranking view. Core value delivery screen.
 
@@ -73,6 +84,10 @@ This document defines all features in the BenchmarkSignal project with their sta
 2. KPI selector filters displayed metrics
 3. Peer group filter switches active group
 4. Ranking view shows position per KPI
+
+**Test Files:**
+- Unit/Component: `src/pages/__tests__/DashboardPage.test.tsx`
+- E2E: `e2e/features.spec.ts` (F-004: Dashboard)
 
 ---
 
@@ -94,9 +109,9 @@ This document defines all features in the BenchmarkSignal project with their sta
 
 ### F-006: PDF Upload & Extraction
 
-**Status:** planned
+**Status:** implemented
 **Route:** `/upload`
-**Components:** TBD
+**Components:** `src/pages/UploadPage.tsx`
 
 **Description:** PDF upload with Vision-LLM extraction progress. Shows confidence scores and review queue for values below 0.85.
 
@@ -105,6 +120,10 @@ This document defines all features in the BenchmarkSignal project with their sta
 2. Shows extraction progress
 3. Displays confidence scores
 4. Queues low-confidence values for review
+
+**Test Files:**
+- Unit/Component: `src/pages/__tests__/UploadPage.test.tsx`
+- E2E: `e2e/features.spec.ts` (F-006: Upload)
 
 ---
 
@@ -172,9 +191,9 @@ This document defines all features in the BenchmarkSignal project with their sta
 
 ### F-011: KPI Review Queue
 
-**Status:** planned
+**Status:** implemented
 **Route:** `/review`
-**Components:** TBD
+**Components:** `src/pages/ReviewPage.tsx`
 
 **Description:** Queue of extracted KPI values with confidence below 0.85. Reviewer can approve, edit, or reject.
 
@@ -183,6 +202,9 @@ This document defines all features in the BenchmarkSignal project with their sta
 2. Displays source PDF context
 3. Allows approve/edit/reject
 4. Updates confidence and reviewer info
+
+**Test Files:**
+- E2E: `e2e/features.spec.ts` (F-011: Review)
 
 ---
 
