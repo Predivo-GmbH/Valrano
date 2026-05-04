@@ -51,6 +51,9 @@ jobs:
           set ftp:ssl-allow no
           put ./dist/index.html -o benchmarksignal.predivo.ch/index.html
           put ./dist/.htaccess -o benchmarksignal.predivo.ch/.htaccess
+          put ./dist/robots.txt -o benchmarksignal.predivo.ch/robots.txt
+          put ./dist/sitemap.xml -o benchmarksignal.predivo.ch/sitemap.xml
+          put ./dist/og-image.svg -o benchmarksignal.predivo.ch/og-image.svg
           bye
           SCRIPT
         env:
