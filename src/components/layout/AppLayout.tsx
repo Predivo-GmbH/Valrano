@@ -1,10 +1,26 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
-import { Sun, Moon, Upload, LayoutDashboard, ClipboardCheck } from 'lucide-react'
+import { Sun, Moon, Upload, LayoutDashboard, ClipboardCheck, LogOut, User } from 'lucide-react'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { useAuth } from '@/hooks/useAuth'
 
 export function AppLayout() {
   const { theme, setTheme } = useTheme()
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   return (
     <TooltipProvider>
@@ -69,14 +85,43 @@ export function AppLayout() {
               </NavLink>
             </div>
 
-            {/* Right side — theme toggle */}
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              aria-label="Toggle theme"
-              className="rounded-lg p-2 text-muted-foreground transition-all duration-200 hover:text-foreground hover:bg-[var(--color-bg-tertiary)]"
-            >
-              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
+            {/* Right side — theme toggle + user menu */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                aria-label="Toggle theme"
+                className="rounded-lg p-2 text-muted-foreground transition-all duration-200 hover:text-foreground hover:bg-[var(--color-bg-tertiary)]"
+              >
+                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </button>
+
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  aria-label="User menu"
+                  className="rounded-lg p-2 text-muted-foreground transition-all duration-200 hover:text-foreground hover:bg-[var(--color-bg-tertiary)]"
+                >
+                  <User className="h-5 w-5" />
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-[var(--color-card)] py-1 shadow-lg">
+                    <div className="border-b border-border px-4 py-2">
+                      <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await signOut()
+                        navigate('/login')
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </nav>
 

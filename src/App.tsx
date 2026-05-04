@@ -3,10 +3,19 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'sonner'
 import { HelmetProvider } from 'react-helmet-async'
+import { AuthProvider } from '@/contexts/AuthContext'
+import PasswordGate from '@/components/auth/PasswordGate'
 import { AppLayout } from '@/components/layout/AppLayout'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { UploadPage } from '@/pages/UploadPage'
 import { ReviewPage } from '@/pages/ReviewPage'
+import LoginPage from '@/pages/auth/LoginPage'
+import SignUpPage from '@/pages/auth/SignUpPage'
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
+import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
+import AuthCallbackPage from '@/pages/auth/AuthCallbackPage'
+import AuthVerifyPage from '@/pages/auth/AuthVerifyPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,15 +32,31 @@ function App() {
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
-            <Routes>
-              <Route element={<AppLayout />}>
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/upload" element={<UploadPage />} />
-                <Route path="/review" element={<ReviewPage />} />
-              </Route>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
+            <PasswordGate>
+              <AuthProvider>
+                <Routes>
+                  {/* Auth routes — no AppLayout */}
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/signup" element={<SignUpPage />} />
+                  <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
+                  <Route path="/auth/callback" element={<AuthCallbackPage />} />
+                  <Route path="/auth/verify" element={<AuthVerifyPage />} />
+
+                  {/* Protected app routes */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route element={<AppLayout />}>
+                      <Route path="/dashboard" element={<DashboardPage />} />
+                      <Route path="/upload" element={<UploadPage />} />
+                      <Route path="/review" element={<ReviewPage />} />
+                    </Route>
+                  </Route>
+
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </AuthProvider>
+            </PasswordGate>
           </BrowserRouter>
           <Toaster
             position="bottom-right"

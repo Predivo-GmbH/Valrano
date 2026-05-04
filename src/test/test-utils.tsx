@@ -3,6 +3,7 @@ import { render, type RenderOptions } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,7 +17,9 @@ function AllProviders({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="dark">
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </ThemeProvider>

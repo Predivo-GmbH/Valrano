@@ -24,6 +24,10 @@ export type FxRateSource = 'daily_close' | 'period_average';
 
 export type AlertType = 'new_report' | 'anomaly' | 'extraction_complete';
 
+export type SubscriptionTier = 'starter' | 'professional' | 'enterprise';
+
+export type SubscriptionStatus = 'active' | 'past_due' | 'canceled' | 'incomplete' | 'trialing';
+
 // ---------------------------------------------------------------------------
 // Row types — shape of a row returned from Supabase
 // ---------------------------------------------------------------------------
@@ -170,6 +174,19 @@ export interface AlertHistory {
   updated_at: string;
 }
 
+export interface Subscription {
+  id: string;
+  user_id: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  tier: SubscriptionTier;
+  status: SubscriptionStatus;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface UserProfile {
   id: string;
   full_name: string | null;
@@ -206,6 +223,8 @@ export type AlertInsert = Omit<Alert, 'id' | 'created_at' | 'updated_at'>;
 
 export type AlertHistoryInsert = Omit<AlertHistory, 'id' | 'created_at' | 'updated_at'>;
 
+export type SubscriptionInsert = Omit<Subscription, 'id' | 'created_at' | 'updated_at'>;
+
 export type UserProfileInsert = Omit<UserProfile, 'created_at' | 'updated_at'>;
 
 // ---------------------------------------------------------------------------
@@ -222,6 +241,7 @@ export type KpiValueUpdate = Partial<KpiValueInsert>;
 export type FxRateUpdate = Partial<FxRateInsert>;
 export type AlertUpdate = Partial<AlertInsert>;
 export type AlertHistoryUpdate = Partial<AlertHistoryInsert>;
+export type SubscriptionUpdate = Partial<SubscriptionInsert>;
 export type UserProfileUpdate = Partial<Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>>;
 
 // ---------------------------------------------------------------------------
@@ -280,6 +300,11 @@ export interface Database {
         Row: AlertHistory;
         Insert: AlertHistoryInsert;
         Update: AlertHistoryUpdate;
+      };
+      subscriptions: {
+        Row: Subscription;
+        Insert: SubscriptionInsert;
+        Update: SubscriptionUpdate;
       };
       user_profiles: {
         Row: UserProfile;
