@@ -33,32 +33,38 @@ function App() {
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
-            <PasswordGate>
-              <AuthProvider>
-                <Routes>
-                  {/* Auth routes — no AppLayout */}
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/signup" element={<SignUpPage />} />
-                  <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                  <Route path="/reset-password" element={<ResetPasswordPage />} />
-                  <Route path="/auth/callback" element={<AuthCallbackPage />} />
-                  <Route path="/auth/verify" element={<AuthVerifyPage />} />
+            <Routes>
+              {/* Public landing page — outside PasswordGate */}
+              <Route path="/" element={<LandingPage />} />
 
-                  {/* Protected app routes */}
-                  <Route element={<ProtectedRoute />}>
-                    <Route element={<AppLayout />}>
-                      <Route path="/dashboard" element={<DashboardPage />} />
-                      <Route path="/upload" element={<UploadPage />} />
-                      <Route path="/review" element={<ReviewPage />} />
-                    </Route>
-                  </Route>
+              {/* Everything else behind PasswordGate */}
+              <Route path="*" element={
+                <PasswordGate>
+                  <AuthProvider>
+                    <Routes>
+                      {/* Auth routes — no AppLayout */}
+                      <Route path="/login" element={<LoginPage />} />
+                      <Route path="/signup" element={<SignUpPage />} />
+                      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                      <Route path="/reset-password" element={<ResetPasswordPage />} />
+                      <Route path="/auth/callback" element={<AuthCallbackPage />} />
+                      <Route path="/auth/verify" element={<AuthVerifyPage />} />
 
-                  {/* Public landing page */}
-                  <Route path="/" element={<LandingPage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </AuthProvider>
-            </PasswordGate>
+                      {/* Protected app routes */}
+                      <Route element={<ProtectedRoute />}>
+                        <Route element={<AppLayout />}>
+                          <Route path="/dashboard" element={<DashboardPage />} />
+                          <Route path="/upload" element={<UploadPage />} />
+                          <Route path="/review" element={<ReviewPage />} />
+                        </Route>
+                      </Route>
+
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </AuthProvider>
+                </PasswordGate>
+              } />
+            </Routes>
           </BrowserRouter>
           <Toaster
             position="bottom-right"
