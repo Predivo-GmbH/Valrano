@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /upload
+Disallow: /review
+Disallow: /login
+Disallow: /signup
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /auth/
+
+Sitemap: https://benchmarksignal.predivo.ch/sitemap.xml

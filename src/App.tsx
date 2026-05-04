@@ -7,6 +7,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import PasswordGate from '@/components/auth/PasswordGate'
 import { AppLayout } from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import LandingPage from '@/pages/LandingPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { UploadPage } from '@/pages/UploadPage'
 import { ReviewPage } from '@/pages/ReviewPage'
@@ -52,8 +53,9 @@ function App() {
                     </Route>
                   </Route>
 
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  {/* Public landing page */}
+                  <Route path="/" element={<LandingPage />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </AuthProvider>
             </PasswordGate>
