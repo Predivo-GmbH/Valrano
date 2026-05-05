@@ -803,7 +803,7 @@ export function DashboardPage() {
               icon={<Users className="h-4 w-4 text-[var(--color-accent)]" />}
               label="Peers Tracked"
               value={String(companies?.length ?? 0)}
-              subtitle={`${companiesWithData.length} with data · ${companiesWithoutData.length} pending`}
+              subtitle={`${companiesWithData.length} with data · ${activeMonitored} monitored`}
               accentColor="bg-[var(--color-accent)]/10"
             />
             <MetricCard
