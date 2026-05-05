@@ -147,11 +147,28 @@ serve(async (req: Request) => {
         })
       }
 
+      // Auto-trigger pipeline (download → extract → normalize → generate)
+      if (report && event.auto_pipeline !== false) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        if (supabaseUrl && serviceKey) {
+          fetch(`${supabaseUrl}/functions/v1/pipeline-orchestrator`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ report_id: report.id }),
+          }).catch((e) => console.error('Pipeline trigger failed:', e))
+        }
+      }
+
       return jsonResponse({
         success: true,
         detected: true,
         report_id: report?.id,
         found_url: foundUrl,
+        pipeline_triggered: true,
       })
     }
 

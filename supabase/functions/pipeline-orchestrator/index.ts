@@ -58,14 +58,28 @@ serve(async (req: Request) => {
       steps.push({ step: 'download-report', status: 'skipped' })
     }
 
-    // 3. Generate benchmark document
+    // 3. Extract KPIs from the PDF
+    {
+      const start = Date.now()
+      await callEdgeFunction('extract-kpis', { report_id })
+      steps.push({ step: 'extract-kpis', status: 'completed', duration_ms: Date.now() - start })
+    }
+
+    // 4. Normalize KPI values (currency conversion to CHF)
+    {
+      const start = Date.now()
+      await callEdgeFunction('normalize-kpis', { report_id })
+      steps.push({ step: 'normalize-kpis', status: 'completed', duration_ms: Date.now() - start })
+    }
+
+    // 5. Generate benchmark document
     {
       const start = Date.now()
       await callEdgeFunction('generate-benchmark', { report_id })
       steps.push({ step: 'generate-benchmark', status: 'completed', duration_ms: Date.now() - start })
     }
 
-    // 4. Update report status
+    // 6. Update report status
     await adminClient
       .from('reports')
       .update({ status: 'reviewed' })

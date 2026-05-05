@@ -1,0 +1,32 @@
+name: Monitor Publications (Cron)
+
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger monitor-publications edge function
+        run: |
+          response=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/monitor-publications")
+
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Response ($http_code): $body"
+
+          if [ "$http_code" -ge 400 ]; then
+            echo "::error::Monitor function returned $http_code"
+            exit 1
+          fi
+
+          # Extract stats
+          echo "$body" | jq '.' 2>/dev/null || true
