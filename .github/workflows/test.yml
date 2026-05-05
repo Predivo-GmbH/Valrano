@@ -37,3 +37,13 @@ jobs:
       - name: Feature Coverage Check
         run: node scripts/check-feature-coverage.mjs
         continue-on-error: true
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
