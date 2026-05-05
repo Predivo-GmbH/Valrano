@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
-import { Sun, Moon, Upload, LayoutDashboard, ClipboardCheck, FileText, Settings, LogOut, User, Menu, X, CalendarDays } from 'lucide-react'
+import { Sun, Moon, Upload, LayoutDashboard, ClipboardCheck, FileText, Settings, LogOut, User, Menu, X, CalendarDays, Building2 } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
@@ -90,6 +90,10 @@ export function AppLayout() {
                 <CalendarDays className="h-4 w-4" aria-hidden="true" />
                 Calendar
               </NavLink>
+              <NavLink to="/my-company" className={({ isActive }) => navLinkCls(isActive)}>
+                <Building2 className="h-4 w-4" aria-hidden="true" />
+                My Company
+              </NavLink>
               <NavLink to="/settings/benchmark-rules" className={({ isActive }) => navLinkCls(isActive)}>
                 <Settings className="h-4 w-4" aria-hidden="true" />
                 Rules
@@ -169,6 +173,10 @@ export function AppLayout() {
               <NavLink to="/calendar" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
                 <CalendarDays className="h-4 w-4" aria-hidden="true" />
                 Calendar
+              </NavLink>
+              <NavLink to="/my-company" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
+                <Building2 className="h-4 w-4" aria-hidden="true" />
+                My Company
               </NavLink>
               <NavLink to="/settings/benchmark-rules" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
                 <Settings className="h-4 w-4" aria-hidden="true" />

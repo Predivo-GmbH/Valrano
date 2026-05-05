@@ -464,6 +464,56 @@ export type ApprovalStepUpdate = Partial<ApprovalStepInsert>;
 export type NotificationUpdate = Partial<NotificationInsert>;
 
 // ---------------------------------------------------------------------------
+// Block A types — Self-Benchmarking (Sprint 7)
+// ---------------------------------------------------------------------------
+
+export interface MyCompany {
+  id: string;
+  user_id: string;
+  name: string;
+  sector: string | null;
+  country: string | null;
+  reporting_currency: string | null;
+  headcount: number | null;
+  founded_year: number | null;
+  website_url: string | null;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MyCompanyKpi {
+  id: string;
+  my_company_id: string;
+  kpi_definition_id: string;
+  fiscal_year: number;
+  value: number;
+  currency: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SelfBenchmark {
+  id: string;
+  my_company_id: string;
+  peer_group_id: string | null;
+  fiscal_year: number;
+  results_json: Record<string, unknown>;
+  ai_narrative: string | null;
+  generated_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MyCompanyInsert = Omit<MyCompany, 'id' | 'created_at' | 'updated_at'>;
+export type MyCompanyKpiInsert = Omit<MyCompanyKpi, 'id' | 'created_at' | 'updated_at'>;
+export type SelfBenchmarkInsert = Omit<SelfBenchmark, 'id' | 'created_at' | 'updated_at'>;
+
+export type MyCompanyUpdate = Partial<MyCompanyInsert>;
+export type MyCompanyKpiUpdate = Partial<MyCompanyKpiInsert>;
+
+// ---------------------------------------------------------------------------
 // Supabase Database shape (for createClient<Database> generic)
 // ---------------------------------------------------------------------------
 
