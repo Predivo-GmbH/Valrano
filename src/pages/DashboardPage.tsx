@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useCompanies, useKpiDefinitions, useKpiValues, useReports } from '@/hooks/useData'
 import { usePrimaryCompany, useMyCompanyKpis } from '@/hooks/useMyCompany'
@@ -113,15 +113,6 @@ function computePercentile(myValue: number, peerValues: number[]): number {
   const allValues = [...peerValues, myValue].sort((a, b) => a - b)
   const rank = allValues.indexOf(myValue)
   return Math.round((rank / (allValues.length - 1)) * 100)
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(/[\s-]+/)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
 }
 
 // ---------------------------------------------------------------------------
@@ -270,8 +261,8 @@ interface KpiCellProps {
 function KpiCell({ value, signalClass, unitType }: KpiCellProps) {
   if (!value) {
     return (
-      <td className="px-4 py-3 text-[13px] text-muted-foreground/30 tabular-nums text-right">
-        —
+      <td className="px-3 py-2 text-[12px] text-muted-foreground/25 tabular-nums text-right select-none">
+        ·
       </td>
     )
   }
@@ -283,10 +274,10 @@ function KpiCell({ value, signalClass, unitType }: KpiCellProps) {
   const sourcePage = value.source_page ? `p.${value.source_page}` : null
 
   return (
-    <td className="px-4 py-3 text-right">
+    <td className="px-3 py-2 text-right">
       <Tooltip>
         <TooltipTrigger
-          className={`cursor-default bg-transparent border-none p-0 text-[13px] tabular-nums transition-colors duration-200 ${signalClass}`}
+          className={`cursor-default bg-transparent border-none p-0 text-[12px] tabular-nums transition-colors duration-200 ${signalClass}`}
         >
           {formatted}
         </TooltipTrigger>
@@ -439,30 +430,18 @@ function SortableHeader({
       : ArrowDown
     : ArrowUpDown
 
-  const headerContent = (
-    <button
-      onClick={() => onSort(columnId)}
-      className={`inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[11px] font-semibold uppercase tracking-[0.05em] whitespace-nowrap transition-colors duration-150 ${
-        isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-      }`}
-    >
-      {label}
-      <SortIcon className={`h-3 w-3 ${isActive ? 'opacity-100' : 'opacity-0 group-hover/th:opacity-50'}`} />
-    </button>
-  )
+  const btnClass = `inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[10px] font-semibold uppercase tracking-[0.06em] whitespace-nowrap transition-colors duration-150 min-h-[44px] md:min-h-0 ${
+    isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+  }`
+  const iconClass = `h-2.5 w-2.5 flex-shrink-0 ${isActive ? 'opacity-100 text-foreground' : 'opacity-30 text-muted-foreground'}`
 
   if (description) {
     return (
-      <th className="group/th px-4 py-3 text-right">
+      <th className="px-3 py-2 text-right">
         <Tooltip>
-          <TooltipTrigger
-            className={`inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[11px] font-semibold uppercase tracking-[0.05em] whitespace-nowrap transition-colors duration-150 ${
-              isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}
-            onClick={() => onSort(columnId)}
-          >
+          <TooltipTrigger className={btnClass} onClick={() => onSort(columnId)}>
             {label}
-            <SortIcon className={`h-3 w-3 ${isActive ? 'opacity-100' : 'opacity-0 group-hover/th:opacity-50'}`} />
+            <SortIcon className={iconClass} />
           </TooltipTrigger>
           <TooltipContent
             side="top"
@@ -475,7 +454,14 @@ function SortableHeader({
     )
   }
 
-  return <th className="group/th px-4 py-3 text-right">{headerContent}</th>
+  return (
+    <th className="px-3 py-2 text-right">
+      <button onClick={() => onSort(columnId)} className={btnClass}>
+        {label}
+        <SortIcon className={iconClass} />
+      </button>
+    </th>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -494,6 +480,8 @@ export function DashboardPage() {
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>('financial')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ columnId: null, direction: 'desc' })
   const [showEmptyPeers, setShowEmptyPeers] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [showRightFade, setShowRightFade] = useState(true)
 
   const effectiveYear = fiscalYear ?? defaultYear
 
@@ -615,6 +603,22 @@ export function DashboardPage() {
       return { columnId, direction: 'desc' }
     })
   }
+
+  // Track horizontal scroll for right fade indicator
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const check = () => {
+      setShowRightFade(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+    }
+    check()
+    el.addEventListener('scroll', check, { passive: true })
+    window.addEventListener('resize', check)
+    return () => {
+      el.removeEventListener('scroll', check)
+      window.removeEventListener('resize', check)
+    }
+  }, [filteredDefs.length, sortedCompaniesWithData.length])
 
   // ---------------------------------------------------------------------------
   // Computed metrics for summary cards
@@ -856,47 +860,45 @@ export function DashboardPage() {
       {/* Section 4: Peer Comparison Table                                   */}
       {/* ================================================================== */}
       <div className="mb-8">
-        <div className="mb-4 flex items-end justify-between">
-          <div>
-            <h2 className="text-[15px] font-semibold text-foreground">Peer Comparison</h2>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {companiesWithData.length} of {companies?.length ?? 0} peers with data · {dataKpiCount} KPIs · Normalized to CHF
-            </p>
-          </div>
-        </div>
-
-        {/* KPI category tabs */}
         <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as ActiveCategory)}>
-          <TabsList className="mb-4 h-9 rounded-lg bg-[var(--color-bg-tertiary)] p-1">
-            <TabsTrigger
-              value="financial"
-              className="rounded-md px-3 py-1 text-[12px] font-medium data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
-            >
-              Financial
-            </TabsTrigger>
-            <TabsTrigger
-              value="esg"
-              className="rounded-md px-3 py-1 text-[12px] font-medium data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
-            >
-              ESG
-            </TabsTrigger>
-            <TabsTrigger
-              value="operational"
-              className="rounded-md px-3 py-1 text-[12px] font-medium data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
-            >
-              Operational
-            </TabsTrigger>
-            <TabsTrigger
-              value="all"
-              className="rounded-md px-3 py-1 text-[12px] font-medium data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
-            >
-              All
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Table card */}
           <div className="rounded-xl border border-border bg-card overflow-hidden">
+            {/* Card header: title + category tabs */}
+            <div className="flex flex-col gap-3 px-4 py-3 border-b border-border sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-[13px] font-semibold text-foreground">Peer Comparison</h2>
+                <p className="text-[10px] text-muted-foreground">
+                  {companiesWithData.length}/{companies?.length ?? 0} peers · {dataKpiCount} KPIs · Normalized to CHF
+                </p>
+              </div>
+              <TabsList className="h-7 rounded-lg bg-[var(--color-bg-tertiary)] p-0.5 flex-shrink-0 overflow-x-auto">
+                <TabsTrigger
+                  value="financial"
+                  className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
+                >
+                  Financial
+                </TabsTrigger>
+                <TabsTrigger
+                  value="esg"
+                  className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
+                >
+                  ESG
+                </TabsTrigger>
+                <TabsTrigger
+                  value="operational"
+                  className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
+                >
+                  Operational
+                </TabsTrigger>
+                <TabsTrigger
+                  value="all"
+                  className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
+                >
+                  All
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
+            {/* Table content */}
             {isLoading ? (
               <div className="p-6">
                 <TableSkeleton />
@@ -912,202 +914,169 @@ export function DashboardPage() {
             ) : companiesWithData.length === 0 ? (
               <SetupGuidanceState hasCompany={hasCompany} hasPeers={hasPeers} />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-max border-collapse">
-                  <thead>
-                    <tr className="border-b border-border">
-                      {/* Company column header — sticky with solid bg */}
-                      <th
-                        className="sticky left-0 z-30 bg-card px-4 py-3 text-left"
-                        style={{ minWidth: 220 }}
-                      >
-                        <button
-                          onClick={() => handleSort('__name')}
-                          className={`inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[11px] font-semibold uppercase tracking-[0.05em] transition-colors duration-150 ${
-                            sortConfig.columnId === '__name' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-                          }`}
-                        >
-                          Company
-                          {sortConfig.columnId === '__name' ? (
-                            sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                          ) : (
-                            <ArrowUpDown className="h-3 w-3 opacity-0 group-hover:opacity-50" />
-                          )}
-                        </button>
-                      </th>
-
-                      {filteredDefs.map((def) => (
-                        <SortableHeader
-                          key={def.id}
-                          label={def.name}
-                          columnId={def.id}
-                          sortConfig={sortConfig}
-                          onSort={handleSort}
-                          description={def.description}
-                        />
-                      ))}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {sortedCompaniesWithData.map((company, idx) => {
-                      const isPrimary = primaryCompanyName !== null && company.name === primaryCompanyName
-                      const peerVals = kpiPeerValues
-
-                      return (
-                        <tr
-                          key={company.id}
-                          className={`border-b border-border/50 transition-colors duration-150 last:border-0 ${
-                            isPrimary
-                              ? 'bg-[var(--color-accent)]/[0.04] hover:bg-[var(--color-accent)]/[0.07]'
-                              : idx % 2 === 0
-                              ? 'hover:bg-[var(--color-bg-tertiary)]/50'
-                              : 'bg-[var(--color-bg-tertiary)]/20 hover:bg-[var(--color-bg-tertiary)]/50'
-                          }`}
-                        >
-                          {/* Company name — sticky with SOLID background */}
-                          <td
-                            className={`sticky left-0 z-10 px-4 py-3 ${
-                              isPrimary
-                                ? 'bg-[var(--color-accent)]/[0.04]'
-                                : idx % 2 === 0
-                                ? 'bg-card'
-                                : 'bg-card'
+              <div className="relative">
+                <div ref={scrollRef} className="overflow-x-auto scrollbar-thin">
+                  <table className="w-full min-w-max border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-border">
+                        {/* Company column header — sticky */}
+                        <th className="sticky left-0 z-30 bg-card px-3 py-2 text-left w-[140px] md:w-[180px] after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/40 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.3)]">
+                          <button
+                            onClick={() => handleSort('__name')}
+                            className={`inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[10px] font-semibold uppercase tracking-[0.06em] transition-colors duration-150 min-h-[44px] md:min-h-0 ${
+                              sortConfig.columnId === '__name' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                             }`}
-                            style={{ minWidth: 220 }}
                           >
-                            {/* Solid background overlay to prevent bleed-through */}
-                            <div className="absolute inset-0 bg-card" style={{ zIndex: -1 }} />
-                            <div className="relative flex items-center gap-3">
-                              <div
-                                className={`flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center text-[11px] font-semibold ${
-                                  isPrimary
-                                    ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)]'
-                                    : 'bg-[var(--color-bg-tertiary)] text-muted-foreground'
-                                }`}
-                              >
-                                {getInitials(company.name)}
-                              </div>
+                            Company
+                            {sortConfig.columnId === '__name' ? (
+                              sortConfig.direction === 'asc' ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />
+                            ) : (
+                              <ArrowUpDown className="h-2.5 w-2.5 opacity-30" />
+                            )}
+                          </button>
+                        </th>
+
+                        {filteredDefs.map((def) => (
+                          <SortableHeader
+                            key={def.id}
+                            label={def.name}
+                            columnId={def.id}
+                            sortConfig={sortConfig}
+                            onSort={handleSort}
+                            description={def.description}
+                          />
+                        ))}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {sortedCompaniesWithData.map((company, idx) => {
+                        const isPrimary = primaryCompanyName !== null && company.name === primaryCompanyName
+                        const peerVals = kpiPeerValues
+
+                        return (
+                          <tr
+                            key={company.id}
+                            className={`border-b border-border/50 transition-colors duration-100 last:border-0 ${
+                              isPrimary
+                                ? 'bg-[var(--color-accent)]/[0.04] hover:bg-[var(--color-accent)]/[0.07]'
+                                : idx % 2 === 0
+                                ? 'hover:bg-[var(--color-bg-tertiary)]/30'
+                                : 'bg-[var(--color-bg-tertiary)]/10 hover:bg-[var(--color-bg-tertiary)]/30'
+                            }`}
+                          >
+                            {/* Company name — sticky, no avatar */}
+                            <td className={`sticky left-0 z-20 bg-card px-3 py-2 w-[140px] md:w-[180px] after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/30 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.3)] ${isPrimary ? 'border-l-2 border-l-[var(--color-accent)]' : ''}`}>
                               <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[13px] font-medium text-foreground truncate">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[12px] font-medium text-foreground truncate max-w-[100px] md:max-w-[140px]">
                                     {company.name}
                                   </span>
                                   {isPrimary && (
-                                    <span className="flex-shrink-0 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)]">
+                                    <span className="flex-shrink-0 rounded bg-[var(--color-accent)]/10 px-1 py-px text-[9px] font-bold uppercase leading-none text-[var(--color-accent)]">
                                       You
                                     </span>
                                   )}
                                 </div>
                                 {company.ticker && (
-                                  <div className="text-[11px] text-muted-foreground">
-                                    {company.exchange ? `${company.exchange}: ` : ''}{company.ticker}
+                                  <div className="hidden md:block text-[10px] text-muted-foreground leading-tight mt-px">
+                                    {company.exchange ? `${company.exchange}:` : ''}{company.ticker}
                                   </div>
                                 )}
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          {filteredDefs.map((def) => {
-                            const v = valueMap.get(`${company.id}__${def.id}`)
-                            const allVals = peerVals.get(def.id) ?? []
-                            const higherIsBetter = !LOWER_IS_BETTER_CODES.has(def.code)
-                            const signalClass = getSignalClass(
-                              v?.normalized_value ?? null,
-                              allVals,
-                              higherIsBetter,
-                            )
-                            return (
-                              <KpiCell
-                                key={def.id}
-                                value={v as KpiValueWithJoins | undefined}
-                                signalClass={signalClass}
-                                unitType={def.unit_type}
-                              />
-                            )
-                          })}
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Legend */}
-          {hasData && companiesWithData.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-signal-green)]" />
-                Best in peer group
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-signal-red)]" />
-                Worst in peer group
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/40" />
-                No data
-              </div>
-            </div>
-          )}
-        </Tabs>
-
-        {/* Category label */}
-        {activeCategory !== 'all' && hasData && companiesWithData.length > 0 && (
-          <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-            Showing {CATEGORY_LABELS[activeCategory as KpiCategory]} KPIs · FY {effectiveYear}
-          </p>
-        )}
-
-        {/* Collapsed empty peers section */}
-        {companiesWithoutData.length > 0 && hasData && (
-          <div className="mt-4">
-            <button
-              onClick={() => setShowEmptyPeers(!showEmptyPeers)}
-              className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] transition-all duration-200"
-            >
-              {showEmptyPeers ? (
-                <ChevronDown className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronRight className="h-3.5 w-3.5" />
-              )}
-              {companiesWithoutData.length} peer{companiesWithoutData.length === 1 ? '' : 's'} with no data for FY {effectiveYear}
-            </button>
-
-            {showEmptyPeers && (
-              <div className="mt-2 rounded-xl border border-border/50 bg-card/50 p-4">
-                <div className="flex flex-wrap gap-2">
-                  {companiesWithoutData
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((company) => (
-                    <div
-                      key={company.id}
-                      className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)]/50 px-3 py-1.5"
-                    >
-                      <div className="h-5 w-5 rounded flex items-center justify-center bg-[var(--color-bg-tertiary)] text-[9px] font-semibold text-muted-foreground">
-                        {getInitials(company.name)}
-                      </div>
-                      <span className="text-[12px] text-muted-foreground">{company.name}</span>
-                      {company.ticker && (
-                        <span className="text-[10px] text-muted-foreground/60">
-                          {company.ticker}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                            {filteredDefs.map((def) => {
+                              const v = valueMap.get(`${company.id}__${def.id}`)
+                              const allVals = peerVals.get(def.id) ?? []
+                              const higherIsBetter = !LOWER_IS_BETTER_CODES.has(def.code)
+                              const signalClass = getSignalClass(
+                                v?.normalized_value ?? null,
+                                allVals,
+                                higherIsBetter,
+                              )
+                              return (
+                                <KpiCell
+                                  key={def.id}
+                                  value={v as KpiValueWithJoins | undefined}
+                                  signalClass={signalClass}
+                                  unitType={def.unit_type}
+                                />
+                              )
+                            })}
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-                <p className="mt-3 text-[11px] text-muted-foreground">
-                  <Link to="/upload" className="text-[var(--color-primary)] hover:underline">
-                    Upload reports
-                  </Link>
-                  {' '}for these companies to include them in your benchmark.
-                </p>
+                {/* Right fade indicator — scroll affordance */}
+                {showRightFade && (
+                  <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[var(--color-card)] to-transparent z-10" />
+                )}
+              </div>
+            )}
+
+            {/* Card footer: legend + category label */}
+            {hasData && companiesWithData.length > 0 && (
+              <div className="flex items-center justify-between border-t border-border px-4 py-2">
+                <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-signal-green)]" />
+                    Best
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-signal-red)]" />
+                    Worst
+                  </span>
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  {activeCategory !== 'all' ? `${CATEGORY_LABELS[activeCategory as KpiCategory]} · ` : ''}FY {effectiveYear}
+                </span>
+              </div>
+            )}
+
+            {/* Empty peers — inside card */}
+            {companiesWithoutData.length > 0 && hasData && (
+              <div className="border-t border-border/50 px-4 py-2.5">
+                <button
+                  onClick={() => setShowEmptyPeers(!showEmptyPeers)}
+                  className="inline-flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors duration-150"
+                >
+                  {showEmptyPeers ? (
+                    <ChevronDown className="h-3 w-3" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" />
+                  )}
+                  {companiesWithoutData.length} peer{companiesWithoutData.length === 1 ? '' : 's'} without data
+                </button>
+
+                {showEmptyPeers && (
+                  <div className="mt-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {companiesWithoutData
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((company) => (
+                        <span
+                          key={company.id}
+                          className="text-[10px] text-muted-foreground/70 bg-[var(--color-bg-tertiary)] rounded px-2 py-0.5"
+                        >
+                          {company.name}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[10px] text-muted-foreground">
+                      <Link to="/upload" className="text-[var(--color-accent)] hover:underline">
+                        Upload reports
+                      </Link>
+                      {' '}to include them in your benchmark.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
+        </Tabs>
       </div>
 
       {/* ================================================================== */}
