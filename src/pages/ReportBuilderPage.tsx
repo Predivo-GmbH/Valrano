@@ -28,7 +28,7 @@ import { useBenchmarkDocuments } from '@/hooks/useBenchmark'
 import { useCompanies, useKpiDefinitions, usePeerGroups } from '@/hooks/useData'
 import type { DocumentStatus } from '@/types/database'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { cn } from '@/lib/utils'
@@ -286,12 +286,10 @@ function BenchmarkDocCard({ doc, formatDate }: { doc: BenchmarkDoc; formatDate: 
         </div>
 
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="sm" asChild>
-            <Link to={`/documents/${doc.id}`}>
-              <Eye className="h-3.5 w-3.5" />
-              View
-            </Link>
-          </Button>
+          <Link to={`/documents/${doc.id}`} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'inline-flex items-center gap-1.5')}>
+            <Eye className="h-3.5 w-3.5" />
+            View
+          </Link>
           <Button variant="ghost" size="sm">
             <Download className="h-3.5 w-3.5" />
             Export PDF
@@ -378,7 +376,12 @@ function CustomReportCard({
             size="sm"
             onClick={() => {
               generateMutation.mutate(report.id, {
-                onSuccess: () => toast.success('Report generated'),
+                onSuccess: () => toast.success('Report generated', {
+                  action: {
+                    label: 'View Report',
+                    onClick: () => onView(),
+                  },
+                }),
                 onError: (err) => toast.error(`Failed: ${err.message}`),
               })
             }}
@@ -499,7 +502,7 @@ function CreateReportDialog({ open, onClose }: { open: boolean; onClose: () => v
 
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Template</label>
-            <Select value={templateId} onValueChange={(v) => setTemplateId(v)}>
+            <Select value={templateId} onValueChange={(v) => v && setTemplateId(v)}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Custom (no template)" />
               </SelectTrigger>
@@ -528,7 +531,7 @@ function CreateReportDialog({ open, onClose }: { open: boolean; onClose: () => v
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Peer Group</label>
-              <Select value={peerGroupId} onValueChange={(v) => setPeerGroupId(v)}>
+              <Select value={peerGroupId} onValueChange={(v) => v && setPeerGroupId(v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="All Companies" />
                 </SelectTrigger>

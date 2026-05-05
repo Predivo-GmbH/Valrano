@@ -161,6 +161,7 @@ function CompanyCard({
 // ---------------------------------------------------------------------------
 
 function KpiEditor({ companyId }: { companyId: string }) {
+  const navigate = useNavigate()
   const currentYear = new Date().getFullYear() - 1
   const [fiscalYear, setFiscalYear] = useState(currentYear)
   const { data: kpiDefs } = useKpiDefinitions()
@@ -204,7 +205,12 @@ function KpiEditor({ companyId }: { companyId: string }) {
     upsertMutation.mutate(
       { my_company_id: companyId, kpis },
       {
-        onSuccess: () => toast.success(`${kpis.length} KPIs saved for ${fiscalYear}`),
+        onSuccess: () => toast.success(`${kpis.length} KPIs saved for ${fiscalYear}`, {
+          action: {
+            label: 'See Your Position',
+            onClick: () => navigate('/my-company/benchmark'),
+          },
+        }),
         onError: (err) => toast.error(`Failed: ${err.message}`),
       }
     )
@@ -314,7 +320,7 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Sector</label>
-              <Select value={sector} onValueChange={(v) => setSector(v)}>
+              <Select value={sector} onValueChange={(v) => v && setSector(v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
@@ -337,7 +343,7 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Currency</label>
-              <Select value={currency} onValueChange={(v) => setCurrency(v)}>
+              <Select value={currency} onValueChange={(v) => v && setCurrency(v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>

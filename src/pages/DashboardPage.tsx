@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useCompanies, useKpiDefinitions, useKpiValues } from '@/hooks/useData'
 import { usePrimaryCompany } from '@/hooks/useMyCompany'
+import { useSmartYear } from '@/hooks/useSmartYear'
 import type { Company, KpiDefinition, KpiValue, KpiCategory } from '@/types/database'
 import { formatKpiValue } from '@/lib/format'
 import {
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui/tooltip'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Upload } from 'lucide-react'
+import { Upload, Building2, Users, BarChart3 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -59,18 +60,68 @@ const LOWER_IS_BETTER_CODES = new Set([
 ])
 
 // ---------------------------------------------------------------------------
-// Empty state
+// Empty states — differentiated by setup progress
 // ---------------------------------------------------------------------------
 
-function EmptyState({ fiscalYear }: { fiscalYear: number }) {
+function SetupGuidanceState({
+  hasCompany,
+  hasPeers,
+}: {
+  hasCompany: boolean
+  hasPeers: boolean
+}) {
+  // Determine the first missing step
+  if (!hasCompany) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+        <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
+          <Building2 className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h3 className="mb-2 text-[15px] font-semibold text-foreground">Set up your company profile first</h3>
+        <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
+          Add your company details so we know who to benchmark against your peers.
+        </p>
+        <Link
+          to="/my-company"
+          className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
+        >
+          <Building2 className="h-4 w-4" />
+          Set Up Company
+        </Link>
+      </div>
+    )
+  }
+
+  if (!hasPeers) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+        <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
+          <Users className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h3 className="mb-2 text-[15px] font-semibold text-foreground">Add competitors to start benchmarking</h3>
+        <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
+          Add peer companies and upload their annual reports to see how you compare.
+        </p>
+        <Link
+          to="/peers"
+          className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
+        >
+          <Users className="h-4 w-4" />
+          Add Peers
+        </Link>
+      </div>
+    )
+  }
+
+  // Has company and peers but no KPI data
   return (
     <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
       <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
-        <Upload className="h-8 w-8 text-muted-foreground" />
+        <BarChart3 className="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3 className="mb-2 text-[15px] font-semibold text-foreground">No data available</h3>
+      <h3 className="mb-2 text-[15px] font-semibold text-foreground">Enter your KPIs to compare against peers</h3>
       <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
-        No data available for FY {fiscalYear}. Upload an annual report or try a different year.
+        Upload an annual report or enter KPI values manually so we can generate your benchmark position.
       </p>
       <Link
         to="/upload"
@@ -79,6 +130,42 @@ function EmptyState({ fiscalYear }: { fiscalYear: number }) {
         <Upload className="h-4 w-4" />
         Upload a Report
       </Link>
+    </div>
+  )
+}
+
+function FilteredEmptyState({ fiscalYear, onClearYear, availableYears }: {
+  fiscalYear: number
+  onClearYear: (year: number) => void
+  availableYears: number[]
+}) {
+  const latestYear = availableYears[0] ?? fiscalYear
+  return (
+    <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+      <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
+        <Upload className="h-8 w-8 text-muted-foreground" />
+      </div>
+      <h3 className="mb-2 text-[15px] font-semibold text-foreground">No results for FY {fiscalYear}</h3>
+      <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
+        No data available for this fiscal year. Try a different year or upload a report.
+      </p>
+      <div className="flex items-center gap-3">
+        {latestYear !== fiscalYear && (
+          <button
+            onClick={() => onClearYear(latestYear)}
+            className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)]"
+          >
+            Switch to FY {latestYear}
+          </button>
+        )}
+        <Link
+          to="/upload"
+          className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
+        >
+          <Upload className="h-4 w-4" />
+          Upload a Report
+        </Link>
+      </div>
     </div>
   )
 }
@@ -164,9 +251,6 @@ function KpiCell({ value, signalClass, unitType }: KpiCellProps) {
 // Main dashboard page
 // ---------------------------------------------------------------------------
 
-const CURRENT_YEAR = new Date().getFullYear()
-const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR - i)
-
 const CATEGORY_LABELS: Record<KpiCategory, string> = {
   financial: 'Financial',
   esg: 'ESG',
@@ -174,8 +258,11 @@ const CATEGORY_LABELS: Record<KpiCategory, string> = {
 }
 
 export function DashboardPage() {
-  const [fiscalYear, setFiscalYear] = useState<number>(CURRENT_YEAR - 1)
+  const { defaultYear, availableYears, isLoading: yearLoading } = useSmartYear()
+  const [fiscalYear, setFiscalYear] = useState<number | null>(null)
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>('financial')
+
+  const effectiveYear = fiscalYear ?? defaultYear
 
   const { data: primaryCompanyData } = usePrimaryCompany()
   const primaryCompanyName = primaryCompanyData?.name ?? null
@@ -183,11 +270,11 @@ export function DashboardPage() {
   const { data: companies, isLoading: companiesLoading } = useCompanies()
   const { data: kpiDefs, isLoading: defsLoading } = useKpiDefinitions()
   const { data: kpiValues, isLoading: valuesLoading } = useKpiValues({
-    fiscalYear,
+    fiscalYear: effectiveYear,
     companyIds: companies?.map((c) => c.id),
   })
 
-  const isLoading = companiesLoading || defsLoading || valuesLoading
+  const isLoading = companiesLoading || defsLoading || valuesLoading || yearLoading
 
   // Filter KPI definitions by active category
   const filteredDefs = useMemo(() => {
@@ -231,7 +318,14 @@ export function DashboardPage() {
     })
   }, [companies, primaryCompanyName])
 
-  const hasData = !isLoading && companies && companies.length > 0 && kpiValues && kpiValues.length > 0
+  const hasCompany = !!primaryCompanyData
+  const hasPeers = !!companies && companies.length > 0
+  const hasKpiData = !!kpiValues && kpiValues.length > 0
+  const hasData = !isLoading && hasPeers && hasKpiData
+  // Genuinely empty = no peers or no KPI data at all across any year
+  const isGenuinelyEmpty = !isLoading && (!hasPeers || (!hasKpiData && availableYears.length === 0))
+  // Filtered to empty = we have data in other years but not this one
+  const isFilteredEmpty = !isLoading && !hasKpiData && hasPeers && availableYears.length > 0
 
   return (
     <div className="mx-auto max-w-[1440px] px-6 py-8">
@@ -249,14 +343,14 @@ export function DashboardPage() {
 
         {/* Fiscal year selector */}
         <Select
-          value={String(fiscalYear)}
+          value={String(effectiveYear)}
           onValueChange={(v) => { if (v) setFiscalYear(Number(v)) }}
         >
           <SelectTrigger className="w-[120px] rounded-lg border-border bg-card text-[13px] text-foreground">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="rounded-lg border-border bg-card text-[13px]">
-            {YEAR_OPTIONS.map((y) => (
+            {availableYears.map((y) => (
               <SelectItem key={y} value={String(y)} className="text-[13px]">
                 FY {y}
               </SelectItem>
@@ -301,8 +395,16 @@ export function DashboardPage() {
             <div className="p-6">
               <TableSkeleton />
             </div>
+          ) : isGenuinelyEmpty ? (
+            <SetupGuidanceState hasCompany={hasCompany} hasPeers={hasPeers} />
+          ) : isFilteredEmpty ? (
+            <FilteredEmptyState
+              fiscalYear={effectiveYear}
+              onClearYear={(y) => setFiscalYear(y)}
+              availableYears={availableYears}
+            />
           ) : !hasData ? (
-            <EmptyState fiscalYear={fiscalYear} />
+            <SetupGuidanceState hasCompany={hasCompany} hasPeers={hasPeers} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-max border-collapse">
@@ -433,7 +535,7 @@ export function DashboardPage() {
       {/* Category label when grouped */}
       {activeCategory !== 'all' && hasData && (
         <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-          Showing {CATEGORY_LABELS[activeCategory as KpiCategory]} KPIs · FY {fiscalYear}
+          Showing {CATEGORY_LABELS[activeCategory as KpiCategory]} KPIs · FY {effectiveYear}
         </p>
       )}
     </div>

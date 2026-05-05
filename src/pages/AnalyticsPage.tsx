@@ -28,6 +28,7 @@ import {
 import { useTrendData, useCagr, useMomentum } from '@/hooks/useTrends'
 import { usePivotData, useScatterData, useHeatmapData } from '@/hooks/useAnalytics'
 import { useCompanies, useKpiDefinitions, usePeerGroups } from '@/hooks/useData'
+import { useSmartYear } from '@/hooks/useSmartYear'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 
 type TabId = 'trends' | 'pivot' | 'scatter' | 'heatmap'
@@ -72,21 +73,24 @@ export function AnalyticsPage() {
   const { data: companies } = useCompanies()
   const { data: kpiDefs } = useKpiDefinitions()
   const { data: peerGroups } = usePeerGroups()
+  const { defaultYear, availableYears } = useSmartYear()
 
-  const currentYear = new Date().getFullYear() - 1
-
-  // Shared filters
-  const [fiscalYear, setFiscalYear] = useState(currentYear)
+  // Shared filters — initialized from smart year
+  const [fiscalYear, setFiscalYear] = useState<number | null>(null)
   const [selectedPeerGroup, setSelectedPeerGroup] = useState<string>('')
 
   // Trends-specific filters
-  const [startYear, setStartYear] = useState(currentYear - 4)
-  const [endYear, setEndYear] = useState(currentYear)
+  const [startYear, setStartYear] = useState<number | null>(null)
+  const [endYear, setEndYear] = useState<number | null>(null)
   const [selectedKpi, setSelectedKpi] = useState<string>('')
 
   // Scatter-specific filters
   const [xKpi, setXKpi] = useState<string>('')
   const [yKpi, setYKpi] = useState<string>('')
+
+  const effectiveYear = fiscalYear ?? defaultYear
+  const effectiveStartYear = startYear ?? (defaultYear - 4)
+  const effectiveEndYear = endYear ?? defaultYear
 
   const companyIds = useMemo(() => {
     if (selectedPeerGroup && peerGroups) {
@@ -137,7 +141,7 @@ export function AnalyticsPage() {
         {/* Filters */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
           {/* Peer group filter — shared across all tabs */}
-          <Select value={selectedPeerGroup} onValueChange={(v) => setSelectedPeerGroup(v)}>
+          <Select value={selectedPeerGroup} onValueChange={(v) => v && setSelectedPeerGroup(v)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All Companies" />
             </SelectTrigger>
@@ -152,7 +156,7 @@ export function AnalyticsPage() {
           {/* Trends-specific: KPI selector + year range */}
           {activeTab === 'trends' && (
             <>
-              <Select value={selectedKpi} onValueChange={(v) => setSelectedKpi(v)}>
+              <Select value={selectedKpi} onValueChange={(v) => v && setSelectedKpi(v)}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="All KPIs" />
                 </SelectTrigger>
@@ -164,25 +168,35 @@ export function AnalyticsPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={String(startYear)} onValueChange={(v) => setStartYear(Number(v))}>
+              <Select value={String(effectiveStartYear)} onValueChange={(v) => setStartYear(Number(v))}>
                 <SelectTrigger className="w-[100px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 10 }, (_, i) => currentYear - 9 + i).map((y) => (
-                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                  ))}
+                  {availableYears.length > 0
+                    ? availableYears.map((y) => (
+                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                      ))
+                    : Array.from({ length: 10 }, (_, i) => defaultYear - 9 + i).map((y) => (
+                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                      ))
+                  }
                 </SelectContent>
               </Select>
               <span className="text-[13px] text-muted-foreground">to</span>
-              <Select value={String(endYear)} onValueChange={(v) => setEndYear(Number(v))}>
+              <Select value={String(effectiveEndYear)} onValueChange={(v) => setEndYear(Number(v))}>
                 <SelectTrigger className="w-[100px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 10 }, (_, i) => currentYear - 9 + i).map((y) => (
-                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                  ))}
+                  {availableYears.length > 0
+                    ? availableYears.map((y) => (
+                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                      ))
+                    : Array.from({ length: 10 }, (_, i) => defaultYear - 9 + i).map((y) => (
+                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                      ))
+                  }
                 </SelectContent>
               </Select>
             </>
@@ -190,12 +204,12 @@ export function AnalyticsPage() {
 
           {/* Pivot/Heatmap: fiscal year */}
           {(activeTab === 'pivot' || activeTab === 'heatmap') && (
-            <Select value={String(fiscalYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
+            <Select value={String(effectiveYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
               <SelectTrigger className="w-[100px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+                {availableYears.map((y) => (
                   <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                 ))}
               </SelectContent>
@@ -205,17 +219,17 @@ export function AnalyticsPage() {
           {/* Scatter: fiscal year + KPI selectors */}
           {activeTab === 'scatter' && (
             <>
-              <Select value={String(fiscalYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
+              <Select value={String(effectiveYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
                 <SelectTrigger className="w-[100px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+                  {availableYears.map((y) => (
                     <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={xKpi} onValueChange={(v) => setXKpi(v)}>
+              <Select value={xKpi} onValueChange={(v) => v && setXKpi(v)}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="X Axis KPI..." />
                 </SelectTrigger>
@@ -227,7 +241,7 @@ export function AnalyticsPage() {
                 </SelectContent>
               </Select>
               <span className="text-[13px] text-muted-foreground">vs</span>
-              <Select value={yKpi} onValueChange={(v) => setYKpi(v)}>
+              <Select value={yKpi} onValueChange={(v) => v && setYKpi(v)}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="Y Axis KPI..." />
                 </SelectTrigger>
@@ -249,16 +263,16 @@ export function AnalyticsPage() {
           aria-labelledby={`tab-${activeTab}`}
         >
           {activeTab === 'trends' && (
-            <TrendsPanel companyIds={companyIds} startYear={startYear} endYear={endYear} selectedKpi={selectedKpi} />
+            <TrendsPanel companyIds={companyIds} startYear={effectiveStartYear} endYear={effectiveEndYear} selectedKpi={selectedKpi} />
           )}
           {activeTab === 'pivot' && (
-            <PivotPanel companyIds={companyIds} fiscalYear={fiscalYear} />
+            <PivotPanel companyIds={companyIds} fiscalYear={effectiveYear} />
           )}
           {activeTab === 'scatter' && (
-            <ScatterPanel companyIds={companyIds} xKpi={xKpi} yKpi={yKpi} fiscalYear={fiscalYear} kpiDefs={kpiDefs} />
+            <ScatterPanel companyIds={companyIds} xKpi={xKpi} yKpi={yKpi} fiscalYear={effectiveYear} kpiDefs={kpiDefs} />
           )}
           {activeTab === 'heatmap' && (
-            <HeatmapPanel companyIds={companyIds} fiscalYear={fiscalYear} />
+            <HeatmapPanel companyIds={companyIds} fiscalYear={effectiveYear} />
           )}
         </div>
       </div>

@@ -120,7 +120,7 @@ export function TrendsPage() {
 
         {/* Filters */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
-          <Select value={selectedKpi} onValueChange={(v) => setSelectedKpi(v)}>
+          <Select value={selectedKpi} onValueChange={(v) => v && setSelectedKpi(v)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All KPIs" />
             </SelectTrigger>
@@ -132,7 +132,7 @@ export function TrendsPage() {
             </SelectContent>
           </Select>
 
-          <Select value={selectedPeerGroup} onValueChange={(v) => setSelectedPeerGroup(v)}>
+          <Select value={selectedPeerGroup} onValueChange={(v) => v && setSelectedPeerGroup(v)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All Companies" />
             </SelectTrigger>

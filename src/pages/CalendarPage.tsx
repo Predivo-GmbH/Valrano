@@ -114,7 +114,7 @@ export function CalendarPage() {
 
         {/* Filters + Actions */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
-          <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v)}>
+          <Select value={filterStatus} onValueChange={(v) => v && setFilterStatus(v)}>
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
@@ -126,7 +126,7 @@ export function CalendarPage() {
             </SelectContent>
           </Select>
 
-          <Select value={filterCompany} onValueChange={(v) => setFilterCompany(v)}>
+          <Select value={filterCompany} onValueChange={(v) => v && setFilterCompany(v)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All companies" />
             </SelectTrigger>
@@ -422,7 +422,7 @@ function CreateEventDialog({
           {/* Company */}
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company</label>
-            <Select value={companyId} onValueChange={(v) => handleCompanyChange(v)}>
+            <Select value={companyId} onValueChange={(v) => v && handleCompanyChange(v)}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select company" />
               </SelectTrigger>
@@ -438,7 +438,7 @@ function CreateEventDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Report Type</label>
-              <Select value={reportType} onValueChange={(v) => setReportType(v as ReportType)}>
+              <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>

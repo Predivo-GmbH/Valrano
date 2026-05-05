@@ -6,7 +6,7 @@ import { useCompanies, useReports } from '@/hooks/useData'
 import { usePublicationEvents, useCheckPublication } from '@/hooks/useCalendar'
 import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
 import type { Company, ReportType, PublicationEventStatus } from '@/types/database'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
@@ -132,7 +132,12 @@ function UploadReportDialog({
       // Auto-trigger extraction
       try {
         const extraction = await extractMutation.mutateAsync(result.report_id)
-        toast.success(`Extracted ${extraction.total_kpis_extracted} KPIs`)
+        toast.success(`Extracted ${extraction.total_kpis_extracted} KPIs`, {
+          action: {
+            label: 'View in Peers',
+            onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+          },
+        })
       } catch {
         toast.error('Upload succeeded but extraction failed — run manually from Review page')
       }
@@ -159,7 +164,7 @@ function UploadReportDialog({
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Company
             </Label>
-            <Select value={companyId} onValueChange={(v) => setCompanyId(v)}>
+            <Select value={companyId} onValueChange={(v) => v && setCompanyId(v)}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
                 <SelectValue placeholder="Select company" />
               </SelectTrigger>
@@ -178,7 +183,7 @@ function UploadReportDialog({
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Report Type
             </Label>
-            <Select value={reportType} onValueChange={(v) => setReportType(v as ReportType)}>
+            <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
                 <SelectValue />
               </SelectTrigger>
@@ -381,17 +386,13 @@ function PeerCard({
 
       {/* Action buttons */}
       <div className="mt-4 flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          asChild
-          className="flex-1"
+        <Link
+          to={`/companies/${company.id}`}
+          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'flex-1')}
         >
-          <Link to={`/companies/${company.id}`}>
-            <Eye className="h-3.5 w-3.5" />
-            View Profile
-          </Link>
-        </Button>
+          <Eye className="h-3.5 w-3.5" />
+          View Profile
+        </Link>
         <Button
           variant="outline"
           size="sm"

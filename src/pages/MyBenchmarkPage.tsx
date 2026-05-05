@@ -125,7 +125,7 @@ export function MyBenchmarkPage() {
             </SelectContent>
           </Select>
 
-          <Select value={peerGroupId} onValueChange={(v) => setPeerGroupId(v)}>
+          <Select value={peerGroupId} onValueChange={(v) => v && setPeerGroupId(v)}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Auto (sector match)" />
             </SelectTrigger>
