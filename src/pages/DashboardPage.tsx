@@ -17,13 +17,17 @@ import {
   Upload,
   Building2,
   Users,
-  BarChart3,
   TrendingUp,
   Clock,
   AlertCircle,
   Activity,
   FileText,
   CalendarCheck,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -36,6 +40,11 @@ type KpiValueWithJoins = KpiValue & {
 }
 
 type ActiveCategory = KpiCategory | 'all'
+
+type SortConfig = {
+  columnId: string | null
+  direction: 'asc' | 'desc'
+}
 
 // ---------------------------------------------------------------------------
 // Signal coloring — compares a company's value against peer min/max
@@ -106,6 +115,15 @@ function computePercentile(myValue: number, peerValues: number[]): number {
   return Math.round((rank / (allValues.length - 1)) * 100)
 }
 
+function getInitials(name: string): string {
+  return name
+    .split(/[\s-]+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+}
+
 // ---------------------------------------------------------------------------
 // Empty states — differentiated by setup progress
 // ---------------------------------------------------------------------------
@@ -117,7 +135,6 @@ function SetupGuidanceState({
   hasCompany: boolean
   hasPeers: boolean
 }) {
-  // Determine the first missing step
   if (!hasCompany) {
     return (
       <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
@@ -160,13 +177,12 @@ function SetupGuidanceState({
     )
   }
 
-  // Has company and peers but no KPI data
   return (
     <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
       <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
-        <BarChart3 className="h-8 w-8 text-muted-foreground" />
+        <Upload className="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3 className="mb-2 text-[15px] font-semibold text-foreground">Enter your KPIs to compare against peers</h3>
+      <h3 className="mb-2 text-[15px] font-semibold text-foreground">Upload reports to compare</h3>
       <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
         Upload an annual report or enter KPI values manually so we can generate your benchmark position.
       </p>
@@ -225,7 +241,7 @@ function TableSkeleton() {
   return (
     <div className="animate-pulse space-y-px">
       {[...Array(6)].map((_, i) => (
-        <div key={i} className="h-[61px] bg-[var(--color-bg-tertiary)] rounded" />
+        <div key={i} className="h-[52px] bg-[var(--color-bg-tertiary)] rounded" />
       ))}
     </div>
   )
@@ -254,7 +270,7 @@ interface KpiCellProps {
 function KpiCell({ value, signalClass, unitType }: KpiCellProps) {
   if (!value) {
     return (
-      <td className="px-6 py-5 text-[13px] text-muted-foreground/40 tabular-nums text-right">
+      <td className="px-4 py-3 text-[13px] text-muted-foreground/30 tabular-nums text-right">
         —
       </td>
     )
@@ -267,7 +283,7 @@ function KpiCell({ value, signalClass, unitType }: KpiCellProps) {
   const sourcePage = value.source_page ? `p.${value.source_page}` : null
 
   return (
-    <td className="px-6 py-5 text-right">
+    <td className="px-4 py-3 text-right">
       <Tooltip>
         <TooltipTrigger
           className={`cursor-default bg-transparent border-none p-0 text-[13px] tabular-nums transition-colors duration-200 ${signalClass}`}
@@ -400,6 +416,61 @@ function ActivityItem({ icon, description, time }: ActivityItemProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Sortable column header
+// ---------------------------------------------------------------------------
+
+function SortableHeader({
+  label,
+  columnId,
+  sortConfig,
+  onSort,
+  description,
+}: {
+  label: string
+  columnId: string
+  sortConfig: SortConfig
+  onSort: (columnId: string) => void
+  description?: string | null
+}) {
+  const isActive = sortConfig.columnId === columnId
+  const SortIcon = isActive
+    ? sortConfig.direction === 'asc'
+      ? ArrowUp
+      : ArrowDown
+    : ArrowUpDown
+
+  const headerContent = (
+    <button
+      onClick={() => onSort(columnId)}
+      className={`inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[11px] font-semibold uppercase tracking-[0.05em] whitespace-nowrap transition-colors duration-150 ${
+        isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+      }`}
+    >
+      {label}
+      <SortIcon className={`h-3 w-3 ${isActive ? 'opacity-100' : 'opacity-0 group-hover/th:opacity-50'}`} />
+    </button>
+  )
+
+  if (description) {
+    return (
+      <th className="group/th px-4 py-3 text-right">
+        <Tooltip>
+          <TooltipTrigger asChild>{headerContent}</TooltipTrigger>
+          <TooltipContent
+            side="top"
+            className="max-w-[220px] rounded-lg border border-border bg-[var(--color-bg-elevated)] px-3 py-2 text-[11px] text-muted-foreground shadow-none"
+          >
+            {description}
+          </TooltipContent>
+        </Tooltip>
+      </th>
+    )
+  }
+
+  return <th className="group/th px-4 py-3 text-right">{headerContent}</th>
+}
+
+// ---------------------------------------------------------------------------
 // Main dashboard page
 // ---------------------------------------------------------------------------
 
@@ -413,6 +484,8 @@ export function DashboardPage() {
   const { defaultYear, availableYears, isLoading: yearLoading } = useSmartYear()
   const [fiscalYear, setFiscalYear] = useState<number | null>(null)
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>('financial')
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ columnId: null, direction: 'desc' })
+  const [showEmptyPeers, setShowEmptyPeers] = useState(false)
 
   const effectiveYear = fiscalYear ?? defaultYear
 
@@ -426,7 +499,6 @@ export function DashboardPage() {
     companyIds: companies?.map((c) => c.id),
   })
 
-  // Additional data for command center
   const { data: reports } = useReports()
   const { data: publicationEvents } = usePublicationEvents()
   const { data: myCompanyKpis } = useMyCompanyKpis(primaryCompanyData?.id, effectiveYear)
@@ -465,21 +537,81 @@ export function DashboardPage() {
     return out
   }, [companies, filteredDefs, valueMap])
 
-  // Sort: primary company first, then alphabetical
-  const sortedCompanies = useMemo(() => {
-    if (!companies) return []
-    return [...companies].sort((a, b) => {
-      if (primaryCompanyName && a.name === primaryCompanyName) return -1
-      if (primaryCompanyName && b.name === primaryCompanyName) return 1
-      return a.name.localeCompare(b.name)
+  // Split companies into those with data vs without
+  const { companiesWithData, companiesWithoutData } = useMemo(() => {
+    if (!companies || !filteredDefs) return { companiesWithData: [], companiesWithoutData: [] }
+
+    const withData: Company[] = []
+    const withoutData: Company[] = []
+
+    for (const company of companies) {
+      const hasAnyValue = filteredDefs.some((def) => {
+        const v = valueMap.get(`${company.id}__${def.id}`)
+        return v?.normalized_value != null
+      })
+      if (hasAnyValue) {
+        withData.push(company)
+      } else {
+        withoutData.push(company)
+      }
+    }
+
+    return { companiesWithData: withData, companiesWithoutData: withoutData }
+  }, [companies, filteredDefs, valueMap])
+
+  // Sort companies: primary first, then by sort column or alphabetical
+  const sortedCompaniesWithData = useMemo(() => {
+    const sorted = [...companiesWithData]
+
+    if (sortConfig.columnId && sortConfig.columnId !== '__name') {
+      sorted.sort((a, b) => {
+        // Primary company always first
+        if (primaryCompanyName && a.name === primaryCompanyName) return -1
+        if (primaryCompanyName && b.name === primaryCompanyName) return 1
+
+        const aVal = valueMap.get(`${a.id}__${sortConfig.columnId}`)?.normalized_value ?? null
+        const bVal = valueMap.get(`${b.id}__${sortConfig.columnId}`)?.normalized_value ?? null
+
+        // Nulls always last
+        if (aVal === null && bVal === null) return a.name.localeCompare(b.name)
+        if (aVal === null) return 1
+        if (bVal === null) return -1
+
+        return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal
+      })
+    } else if (sortConfig.columnId === '__name') {
+      sorted.sort((a, b) => {
+        if (primaryCompanyName && a.name === primaryCompanyName) return -1
+        if (primaryCompanyName && b.name === primaryCompanyName) return 1
+        return sortConfig.direction === 'asc'
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name)
+      })
+    } else {
+      // Default: primary first, then alphabetical
+      sorted.sort((a, b) => {
+        if (primaryCompanyName && a.name === primaryCompanyName) return -1
+        if (primaryCompanyName && b.name === primaryCompanyName) return 1
+        return a.name.localeCompare(b.name)
+      })
+    }
+
+    return sorted
+  }, [companiesWithData, sortConfig, valueMap, primaryCompanyName])
+
+  function handleSort(columnId: string) {
+    setSortConfig((prev) => {
+      if (prev.columnId === columnId) {
+        return { columnId, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
+      }
+      return { columnId, direction: 'desc' }
     })
-  }, [companies, primaryCompanyName])
+  }
 
   // ---------------------------------------------------------------------------
   // Computed metrics for summary cards
   // ---------------------------------------------------------------------------
 
-  // Percentile position (average across user's KPIs vs peers)
   const positionMetric = useMemo(() => {
     if (!myCompanyKpis || myCompanyKpis.length === 0 || !kpiValues || !companies) return null
     const percentiles: number[] = []
@@ -501,7 +633,6 @@ export function DashboardPage() {
     return Math.round(percentiles.reduce((a, b) => a + b, 0) / percentiles.length)
   }, [myCompanyKpis, kpiValues, companies, valueMap])
 
-  // Active monitoring count
   const activeMonitored = useMemo(() => {
     if (!publicationEvents) return 0
     return publicationEvents.filter(
@@ -509,7 +640,6 @@ export function DashboardPage() {
     ).length
   }, [publicationEvents])
 
-  // Data freshness — most recent report upload
   const dataFreshness = useMemo(() => {
     if (!reports || reports.length === 0) return null
     const sorted = [...reports].sort(
@@ -518,7 +648,6 @@ export function DashboardPage() {
     return getRelativeTime(sorted[0].created_at)
   }, [reports])
 
-  // Pending reviews count
   const pendingReviews = useMemo(() => {
     if (!kpiValues) return 0
     return (kpiValues as KpiValueWithJoins[]).filter((v) => v.needs_review).length
@@ -563,7 +692,6 @@ export function DashboardPage() {
   const activityItems = useMemo(() => {
     const items: { time: Date; icon: React.ReactNode; description: string }[] = []
 
-    // Recent report uploads
     if (reports) {
       for (const r of reports.slice(0, 5)) {
         const companyName = (r as unknown as { companies: Company }).companies?.name ?? 'Unknown'
@@ -575,7 +703,6 @@ export function DashboardPage() {
       }
     }
 
-    // Publication events
     if (publicationEvents) {
       for (const e of publicationEvents.slice(0, 5)) {
         const companyName = (e as unknown as { companies: Company }).companies?.name ?? 'Unknown'
@@ -595,7 +722,6 @@ export function DashboardPage() {
       }
     }
 
-    // Sort by time descending, take 5
     return items
       .sort((a, b) => b.time.getTime() - a.time.getTime())
       .slice(0, 5)
@@ -609,10 +735,16 @@ export function DashboardPage() {
   const hasPeers = !!companies && companies.length > 0
   const hasKpiData = !!kpiValues && kpiValues.length > 0
   const hasData = !isLoading && hasPeers && hasKpiData
-  // Genuinely empty = no peers or no KPI data at all across any year
   const isGenuinelyEmpty = !isLoading && (!hasPeers || (!hasKpiData && availableYears.length === 0))
-  // Filtered to empty = we have data in other years but not this one
   const isFilteredEmpty = !isLoading && !hasKpiData && hasPeers && availableYears.length > 0
+
+  // Count of KPIs with data in the filtered view
+  const dataKpiCount = useMemo(() => {
+    if (!filteredDefs || companiesWithData.length === 0) return 0
+    return filteredDefs.filter((def) =>
+      companiesWithData.some((c) => valueMap.get(`${c.id}__${def.id}`)?.normalized_value != null)
+    ).length
+  }, [filteredDefs, companiesWithData, valueMap])
 
   return (
     <div className="mx-auto max-w-[1440px] px-6 py-8">
@@ -630,7 +762,6 @@ export function DashboardPage() {
           </p>
         </div>
 
-        {/* Fiscal year selector */}
         <Select
           value={String(effectiveYear)}
           onValueChange={(v) => { if (v) setFiscalYear(Number(v)) }}
@@ -672,7 +803,7 @@ export function DashboardPage() {
               icon={<Users className="h-4 w-4 text-[var(--color-accent)]" />}
               label="Peers Tracked"
               value={String(companies?.length ?? 0)}
-              subtitle={`${activeMonitored} actively monitored`}
+              subtitle={`${companiesWithData.length} with data · ${companiesWithoutData.length} pending`}
               accentColor="bg-[var(--color-accent)]/10"
             />
             <MetricCard
@@ -717,11 +848,13 @@ export function DashboardPage() {
       {/* Section 4: Peer Comparison Table                                   */}
       {/* ================================================================== */}
       <div className="mb-8">
-        <div className="mb-4">
-          <h2 className="text-[15px] font-semibold text-foreground">Peer Comparison</h2>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Normalized to CHF · Annual reports · Hover values for source reference
-          </p>
+        <div className="mb-4 flex items-end justify-between">
+          <div>
+            <h2 className="text-[15px] font-semibold text-foreground">Peer Comparison</h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {companiesWithData.length} of {companies?.length ?? 0} peers with data · {dataKpiCount} KPIs · Normalized to CHF
+            </p>
+          </div>
         </div>
 
         {/* KPI category tabs */}
@@ -768,82 +901,98 @@ export function DashboardPage() {
                 onClearYear={(y) => setFiscalYear(y)}
                 availableYears={availableYears}
               />
-            ) : !hasData ? (
+            ) : companiesWithData.length === 0 ? (
               <SetupGuidanceState hasCompany={hasCompany} hasPeers={hasPeers} />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-max border-collapse">
-                  <thead className="sticky top-0 z-20">
-                    <tr className="border-b border-border bg-card">
-                      {/* Company column header */}
-                      <th className="sticky left-0 top-0 z-30 bg-card px-6 py-4 text-left">
-                        <span
-                          className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground"
+                  <thead>
+                    <tr className="border-b border-border">
+                      {/* Company column header — sticky with solid bg */}
+                      <th
+                        className="sticky left-0 z-30 bg-card px-4 py-3 text-left"
+                        style={{ minWidth: 220 }}
+                      >
+                        <button
+                          onClick={() => handleSort('__name')}
+                          className={`inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[11px] font-semibold uppercase tracking-[0.05em] transition-colors duration-150 ${
+                            sortConfig.columnId === '__name' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+                          }`}
                         >
                           Company
-                        </span>
+                          {sortConfig.columnId === '__name' ? (
+                            sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                          ) : (
+                            <ArrowUpDown className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+                          )}
+                        </button>
                       </th>
 
                       {filteredDefs.map((def) => (
-                        <th key={def.id} className="sticky top-0 z-20 bg-card px-6 py-4 text-right">
-                          <Tooltip>
-                            <TooltipTrigger
-                              className="cursor-default bg-transparent border-none p-0 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground whitespace-nowrap"
-                            >
-                              {def.name}
-                            </TooltipTrigger>
-                            {def.description && (
-                              <TooltipContent
-                                side="top"
-                                className="max-w-[220px] rounded-lg border border-border bg-[var(--color-bg-elevated)] px-3 py-2 text-[11px] text-muted-foreground shadow-none"
-                              >
-                                {def.description}
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
-                        </th>
+                        <SortableHeader
+                          key={def.id}
+                          label={def.name}
+                          columnId={def.id}
+                          sortConfig={sortConfig}
+                          onSort={handleSort}
+                          description={def.description}
+                        />
                       ))}
                     </tr>
                   </thead>
 
                   <tbody>
-                    {sortedCompanies.map((company, idx) => {
+                    {sortedCompaniesWithData.map((company, idx) => {
                       const isPrimary = primaryCompanyName !== null && company.name === primaryCompanyName
                       const peerVals = kpiPeerValues
 
                       return (
                         <tr
                           key={company.id}
-                          className={`border-b border-border transition-colors duration-200 last:border-0 ${
+                          className={`border-b border-border/50 transition-colors duration-150 last:border-0 ${
                             isPrimary
                               ? 'bg-[var(--color-accent)]/[0.04] hover:bg-[var(--color-accent)]/[0.07]'
                               : idx % 2 === 0
-                              ? 'hover:bg-[var(--color-bg-tertiary)]'
-                              : 'hover:bg-[var(--color-bg-tertiary)]'
+                              ? 'hover:bg-[var(--color-bg-tertiary)]/50'
+                              : 'bg-[var(--color-bg-tertiary)]/20 hover:bg-[var(--color-bg-tertiary)]/50'
                           }`}
                         >
-                          {/* Company name + ticker — sticky */}
-                          <td className="sticky left-0 z-10 bg-inherit px-6 py-5">
-                            <div className="flex items-center gap-3">
-                              <div>
+                          {/* Company name — sticky with SOLID background */}
+                          <td
+                            className={`sticky left-0 z-10 px-4 py-3 ${
+                              isPrimary
+                                ? 'bg-[var(--color-accent)]/[0.04]'
+                                : idx % 2 === 0
+                                ? 'bg-card'
+                                : 'bg-card'
+                            }`}
+                            style={{ minWidth: 220 }}
+                          >
+                            {/* Solid background overlay to prevent bleed-through */}
+                            <div className="absolute inset-0 bg-card" style={{ zIndex: -1 }} />
+                            <div className="relative flex items-center gap-3">
+                              <div
+                                className={`flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center text-[11px] font-semibold ${
+                                  isPrimary
+                                    ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)]'
+                                    : 'bg-[var(--color-bg-tertiary)] text-muted-foreground'
+                                }`}
+                              >
+                                {getInitials(company.name)}
+                              </div>
+                              <div className="min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <span
-                                    className={`text-[13px] font-medium ${
-                                      isPrimary ? 'text-foreground' : 'text-foreground'
-                                    }`}
-                                  >
+                                  <span className="text-[13px] font-medium text-foreground truncate">
                                     {company.name}
                                   </span>
                                   {isPrimary && (
-                                    <span
-                                      className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)]"
-                                    >
-                                      Primary
+                                    <span className="flex-shrink-0 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-accent)]">
+                                      You
                                     </span>
                                   )}
                                 </div>
                                 {company.ticker && (
-                                  <div className="mt-0.5 text-[11px] text-muted-foreground">
+                                  <div className="text-[11px] text-muted-foreground">
                                     {company.exchange ? `${company.exchange}: ` : ''}{company.ticker}
                                   </div>
                                 )}
@@ -879,7 +1028,7 @@ export function DashboardPage() {
           </div>
 
           {/* Legend */}
-          {hasData && (
+          {hasData && companiesWithData.length > 0 && (
             <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-signal-green)]" />
@@ -897,11 +1046,59 @@ export function DashboardPage() {
           )}
         </Tabs>
 
-        {/* Category label when grouped */}
-        {activeCategory !== 'all' && hasData && (
+        {/* Category label */}
+        {activeCategory !== 'all' && hasData && companiesWithData.length > 0 && (
           <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
             Showing {CATEGORY_LABELS[activeCategory as KpiCategory]} KPIs · FY {effectiveYear}
           </p>
+        )}
+
+        {/* Collapsed empty peers section */}
+        {companiesWithoutData.length > 0 && hasData && (
+          <div className="mt-4">
+            <button
+              onClick={() => setShowEmptyPeers(!showEmptyPeers)}
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] transition-all duration-200"
+            >
+              {showEmptyPeers ? (
+                <ChevronDown className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5" />
+              )}
+              {companiesWithoutData.length} peer{companiesWithoutData.length === 1 ? '' : 's'} with no data for FY {effectiveYear}
+            </button>
+
+            {showEmptyPeers && (
+              <div className="mt-2 rounded-xl border border-border/50 bg-card/50 p-4">
+                <div className="flex flex-wrap gap-2">
+                  {companiesWithoutData
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((company) => (
+                    <div
+                      key={company.id}
+                      className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)]/50 px-3 py-1.5"
+                    >
+                      <div className="h-5 w-5 rounded flex items-center justify-center bg-[var(--color-bg-tertiary)] text-[9px] font-semibold text-muted-foreground">
+                        {getInitials(company.name)}
+                      </div>
+                      <span className="text-[12px] text-muted-foreground">{company.name}</span>
+                      {company.ticker && (
+                        <span className="text-[10px] text-muted-foreground/60">
+                          {company.ticker}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-[11px] text-muted-foreground">
+                  <Link to="/upload" className="text-[var(--color-primary)] hover:underline">
+                    Upload reports
+                  </Link>
+                  {' '}for these companies to include them in your benchmark.
+                </p>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
