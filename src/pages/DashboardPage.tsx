@@ -455,7 +455,15 @@ function SortableHeader({
     return (
       <th className="group/th px-4 py-3 text-right">
         <Tooltip>
-          <TooltipTrigger asChild>{headerContent}</TooltipTrigger>
+          <TooltipTrigger
+            className={`inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[11px] font-semibold uppercase tracking-[0.05em] whitespace-nowrap transition-colors duration-150 ${
+              isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => onSort(columnId)}
+          >
+            {label}
+            <SortIcon className={`h-3 w-3 ${isActive ? 'opacity-100' : 'opacity-0 group-hover/th:opacity-50'}`} />
+          </TooltipTrigger>
           <TooltipContent
             side="top"
             className="max-w-[220px] rounded-lg border border-border bg-[var(--color-bg-elevated)] px-3 py-2 text-[11px] text-muted-foreground shadow-none"
