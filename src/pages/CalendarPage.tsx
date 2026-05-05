@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Plus, RefreshCw, ExternalLink, Trash2, Eye } from 'lucide-react'
+import { CalendarDays, Plus, RefreshCw, ExternalLink, Trash2, Eye, Sparkles, Loader2, Globe } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEvent, useCheckPublication, useCompanies } from '@/hooks/useCalendar'
+import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
+import { useSubscription } from '@/hooks/useSubscription'
 import type { PublicationEventStatus, ReportType } from '@/types/database'
 
 const STATUS_COLORS: Record<PublicationEventStatus, string> = {
@@ -280,7 +282,7 @@ export function CalendarPage() {
 }
 
 // ---------------------------------------------------------------------------
-// Create Event Dialog
+// Create Event Dialog — Smart with AI Suggestions
 // ---------------------------------------------------------------------------
 function CreateEventDialog({
   companies,
@@ -298,8 +300,67 @@ function CreateEventDialog({
   const [irPageUrl, setIrPageUrl] = useState('')
   const [directPdfUrl, setDirectPdfUrl] = useState('')
   const [notes, setNotes] = useState('')
+  const [aiReasoning, setAiReasoning] = useState<string | null>(null)
 
   const createMutation = useCreatePublicationEvent()
+  const suggestDatesMutation = useSuggestDates()
+  const suggestIrUrlMutation = useSuggestIrUrl()
+  const { tier } = useSubscription()
+
+  const selectedCompanyName = companies.find(c => c.id === companyId)?.name ?? ''
+
+  // Auto-fill IR URL when company is selected
+  const handleCompanyChange = useCallback((newCompanyId: string) => {
+    setCompanyId(newCompanyId)
+    setAiReasoning(null)
+    // Auto-suggest IR URL for the selected company
+    if (newCompanyId) {
+      const name = companies.find(c => c.id === newCompanyId)?.name ?? ''
+      suggestIrUrlMutation.mutate(
+        { company_id: newCompanyId, company_name: name },
+        {
+          onSuccess: (data) => {
+            if (data.ir_page_url) {
+              setIrPageUrl(data.ir_page_url)
+            }
+          },
+        }
+      )
+    }
+  }, [companies, suggestIrUrlMutation])
+
+  // AI Suggest dates
+  function handleSuggestDates() {
+    if (!companyId || !selectedCompanyName) {
+      toast.error('Select a company first')
+      return
+    }
+    suggestDatesMutation.mutate(
+      {
+        company_id: companyId,
+        company_name: selectedCompanyName,
+        report_type: reportType,
+        fiscal_year: fiscalYear,
+      },
+      {
+        onSuccess: (data) => {
+          if (data.suggestion) {
+            setExpectedDate(data.suggestion.suggested_date)
+            setExpectedTime(data.suggestion.suggested_time)
+            setAiReasoning(data.suggestion.reasoning)
+            toast.success('Date suggested by AI')
+          }
+        },
+        onError: (err) => {
+          if (err.message.includes('limit reached')) {
+            toast.error('Monthly AI suggestion limit reached. Upgrade your plan for more.')
+          } else {
+            toast.error(`Suggestion failed: ${err.message}`)
+          }
+        },
+      }
+    )
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -325,19 +386,32 @@ function CreateEventDialog({
     )
   }
 
+  const TIER_LABELS: Record<string, string> = {
+    starter: '5 AI suggestions/month',
+    professional: '50 AI suggestions/month',
+    enterprise: 'Unlimited AI suggestions',
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-lg rounded-xl border border-border bg-card p-6"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-4 text-lg font-semibold text-foreground">Add Publication Event</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Add Publication Event</h2>
+          <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            {TIER_LABELS[tier] ?? TIER_LABELS.starter}
+          </span>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Company */}
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company</label>
             <select
               value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
+              onChange={(e) => handleCompanyChange(e.target.value)}
               required
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
             >
@@ -348,6 +422,7 @@ function CreateEventDialog({
             </select>
           </div>
 
+          {/* Report Type + Fiscal Year */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Report Type</label>
@@ -389,6 +464,38 @@ function CreateEventDialog({
             </div>
           )}
 
+          {/* AI Suggest Button */}
+          <div className="rounded-lg border border-dashed border-blue-500/30 bg-blue-500/5 p-3">
+            <button
+              type="button"
+              onClick={handleSuggestDates}
+              disabled={suggestDatesMutation.isPending || !companyId}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500/10 px-4 py-2.5 text-sm font-medium text-blue-400 transition-colors hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {suggestDatesMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {suggestDatesMutation.isPending ? 'Predicting...' : 'Suggest Date & Time with AI'}
+            </button>
+            <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+              Uses 1 AI credit · Based on historical patterns and industry data
+            </p>
+          </div>
+
+          {/* AI Reasoning (if suggestion was made) */}
+          {aiReasoning && (
+            <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-green-400">
+                <Sparkles className="h-3 w-3" />
+                AI Suggestion Applied
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{aiReasoning}</p>
+            </div>
+          )}
+
+          {/* Date + Time */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Expected Publication Date</label>
@@ -408,12 +515,43 @@ function CreateEventDialog({
                 onChange={(e) => setExpectedTime(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
               />
-              <p className="mt-1 text-[10px] text-muted-foreground">Monitoring peaks around this time</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">Peak monitoring ±30 min around this time</p>
             </div>
           </div>
 
+          {/* IR Page URL with auto-discover */}
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">IR Page URL (optional)</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">IR Page URL</label>
+              {companyId && !irPageUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    suggestIrUrlMutation.mutate(
+                      { company_id: companyId, company_name: selectedCompanyName },
+                      {
+                        onSuccess: (data) => {
+                          if (data.ir_page_url) {
+                            setIrPageUrl(data.ir_page_url)
+                            toast.success(data.validated ? 'IR page found and validated' : 'IR page suggested (not validated)')
+                          }
+                        },
+                        onError: () => toast.error('Could not find IR page'),
+                      }
+                    )
+                  }}
+                  disabled={suggestIrUrlMutation.isPending}
+                  className="flex items-center gap-1 text-[10px] font-medium text-blue-400 hover:text-blue-300"
+                >
+                  {suggestIrUrlMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Globe className="h-3 w-3" />
+                  )}
+                  Auto-discover
+                </button>
+              )}
+            </div>
             <input
               type="url"
               value={irPageUrl}
@@ -421,8 +559,12 @@ function CreateEventDialog({
               placeholder="https://www.company.com/investors"
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
             />
+            {irPageUrl && suggestIrUrlMutation.data?.validated && (
+              <p className="mt-1 text-[10px] text-green-400">Validated — page exists</p>
+            )}
           </div>
 
+          {/* Direct PDF URL */}
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Direct PDF URL (optional)</label>
             <input
@@ -434,6 +576,7 @@ function CreateEventDialog({
             />
           </div>
 
+          {/* Notes */}
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Notes (optional)</label>
             <input
@@ -445,6 +588,7 @@ function CreateEventDialog({
             />
           </div>
 
+          {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
