@@ -1,6 +1,8 @@
-import { useState, useEffect, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 
+const GATE_PASSWORD_HASH = '3bd8037a8ed38a35825983767f94e6cf3b18c3deee1601daee71faec0d83565f'
 const STORAGE_KEY = 'bs_unlocked'
+const SCREENSHOT_MODE = import.meta.env.VITE_SCREENSHOT_MODE === 'true'
 
 async function sha256(text: string): Promise<string> {
   const encoder = new TextEncoder()
@@ -11,25 +13,18 @@ async function sha256(text: string): Promise<string> {
     .join('')
 }
 
-// Pre-computed SHA-256 of "BenchPilot2026"
-let correctHash: string | null = null
-
 export default function PasswordGate({ children }: { children: ReactNode }) {
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(STORAGE_KEY) === 'true')
+  const [unlocked, setUnlocked] = useState(
+    () => SCREENSHOT_MODE || sessionStorage.getItem(STORAGE_KEY) === 'true'
+  )
   const [password, setPassword] = useState('')
   const [error, setError] = useState(false)
-
-  useEffect(() => {
-    sha256('BenchPilot2026').then((h) => {
-      correctHash = h
-    })
-  }, [])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(false)
     const hash = await sha256(password)
-    if (hash === correctHash) {
+    if (hash === GATE_PASSWORD_HASH) {
       sessionStorage.setItem(STORAGE_KEY, 'true')
       setUnlocked(true)
     } else {

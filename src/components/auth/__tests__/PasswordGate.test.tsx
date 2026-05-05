@@ -21,7 +21,7 @@ describe('PasswordGate', () => {
   it('unlocks with correct password', async () => {
     render(<PasswordGate><div>Protected</div></PasswordGate>)
     const input = screen.getByPlaceholderText('Enter access password')
-    fireEvent.change(input, { target: { value: 'BenchPilot2026' } })
+    fireEvent.change(input, { target: { value: 'predivo2026' } })
     fireEvent.submit(input.closest('form')!)
 
     await waitFor(() => {

@@ -130,7 +130,7 @@ supabase functions deploy <function-name> --no-verify-jwt
 - Use `globals: true` in Vitest — do NOT import from 'vitest'
 - All edge functions must be deployed with `--no-verify-jwt`
 - OTP config: 6 digits, 600 seconds expiry
-- Password gate: BenchPilot2026
+- Password gate: predivo2026
 - Dark mode is the default theme
 - NO public pricing on landing page — use "Request a Demo" CTA
 - Financial blue #3B82F6 is the primary accent color (dark mode) / #2563EB (light mode)
