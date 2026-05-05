@@ -67,6 +67,43 @@ export function CalendarPage() {
           </p>
         </div>
 
+        {/* Automation Info Banner */}
+        <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Automated Monitoring</h3>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                The system automatically checks for new publications based on the expected date and time you set.
+                Monitoring intensifies as the expected time approaches:
+              </p>
+              <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-400/60" />
+                  <span><strong className="text-foreground">3 days to 1 hour before</strong> — checked every 6 hours (safety net)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
+                  <span><strong className="text-foreground">1 hour before to 30 min after</strong> — checked every 2 minutes (peak window)</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400/60" />
+                  <span><strong className="text-foreground">30 min to 4 hours after</strong> — checked every 5 minutes</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-zinc-400/60" />
+                  <span><strong className="text-foreground">4+ hours overdue</strong> — gradually reduces to every 30 min, then hourly</span>
+                </li>
+              </ul>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Once detected, the report is automatically downloaded, KPIs extracted, normalized to CHF, and a benchmark document is generated — no manual action needed.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Filters + Actions */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <select

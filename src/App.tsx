@@ -18,6 +18,8 @@ import { CalendarPage } from '@/pages/CalendarPage'
 import { ApprovalChainsPage } from '@/pages/ApprovalChainsPage'
 import { MyCompanyPage } from '@/pages/MyCompanyPage'
 import { MyBenchmarkPage } from '@/pages/MyBenchmarkPage'
+import { TrendsPage } from '@/pages/TrendsPage'
+import { AnalyticsPage } from '@/pages/AnalyticsPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import SignUpPage from '@/pages/auth/SignUpPage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
@@ -70,6 +72,8 @@ function App() {
                           <Route path="/calendar" element={<CalendarPage />} />
                           <Route path="/my-company" element={<MyCompanyPage />} />
                           <Route path="/my-company/benchmark" element={<MyBenchmarkPage />} />
+                          <Route path="/trends" element={<TrendsPage />} />
+                          <Route path="/analytics" element={<AnalyticsPage />} />
                         </Route>
                       </Route>
 
