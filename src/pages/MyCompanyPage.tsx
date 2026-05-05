@@ -219,11 +219,11 @@ function KpiEditor({ companyId }: { companyId: string }) {
   return (
     <div>
       <div className="mb-3 flex items-center gap-3">
-        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <label htmlFor="kpi-fiscal-year" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Fiscal Year
         </label>
         <Select value={String(fiscalYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
-          <SelectTrigger className="w-[100px]">
+          <SelectTrigger id="kpi-fiscal-year" className="w-[100px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -237,10 +237,11 @@ function KpiEditor({ companyId }: { companyId: string }) {
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {(kpiDefs ?? []).map((kpi) => (
           <div key={kpi.id} className="flex items-center gap-2">
-            <label className="w-32 truncate text-xs text-muted-foreground" title={kpi.name}>
+            <label htmlFor={`kpi-${kpi.id}`} className="w-32 truncate text-xs text-muted-foreground" title={kpi.name}>
               {kpi.name}
             </label>
             <input
+              id={`kpi-${kpi.id}`}
               type="number"
               step="any"
               value={getInitialValue(kpi.id)}
@@ -274,10 +275,16 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [country, setCountry] = useState('Switzerland')
   const [currency, setCurrency] = useState('CHF')
   const [headcount, setHeadcount] = useState('')
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [submitAttempted, setSubmitAttempted] = useState(false)
   const createMutation = useCreateMyCompany()
+
+  const nameInvalid = !name.trim() && (touched.name || submitAttempted)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setSubmitAttempted(true)
+    if (!name.trim()) return
     createMutation.mutate(
       {
         name,
@@ -307,21 +314,24 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company Name</label>
+            <label htmlFor="company-name" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company Name</label>
             <input
+              id="company-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              required
+              onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+              aria-invalid={nameInvalid}
               placeholder="e.g., Acme Corp"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className={`w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground ${nameInvalid ? 'border-[var(--color-signal-red)]' : 'border-border'}`}
             />
+            {nameInvalid && <p className="mt-1 text-[12px] text-[var(--color-signal-red)]">Company name is required.</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Sector</label>
+              <label htmlFor="company-sector" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Sector</label>
               <Select value={sector} onValueChange={(v) => v && setSector(v)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="company-sector" className="w-full">
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -331,8 +341,9 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Country</label>
+              <label htmlFor="company-country" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Country</label>
               <input
+                id="company-country"
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
@@ -342,9 +353,9 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Currency</label>
+              <label htmlFor="company-currency" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Currency</label>
               <Select value={currency} onValueChange={(v) => v && setCurrency(v)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="company-currency" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -356,8 +367,9 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Headcount</label>
+              <label htmlFor="company-headcount" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Headcount</label>
               <input
+                id="company-headcount"
                 type="number"
                 value={headcount}
                 onChange={(e) => setHeadcount(e.target.value)}

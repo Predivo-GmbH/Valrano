@@ -306,12 +306,14 @@ export function MyBenchmarkPage() {
 
 function PercentileBar({ value }: { value: number }) {
   const color = value >= 70 ? 'bg-[var(--color-signal-green)]' : value <= 30 ? 'bg-[var(--color-signal-red)]' : 'bg-[var(--color-primary)]'
+  const indicator = value >= 70 ? '▲' : value <= 30 ? '▼' : '●'
+  const textColor = value >= 70 ? 'text-[var(--color-signal-green)]' : value <= 30 ? 'text-[var(--color-signal-red)]' : 'text-muted-foreground'
   return (
     <div className="flex items-center gap-2">
-      <div className="h-2 w-16 overflow-hidden rounded-full bg-muted">
+      <div className="h-2 w-20 overflow-hidden rounded-full bg-muted">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${value}%` }} />
       </div>
-      <span className="text-xs tabular-nums text-muted-foreground">P{value}</span>
+      <span className={`text-xs tabular-nums ${textColor}`}>{indicator} P{value}</span>
     </div>
   )
 }

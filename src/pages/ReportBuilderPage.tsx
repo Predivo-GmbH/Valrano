@@ -130,13 +130,19 @@ export function ReportBuilderPage() {
         </div>
 
         {/* Tab filter bar */}
-        <div className="mb-6 flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+        <div
+          className="mb-6 flex items-center gap-1 rounded-lg border border-border bg-card p-1"
+          role="tablist"
+          aria-label="Report type filter"
+        >
           {tabs.map((tab) => (
             <button
               key={tab.key}
+              role="tab"
+              aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                'rounded-md px-4 py-2 text-[13px] font-medium transition-colors',
+                'min-h-[44px] rounded-md px-4 py-2 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]',
                 activeTab === tab.key
                   ? 'bg-foreground text-background'
                   : 'text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)]'
@@ -434,11 +440,17 @@ function CreateReportDialog({ open, onClose }: { open: boolean; onClose: () => v
   const [peerGroupId, setPeerGroupId] = useState<string>('')
   const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear() - 1)
   const [selectedKpis, setSelectedKpis] = useState<string[]>([])
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [submitAttempted, setSubmitAttempted] = useState(false)
+
+  const titleInvalid = !title.trim() && (touched.title || submitAttempted)
 
   const selectedTemplate = templates?.find((t) => t.id === templateId)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setSubmitAttempted(true)
+    if (!title.trim()) return
 
     const config: CustomReport['config_json'] = {
       fiscal_year: fiscalYear,
@@ -480,30 +492,36 @@ function CreateReportDialog({ open, onClose }: { open: boolean; onClose: () => v
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Title</label>
+            <label htmlFor="report-title" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Title</label>
             <input
+              id="report-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              required
+              onBlur={() => setTouched((t) => ({ ...t, title: true }))}
+              aria-invalid={titleInvalid}
               placeholder="e.g., Q4 2025 Board Presentation"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className={`w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground ${titleInvalid ? 'border-[var(--color-signal-red)]' : 'border-border'}`}
             />
+            {titleInvalid && <p className="mt-1 text-[12px] text-[var(--color-signal-red)]">Report title is required.</p>}
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Description (optional)</label>
-            <input
+            <label htmlFor="report-description" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Description (optional)</label>
+            <textarea
+              id="report-description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value.slice(0, 500))}
               placeholder="Brief description..."
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              rows={3}
+              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
             />
+            <p className="mt-1 text-[11px] text-muted-foreground">{description.length}/500</p>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Template</label>
+            <label htmlFor="report-template" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Template</label>
             <Select value={templateId} onValueChange={(v) => v && setTemplateId(v)}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="report-template" className="w-full">
                 <SelectValue placeholder="Custom (no template)" />
               </SelectTrigger>
               <SelectContent>
@@ -517,9 +535,9 @@ function CreateReportDialog({ open, onClose }: { open: boolean; onClose: () => v
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Fiscal Year</label>
+              <label htmlFor="report-fiscal-year" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Fiscal Year</label>
               <Select value={String(fiscalYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="report-fiscal-year" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -530,9 +548,9 @@ function CreateReportDialog({ open, onClose }: { open: boolean; onClose: () => v
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Peer Group</label>
+              <label htmlFor="report-peer-group" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Peer Group</label>
               <Select value={peerGroupId} onValueChange={(v) => v && setPeerGroupId(v)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="report-peer-group" className="w-full">
                   <SelectValue placeholder="All Companies" />
                 </SelectTrigger>
                 <SelectContent>

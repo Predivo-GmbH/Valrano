@@ -217,8 +217,8 @@ export function CalendarPage() {
                                 href={ev.ir_page_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
-                                title="Open IR page"
+                                aria-label="Open IR page"
+                                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
                               >
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </a>
@@ -242,8 +242,8 @@ export function CalendarPage() {
                             {ev.report_id && (
                               <Link
                                 to={`/documents?reportId=${ev.report_id}`}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
-                                title="View report"
+                                aria-label="View report"
+                                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
                               >
                                 <Eye className="h-3.5 w-3.5" />
                               </Link>
@@ -315,6 +315,11 @@ function CreateEventDialog({
   const [directPdfUrl, setDirectPdfUrl] = useState('')
   const [notes, setNotes] = useState('')
   const [aiReasoning, setAiReasoning] = useState<string | null>(null)
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [submitAttempted, setSubmitAttempted] = useState(false)
+
+  const companyInvalid = !companyId && (touched.company || submitAttempted)
+  const dateInvalid = !expectedDate && (touched.date || submitAttempted)
 
   const createMutation = useCreatePublicationEvent()
   const suggestDatesMutation = useSuggestDates()
@@ -378,6 +383,8 @@ function CreateEventDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setSubmitAttempted(true)
+    if (!companyId || !expectedDate) return
     createMutation.mutate(
       {
         company_id: companyId,
@@ -421,9 +428,9 @@ function CreateEventDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Company */}
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company</label>
-            <Select value={companyId} onValueChange={(v) => v && handleCompanyChange(v)}>
-              <SelectTrigger className="w-full">
+            <label htmlFor="event-company" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company</label>
+            <Select value={companyId} onValueChange={(v) => { if (v) { handleCompanyChange(v); setTouched((t) => ({ ...t, company: true })) } }}>
+              <SelectTrigger id="event-company" className={`w-full ${companyInvalid ? 'border-[var(--color-signal-red)]' : ''}`} aria-invalid={companyInvalid}>
                 <SelectValue placeholder="Select company" />
               </SelectTrigger>
               <SelectContent>
@@ -432,14 +439,15 @@ function CreateEventDialog({
                 ))}
               </SelectContent>
             </Select>
+            {companyInvalid && <p className="mt-1 text-[12px] text-[var(--color-signal-red)]">Company is required.</p>}
           </div>
 
           {/* Report Type + Fiscal Year */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Report Type</label>
+              <label htmlFor="event-report-type" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Report Type</label>
               <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="event-report-type" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -450,8 +458,9 @@ function CreateEventDialog({
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Fiscal Year</label>
+              <label htmlFor="event-fiscal-year" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Fiscal Year</label>
               <input
+                id="event-fiscal-year"
                 type="number"
                 value={fiscalYear}
                 onChange={(e) => setFiscalYear(parseInt(e.target.value))}
@@ -462,9 +471,9 @@ function CreateEventDialog({
 
           {reportType === 'quarterly' && (
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Quarter</label>
+              <label htmlFor="event-quarter" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Quarter</label>
               <Select value={fiscalQuarter ? String(fiscalQuarter) : ''} onValueChange={(v) => setFiscalQuarter(v ? parseInt(v) : null)}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="event-quarter" className="w-full">
                   <SelectValue placeholder="Select quarter" />
                 </SelectTrigger>
                 <SelectContent>
@@ -512,18 +521,22 @@ function CreateEventDialog({
           {/* Date + Time */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Expected Publication Date</label>
+              <label htmlFor="event-expected-date" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Expected Publication Date</label>
               <input
+                id="event-expected-date"
                 type="date"
                 value={expectedDate}
                 onChange={(e) => setExpectedDate(e.target.value)}
-                required
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                onBlur={() => setTouched((t) => ({ ...t, date: true }))}
+                aria-invalid={dateInvalid}
+                className={`w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground ${dateInvalid ? 'border-[var(--color-signal-red)]' : 'border-border'}`}
               />
+              {dateInvalid && <p className="mt-1 text-[12px] text-[var(--color-signal-red)]">Publication date is required.</p>}
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Expected Time (CET)</label>
+              <label htmlFor="event-expected-time" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Expected Time (CET)</label>
               <input
+                id="event-expected-time"
                 type="time"
                 value={expectedTime}
                 onChange={(e) => setExpectedTime(e.target.value)}
@@ -536,7 +549,7 @@ function CreateEventDialog({
           {/* IR Page URL with auto-discover */}
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">IR Page URL</label>
+              <label htmlFor="event-ir-url" className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">IR Page URL</label>
               {companyId && !irPageUrl && (
                 <Button
                   type="button"
@@ -568,6 +581,7 @@ function CreateEventDialog({
               )}
             </div>
             <input
+              id="event-ir-url"
               type="url"
               value={irPageUrl}
               onChange={(e) => setIrPageUrl(e.target.value)}
@@ -581,8 +595,9 @@ function CreateEventDialog({
 
           {/* Direct PDF URL */}
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Direct PDF URL (optional)</label>
+            <label htmlFor="event-pdf-url" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Direct PDF URL (optional)</label>
             <input
+              id="event-pdf-url"
               type="url"
               value={directPdfUrl}
               onChange={(e) => setDirectPdfUrl(e.target.value)}
@@ -593,14 +608,16 @@ function CreateEventDialog({
 
           {/* Notes */}
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Notes (optional)</label>
-            <input
-              type="text"
+            <label htmlFor="event-notes" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Notes (optional)</label>
+            <textarea
+              id="event-notes"
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e) => setNotes(e.target.value.slice(0, 500))}
               placeholder="e.g., CRH typically publishes in late February"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              rows={3}
+              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
             />
+            <p className="mt-1 text-[11px] text-muted-foreground">{notes.length}/500</p>
           </div>
 
           {/* Actions */}

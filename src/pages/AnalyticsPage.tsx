@@ -92,6 +92,12 @@ export function AnalyticsPage() {
   const effectiveStartYear = startYear ?? (defaultYear - 4)
   const effectiveEndYear = endYear ?? defaultYear
 
+  // Validation: year range
+  const yearRangeInvalid = effectiveStartYear > effectiveEndYear
+
+  // Validation: scatter same KPI
+  const scatterSameKpi = xKpi !== '' && yKpi !== '' && xKpi === yKpi
+
   const companyIds = useMemo(() => {
     if (selectedPeerGroup && peerGroups) {
       const pg = peerGroups.find((p) => p.id === selectedPeerGroup)
@@ -127,10 +133,11 @@ export function AnalyticsPage() {
               role="tab"
               aria-selected={activeTab === tab.id}
               aria-controls={`tabpanel-${tab.id}`}
+              aria-label={tab.label}
               id={`tab-${tab.id}`}
               variant={activeTab === tab.id ? 'default' : 'ghost'}
               onClick={() => setTab(tab.id)}
-              className="flex items-center gap-2"
+              className="flex min-h-[44px] items-center gap-2"
             >
               {tab.icon}
               <span className="hidden sm:inline">{tab.label}</span>
@@ -199,6 +206,11 @@ export function AnalyticsPage() {
                   }
                 </SelectContent>
               </Select>
+              {yearRangeInvalid && (
+                <p className="w-full text-[12px] text-[var(--color-signal-red)]">
+                  Start year must be less than or equal to end year.
+                </p>
+              )}
             </>
           )}
 
@@ -252,6 +264,11 @@ export function AnalyticsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {scatterSameKpi && (
+                <p className="w-full text-[12px] text-[var(--color-signal-red)]">
+                  Select different KPIs for X and Y axes.
+                </p>
+              )}
             </>
           )}
         </div>
@@ -263,13 +280,13 @@ export function AnalyticsPage() {
           aria-labelledby={`tab-${activeTab}`}
         >
           {activeTab === 'trends' && (
-            <TrendsPanel companyIds={companyIds} startYear={effectiveStartYear} endYear={effectiveEndYear} selectedKpi={selectedKpi} />
+            <TrendsPanel companyIds={companyIds} startYear={effectiveStartYear} endYear={effectiveEndYear} selectedKpi={selectedKpi} disabled={yearRangeInvalid} />
           )}
           {activeTab === 'pivot' && (
             <PivotPanel companyIds={companyIds} fiscalYear={effectiveYear} />
           )}
           {activeTab === 'scatter' && (
-            <ScatterPanel companyIds={companyIds} xKpi={xKpi} yKpi={yKpi} fiscalYear={effectiveYear} kpiDefs={kpiDefs} />
+            <ScatterPanel companyIds={companyIds} xKpi={scatterSameKpi ? '' : xKpi} yKpi={scatterSameKpi ? '' : yKpi} fiscalYear={effectiveYear} kpiDefs={kpiDefs} />
           )}
           {activeTab === 'heatmap' && (
             <HeatmapPanel companyIds={companyIds} fiscalYear={effectiveYear} />
@@ -289,30 +306,35 @@ function TrendsPanel({
   startYear,
   endYear,
   selectedKpi,
+  disabled,
 }: {
   companyIds: string[]
   startYear: number
   endYear: number
   selectedKpi: string
+  disabled?: boolean
 }) {
   const kpiCodes = selectedKpi ? [selectedKpi] : undefined
 
+  // Pass empty companyIds to disable fetching when range is invalid
+  const queryCompanyIds = disabled ? [] : companyIds
+
   const { data: trends, isLoading } = useTrendData({
-    companyIds,
+    companyIds: queryCompanyIds,
     kpiCodes,
     startYear,
     endYear,
   })
 
   const { data: cagrData } = useCagr({
-    companyIds,
+    companyIds: queryCompanyIds,
     kpiCodes,
     startYear,
     endYear,
   })
 
   const { data: momentumData } = useMomentum({
-    companyIds,
+    companyIds: queryCompanyIds,
     kpiCodes,
   })
 
@@ -349,6 +371,17 @@ function TrendsPanel({
     }
     return [...names]
   }, [trends])
+
+  if (disabled) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-12 text-center">
+        <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground/50" />
+        <p className="mt-3 text-sm text-[var(--color-signal-red)]">
+          Fix the year range to view trends.
+        </p>
+      </div>
+    )
+  }
 
   if (isLoading) return <PageSkeleton />
 
@@ -750,10 +783,10 @@ function MomentumIcon({ direction }: { direction: string }) {
 
 function MomentumBadge({ direction }: { direction: string }) {
   if (direction === 'improving') {
-    return <span className="rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-green)]">Improving</span>
+    return <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-green)]">▲ Improving</span>
   }
   if (direction === 'declining') {
-    return <span className="rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-red)]">Declining</span>
+    return <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-red)]">▼ Declining</span>
   }
-  return <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Stable</span>
+  return <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">● Stable</span>
 }

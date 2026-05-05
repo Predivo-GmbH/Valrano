@@ -309,10 +309,10 @@ function MomentumIcon({ direction }: { direction: string }) {
 
 function MomentumBadge({ direction }: { direction: string }) {
   if (direction === 'improving') {
-    return <span className="rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-green)]">Improving</span>
+    return <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-green)]">▲ Improving</span>
   }
   if (direction === 'declining') {
-    return <span className="rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-red)]">Declining</span>
+    return <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-red)]">▼ Declining</span>
   }
-  return <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Stable</span>
+  return <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">● Stable</span>
 }

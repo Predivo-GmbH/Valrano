@@ -31,7 +31,7 @@ export function ApprovalChainsPage() {
 
         <button
           onClick={() => setShowCreate(true)}
-          className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-[var(--color-primary)] hover:text-foreground"
+          className="mb-6 flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-[var(--color-primary)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
         >
           <Plus className="h-4 w-4" />
           Create Approval Chain
@@ -144,8 +144,9 @@ function CreateChainDialog({
         <h2 className="mb-4 text-lg font-semibold text-foreground">Create Approval Chain</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Name</label>
+            <label htmlFor="chain-name" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Name</label>
             <input
+              id="chain-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -155,8 +156,9 @@ function CreateChainDialog({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Benchmark Rule (optional)</label>
+            <label htmlFor="chain-rule" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Benchmark Rule (optional)</label>
             <select
+              id="chain-rule"
               value={ruleId}
               onChange={(e) => setRuleId(e.target.value)}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
@@ -200,7 +202,12 @@ function CreateChainDialog({
                     Optional
                   </label>
                   {steps.length > 1 && (
-                    <button type="button" onClick={() => removeStep(i)} className="text-muted-foreground hover:text-red-400">
+                    <button
+                      type="button"
+                      onClick={() => removeStep(i)}
+                      aria-label={`Remove step ${step.step_number}`}
+                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   )}
@@ -217,8 +224,8 @@ function CreateChainDialog({
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Cancel</button>
-            <button type="submit" disabled={createMutation.isPending} className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50">
+            <button type="button" onClick={onClose} className="min-h-[44px] rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">Cancel</button>
+            <button type="submit" disabled={createMutation.isPending} className="min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2">
               {createMutation.isPending ? 'Creating...' : 'Create Chain'}
             </button>
           </div>

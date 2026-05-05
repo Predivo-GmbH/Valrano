@@ -146,12 +146,14 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Description (optional)
             </Label>
-            <Input
+            <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value.slice(0, 500))}
               placeholder="Brief description of this rule's purpose"
-              className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
+              rows={3}
+              className="w-full resize-y rounded-lg border border-border bg-[var(--color-bg-tertiary)] px-3 py-2 text-[13px] text-foreground"
             />
+            <p className="text-[11px] text-muted-foreground">{description.length}/500</p>
           </div>
 
           {/* Customer company */}
