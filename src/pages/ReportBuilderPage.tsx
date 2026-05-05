@@ -1,7 +1,19 @@
 import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
-import { useNavigate } from 'react-router-dom'
-import { Plus, FileText, Trash2, Zap, Download, Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import {
+  Plus,
+  FileText,
+  Trash2,
+  Zap,
+  Eye,
+  Download,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Pencil,
+} from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import {
@@ -12,33 +24,103 @@ import {
   useReportTemplates,
   type CustomReport,
 } from '@/hooks/useReportBuilder'
+import { useBenchmarkDocuments } from '@/hooks/useBenchmark'
 import { useCompanies, useKpiDefinitions, usePeerGroups } from '@/hooks/useData'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import type { DocumentStatus } from '@/types/database'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
+import { cn } from '@/lib/utils'
 
-const STATUS_CONFIG = {
+// ---------------------------------------------------------------------------
+// Tab filter type
+// ---------------------------------------------------------------------------
+
+type TabFilter = 'all' | 'benchmark' | 'custom'
+
+// ---------------------------------------------------------------------------
+// Benchmark doc status badge styling
+// ---------------------------------------------------------------------------
+
+const DOC_STATUS_CONFIG: Record<DocumentStatus, { label: string; className: string }> = {
+  draft: {
+    label: 'Draft',
+    className: 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
+  },
+  in_review: {
+    label: 'In Review',
+    className: 'bg-[var(--color-signal-amber)]/10 text-[var(--color-signal-amber)]',
+  },
+  approved: {
+    label: 'Approved',
+    className: 'bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)]',
+  },
+  delivered: {
+    label: 'Delivered',
+    className: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]',
+  },
+  rejected: {
+    label: 'Rejected',
+    className: 'bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)]',
+  },
+}
+
+// Custom report status config
+const REPORT_STATUS_CONFIG = {
   draft: { icon: Clock, color: 'text-muted-foreground', bg: 'bg-muted', label: 'Draft' },
   generating: { icon: Loader2, color: 'text-[var(--color-primary)]', bg: 'bg-[var(--color-primary)]/10', label: 'Generating...' },
   ready: { icon: CheckCircle2, color: 'text-[var(--color-signal-green)]', bg: 'bg-[var(--color-signal-green)]/10', label: 'Ready' },
   error: { icon: AlertCircle, color: 'text-[var(--color-signal-red)]', bg: 'bg-[var(--color-signal-red)]/10', label: 'Error' },
 }
 
+// ---------------------------------------------------------------------------
+// Main merged page
+// ---------------------------------------------------------------------------
+
 export function ReportBuilderPage() {
   const navigate = useNavigate()
-  const { data: reports, isLoading } = useCustomReports()
+  const [activeTab, setActiveTab] = useState<TabFilter>('all')
   const [showCreate, setShowCreate] = useState(false)
+
+  // Data fetching
+  const { data: documents, isLoading: docsLoading } = useBenchmarkDocuments({})
+  const { data: reports, isLoading: reportsLoading } = useCustomReports()
+
+  const isLoading = docsLoading || reportsLoading
+
+  const tabs: { key: TabFilter; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'benchmark', label: 'Benchmark Docs' },
+    { key: 'custom', label: 'Custom Reports' },
+  ]
+
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '\u2014'
+    return new Date(dateStr).toLocaleDateString('en-CH', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    })
+  }
+
+  const showBenchmarkDocs = activeTab === 'all' || activeTab === 'benchmark'
+  const showCustomReports = activeTab === 'all' || activeTab === 'custom'
+
+  const hasDocs = (documents ?? []).length > 0
+  const hasReports = (reports ?? []).length > 0
+  const hasAny = hasDocs || hasReports
 
   return (
     <>
       <Helmet><title>Reports - BenchmarkSignal</title></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
+        {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Report Builder</h1>
+            <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Reports</h1>
             <p className="mt-1 text-[13px] text-muted-foreground">
-              Create custom reports from your benchmark data with AI-generated narratives.
+              Auto-generated benchmark documents and custom reports from your data.
             </p>
           </div>
           <Button onClick={() => setShowCreate(true)}>
@@ -47,26 +129,71 @@ export function ReportBuilderPage() {
           </Button>
         </div>
 
+        {/* Tab filter bar */}
+        <div className="mb-6 flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                'rounded-md px-4 py-2 text-[13px] font-medium transition-colors',
+                activeTab === tab.key
+                  ? 'bg-foreground text-background'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)]'
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
         {isLoading ? (
           <CardSkeleton />
-        ) : !reports || reports.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center">
-            <FileText className="mx-auto h-10 w-10 text-muted-foreground/50" />
-            <h3 className="mt-3 text-lg font-semibold text-foreground">No reports yet</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Create your first report from a template or build one from scratch.
-            </p>
-            <Button onClick={() => setShowCreate(true)} className="mt-4">
-              <Plus className="h-4 w-4" />
-              Create Report
-            </Button>
-          </div>
+        ) : !hasAny ? (
+          <EmptyState onCreateReport={() => setShowCreate(true)} />
         ) : (
           <div className="space-y-3">
-            {reports.map((report) => (
-              <ReportCard key={report.id} report={report} onView={() => navigate(`/reports/${report.id}`)} />
+            {/* Benchmark Documents */}
+            {showBenchmarkDocs && (documents ?? []).map((doc) => (
+              <BenchmarkDocCard key={`doc-${doc.id}`} doc={doc} formatDate={formatDate} />
             ))}
+
+            {/* Custom Reports */}
+            {showCustomReports && (reports ?? []).map((report) => (
+              <CustomReportCard
+                key={`report-${report.id}`}
+                report={report}
+                onView={() => navigate(`/reports/${report.id}`)}
+                formatDate={formatDate}
+              />
+            ))}
+
+            {/* Show empty message for filtered tab if no items */}
+            {activeTab === 'benchmark' && !hasDocs && (
+              <div className="rounded-xl border border-border bg-card p-8 text-center">
+                <p className="text-sm text-muted-foreground">No benchmark documents yet.</p>
+              </div>
+            )}
+            {activeTab === 'custom' && !hasReports && (
+              <div className="rounded-xl border border-border bg-card p-8 text-center">
+                <p className="text-sm text-muted-foreground">No custom reports yet.</p>
+                <Button onClick={() => setShowCreate(true)} className="mt-3" size="sm">
+                  <Plus className="h-4 w-4" />
+                  Create Report
+                </Button>
+              </div>
+            )}
           </div>
+        )}
+
+        {/* Count */}
+        {hasAny && !isLoading && (
+          <p className="mt-4 text-[11px] text-muted-foreground">
+            {activeTab === 'all' && `${(documents ?? []).length + (reports ?? []).length} total`}
+            {activeTab === 'benchmark' && `${(documents ?? []).length} document${(documents ?? []).length !== 1 ? 's' : ''}`}
+            {activeTab === 'custom' && `${(reports ?? []).length} report${(reports ?? []).length !== 1 ? 's' : ''}`}
+          </p>
         )}
 
         <CreateReportDialog open={showCreate} onClose={() => setShowCreate(false)} />
@@ -76,14 +203,122 @@ export function ReportBuilderPage() {
 }
 
 // ---------------------------------------------------------------------------
-// Report Card
+// Empty state
 // ---------------------------------------------------------------------------
 
-function ReportCard({ report, onView }: { report: CustomReport; onView: () => void }) {
+function EmptyState({ onCreateReport }: { onCreateReport: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+      <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
+        <FileText className="h-8 w-8 text-muted-foreground" />
+      </div>
+      <h3 className="mb-2 text-[15px] font-semibold text-foreground">No reports yet</h3>
+      <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
+        Upload a competitor report to auto-generate benchmark documents, or create a custom report from your data.
+      </p>
+      <div className="flex items-center gap-3">
+        <Link
+          to="/upload"
+          className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-2.5 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)]"
+        >
+          Upload a Report
+        </Link>
+        <Button onClick={onCreateReport} className="rounded-full px-6">
+          <Plus className="h-4 w-4" />
+          Create Custom Report
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Benchmark Document Card
+// ---------------------------------------------------------------------------
+
+interface BenchmarkDoc {
+  id: string
+  title: string
+  status: DocumentStatus
+  fiscal_year: number
+  generated_at: string | null
+  benchmark_rules?: { name: string } | null
+  trigger_company?: { name: string; ticker?: string | null } | null
+}
+
+function BenchmarkDocCard({ doc, formatDate }: { doc: BenchmarkDoc; formatDate: (d: string | null | undefined) => string }) {
+  const statusCfg = DOC_STATUS_CONFIG[doc.status] ?? DOC_STATUS_CONFIG.draft
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 transition-colors hover:bg-card/80">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent)]/10">
+              <FileText className="h-4 w-4 text-[var(--color-accent)]" />
+            </div>
+            <div className="min-w-0">
+              <Link
+                to={`/documents/${doc.id}`}
+                className="truncate block max-w-[400px] font-semibold text-foreground hover:text-[var(--color-accent)] transition-colors"
+              >
+                {doc.title}
+              </Link>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className={cn(
+                  'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                  statusCfg.className,
+                )}>
+                  {statusCfg.label}
+                </span>
+                <span className="inline-flex items-center rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
+                  Auto-generated
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 ml-11 flex items-center gap-3 text-xs text-muted-foreground">
+            {doc.trigger_company?.name && <span>{doc.trigger_company.name}</span>}
+            {doc.benchmark_rules?.name && <span>Template: {doc.benchmark_rules.name}</span>}
+            <span>FY {doc.fiscal_year}</span>
+            {doc.generated_at && <span>{formatDate(doc.generated_at)}</span>}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" asChild>
+            <Link to={`/documents/${doc.id}`}>
+              <Eye className="h-3.5 w-3.5" />
+              View
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm">
+            <Download className="h-3.5 w-3.5" />
+            Export PDF
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Custom Report Card
+// ---------------------------------------------------------------------------
+
+function CustomReportCard({
+  report,
+  onView,
+  formatDate,
+}: {
+  report: CustomReport
+  onView: () => void
+  formatDate: (d: string | null | undefined) => string
+}) {
   const generateMutation = useGenerateReport()
   const deleteMutation = useDeleteReport()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const status = STATUS_CONFIG[report.status]
+  const status = REPORT_STATUS_CONFIG[report.status]
   const StatusIcon = status.icon
 
   return (
@@ -96,6 +331,9 @@ function ReportCard({ report, onView }: { report: CustomReport; onView: () => vo
               <StatusIcon className={`h-3 w-3 ${report.status === 'generating' ? 'animate-spin' : ''}`} />
               {status.label}
             </span>
+            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              Custom
+            </span>
           </div>
           {report.description && (
             <p className="mt-1 text-sm text-muted-foreground">{report.description}</p>
@@ -104,20 +342,35 @@ function ReportCard({ report, onView }: { report: CustomReport; onView: () => vo
             {report.report_templates && (
               <span>Template: {report.report_templates.name}</span>
             )}
-            {report.last_generated_at && (
-              <span>Generated: {new Date(report.last_generated_at).toLocaleDateString()}</span>
-            )}
             {report.config_json.fiscal_year && (
               <span>FY{report.config_json.fiscal_year}</span>
+            )}
+            {report.config_json.kpi_codes && (
+              <span>{report.config_json.kpi_codes.length} KPIs</span>
+            )}
+            {report.last_generated_at && (
+              <span>{formatDate(report.last_generated_at)}</span>
             )}
           </div>
         </div>
 
         <div className="flex items-center gap-1">
           {report.status === 'ready' && (
+            <>
+              <Button variant="outline" size="sm" onClick={onView}>
+                <Eye className="h-3.5 w-3.5" />
+                View
+              </Button>
+              <Button variant="ghost" size="sm">
+                <Download className="h-3.5 w-3.5" />
+                Export PDF
+              </Button>
+            </>
+          )}
+          {report.status === 'draft' && (
             <Button variant="outline" size="sm" onClick={onView}>
-              <Download className="h-3.5 w-3.5" />
-              View
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
             </Button>
           )}
           <Button
@@ -165,6 +418,7 @@ function ReportCard({ report, onView }: { report: CustomReport; onView: () => vo
 // ---------------------------------------------------------------------------
 
 function CreateReportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const navigate = useNavigate()
   const { data: templates } = useReportTemplates()
   const { data: companies } = useCompanies()
   const { data: kpiDefs } = useKpiDefinitions()
@@ -202,9 +456,13 @@ function CreateReportDialog({ open, onClose }: { open: boolean; onClose: () => v
         config_json: config,
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           toast.success('Report created')
           onClose()
+          // Auto-navigate to viewer after creation
+          if (data?.id) {
+            navigate(`/reports/${data.id}`)
+          }
         },
         onError: (err) => toast.error(`Failed: ${err.message}`),
       }

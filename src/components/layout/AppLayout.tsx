@@ -50,6 +50,16 @@ export function AppLayout() {
     return () => document.removeEventListener('keydown', handleEscape)
   }, [])
 
+  // Scroll lock when mobile nav is open
+  useEffect(() => {
+    if (mobileNavOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [mobileNavOpen])
+
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background">
@@ -137,16 +147,28 @@ export function AppLayout() {
             </div>
           </div>
 
-          {/* Mobile nav drawer */}
+          {/* Mobile nav drawer with backdrop */}
           {mobileNavOpen && (
-            <div className="border-t border-border bg-[var(--color-background)] px-4 pb-4 pt-2 md:hidden">
-              {NAV_ITEMS.map((item) => (
-                <NavLink key={item.to} to={item.to} onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                  <item.icon className="h-4 w-4" aria-hidden="true" />
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
+            <>
+              <div
+                className="fixed inset-0 top-16 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+                aria-hidden="true"
+                onClick={() => setMobileNavOpen(false)}
+              />
+              <div
+                className="fixed left-0 right-0 top-16 z-50 border-t border-border bg-[var(--color-background)] px-4 pb-4 pt-2 md:hidden"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Navigation menu"
+              >
+                {NAV_ITEMS.map((item) => (
+                  <NavLink key={item.to} to={item.to} onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
+                    <item.icon className="h-4 w-4" aria-hidden="true" />
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            </>
           )}
         </nav>
 

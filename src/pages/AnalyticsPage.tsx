@@ -1,38 +1,90 @@
 import { useState, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { Table2, ScatterChart as ScatterIcon, Grid3X3 } from 'lucide-react'
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  BarChart3,
+  Table2,
+  ScatterChart as ScatterIcon,
+  Grid3X3,
+} from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import {
+  LineChart,
+  Line,
   ScatterChart,
   Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   Cell,
 } from 'recharts'
+import { useTrendData, useCagr, useMomentum } from '@/hooks/useTrends'
 import { usePivotData, useScatterData, useHeatmapData } from '@/hooks/useAnalytics'
 import { useCompanies, useKpiDefinitions, usePeerGroups } from '@/hooks/useData'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 
-type ViewMode = 'pivot' | 'scatter' | 'heatmap'
+type TabId = 'trends' | 'pivot' | 'scatter' | 'heatmap'
+
+const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  { id: 'trends', label: 'Trends', icon: <BarChart3 className="h-4 w-4" /> },
+  { id: 'pivot', label: 'Pivot Table', icon: <Table2 className="h-4 w-4" /> },
+  { id: 'scatter', label: 'Scatter', icon: <ScatterIcon className="h-4 w-4" /> },
+  { id: 'heatmap', label: 'Heatmap', icon: <Grid3X3 className="h-4 w-4" /> },
+]
+
+const CHART_COLORS = [
+  'var(--color-primary)',
+  'var(--color-signal-green)',
+  'var(--color-signal-amber)',
+  'var(--color-signal-red)',
+  'var(--color-financial-blue)',
+  'var(--color-accent)',
+  '#8B5CF6',
+  '#EC4899',
+  '#14B8A6',
+  '#F97316',
+]
 
 const SCATTER_COLORS = [
-  'var(--color-financial-blue)', 'var(--color-signal-green)', 'var(--color-signal-amber)', 'var(--color-signal-red)', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
+  'var(--color-financial-blue)',
+  'var(--color-signal-green)',
+  'var(--color-signal-amber)',
+  'var(--color-signal-red)',
+  '#8b5cf6',
+  '#06b6d4',
+  '#ec4899',
+  '#84cc16',
+  '#f97316',
+  '#6366f1',
 ]
 
 export function AnalyticsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = (searchParams.get('tab') as TabId) || 'trends'
+
   const { data: companies } = useCompanies()
   const { data: kpiDefs } = useKpiDefinitions()
   const { data: peerGroups } = usePeerGroups()
 
   const currentYear = new Date().getFullYear() - 1
-  const [viewMode, setViewMode] = useState<ViewMode>('pivot')
+
+  // Shared filters
   const [fiscalYear, setFiscalYear] = useState(currentYear)
   const [selectedPeerGroup, setSelectedPeerGroup] = useState<string>('')
+
+  // Trends-specific filters
+  const [startYear, setStartYear] = useState(currentYear - 4)
+  const [endYear, setEndYear] = useState(currentYear)
+  const [selectedKpi, setSelectedKpi] = useState<string>('')
+
+  // Scatter-specific filters
   const [xKpi, setXKpi] = useState<string>('')
   const [yKpi, setYKpi] = useState<string>('')
 
@@ -44,6 +96,10 @@ export function AnalyticsPage() {
     return companies?.map((c) => c.id) ?? []
   }, [selectedPeerGroup, peerGroups, companies])
 
+  function setTab(tab: TabId) {
+    setSearchParams({ tab })
+  }
+
   return (
     <>
       <Helmet><title>Analytics - BenchmarkSignal</title></Helmet>
@@ -51,30 +107,36 @@ export function AnalyticsPage() {
         <div className="mb-6">
           <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Analytics</h1>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Explore data with pivot tables, scatter plots, and heatmaps.
+            Explore trends, pivot tables, scatter plots, and heatmaps across your benchmark data.
           </p>
         </div>
 
-        {/* View mode tabs */}
-        <div className="mb-6 flex items-center gap-1 rounded-lg border border-border bg-card p-1">
-          <ViewTab active={viewMode === 'pivot'} onClick={() => setViewMode('pivot')} icon={<Table2 className="h-4 w-4" />} label="Pivot Table" />
-          <ViewTab active={viewMode === 'scatter'} onClick={() => setViewMode('scatter')} icon={<ScatterIcon className="h-4 w-4" />} label="Scatter Plot" />
-          <ViewTab active={viewMode === 'heatmap'} onClick={() => setViewMode('heatmap')} icon={<Grid3X3 className="h-4 w-4" />} label="Heatmap" />
+        {/* Tab bar */}
+        <div
+          className="mb-6 flex items-center gap-1 rounded-lg border border-border bg-card p-1"
+          role="tablist"
+          aria-label="Analytics views"
+        >
+          {TABS.map((tab) => (
+            <Button
+              key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls={`tabpanel-${tab.id}`}
+              id={`tab-${tab.id}`}
+              variant={activeTab === tab.id ? 'default' : 'ghost'}
+              onClick={() => setTab(tab.id)}
+              className="flex items-center gap-2"
+            >
+              {tab.icon}
+              <span className="hidden sm:inline">{tab.label}</span>
+            </Button>
+          ))}
         </div>
 
-        {/* Common filters */}
+        {/* Filters */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
-          <Select value={String(fiscalYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
-            <SelectTrigger className="w-[100px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
-                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
+          {/* Peer group filter — shared across all tabs */}
           <Select value={selectedPeerGroup} onValueChange={(v) => setSelectedPeerGroup(v)}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All Companies" />
@@ -87,8 +149,72 @@ export function AnalyticsPage() {
             </SelectContent>
           </Select>
 
-          {viewMode === 'scatter' && (
+          {/* Trends-specific: KPI selector + year range */}
+          {activeTab === 'trends' && (
             <>
+              <Select value={selectedKpi} onValueChange={(v) => setSelectedKpi(v)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All KPIs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All KPIs</SelectItem>
+                  {(kpiDefs ?? []).map((kpi) => (
+                    <SelectItem key={kpi.code} value={kpi.code}>{kpi.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={String(startYear)} onValueChange={(v) => setStartYear(Number(v))}>
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 10 }, (_, i) => currentYear - 9 + i).map((y) => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-[13px] text-muted-foreground">to</span>
+              <Select value={String(endYear)} onValueChange={(v) => setEndYear(Number(v))}>
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 10 }, (_, i) => currentYear - 9 + i).map((y) => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
+          {/* Pivot/Heatmap: fiscal year */}
+          {(activeTab === 'pivot' || activeTab === 'heatmap') && (
+            <Select value={String(fiscalYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Scatter: fiscal year + KPI selectors */}
+          {activeTab === 'scatter' && (
+            <>
+              <Select value={String(fiscalYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={xKpi} onValueChange={(v) => setXKpi(v)}>
                 <SelectTrigger className="w-[160px]">
                   <SelectValue placeholder="X Axis KPI..." />
@@ -116,37 +242,240 @@ export function AnalyticsPage() {
           )}
         </div>
 
-        {/* Content */}
-        {viewMode === 'pivot' && <PivotView companyIds={companyIds} fiscalYear={fiscalYear} />}
-        {viewMode === 'scatter' && <ScatterView companyIds={companyIds} xKpi={xKpi} yKpi={yKpi} fiscalYear={fiscalYear} kpiDefs={kpiDefs} />}
-        {viewMode === 'heatmap' && <HeatmapView companyIds={companyIds} fiscalYear={fiscalYear} />}
+        {/* Tab panels */}
+        <div
+          role="tabpanel"
+          id={`tabpanel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
+        >
+          {activeTab === 'trends' && (
+            <TrendsPanel companyIds={companyIds} startYear={startYear} endYear={endYear} selectedKpi={selectedKpi} />
+          )}
+          {activeTab === 'pivot' && (
+            <PivotPanel companyIds={companyIds} fiscalYear={fiscalYear} />
+          )}
+          {activeTab === 'scatter' && (
+            <ScatterPanel companyIds={companyIds} xKpi={xKpi} yKpi={yKpi} fiscalYear={fiscalYear} kpiDefs={kpiDefs} />
+          )}
+          {activeTab === 'heatmap' && (
+            <HeatmapPanel companyIds={companyIds} fiscalYear={fiscalYear} />
+          )}
+        </div>
       </div>
     </>
   )
 }
 
 // ---------------------------------------------------------------------------
-// View Tab
+// Trends Panel
 // ---------------------------------------------------------------------------
 
-function ViewTab({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+function TrendsPanel({
+  companyIds,
+  startYear,
+  endYear,
+  selectedKpi,
+}: {
+  companyIds: string[]
+  startYear: number
+  endYear: number
+  selectedKpi: string
+}) {
+  const kpiCodes = selectedKpi ? [selectedKpi] : undefined
+
+  const { data: trends, isLoading } = useTrendData({
+    companyIds,
+    kpiCodes,
+    startYear,
+    endYear,
+  })
+
+  const { data: cagrData } = useCagr({
+    companyIds,
+    kpiCodes,
+    startYear,
+    endYear,
+  })
+
+  const { data: momentumData } = useMomentum({
+    companyIds,
+    kpiCodes,
+  })
+
+  const chartData = useMemo(() => {
+    if (!trends || trends.length === 0) return []
+    const series = trends[0]
+
+    const years = new Set<number>()
+    const companyMap = new Map<string, Map<number, number>>()
+
+    for (const dp of series.data_points) {
+      if (dp.value === null) continue
+      years.add(dp.fiscal_year)
+      if (!companyMap.has(dp.company_name)) companyMap.set(dp.company_name, new Map())
+      companyMap.get(dp.company_name)!.set(dp.fiscal_year, dp.value)
+    }
+
+    const sortedYears = [...years].sort()
+    return sortedYears.map((year) => {
+      const point: Record<string, number | string> = { year }
+      for (const [name, values] of companyMap) {
+        point[name] = values.get(year) ?? 0
+      }
+      point['Peer Median'] = series.peer_median_by_year[year] ?? 0
+      return point
+    })
+  }, [trends])
+
+  const companyNames = useMemo(() => {
+    if (!trends || trends.length === 0) return []
+    const names = new Set<string>()
+    for (const dp of trends[0].data_points) {
+      names.add(dp.company_name)
+    }
+    return [...names]
+  }, [trends])
+
+  if (isLoading) return <PageSkeleton />
+
+  if (!trends || trends.length === 0) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-12 text-center">
+        <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground/50" />
+        <h3 className="mt-3 text-lg font-semibold text-foreground">No trend data</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Upload reports and extract KPIs to see trends over time.
+        </p>
+      </div>
+    )
+  }
+
   return (
-    <Button
-      variant={active ? 'default' : 'ghost'}
-      onClick={onClick}
-      className="flex items-center gap-2"
-    >
-      {icon}
-      <span className="hidden sm:inline">{label}</span>
-    </Button>
+    <div className="space-y-6">
+      {/* Line Chart */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="mb-4 font-semibold text-foreground">
+          {trends[0].kpi_name} — Multi-Year Trend
+        </h3>
+        <div className="h-[350px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="year" stroke="var(--color-muted-foreground)" fontSize={12} />
+              <YAxis
+                stroke="var(--color-muted-foreground)"
+                fontSize={11}
+                tickFormatter={(v: number) => Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(v)}
+                width={60}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'var(--color-card)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                }}
+              />
+              <Legend />
+              {companyNames.slice(0, 8).map((name, i) => (
+                <Line
+                  key={name}
+                  type="monotone"
+                  dataKey={name}
+                  stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              ))}
+              <Line
+                type="monotone"
+                dataKey="Peer Median"
+                stroke="var(--color-muted-foreground)"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* CAGR Table */}
+      {cagrData && cagrData.length > 0 && (
+        <div className="rounded-xl border border-border bg-card">
+          <div className="border-b border-border px-5 py-3">
+            <h3 className="font-semibold text-foreground">
+              CAGR ({startYear}–{endYear})
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <th className="px-5 py-3 text-left">Company</th>
+                  <th className="px-5 py-3 text-left">KPI</th>
+                  <th className="px-5 py-3 text-right">{startYear}</th>
+                  <th className="px-5 py-3 text-right">{endYear}</th>
+                  <th className="px-5 py-3 text-right">CAGR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cagrData.slice(0, 20).map((row, i) => (
+                  <tr key={i} className="border-b border-border/50 last:border-0">
+                    <td className="px-5 py-3 font-medium text-foreground">{row.company_name}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{row.kpi_name}</td>
+                    <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
+                      {row.start_value.toLocaleString()}
+                    </td>
+                    <td className="px-5 py-3 text-right tabular-nums text-foreground">
+                      {row.end_value.toLocaleString()}
+                    </td>
+                    <td className={`px-5 py-3 text-right tabular-nums font-medium ${
+                      row.cagr_pct > 0 ? 'text-[var(--color-signal-green)]' : row.cagr_pct < 0 ? 'text-[var(--color-signal-red)]' : 'text-muted-foreground'
+                    }`}>
+                      {row.cagr_pct > 0 ? '+' : ''}{row.cagr_pct}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Momentum Indicators */}
+      {momentumData && momentumData.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h3 className="mb-4 font-semibold text-foreground">Momentum Indicators (3-Year Trailing)</h3>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {momentumData.slice(0, 12).map((item, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
+                <MomentumIcon direction={item.direction} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">{item.company_name}</p>
+                  <p className="text-xs text-muted-foreground">{item.kpi_name}</p>
+                </div>
+                <div className="text-right">
+                  <MomentumBadge direction={item.direction} />
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    {item.avg_yoy_change_pct > 0 ? '+' : ''}{item.avg_yoy_change_pct}% avg
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Pivot Table View
+// Pivot Table Panel
 // ---------------------------------------------------------------------------
 
-function PivotView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYear: number }) {
+function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYear: number }) {
   const { data, isLoading } = usePivotData({ companyIds, fiscalYear })
 
   if (isLoading) return <PageSkeleton />
@@ -159,7 +488,6 @@ function PivotView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYea
     )
   }
 
-  // Build lookup: company_id -> kpi_code -> value
   const lookup = new Map<string, Map<string, number | null>>()
   for (const cell of data.cells) {
     if (!lookup.has(cell.company_id)) lookup.set(cell.company_id, new Map())
@@ -191,7 +519,7 @@ function PivotView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYea
                 const val = lookup.get(company.id)?.get(kpi.code)
                 return (
                   <td key={kpi.code} className="px-4 py-3 text-right tabular-nums text-foreground">
-                    {val !== null && val !== undefined ? val.toLocaleString() : '—'}
+                    {val !== null && val !== undefined ? val.toLocaleString() : '\u2014'}
                   </td>
                 )
               })}
@@ -204,10 +532,10 @@ function PivotView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYea
 }
 
 // ---------------------------------------------------------------------------
-// Scatter Plot View
+// Scatter Plot Panel
 // ---------------------------------------------------------------------------
 
-function ScatterView({
+function ScatterPanel({
   companyIds,
   xKpi,
   yKpi,
@@ -304,10 +632,10 @@ function ScatterView({
 }
 
 // ---------------------------------------------------------------------------
-// Heatmap View
+// Heatmap Panel
 // ---------------------------------------------------------------------------
 
-function HeatmapView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYear: number }) {
+function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYear: number }) {
   const { data, isLoading } = useHeatmapData({ companyIds, fiscalYear })
 
   if (isLoading) return <PageSkeleton />
@@ -320,7 +648,6 @@ function HeatmapView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalY
     )
   }
 
-  // Build lookup: company_id -> kpi_code -> { value, percentile }
   const lookup = new Map<string, Map<string, { value: number | null; percentile: number }>>()
   for (const cell of data.cells) {
     if (!lookup.has(cell.company_id)) lookup.set(cell.company_id, new Map())
@@ -352,7 +679,7 @@ function HeatmapView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalY
                 {data.kpis.map((kpi) => {
                   const cell = lookup.get(company.id)?.get(kpi.code)
                   if (!cell || cell.value === null) {
-                    return <td key={kpi.code} className="px-4 py-3 text-center text-muted-foreground">—</td>
+                    return <td key={kpi.code} className="px-4 py-3 text-center text-muted-foreground">{'\u2014'}</td>
                   }
                   return (
                     <td key={kpi.code} className="px-2 py-2 text-center">
@@ -362,7 +689,7 @@ function HeatmapView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalY
                           backgroundColor: getHeatColor(cell.percentile),
                           color: 'white',
                         }}
-                        title={`P${cell.percentile} — ${cell.value.toLocaleString()}`}
+                        title={`P${cell.percentile} \u2014 ${cell.value.toLocaleString()}`}
                       >
                         {cell.value.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 1 } as Intl.NumberFormatOptions)}
                       </div>
@@ -389,10 +716,30 @@ function HeatmapView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalY
   )
 }
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function getHeatColor(percentile: number): string {
   if (percentile >= 80) return 'var(--color-signal-green)'
-  if (percentile >= 60) return '#34d399' // green-400, lighter variant — no token
-  if (percentile >= 40) return '#6b7280' // gray-500 mid-band — no token
-  if (percentile >= 20) return '#f87171' // red-400, lighter variant — no token
+  if (percentile >= 60) return '#34d399'
+  if (percentile >= 40) return '#6b7280'
+  if (percentile >= 20) return '#f87171'
   return 'var(--color-signal-red)'
+}
+
+function MomentumIcon({ direction }: { direction: string }) {
+  if (direction === 'improving') return <TrendingUp className="h-5 w-5 text-[var(--color-signal-green)]" />
+  if (direction === 'declining') return <TrendingDown className="h-5 w-5 text-[var(--color-signal-red)]" />
+  return <Minus className="h-5 w-5 text-muted-foreground" />
+}
+
+function MomentumBadge({ direction }: { direction: string }) {
+  if (direction === 'improving') {
+    return <span className="rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-green)]">Improving</span>
+  }
+  if (direction === 'declining') {
+    return <span className="rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-red)]">Declining</span>
+  }
+  return <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Stable</span>
 }

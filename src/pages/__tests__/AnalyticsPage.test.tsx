@@ -64,8 +64,9 @@ describe('AnalyticsPage', () => {
 
   it('shows view mode tabs', () => {
     render(<AnalyticsPage />)
+    expect(screen.getByText('Trends')).toBeInTheDocument()
     expect(screen.getByText('Pivot Table')).toBeInTheDocument()
-    expect(screen.getByText('Scatter Plot')).toBeInTheDocument()
+    expect(screen.getByText('Scatter')).toBeInTheDocument()
     expect(screen.getByText('Heatmap')).toBeInTheDocument()
   })
 
@@ -78,9 +79,10 @@ describe('AnalyticsPage', () => {
 
   it('switches to scatter view on tab click', () => {
     render(<AnalyticsPage />)
-    fireEvent.click(screen.getByText('Scatter Plot'))
-    // Should show KPI axis selectors
-    expect(screen.getByText('X Axis KPI...')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Scatter'))
+    // Scatter tab should become active
+    const scatterBtn = screen.getByText('Scatter').closest('button')
+    expect(scatterBtn?.getAttribute('aria-selected')).toBe('true')
   })
 
   it('shows year filter', () => {

@@ -60,7 +60,7 @@ vi.mock('@/lib/supabase', () => ({
 describe('ReportBuilderPage', () => {
   it('renders page title', () => {
     render(<ReportBuilderPage />)
-    expect(screen.getByText('Report Builder')).toBeInTheDocument()
+    expect(screen.getByText('Reports')).toBeInTheDocument()
   })
 
   it('shows New Report button', () => {

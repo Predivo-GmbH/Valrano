@@ -9,16 +9,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import LandingPage from '@/pages/LandingPage'
 import { DashboardPage } from '@/pages/DashboardPage'
-import { UploadPage } from '@/pages/UploadPage'
-import { ReviewPage } from '@/pages/ReviewPage'
-import { DocumentsPage } from '@/pages/DocumentsPage'
 import { DocumentViewerPage } from '@/pages/DocumentViewerPage'
-import { BenchmarkRulesPage } from '@/pages/BenchmarkRulesPage'
-import { CalendarPage } from '@/pages/CalendarPage'
-import { ApprovalChainsPage } from '@/pages/ApprovalChainsPage'
-import { MyCompanyPage } from '@/pages/MyCompanyPage'
-import { MyBenchmarkPage } from '@/pages/MyBenchmarkPage'
-import { TrendsPage } from '@/pages/TrendsPage'
 import { AnalyticsPage } from '@/pages/AnalyticsPage'
 import { ReportBuilderPage } from '@/pages/ReportBuilderPage'
 import { ReportViewerPage } from '@/pages/ReportViewerPage'
@@ -67,22 +58,23 @@ function App() {
                       <Route element={<ProtectedRoute />}>
                         <Route element={<AppLayout />}>
                           <Route path="/dashboard" element={<DashboardPage />} />
-                          <Route path="/upload" element={<UploadPage />} />
-                          <Route path="/review" element={<ReviewPage />} />
-                          <Route path="/documents" element={<DocumentsPage />} />
-                          <Route path="/documents/:id" element={<DocumentViewerPage />} />
-                          <Route path="/settings/benchmark-rules" element={<BenchmarkRulesPage />} />
-                          <Route path="/settings/approval-chains" element={<ApprovalChainsPage />} />
-                          <Route path="/calendar" element={<CalendarPage />} />
-                          <Route path="/my-company" element={<MyCompanyPage />} />
-                          <Route path="/my-company/benchmark" element={<MyBenchmarkPage />} />
-                          <Route path="/trends" element={<TrendsPage />} />
+                          <Route path="/peers" element={<PeersPage />} />
                           <Route path="/analytics" element={<AnalyticsPage />} />
                           <Route path="/reports" element={<ReportBuilderPage />} />
                           <Route path="/reports/:id" element={<ReportViewerPage />} />
-                          {/* New restructured routes */}
-                          <Route path="/peers" element={<PeersPage />} />
+                          <Route path="/documents/:id" element={<DocumentViewerPage />} />
                           <Route path="/settings" element={<SettingsPage />} />
+
+                          {/* Legacy routes — redirect to new structure */}
+                          <Route path="/upload" element={<Navigate to="/peers" replace />} />
+                          <Route path="/review" element={<Navigate to="/peers" replace />} />
+                          <Route path="/calendar" element={<Navigate to="/peers" replace />} />
+                          <Route path="/documents" element={<Navigate to="/reports" replace />} />
+                          <Route path="/trends" element={<Navigate to="/analytics" replace />} />
+                          <Route path="/my-company" element={<Navigate to="/settings?tab=company" replace />} />
+                          <Route path="/my-company/benchmark" element={<Navigate to="/settings?tab=company" replace />} />
+                          <Route path="/settings/benchmark-rules" element={<Navigate to="/settings?tab=rules" replace />} />
+                          <Route path="/settings/approval-chains" element={<Navigate to="/settings?tab=approvals" replace />} />
                         </Route>
                       </Route>
 

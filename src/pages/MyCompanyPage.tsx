@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Plus, Pencil } from 'lucide-react'
@@ -169,16 +169,6 @@ function KpiEditor({ companyId }: { companyId: string }) {
 
   const [values, setValues] = useState<Record<string, string>>({})
 
-  useEffect(() => {
-    if (existingKpis && existingKpis.length > 0) {
-      const initial: Record<string, string> = {}
-      for (const kpi of existingKpis) {
-        initial[kpi.kpi_definition_id] = String(kpi.value)
-      }
-      setValues(initial)
-    }
-  }, [existingKpis])
-
   // Initialize from existing data
   const getInitialValue = (kpiDefId: string): string => {
     if (values[kpiDefId] !== undefined) return values[kpiDefId]
@@ -187,7 +177,16 @@ function KpiEditor({ companyId }: { companyId: string }) {
   }
 
   function handleSave() {
-    const kpis = Object.entries(values)
+    // Merge existing KPI values with user edits
+    const merged: Record<string, string> = {}
+    if (existingKpis) {
+      for (const kpi of existingKpis) {
+        merged[kpi.kpi_definition_id] = String(kpi.value)
+      }
+    }
+    Object.assign(merged, values)
+
+    const kpis = Object.entries(merged)
       .filter(([, val]) => val.trim() !== '')
       .map(([kpiDefId, val]) => ({
         kpi_definition_id: kpiDefId,

@@ -8,7 +8,7 @@ import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEv
 import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
 import { useSubscription } from '@/hooks/useSubscription'
 import type { PublicationEventStatus, ReportType } from '@/types/database'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { CardSkeleton } from '@/components/ui/page-skeleton'

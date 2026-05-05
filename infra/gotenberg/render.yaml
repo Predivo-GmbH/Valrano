@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: gotenberg-benchmarksignal
+    runtime: docker
+    repo: https://github.com/gotenberg/gotenberg
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: GOTENBERG_API_PORT
+        value: "10000"
+    healthCheckPath: /health

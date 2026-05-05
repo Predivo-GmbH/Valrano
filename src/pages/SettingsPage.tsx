@@ -1,32 +1,78 @@
+import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { Link } from 'react-router-dom'
 import { Building2, Settings, Shield } from 'lucide-react'
+import { MyCompanyPage } from './MyCompanyPage'
+import { BenchmarkRulesPage } from './BenchmarkRulesPage'
+import { ApprovalChainsPage } from './ApprovalChainsPage'
+
+const TABS = [
+  { id: 'company', label: 'My Company', icon: Building2 },
+  { id: 'rules', label: 'Benchmark Rules', icon: Settings },
+  { id: 'approvals', label: 'Approval Chains', icon: Shield },
+] as const
+
+type TabId = (typeof TABS)[number]['id']
+
+const tabCls = (isActive: boolean) =>
+  `flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 min-h-[44px] ${
+    isActive
+      ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+      : 'text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground'
+  }`
 
 export function SettingsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = (searchParams.get('tab') as TabId) || 'company'
+
+  function handleTabChange(tab: TabId) {
+    setSearchParams({ tab })
+  }
+
   return (
     <>
       <Helmet><title>Settings - BenchmarkSignal</title></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
+        {/* Page header */}
         <div className="mb-6">
-          <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Settings</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">Configure your BenchmarkSignal account</p>
+          <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">
+            Settings
+          </h1>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Configure your BenchmarkSignal account
+          </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Link to="/my-company" className="rounded-xl border border-border bg-card p-6 transition-colors hover:border-[var(--color-primary)]">
-            <Building2 className="h-6 w-6 text-[var(--color-primary)]" />
-            <h3 className="mt-3 font-semibold text-foreground">My Company</h3>
-            <p className="mt-1 text-[13px] text-muted-foreground">Your company profile and KPI data</p>
-          </Link>
-          <Link to="/settings/benchmark-rules" className="rounded-xl border border-border bg-card p-6 transition-colors hover:border-[var(--color-primary)]">
-            <Settings className="h-6 w-6 text-[var(--color-signal-amber)]" />
-            <h3 className="mt-3 font-semibold text-foreground">Benchmark Rules</h3>
-            <p className="mt-1 text-[13px] text-muted-foreground">Configure benchmark document generation</p>
-          </Link>
-          <Link to="/settings/approval-chains" className="rounded-xl border border-border bg-card p-6 transition-colors hover:border-[var(--color-primary)]">
-            <Shield className="h-6 w-6 text-[var(--color-financial-blue)]" />
-            <h3 className="mt-3 font-semibold text-foreground">Approval Chains</h3>
-            <p className="mt-1 text-[13px] text-muted-foreground">Manage document approval workflows</p>
-          </Link>
+
+        {/* Tab bar */}
+        <div
+          role="tablist"
+          aria-label="Settings sections"
+          className="mb-6 flex items-center gap-1 border-b border-border pb-3"
+        >
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              role="tab"
+              id={`tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              aria-controls={`tabpanel-${tab.id}`}
+              onClick={() => handleTabChange(tab.id)}
+              className={tabCls(activeTab === tab.id)}
+            >
+              <tab.icon className="h-4 w-4" aria-hidden="true" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab panels */}
+        <div
+          role="tabpanel"
+          id={`tabpanel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
+        >
+          {activeTab === 'company' && <MyCompanyPage />}
+          {activeTab === 'rules' && <BenchmarkRulesPage />}
+          {activeTab === 'approvals' && <ApprovalChainsPage />}
         </div>
       </div>
     </>
