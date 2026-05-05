@@ -1,13 +1,13 @@
 import { useState, useRef, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useCompanies, useReports } from '@/hooks/useData'
 import { usePublicationEvents, useCheckPublication } from '@/hooks/useCalendar'
 import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
 import type { Company, ReportType, PublicationEventStatus } from '@/types/database'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -20,8 +20,7 @@ import {
   Building2,
   FileText,
   Loader2,
-  CalendarDays,
-  ClipboardCheck,
+  Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -63,6 +62,208 @@ interface PeerCardData {
   kpiExtracted: number
   kpiPendingReview: number
   nextEventId: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Constants — Add Company Dialog
+// ---------------------------------------------------------------------------
+
+const EXCHANGE_OPTIONS = ['NYSE', 'NASDAQ', 'LSE', 'SIX', 'XETRA', 'Euronext', 'Other'] as const
+const SECTOR_OPTIONS = [
+  'Construction & Materials',
+  'Industrials',
+  'Technology',
+  'Healthcare',
+  'Financial Services',
+  'Consumer Goods',
+  'Energy',
+  'Utilities',
+  'Real Estate',
+  'Telecommunications',
+  'Other',
+] as const
+
+// ---------------------------------------------------------------------------
+// Add Company Dialog
+// ---------------------------------------------------------------------------
+
+function AddCompanyDialog({
+  open,
+  onClose,
+}: {
+  open: boolean
+  onClose: () => void
+}) {
+  const queryClient = useQueryClient()
+  const [name, setName] = useState('')
+  const [ticker, setTicker] = useState('')
+  const [exchange, setExchange] = useState('')
+  const [sector, setSector] = useState('')
+  const [irUrl, setIrUrl] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [nameError, setNameError] = useState(false)
+
+  const resetForm = () => {
+    setName('')
+    setTicker('')
+    setExchange('')
+    setSector('')
+    setIrUrl('')
+    setNameError(false)
+  }
+
+  const handleOpenChange = (o: boolean) => {
+    if (!o) {
+      onClose()
+      resetForm()
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!name.trim()) {
+      setNameError(true)
+      return
+    }
+    setNameError(false)
+    setIsSubmitting(true)
+
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .insert({
+          name: name.trim(),
+          ticker: ticker.trim().toUpperCase() || null,
+          exchange: exchange || null,
+          sector: sector || null,
+          ir_page_url: irUrl.trim() || null,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      await queryClient.invalidateQueries({ queryKey: ['companies'] })
+      toast.success(`Added "${name.trim()}" to peer group`)
+      onClose()
+      resetForm()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add company')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add Company</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Company Name */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Company Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              value={name}
+              onChange={(e) => { setName(e.target.value); setNameError(false) }}
+              placeholder="e.g. Holcim Group"
+              aria-invalid={nameError}
+              className={cn(
+                'rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground',
+                nameError && 'border-red-500',
+              )}
+            />
+            {nameError && (
+              <p className="text-[11px] text-red-500">Company name is required</p>
+            )}
+          </div>
+
+          {/* Ticker */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Ticker
+            </Label>
+            <Input
+              value={ticker}
+              onChange={(e) => setTicker(e.target.value.toUpperCase())}
+              placeholder="e.g. HOLN"
+              className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
+            />
+          </div>
+
+          {/* Exchange */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Exchange
+            </Label>
+            <Select value={exchange} onValueChange={(v) => v && setExchange(v)}>
+              <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
+                <SelectValue placeholder="Select exchange" />
+              </SelectTrigger>
+              <SelectContent className="rounded-lg border-border bg-card text-[13px]">
+                {EXCHANGE_OPTIONS.map((ex) => (
+                  <SelectItem key={ex} value={ex} className="text-[13px]">{ex}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Sector */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Sector
+            </Label>
+            <Select value={sector} onValueChange={(v) => v && setSector(v)}>
+              <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
+                <SelectValue placeholder="Select sector" />
+              </SelectTrigger>
+              <SelectContent className="rounded-lg border-border bg-card text-[13px]">
+                {SECTOR_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={s} className="text-[13px]">{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* IR Page URL */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              IR Page URL
+            </Label>
+            <Input
+              type="url"
+              value={irUrl}
+              onChange={(e) => setIrUrl(e.target.value)}
+              placeholder="https://www.example.com/investors"
+              className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="mt-4">
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" />
+                Add Company
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -447,6 +648,8 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 export function PeersPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploadCompanyId, setUploadCompanyId] = useState<string | undefined>(undefined)
+  const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Data fetching
   const { data: companies, isLoading: companiesLoading } = useCompanies()
@@ -526,11 +729,7 @@ export function PeersPage() {
   }
 
   const handleAddPeer = () => {
-    // Navigate to a "add peer" flow — for now just open upload with no preselection
-    // In the future this would open an "Add Company" dialog
-    toast.info('Use the Upload Report dialog to add reports for any peer.')
-    setUploadCompanyId(undefined)
-    setUploadDialogOpen(true)
+    setAddDialogOpen(true)
   }
 
   const isLoading = companiesLoading
@@ -555,6 +754,21 @@ export function PeersPage() {
             Add Peer
           </Button>
         </div>
+
+        {/* Search */}
+        {!isLoading && peerCards.length > 0 && (
+          <div className="mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by company name or ticker..."
+                className="pl-9 rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Summary stats */}
         {!isLoading && peerCards.length > 0 && (
@@ -599,46 +813,83 @@ export function PeersPage() {
           <CardSkeleton />
         ) : peerCards.length === 0 ? (
           <EmptyState onAdd={handleAddPeer} />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {peerCards.map((peer) => (
-              <PeerCard
-                key={peer.company.id}
-                peer={peer}
-                onUpload={handleUpload}
-                onCheckNow={handleCheckNow}
-                isChecking={checkMutation.isPending}
-              />
-            ))}
-          </div>
-        )}
+        ) : (() => {
+          const query = searchQuery.toLowerCase().trim()
+          const filtered = query
+            ? peerCards.filter((p) =>
+                p.company.name.toLowerCase().includes(query) ||
+                (p.company.ticker?.toLowerCase().includes(query) ?? false)
+              )
+            : peerCards
 
-        {/* Quick links to Review and Calendar */}
-        {!isLoading && peerCards.length > 0 && (
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <Link
-              to="/review"
-              className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-[var(--color-primary)]/30"
-            >
-              <ClipboardCheck className="h-5 w-5 text-[var(--color-signal-amber)]" />
-              <div>
-                <div className="text-[13px] font-medium text-foreground">Review Queue</div>
-                <div className="text-[11px] text-muted-foreground">Approve flagged KPI extractions</div>
+          const monitored = filtered.filter((p) => p.isMonitoring)
+          const other = filtered.filter((p) => !p.isMonitoring)
+          const hasBothSections = monitored.length > 0 && other.length > 0
+
+          if (filtered.length === 0) {
+            return (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-12 text-center">
+                <Search className="mb-3 h-6 w-6 text-muted-foreground" />
+                <p className="text-[13px] text-muted-foreground">
+                  No peers matching &ldquo;{searchQuery}&rdquo;
+                </p>
               </div>
-            </Link>
-            <Link
-              to="/calendar"
-              className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-[var(--color-primary)]/30"
-            >
-              <CalendarDays className="h-5 w-5 text-[var(--color-financial-blue)]" />
-              <div>
-                <div className="text-[13px] font-medium text-foreground">Publication Calendar</div>
-                <div className="text-[11px] text-muted-foreground">View all scheduled publication events</div>
-              </div>
-            </Link>
-          </div>
-        )}
+            )
+          }
+
+          return (
+            <div className="space-y-6">
+              {monitored.length > 0 && (
+                <div>
+                  {hasBothSections && (
+                    <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                      Actively Monitored
+                    </h2>
+                  )}
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {monitored.map((peer) => (
+                      <PeerCard
+                        key={peer.company.id}
+                        peer={peer}
+                        onUpload={handleUpload}
+                        onCheckNow={handleCheckNow}
+                        isChecking={checkMutation.isPending}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {other.length > 0 && (
+                <div>
+                  {hasBothSections && (
+                    <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                      Other Peers
+                    </h2>
+                  )}
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {other.map((peer) => (
+                      <PeerCard
+                        key={peer.company.id}
+                        peer={peer}
+                        onUpload={handleUpload}
+                        onCheckNow={handleCheckNow}
+                        isChecking={checkMutation.isPending}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </div>
+
+      {/* Add Company Dialog */}
+      <AddCompanyDialog
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+      />
 
       {/* Upload Dialog */}
       <UploadReportDialog

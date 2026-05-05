@@ -1,11 +1,13 @@
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { Building2, Settings, Shield } from 'lucide-react'
+import { Building2, Settings, Shield, User } from 'lucide-react'
+import { AccountPage } from './AccountPage'
 import { MyCompanyPage } from './MyCompanyPage'
 import { BenchmarkRulesPage } from './BenchmarkRulesPage'
 import { ApprovalChainsPage } from './ApprovalChainsPage'
 
 const TABS = [
+  { id: 'account', label: 'Account', icon: User },
   { id: 'company', label: 'My Company', icon: Building2 },
   { id: 'rules', label: 'Benchmark Rules', icon: Settings },
   { id: 'approvals', label: 'Approval Chains', icon: Shield },
@@ -22,7 +24,7 @@ const tabCls = (isActive: boolean) =>
 
 export function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const activeTab = (searchParams.get('tab') as TabId) || 'company'
+  const activeTab = (searchParams.get('tab') as TabId) || 'account'
 
   function handleTabChange(tab: TabId) {
     setSearchParams({ tab })
@@ -70,6 +72,7 @@ export function SettingsPage() {
           id={`tabpanel-${activeTab}`}
           aria-labelledby={`tab-${activeTab}`}
         >
+          {activeTab === 'account' && <AccountPage />}
           {activeTab === 'company' && <MyCompanyPage />}
           {activeTab === 'rules' && <BenchmarkRulesPage />}
           {activeTab === 'approvals' && <ApprovalChainsPage />}

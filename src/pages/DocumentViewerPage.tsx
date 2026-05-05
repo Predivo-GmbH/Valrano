@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { useBenchmarkDocument, useUpdateDocumentStatus } from '@/hooks/useBenchmark'
 import type { DocumentStatus, BenchmarkContentJson } from '@/types/database'
 import {
@@ -254,6 +255,12 @@ export function DocumentViewerPage() {
 
   return (
     <div className="mx-auto max-w-[960px] px-6 py-8">
+      {/* Breadcrumbs */}
+      <Breadcrumbs items={[
+        { label: 'Reports', href: '/reports' },
+        { label: doc.title || 'Document' },
+      ]} />
+
       {/* Back link */}
       <Link
         to="/documents"

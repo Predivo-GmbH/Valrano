@@ -15,6 +15,7 @@ import { ReportBuilderPage } from '@/pages/ReportBuilderPage'
 import { ReportViewerPage } from '@/pages/ReportViewerPage'
 import { PeersPage } from '@/pages/PeersPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { AccountPage } from '@/pages/AccountPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import SignUpPage from '@/pages/auth/SignUpPage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
@@ -63,6 +64,7 @@ function App() {
                           <Route path="/reports" element={<ReportBuilderPage />} />
                           <Route path="/reports/:id" element={<ReportViewerPage />} />
                           <Route path="/documents/:id" element={<DocumentViewerPage />} />
+                          <Route path="/account" element={<AccountPage />} />
                           <Route path="/settings" element={<SettingsPage />} />
 
                           {/* Legacy routes — redirect to new structure */}

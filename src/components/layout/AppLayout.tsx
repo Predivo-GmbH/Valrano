@@ -122,6 +122,21 @@ export function AppLayout() {
                       <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
                     </div>
                     <button
+                      onClick={() => { setMenuOpen(false); navigate('/account') }}
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
+                    >
+                      <User className="h-4 w-4" />
+                      Account
+                    </button>
+                    <button
+                      onClick={() => { setMenuOpen(false); navigate('/settings') }}
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </button>
+                    <div className="border-t border-border my-1" />
+                    <button
                       onClick={async () => {
                         await signOut()
                         navigate('/login')

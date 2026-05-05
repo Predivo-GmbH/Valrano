@@ -121,6 +121,28 @@ export function AnalyticsPage() {
           </p>
         </div>
 
+        {/* Summary cards */}
+        {companies && kpiDefs && (
+          <div className="mb-6 grid grid-cols-3 gap-3">
+            <div className="rounded-lg border border-border bg-card px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Companies</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">{companyIds.length}</div>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">KPIs Tracked</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">{kpiDefs.length}</div>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-4 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Data Range</div>
+              <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">
+                {availableYears.length > 0
+                  ? `${availableYears[0]}\u2013${availableYears[availableYears.length - 1]}`
+                  : '\u2014'}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tab bar */}
         <div
           className="mb-6 flex items-center gap-1 rounded-lg border border-border bg-card p-1"

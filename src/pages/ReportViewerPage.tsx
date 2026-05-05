@@ -4,6 +4,7 @@ import { ArrowLeft, Download, Printer, Zap, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCustomReport, useGenerateReport } from '@/hooks/useReportBuilder'
 import { Button } from '@/components/ui/button'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 
 export function ReportViewerPage() {
   const { id } = useParams<{ id: string }>()
@@ -75,6 +76,14 @@ export function ReportViewerPage() {
     <>
       <Helmet><title>{report.title} - BenchmarkSignal</title></Helmet>
       <div className="mx-auto max-w-[900px] px-4 py-8 sm:px-6">
+        {/* Breadcrumbs */}
+        <div className="print:hidden">
+          <Breadcrumbs items={[
+            { label: 'Reports', href: '/reports' },
+            { label: report.title || 'Report' },
+          ]} />
+        </div>
+
         {/* Header */}
         <div className="mb-6 flex items-center justify-between print:hidden">
           <Button variant="ghost" size="sm" onClick={() => navigate('/reports')} className="-ml-2">
