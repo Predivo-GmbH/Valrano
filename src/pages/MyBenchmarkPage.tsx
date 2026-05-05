@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, TrendingDown, Minus, ArrowLeft, Zap, Target, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   usePrimaryCompany,
   useMyCompanyKpis,
@@ -10,6 +11,8 @@ import {
   useLatestSelfBenchmark,
 } from '@/hooks/useMyCompany'
 import { usePeerGroups } from '@/hooks/useData'
+import { CardSkeleton } from '@/components/ui/page-skeleton'
+import { Button } from '@/components/ui/button'
 
 export function MyBenchmarkPage() {
   const navigate = useNavigate()
@@ -67,7 +70,7 @@ export function MyBenchmarkPage() {
   if (companyLoading || benchmarkLoading) {
     return (
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
-        <div className="py-20 text-center text-sm text-muted-foreground">Loading...</div>
+        <CardSkeleton />
       </div>
     )
   }
@@ -78,12 +81,9 @@ export function MyBenchmarkPage() {
         <div className="rounded-xl border border-border bg-card p-12 text-center">
           <h3 className="text-lg font-semibold text-foreground">No company set up</h3>
           <p className="mt-2 text-sm text-muted-foreground">Add your company first to run a benchmark.</p>
-          <button
-            onClick={() => navigate('/my-company')}
-            className="mt-4 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white"
-          >
+          <Button onClick={() => navigate('/my-company')} className="mt-4">
             Add Company
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -95,52 +95,52 @@ export function MyBenchmarkPage() {
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Header */}
         <div className="mb-6">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => navigate('/my-company')}
-            className="mb-3 flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="mb-3 -ml-2"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to My Company
-          </button>
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
+          </Button>
+          <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">
             {primaryCompany.name} — Benchmark
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-[13px] text-muted-foreground">
             See how your company compares against industry peers.
           </p>
         </div>
 
         {/* Controls */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
-          <select
-            value={fiscalYear}
-            onChange={(e) => setFiscalYear(Number(e.target.value))}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+          <Select value={String(fiscalYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
+            <SelectTrigger className="w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            value={peerGroupId}
-            onChange={(e) => setPeerGroupId(e.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            <option value="">Auto (sector match)</option>
-            {(peerGroups ?? []).map((pg) => (
-              <option key={pg.id} value={pg.id}>{pg.name}</option>
-            ))}
-          </select>
+          <Select value={peerGroupId} onValueChange={(v) => setPeerGroupId(v)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Auto (sector match)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Auto (sector match)</SelectItem>
+              {(peerGroups ?? []).map((pg) => (
+                <SelectItem key={pg.id} value={pg.id}>{pg.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <button
-            onClick={handleRunBenchmark}
-            disabled={runBenchmark.isPending}
-            className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
-          >
+          <Button onClick={handleRunBenchmark} disabled={runBenchmark.isPending}>
             <Zap className="h-4 w-4" />
             {runBenchmark.isPending ? 'Analyzing...' : 'Run Benchmark'}
-          </button>
+          </Button>
         </div>
 
         {/* Results */}
@@ -151,8 +151,8 @@ export function MyBenchmarkPage() {
               <div className="rounded-xl border border-border bg-card p-6 text-center">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Overall Percentile</p>
                 <p className={`mt-2 text-5xl font-bold ${
-                  benchmarkData.overall_percentile >= 70 ? 'text-green-500' :
-                  benchmarkData.overall_percentile <= 30 ? 'text-red-500' :
+                  benchmarkData.overall_percentile >= 70 ? 'text-[var(--color-signal-green)]' :
+                  benchmarkData.overall_percentile <= 30 ? 'text-[var(--color-signal-red)]' :
                   'text-foreground'
                 }`}>
                   P{benchmarkData.overall_percentile}
@@ -165,9 +165,9 @@ export function MyBenchmarkPage() {
 
             {/* Strengths & Weaknesses */}
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-5">
+              <div className="rounded-xl border border-[var(--color-signal-green)]/20 bg-[var(--color-signal-green)]/5 p-5">
                 <div className="mb-3 flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-500" />
+                  <TrendingUp className="h-5 w-5 text-[var(--color-signal-green)]" />
                   <h3 className="font-semibold text-foreground">Strengths</h3>
                 </div>
                 {benchmarkData.strengths.length === 0 ? (
@@ -177,16 +177,16 @@ export function MyBenchmarkPage() {
                     {benchmarkData.strengths.map((s: { kpi_name: string; percentile: number }) => (
                       <li key={s.kpi_name} className="flex items-center justify-between text-sm">
                         <span className="text-foreground">{s.kpi_name}</span>
-                        <span className="font-medium text-green-500">P{s.percentile}</span>
+                        <span className="font-medium text-[var(--color-signal-green)]">P{s.percentile}</span>
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
 
-              <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-5">
+              <div className="rounded-xl border border-[var(--color-signal-red)]/20 bg-[var(--color-signal-red)]/5 p-5">
                 <div className="mb-3 flex items-center gap-2">
-                  <TrendingDown className="h-5 w-5 text-red-500" />
+                  <TrendingDown className="h-5 w-5 text-[var(--color-signal-red)]" />
                   <h3 className="font-semibold text-foreground">Areas for Improvement</h3>
                 </div>
                 {benchmarkData.weaknesses.length === 0 ? (
@@ -196,7 +196,7 @@ export function MyBenchmarkPage() {
                     {benchmarkData.weaknesses.map((w: { kpi_name: string; percentile: number }) => (
                       <li key={w.kpi_name} className="flex items-center justify-between text-sm">
                         <span className="text-foreground">{w.kpi_name}</span>
-                        <span className="font-medium text-red-500">P{w.percentile}</span>
+                        <span className="font-medium text-[var(--color-signal-red)]">P{w.percentile}</span>
                       </li>
                     ))}
                   </ul>
@@ -249,8 +249,8 @@ export function MyBenchmarkPage() {
                             {kpi.peer_median.toLocaleString()}
                           </td>
                           <td className={`px-5 py-3 text-right tabular-nums font-medium ${
-                            kpi.gap_to_median_pct > 0 ? 'text-green-500' :
-                            kpi.gap_to_median_pct < 0 ? 'text-red-500' :
+                            kpi.gap_to_median_pct > 0 ? 'text-[var(--color-signal-green)]' :
+                            kpi.gap_to_median_pct < 0 ? 'text-[var(--color-signal-red)]' :
                             'text-muted-foreground'
                           }`}>
                             {kpi.gap_to_median_pct > 0 ? '+' : ''}{kpi.gap_to_median_pct}%
@@ -305,7 +305,7 @@ export function MyBenchmarkPage() {
 // ---------------------------------------------------------------------------
 
 function PercentileBar({ value }: { value: number }) {
-  const color = value >= 70 ? 'bg-green-500' : value <= 30 ? 'bg-red-500' : 'bg-[var(--color-primary)]'
+  const color = value >= 70 ? 'bg-[var(--color-signal-green)]' : value <= 30 ? 'bg-[var(--color-signal-red)]' : 'bg-[var(--color-primary)]'
   return (
     <div className="flex items-center gap-2">
       <div className="h-2 w-16 overflow-hidden rounded-full bg-muted">
@@ -319,14 +319,14 @@ function PercentileBar({ value }: { value: number }) {
 function SignalBadge({ signal }: { signal: string }) {
   if (signal === 'strength') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-500">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-green)]">
         <TrendingUp className="h-3 w-3" /> Strong
       </span>
     )
   }
   if (signal === 'weakness') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-500">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-red)]">
         <TrendingDown className="h-3 w-3" /> Weak
       </span>
     )

@@ -22,6 +22,8 @@ import { TrendsPage } from '@/pages/TrendsPage'
 import { AnalyticsPage } from '@/pages/AnalyticsPage'
 import { ReportBuilderPage } from '@/pages/ReportBuilderPage'
 import { ReportViewerPage } from '@/pages/ReportViewerPage'
+import { PeersPage } from '@/pages/PeersPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import SignUpPage from '@/pages/auth/SignUpPage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
@@ -78,6 +80,9 @@ function App() {
                           <Route path="/analytics" element={<AnalyticsPage />} />
                           <Route path="/reports" element={<ReportBuilderPage />} />
                           <Route path="/reports/:id" element={<ReportViewerPage />} />
+                          {/* New restructured routes */}
+                          <Route path="/peers" element={<PeersPage />} />
+                          <Route path="/settings" element={<SettingsPage />} />
                         </Route>
                       </Route>
 

@@ -18,8 +18,10 @@ describe('AppLayout', () => {
   it('renders navigation links', () => {
     render(<AppLayout />)
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByText('Upload')).toBeInTheDocument()
-    expect(screen.getByText('Review')).toBeInTheDocument()
+    expect(screen.getByText('Peers')).toBeInTheDocument()
+    expect(screen.getByText('Analytics')).toBeInTheDocument()
+    expect(screen.getByText('Reports')).toBeInTheDocument()
+    expect(screen.getByText('Settings')).toBeInTheDocument()
   })
 
   it('renders the outlet for child routes', () => {
@@ -45,15 +47,15 @@ describe('AppLayout', () => {
     expect(dashboardLink).toHaveAttribute('href', '/dashboard')
   })
 
-  it('upload nav link points to /upload', () => {
+  it('peers nav link points to /peers', () => {
     render(<AppLayout />)
-    const uploadLink = screen.getByRole('link', { name: /upload/i })
-    expect(uploadLink).toHaveAttribute('href', '/upload')
+    const peersLink = screen.getByRole('link', { name: /peers/i })
+    expect(peersLink).toHaveAttribute('href', '/peers')
   })
 
-  it('review nav link points to /review', () => {
+  it('settings nav link points to /settings', () => {
     render(<AppLayout />)
-    const reviewLink = screen.getByRole('link', { name: /review/i })
-    expect(reviewLink).toHaveAttribute('href', '/review')
+    const settingsLink = screen.getByRole('link', { name: /settings/i })
+    expect(settingsLink).toHaveAttribute('href', '/settings')
   })
 })

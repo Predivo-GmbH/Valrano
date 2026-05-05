@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useCompanies, useKpiDefinitions, useKpiValues } from '@/hooks/useData'
+import { usePrimaryCompany } from '@/hooks/useMyCompany'
 import type { Company, KpiDefinition, KpiValue, KpiCategory } from '@/types/database'
 import { formatKpiValue } from '@/lib/format'
 import {
@@ -61,7 +62,7 @@ const LOWER_IS_BETTER_CODES = new Set([
 // Empty state
 // ---------------------------------------------------------------------------
 
-function EmptyState() {
+function EmptyState({ fiscalYear }: { fiscalYear: number }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
       <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
@@ -69,7 +70,7 @@ function EmptyState() {
       </div>
       <h3 className="mb-2 text-[15px] font-semibold text-foreground">No data available</h3>
       <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
-        Upload an annual report to start extracting KPIs and building your peer comparison table.
+        No data available for FY {fiscalYear}. Upload an annual report or try a different year.
       </p>
       <Link
         to="/upload"
@@ -165,7 +166,6 @@ function KpiCell({ value, signalClass, unitType }: KpiCellProps) {
 
 const CURRENT_YEAR = new Date().getFullYear()
 const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR - i)
-const PRIMARY_COMPANY_NAME = 'Holcim'
 
 const CATEGORY_LABELS: Record<KpiCategory, string> = {
   financial: 'Financial',
@@ -176,6 +176,9 @@ const CATEGORY_LABELS: Record<KpiCategory, string> = {
 export function DashboardPage() {
   const [fiscalYear, setFiscalYear] = useState<number>(CURRENT_YEAR - 1)
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>('financial')
+
+  const { data: primaryCompanyData } = usePrimaryCompany()
+  const primaryCompanyName = primaryCompanyData?.name ?? null
 
   const { data: companies, isLoading: companiesLoading } = useCompanies()
   const { data: kpiDefs, isLoading: defsLoading } = useKpiDefinitions()
@@ -218,15 +221,15 @@ export function DashboardPage() {
     return out
   }, [companies, filteredDefs, valueMap])
 
-  // Sort: primary company (Holcim) first, then alphabetical
+  // Sort: primary company first, then alphabetical
   const sortedCompanies = useMemo(() => {
     if (!companies) return []
     return [...companies].sort((a, b) => {
-      if (a.name === PRIMARY_COMPANY_NAME) return -1
-      if (b.name === PRIMARY_COMPANY_NAME) return 1
+      if (primaryCompanyName && a.name === primaryCompanyName) return -1
+      if (primaryCompanyName && b.name === primaryCompanyName) return 1
       return a.name.localeCompare(b.name)
     })
-  }, [companies])
+  }, [companies, primaryCompanyName])
 
   const hasData = !isLoading && companies && companies.length > 0 && kpiValues && kpiValues.length > 0
 
@@ -292,21 +295,21 @@ export function DashboardPage() {
         </TabsList>
 
         {/* Table card */}
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
 
           {isLoading ? (
             <div className="p-6">
               <TableSkeleton />
             </div>
           ) : !hasData ? (
-            <EmptyState />
+            <EmptyState fiscalYear={fiscalYear} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-max border-collapse">
-                <thead>
-                  <tr className="border-b border-border">
+                <thead className="sticky top-0 z-20">
+                  <tr className="border-b border-border bg-card">
                     {/* Company column header */}
-                    <th className="sticky left-0 z-10 bg-card px-6 py-4 text-left">
+                    <th className="sticky left-0 top-0 z-30 bg-card px-6 py-4 text-left">
                       <span
                         className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground"
                       >
@@ -315,7 +318,7 @@ export function DashboardPage() {
                     </th>
 
                     {filteredDefs.map((def) => (
-                      <th key={def.id} className="px-6 py-4 text-right">
+                      <th key={def.id} className="sticky top-0 z-20 bg-card px-6 py-4 text-right">
                         <Tooltip>
                           <TooltipTrigger
                             className="cursor-default bg-transparent border-none p-0 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground whitespace-nowrap"
@@ -338,7 +341,7 @@ export function DashboardPage() {
 
                 <tbody>
                   {sortedCompanies.map((company, idx) => {
-                    const isPrimary = company.name === PRIMARY_COMPANY_NAME
+                    const isPrimary = primaryCompanyName !== null && company.name === primaryCompanyName
                     const peerVals = kpiPeerValues
 
                     return (

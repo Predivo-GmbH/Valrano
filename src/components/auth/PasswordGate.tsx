@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { Button } from '@/components/ui/button'
 
 const GATE_PASSWORD_HASH = '3bd8037a8ed38a35825983767f94e6cf3b18c3deee1601daee71faec0d83565f'
 const STORAGE_KEY = 'bs_unlocked'
@@ -15,7 +16,7 @@ async function sha256(text: string): Promise<string> {
 
 export default function PasswordGate({ children }: { children: ReactNode }) {
   const [unlocked, setUnlocked] = useState(
-    () => SCREENSHOT_MODE || sessionStorage.getItem(STORAGE_KEY) === 'true'
+    () => SCREENSHOT_MODE || localStorage.getItem(STORAGE_KEY) === 'true'
   )
   const [password, setPassword] = useState('')
   const [error, setError] = useState(false)
@@ -25,7 +26,7 @@ export default function PasswordGate({ children }: { children: ReactNode }) {
     setError(false)
     const hash = await sha256(password)
     if (hash === GATE_PASSWORD_HASH) {
-      sessionStorage.setItem(STORAGE_KEY, 'true')
+      localStorage.setItem(STORAGE_KEY, 'true')
       setUnlocked(true)
     } else {
       setError(true)
@@ -62,12 +63,9 @@ export default function PasswordGate({ children }: { children: ReactNode }) {
               className="block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 sm:text-sm"
             />
           </div>
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90"
-          >
+          <Button type="submit" className="w-full">
             Enter
-          </button>
+          </Button>
         </form>
       </div>
     </div>

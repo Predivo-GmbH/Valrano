@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { useCompanies } from '@/hooks/useData'
 import { useUploadReport, useExtractKpis, useNormalizeKpis } from '@/hooks/useExtraction'
 import { useGenerateBenchmark } from '@/hooks/useBenchmark'
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { FileText, CheckCircle2, AlertCircle, Loader2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -418,10 +420,10 @@ export function UploadPage() {
           </div>
 
           {/* Upload button */}
-          <button
+          <Button
             onClick={handleUpload}
             disabled={isUploading || !companyId || !file}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="w-full"
           >
             {isUploading ? (
               <>
@@ -434,7 +436,7 @@ export function UploadPage() {
                 Upload Report
               </>
             )}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -454,11 +456,7 @@ export function UploadPage() {
             <p className="mb-5 text-[13px] text-muted-foreground">
               AI will scan the PDF and extract financial, ESG, and operational KPIs with source references and confidence scores.
             </p>
-            <button
-              onClick={handleExtract}
-              disabled={isExtracting}
-              className="flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            >
+            <Button onClick={handleExtract} disabled={isExtracting}>
               {isExtracting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -467,7 +465,7 @@ export function UploadPage() {
               ) : (
                 'Extract KPIs'
               )}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -502,11 +500,7 @@ export function UploadPage() {
             <p className="mb-5 text-[13px] text-muted-foreground">
               Convert all extracted values to CHF using historical FX rates for accurate peer comparison.
             </p>
-            <button
-              onClick={handleNormalize}
-              disabled={isNormalizing}
-              className="flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            >
+            <Button onClick={handleNormalize} disabled={isNormalizing}>
               {isNormalizing ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -515,7 +509,7 @@ export function UploadPage() {
               ) : (
                 'Normalize to CHF'
               )}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -534,11 +528,7 @@ export function UploadPage() {
               AI will generate a competitive benchmark document comparing this company against your peer group.
             </p>
             <div className="flex gap-3">
-              <button
-                onClick={handleGenerateBenchmark}
-                disabled={isGenerating}
-                className="flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-              >
+              <Button onClick={handleGenerateBenchmark} disabled={isGenerating}>
                 {isGenerating ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -550,13 +540,13 @@ export function UploadPage() {
                     Generate Benchmark
                   </>
                 )}
-              </button>
-              <a
-                href="/dashboard"
+              </Button>
+              <Link
+                to="/dashboard"
                 className="flex items-center justify-center rounded-full border border-border bg-card px-6 py-2.5 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)]"
               >
                 Skip — View Dashboard
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -593,30 +583,31 @@ export function UploadPage() {
           </div>
 
           <div className="flex gap-3">
-            <button
+            <Button
+              variant="outline"
+              className="flex-1"
               onClick={() => {
                 setState({ reportId: null, step: 'form', extractionResult: null, normalizeResult: null, benchmarkResult: null })
                 setFile(null)
                 setCompanyId('')
               }}
-              className="flex-1 rounded-full border border-border bg-card px-6 py-2.5 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)]"
             >
               Upload Another Report
-            </button>
+            </Button>
             {state.benchmarkResult ? (
-              <a
-                href={`/documents/${state.benchmarkResult.document_id}`}
+              <Link
+                to={`/documents/${state.benchmarkResult.document_id}`}
                 className="flex-1 flex items-center justify-center rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
               >
                 View Benchmark
-              </a>
+              </Link>
             ) : (
-              <a
-                href="/dashboard"
+              <Link
+                to="/dashboard"
                 className="flex-1 flex items-center justify-center rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
               >
                 View Dashboard
-              </a>
+              </Link>
             )}
           </div>
         </div>

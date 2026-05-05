@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Plus, Pencil } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import {
   useMyCompanies,
   useCreateMyCompany,
@@ -10,6 +12,8 @@ import {
   useUpsertMyCompanyKpis,
 } from '@/hooks/useMyCompany'
 import { useKpiDefinitions } from '@/hooks/useData'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { CardSkeleton } from '@/components/ui/page-skeleton'
 
 const SECTORS = [
   'Construction & Materials',
@@ -39,23 +43,18 @@ export function MyCompanyPage() {
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">My Company</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">My Company</h1>
+            <p className="mt-1 text-[13px] text-muted-foreground">
               Enter your company data to benchmark against peers.
             </p>
           </div>
           {primaryCompany && (
-            <button
-              onClick={() => navigate('/my-company/benchmark')}
-              className="rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
-            >
-              View Benchmark
-            </button>
+            <Button onClick={() => navigate('/my-company/benchmark')}>View Benchmark</Button>
           )}
         </div>
 
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-muted-foreground">Loading...</div>
+          <CardSkeleton />
         ) : !companies || companies.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
             <Building2 className="mx-auto h-12 w-12 text-muted-foreground/50" />
@@ -63,13 +62,10 @@ export function MyCompanyPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Enter your company details and KPI data to see how you compare against industry peers.
             </p>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
-            >
+            <Button onClick={() => setShowCreate(true)} className="mt-6">
               <Plus className="h-4 w-4" />
               Add Company
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="space-y-6">
@@ -84,19 +80,18 @@ export function MyCompanyPage() {
             ))}
 
             {/* Add another company */}
-            <button
+            <Button
+              variant="outline"
               onClick={() => setShowCreate(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-[var(--color-primary)] hover:text-foreground"
+              className="flex w-full items-center justify-center gap-2 border-dashed"
             >
               <Plus className="h-4 w-4" />
               Add Another Company
-            </button>
+            </Button>
           </div>
         )}
 
-        {showCreate && (
-          <CreateCompanyDialog onClose={() => setShowCreate(false)} />
-        )}
+        <CreateCompanyDialog open={showCreate} onClose={() => setShowCreate(false)} />
       </div>
     </>
   )
@@ -135,13 +130,10 @@ function CompanyCard({
             </div>
           </div>
         </div>
-        <button
-          onClick={onEditKpis}
-          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
+        <Button variant="outline" size="sm" onClick={onEditKpis}>
           <Pencil className="h-3.5 w-3.5" />
           {isEditingKpis ? 'Close' : 'Edit KPIs'}
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -176,6 +168,16 @@ function KpiEditor({ companyId }: { companyId: string }) {
   const upsertMutation = useUpsertMyCompanyKpis()
 
   const [values, setValues] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (existingKpis && existingKpis.length > 0) {
+      const initial: Record<string, string> = {}
+      for (const kpi of existingKpis) {
+        initial[kpi.kpi_definition_id] = String(kpi.value)
+      }
+      setValues(initial)
+    }
+  }, [existingKpis])
 
   // Initialize from existing data
   const getInitialValue = (kpiDefId: string): string => {
@@ -215,15 +217,16 @@ function KpiEditor({ companyId }: { companyId: string }) {
         <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Fiscal Year
         </label>
-        <select
-          value={fiscalYear}
-          onChange={(e) => setFiscalYear(Number(e.target.value))}
-          className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground"
-        >
-          {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
+        <Select value={String(fiscalYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
+          <SelectTrigger className="w-[100px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -248,13 +251,9 @@ function KpiEditor({ companyId }: { companyId: string }) {
       </div>
 
       <div className="mt-4 flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={upsertMutation.isPending}
-          className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
-        >
+        <Button onClick={handleSave} disabled={upsertMutation.isPending}>
           {upsertMutation.isPending ? 'Saving...' : 'Save KPIs'}
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -264,7 +263,7 @@ function KpiEditor({ companyId }: { companyId: string }) {
 // Create Company Dialog
 // ---------------------------------------------------------------------------
 
-function CreateCompanyDialog({ onClose }: { onClose: () => void }) {
+function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [name, setName] = useState('')
   const [sector, setSector] = useState('')
   const [country, setCountry] = useState('Switzerland')
@@ -296,9 +295,11 @@ function CreateCompanyDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6" onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-4 text-lg font-semibold text-foreground">Add Your Company</h2>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add Your Company</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company Name</label>
@@ -314,14 +315,15 @@ function CreateCompanyDialog({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Sector</label>
-              <select
-                value={sector}
-                onChange={(e) => setSector(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              >
-                <option value="">Select...</option>
-                {SECTORS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <Select value={sector} onValueChange={(v) => setSector(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Select...</SelectItem>
+                  {SECTORS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Country</label>
@@ -336,16 +338,17 @@ function CreateCompanyDialog({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Currency</label>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              >
-                <option value="CHF">CHF</option>
-                <option value="EUR">EUR</option>
-                <option value="USD">USD</option>
-                <option value="GBP">GBP</option>
-              </select>
+              <Select value={currency} onValueChange={(v) => setCurrency(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CHF">CHF</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="GBP">GBP</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Headcount</label>
@@ -359,14 +362,14 @@ function CreateCompanyDialog({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Cancel</button>
-            <button type="submit" disabled={createMutation.isPending} className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50">
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending ? 'Adding...' : 'Add Company'}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

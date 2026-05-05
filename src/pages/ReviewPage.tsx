@@ -5,6 +5,7 @@ import type { KpiValue, KpiDefinition, Company } from '@/types/database'
 import { formatKpiValue, formatConfidence, confidenceColor } from '@/lib/format'
 import { CheckCircle2, Loader2, ClipboardCheck } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -240,10 +241,11 @@ export function ReviewPage() {
 
                     {/* Approve action */}
                     <td className="px-6 py-5 text-right">
-                      <button
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() => handleApprove(row.id)}
                         disabled={approvingId === row.id}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-signal-green)]/40 bg-[var(--color-signal-green)]/10 px-3 py-1.5 text-[11px] font-semibold text-[var(--color-signal-green)] transition-all duration-200 hover:bg-[var(--color-signal-green)]/20 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {approvingId === row.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -251,7 +253,7 @@ export function ReviewPage() {
                           <CheckCircle2 className="h-3 w-3" />
                         )}
                         Approve
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}

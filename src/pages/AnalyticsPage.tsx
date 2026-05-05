@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { Table2, ScatterChart as ScatterIcon, Grid3X3 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
 import {
   ScatterChart,
   Scatter,
@@ -13,11 +15,12 @@ import {
 } from 'recharts'
 import { usePivotData, useScatterData, useHeatmapData } from '@/hooks/useAnalytics'
 import { useCompanies, useKpiDefinitions, usePeerGroups } from '@/hooks/useData'
+import { PageSkeleton } from '@/components/ui/page-skeleton'
 
 type ViewMode = 'pivot' | 'scatter' | 'heatmap'
 
 const SCATTER_COLORS = [
-  '#3B82F6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  'var(--color-financial-blue)', 'var(--color-signal-green)', 'var(--color-signal-amber)', 'var(--color-signal-red)', '#8b5cf6',
   '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
 ]
 
@@ -46,8 +49,8 @@ export function AnalyticsPage() {
       <Helmet><title>Analytics - BenchmarkSignal</title></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Analytics</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Analytics</h1>
+          <p className="mt-1 text-[13px] text-muted-foreground">
             Explore data with pivot tables, scatter plots, and heatmaps.
           </p>
         </div>
@@ -61,50 +64,54 @@ export function AnalyticsPage() {
 
         {/* Common filters */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
-          <select
-            value={fiscalYear}
-            onChange={(e) => setFiscalYear(Number(e.target.value))}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+          <Select value={String(fiscalYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
+            <SelectTrigger className="w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            value={selectedPeerGroup}
-            onChange={(e) => setSelectedPeerGroup(e.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            <option value="">All Companies</option>
-            {(peerGroups ?? []).map((pg) => (
-              <option key={pg.id} value={pg.id}>{pg.name}</option>
-            ))}
-          </select>
+          <Select value={selectedPeerGroup} onValueChange={(v) => setSelectedPeerGroup(v)}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="All Companies" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Companies</SelectItem>
+              {(peerGroups ?? []).map((pg) => (
+                <SelectItem key={pg.id} value={pg.id}>{pg.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {viewMode === 'scatter' && (
             <>
-              <select
-                value={xKpi}
-                onChange={(e) => setXKpi(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              >
-                <option value="">X Axis KPI...</option>
-                {(kpiDefs ?? []).map((kpi) => (
-                  <option key={kpi.code} value={kpi.code}>{kpi.name}</option>
-                ))}
-              </select>
-              <span className="text-sm text-muted-foreground">vs</span>
-              <select
-                value={yKpi}
-                onChange={(e) => setYKpi(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              >
-                <option value="">Y Axis KPI...</option>
-                {(kpiDefs ?? []).map((kpi) => (
-                  <option key={kpi.code} value={kpi.code}>{kpi.name}</option>
-                ))}
-              </select>
+              <Select value={xKpi} onValueChange={(v) => setXKpi(v)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="X Axis KPI..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">X Axis KPI...</SelectItem>
+                  {(kpiDefs ?? []).map((kpi) => (
+                    <SelectItem key={kpi.code} value={kpi.code}>{kpi.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-[13px] text-muted-foreground">vs</span>
+              <Select value={yKpi} onValueChange={(v) => setYKpi(v)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Y Axis KPI..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Y Axis KPI...</SelectItem>
+                  {(kpiDefs ?? []).map((kpi) => (
+                    <SelectItem key={kpi.code} value={kpi.code}>{kpi.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </>
           )}
         </div>
@@ -124,17 +131,14 @@ export function AnalyticsPage() {
 
 function ViewTab({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
   return (
-    <button
+    <Button
+      variant={active ? 'default' : 'ghost'}
       onClick={onClick}
-      className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-        active
-          ? 'bg-[var(--color-primary)] text-white'
-          : 'text-muted-foreground hover:text-foreground'
-      }`}
+      className="flex items-center gap-2"
     >
       {icon}
       <span className="hidden sm:inline">{label}</span>
-    </button>
+    </Button>
   )
 }
 
@@ -145,7 +149,7 @@ function ViewTab({ active, onClick, icon, label }: { active: boolean; onClick: (
 function PivotView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYear: number }) {
   const { data, isLoading } = usePivotData({ companyIds, fiscalYear })
 
-  if (isLoading) return <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
+  if (isLoading) return <PageSkeleton />
   if (!data || data.cells.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-card p-12 text-center">
@@ -227,7 +231,7 @@ function ScatterView({
     )
   }
 
-  if (isLoading) return <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
+  if (isLoading) return <PageSkeleton />
   if (!points || points.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-card p-12 text-center">
@@ -306,7 +310,7 @@ function ScatterView({
 function HeatmapView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYear: number }) {
   const { data, isLoading } = useHeatmapData({ companyIds, fiscalYear })
 
-  if (isLoading) return <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>
+  if (isLoading) return <PageSkeleton />
   if (!data || data.cells.length === 0) {
     return (
       <div className="rounded-xl border border-border bg-card p-12 text-center">
@@ -356,7 +360,7 @@ function HeatmapView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalY
                         className="mx-auto flex h-10 w-full max-w-[80px] items-center justify-center rounded-md text-xs font-medium"
                         style={{
                           backgroundColor: getHeatColor(cell.percentile),
-                          color: cell.percentile > 60 || cell.percentile < 40 ? 'white' : 'var(--color-foreground)',
+                          color: 'white',
                         }}
                         title={`P${cell.percentile} — ${cell.value.toLocaleString()}`}
                       >
@@ -386,9 +390,9 @@ function HeatmapView({ companyIds, fiscalYear }: { companyIds: string[]; fiscalY
 }
 
 function getHeatColor(percentile: number): string {
-  if (percentile >= 80) return '#059669' // green-600
-  if (percentile >= 60) return '#34d399' // green-400
-  if (percentile >= 40) return '#6b7280' // gray-500
-  if (percentile >= 20) return '#f87171' // red-400
-  return '#dc2626' // red-600
+  if (percentile >= 80) return 'var(--color-signal-green)'
+  if (percentile >= 60) return '#34d399' // green-400, lighter variant — no token
+  if (percentile >= 40) return '#6b7280' // gray-500 mid-band — no token
+  if (percentile >= 20) return '#f87171' // red-400, lighter variant — no token
+  return 'var(--color-signal-red)'
 }

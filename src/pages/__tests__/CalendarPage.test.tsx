@@ -4,6 +4,26 @@ import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HelmetProvider } from 'react-helmet-async'
 
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'test-user', email: 'test@example.com' },
+    session: { access_token: 'test-token' },
+    signOut: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/useSubscription', () => ({
+  useSubscription: () => ({
+    data: { tier: 'pro', status: 'active' },
+    isLoading: false,
+  }),
+}))
+
+vi.mock('@/hooks/useAiSuggestions', () => ({
+  useSuggestDates: () => ({ mutate: vi.fn(), isPending: false }),
+  useSuggestIrUrl: () => ({ mutate: vi.fn(), isPending: false }),
+}))
+
 vi.mock('@/hooks/useCalendar', () => ({
   usePublicationEvents: () => ({
     data: [

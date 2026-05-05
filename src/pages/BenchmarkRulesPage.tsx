@@ -13,6 +13,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { Settings, Plus, Trash2, Loader2, FileText, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -40,13 +42,10 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
         Create a benchmark rule to define how competitive analysis documents are generated.
       </p>
-      <button
-        onClick={onAdd}
-        className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
-      >
+      <Button onClick={onAdd}>
         <Plus className="h-4 w-4" />
         Create Rule
-      </button>
+      </Button>
     </div>
   )
 }
@@ -211,12 +210,9 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
               <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                 KPIs to Include ({selectedKpis.size} selected)
               </Label>
-              <button
-                onClick={selectAll}
-                className="text-[11px] font-medium text-[var(--color-accent)] hover:underline"
-              >
+              <Button variant="link" size="xs" onClick={selectAll}>
                 Select All
-              </button>
+              </Button>
             </div>
             <div className="max-h-[200px] overflow-y-auto rounded-lg border border-border bg-[var(--color-bg-tertiary)] p-2 space-y-0.5">
               {(kpiDefs ?? []).map((def) => (
@@ -241,17 +237,10 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
         </div>
 
         <DialogFooter>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="rounded-full border border-border bg-card px-5 py-2 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)]"
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
-          </button>
-          <button
-            onClick={handleCreate}
-            disabled={createMutation.isPending}
-            className="flex items-center gap-2 rounded-full bg-foreground px-5 py-2 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          </Button>
+          <Button onClick={handleCreate} disabled={createMutation.isPending}>
             {createMutation.isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -260,7 +249,7 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
             ) : (
               'Create Rule'
             )}
-          </button>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -275,12 +264,18 @@ export function BenchmarkRulesPage() {
   const { data: rules, isLoading } = useBenchmarkRules()
   const deleteMutation = useDeleteBenchmarkRule()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete rule "${name}"? This will also delete associated documents.`)) return
+  const handleDelete = (id: string, name: string) => {
+    setDeleteTarget({ id, name })
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
     try {
-      await deleteMutation.mutateAsync(id)
+      await deleteMutation.mutateAsync(deleteTarget.id)
       toast.success('Rule deleted')
+      setDeleteTarget(null)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete')
     }
@@ -298,13 +293,10 @@ export function BenchmarkRulesPage() {
             Configure how competitive benchmark documents are generated from extracted KPI data.
           </p>
         </div>
-        <button
-          onClick={() => setDialogOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
-        >
+        <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           Create Rule
-        </button>
+        </Button>
       </div>
 
       {/* Content */}
@@ -346,14 +338,15 @@ export function BenchmarkRulesPage() {
                     )}
                   </div>
                 </div>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => handleDelete(rule.id, rule.name)}
                   disabled={deleteMutation.isPending}
-                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-signal-red)]"
                   aria-label={`Delete rule ${rule.name}`}
                 >
                   <Trash2 className="h-4 w-4" />
-                </button>
+                </Button>
               </div>
             </div>
           ))}
@@ -361,6 +354,15 @@ export function BenchmarkRulesPage() {
       )}
 
       <CreateRuleDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+
+      <ConfirmDeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+        title="Delete Rule"
+        description={deleteTarget ? `Delete rule "${deleteTarget.name}"? This will also delete associated documents.` : ''}
+        onConfirm={handleDeleteConfirm}
+        isPending={deleteMutation.isPending}
+      />
     </div>
   )
 }

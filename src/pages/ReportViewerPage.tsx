@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Download, Printer, Zap, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCustomReport, useGenerateReport } from '@/hooks/useReportBuilder'
+import { Button } from '@/components/ui/button'
 
 export function ReportViewerPage() {
   const { id } = useParams<{ id: string }>()
@@ -23,9 +24,9 @@ export function ReportViewerPage() {
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="rounded-xl border border-border bg-card p-12 text-center">
           <p className="text-sm text-muted-foreground">Report not found.</p>
-          <button onClick={() => navigate('/reports')} className="mt-3 text-sm text-[var(--color-primary)] hover:underline">
+          <Button variant="link" onClick={() => navigate('/reports')} className="mt-3">
             Back to Reports
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -76,15 +77,14 @@ export function ReportViewerPage() {
       <div className="mx-auto max-w-[900px] px-4 py-8 sm:px-6">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between print:hidden">
-          <button
-            onClick={() => navigate('/reports')}
-            className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
+          <Button variant="ghost" size="sm" onClick={() => navigate('/reports')} className="-ml-2">
             <ArrowLeft className="h-4 w-4" />
             Back to Reports
-          </button>
+          </Button>
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 generateMutation.mutate(report.id, {
                   onSuccess: () => toast.success('Report regenerated'),
@@ -92,25 +92,18 @@ export function ReportViewerPage() {
                 })
               }}
               disabled={generateMutation.isPending}
-              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
             >
               <Zap className="h-3.5 w-3.5" />
               Regenerate
-            </button>
-            <button
-              onClick={handleExportCsv}
-              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCsv}>
               <Download className="h-3.5 w-3.5" />
               CSV
-            </button>
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-3.5 w-3.5" />
               Print
-            </button>
+            </Button>
           </div>
         </div>
 

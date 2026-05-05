@@ -1,10 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
-import { Sun, Moon, Upload, LayoutDashboard, ClipboardCheck, FileText, Settings, LogOut, User, Menu, X, CalendarDays, Building2, TrendingUp, BarChart3, FileBarChart } from 'lucide-react'
+import { Sun, Moon, LayoutDashboard, Users, Settings, LogOut, User, Menu, X, BarChart3, FileBarChart } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
+
+const NAV_ITEMS = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/peers', label: 'Peers', icon: Users },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/reports', label: 'Reports', icon: FileBarChart },
+  { to: '/settings', label: 'Settings', icon: Settings },
+] as const
 
 const navLinkCls = (isActive: boolean) =>
   `flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 min-h-[44px] ${
@@ -70,46 +78,12 @@ export function AppLayout() {
 
             {/* Center navigation — desktop */}
             <div className="hidden items-center gap-1 md:flex">
-              <NavLink to="/dashboard" className={({ isActive }) => navLinkCls(isActive)}>
-                <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
-                Dashboard
-              </NavLink>
-              <NavLink to="/upload" className={({ isActive }) => navLinkCls(isActive)}>
-                <Upload className="h-4 w-4" aria-hidden="true" />
-                Upload
-              </NavLink>
-              <NavLink to="/review" className={({ isActive }) => navLinkCls(isActive)}>
-                <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
-                Review
-              </NavLink>
-              <NavLink to="/documents" className={({ isActive }) => navLinkCls(isActive)}>
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Documents
-              </NavLink>
-              <NavLink to="/calendar" className={({ isActive }) => navLinkCls(isActive)}>
-                <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                Calendar
-              </NavLink>
-              <NavLink to="/trends" className={({ isActive }) => navLinkCls(isActive)}>
-                <TrendingUp className="h-4 w-4" aria-hidden="true" />
-                Trends
-              </NavLink>
-              <NavLink to="/analytics" className={({ isActive }) => navLinkCls(isActive)}>
-                <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                Analytics
-              </NavLink>
-              <NavLink to="/reports" className={({ isActive }) => navLinkCls(isActive)}>
-                <FileBarChart className="h-4 w-4" aria-hidden="true" />
-                Reports
-              </NavLink>
-              <NavLink to="/my-company" className={({ isActive }) => navLinkCls(isActive)}>
-                <Building2 className="h-4 w-4" aria-hidden="true" />
-                My Company
-              </NavLink>
-              <NavLink to="/settings/benchmark-rules" className={({ isActive }) => navLinkCls(isActive)}>
-                <Settings className="h-4 w-4" aria-hidden="true" />
-                Rules
-              </NavLink>
+              {NAV_ITEMS.map((item) => (
+                <NavLink key={item.to} to={item.to} className={({ isActive }) => navLinkCls(isActive)}>
+                  <item.icon className="h-4 w-4" aria-hidden="true" />
+                  {item.label}
+                </NavLink>
+              ))}
             </div>
 
             {/* Right side — notifications + theme toggle + user menu + mobile hamburger */}
@@ -166,46 +140,12 @@ export function AppLayout() {
           {/* Mobile nav drawer */}
           {mobileNavOpen && (
             <div className="border-t border-border bg-[var(--color-background)] px-4 pb-4 pt-2 md:hidden">
-              <NavLink to="/dashboard" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
-                Dashboard
-              </NavLink>
-              <NavLink to="/upload" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                <Upload className="h-4 w-4" aria-hidden="true" />
-                Upload
-              </NavLink>
-              <NavLink to="/review" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
-                Review
-              </NavLink>
-              <NavLink to="/documents" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                <FileText className="h-4 w-4" aria-hidden="true" />
-                Documents
-              </NavLink>
-              <NavLink to="/calendar" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                Calendar
-              </NavLink>
-              <NavLink to="/trends" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                <TrendingUp className="h-4 w-4" aria-hidden="true" />
-                Trends
-              </NavLink>
-              <NavLink to="/analytics" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                Analytics
-              </NavLink>
-              <NavLink to="/reports" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                <FileBarChart className="h-4 w-4" aria-hidden="true" />
-                Reports
-              </NavLink>
-              <NavLink to="/my-company" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                <Building2 className="h-4 w-4" aria-hidden="true" />
-                My Company
-              </NavLink>
-              <NavLink to="/settings/benchmark-rules" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                <Settings className="h-4 w-4" aria-hidden="true" />
-                Rules
-              </NavLink>
+              {NAV_ITEMS.map((item) => (
+                <NavLink key={item.to} to={item.to} onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
+                  <item.icon className="h-4 w-4" aria-hidden="true" />
+                  {item.label}
+                </NavLink>
+              ))}
             </div>
           )}
         </nav>

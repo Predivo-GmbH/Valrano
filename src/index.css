@@ -80,7 +80,7 @@
   --color-background: #0A0B0D;
   --color-foreground: #E8EAED;
   --color-muted: #141518;
-  --color-muted-foreground: #9CA3AF;
+  --color-muted-foreground: #A8B0BB;
   --color-border: #27282B;
   --color-input: #1C1D20;
   --color-ring: #3B82F6;
@@ -101,14 +101,14 @@
 
   /* BenchmarkSignal semantic colors — dark */
   --color-signal-green: #22C55E;
-  --color-signal-red: #EF4444;
-  --color-signal-amber: #F59E0B;
+  --color-signal-red: #F87171;
+  --color-signal-amber: #FBBF24;
   --color-financial-blue: #3B82F6;
 
   /* BenchmarkSignal surface tokens — dark */
   --color-surface-container: #1D2027;
   --color-surface-container-high: #272A31;
-  --color-bg-tertiary: #1C1D20;
+  --color-bg-tertiary: #252629;
   --color-bg-elevated: #272A31;
 }
 

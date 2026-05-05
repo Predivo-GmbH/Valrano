@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { TrendingUp, TrendingDown, Minus, BarChart3 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   LineChart,
   Line,
@@ -14,16 +15,19 @@ import {
 import { useTrendData, useCagr, useMomentum } from '@/hooks/useTrends'
 import { useCompanies, useKpiDefinitions } from '@/hooks/useData'
 import { usePeerGroups } from '@/hooks/useData'
+import { PageSkeleton } from '@/components/ui/page-skeleton'
 
 const CHART_COLORS = [
   'var(--color-primary)',
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#8b5cf6',
-  '#06b6d4',
-  '#ec4899',
-  '#84cc16',
+  'var(--color-signal-green)',
+  'var(--color-signal-amber)',
+  'var(--color-signal-red)',
+  'var(--color-financial-blue)',
+  'var(--color-accent)',
+  '#8B5CF6',  // purple - no token, keep hardcoded
+  '#EC4899',  // pink - no token, keep hardcoded
+  '#14B8A6',  // teal - no token, keep hardcoded
+  '#F97316',  // orange - no token, keep hardcoded
 ]
 
 export function TrendsPage() {
@@ -108,59 +112,63 @@ export function TrendsPage() {
       <Helmet><title>Trends - BenchmarkSignal</title></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Trends & Time-Series</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Trends & Time-Series</h1>
+          <p className="mt-1 text-[13px] text-muted-foreground">
             Track KPI performance over time with growth rates and momentum indicators.
           </p>
         </div>
 
         {/* Filters */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
-          <select
-            value={selectedKpi}
-            onChange={(e) => setSelectedKpi(e.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            <option value="">All KPIs</option>
-            {(kpiDefs ?? []).map((kpi) => (
-              <option key={kpi.code} value={kpi.code}>{kpi.name}</option>
-            ))}
-          </select>
+          <Select value={selectedKpi} onValueChange={(v) => setSelectedKpi(v)}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="All KPIs" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All KPIs</SelectItem>
+              {(kpiDefs ?? []).map((kpi) => (
+                <SelectItem key={kpi.code} value={kpi.code}>{kpi.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            value={selectedPeerGroup}
-            onChange={(e) => setSelectedPeerGroup(e.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            <option value="">All Companies</option>
-            {(peerGroups ?? []).map((pg) => (
-              <option key={pg.id} value={pg.id}>{pg.name}</option>
-            ))}
-          </select>
+          <Select value={selectedPeerGroup} onValueChange={(v) => setSelectedPeerGroup(v)}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="All Companies" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Companies</SelectItem>
+              {(peerGroups ?? []).map((pg) => (
+                <SelectItem key={pg.id} value={pg.id}>{pg.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            value={startYear}
-            onChange={(e) => setStartYear(Number(e.target.value))}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            {Array.from({ length: 10 }, (_, i) => currentYear - 9 + i).map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-          <span className="text-sm text-muted-foreground">to</span>
-          <select
-            value={endYear}
-            onChange={(e) => setEndYear(Number(e.target.value))}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-          >
-            {Array.from({ length: 10 }, (_, i) => currentYear - 9 + i).map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+          <Select value={String(startYear)} onValueChange={(v) => setStartYear(Number(v))}>
+            <SelectTrigger className="w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 10 }, (_, i) => currentYear - 9 + i).map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-[13px] text-muted-foreground">to</span>
+          <Select value={String(endYear)} onValueChange={(v) => setEndYear(Number(v))}>
+            <SelectTrigger className="w-[100px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 10 }, (_, i) => currentYear - 9 + i).map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-muted-foreground">Loading trend data...</div>
+          <PageSkeleton />
         ) : !trends || trends.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
             <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground/50" />
@@ -181,7 +189,12 @@ export function TrendsPage() {
                   <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                     <XAxis dataKey="year" stroke="var(--color-muted-foreground)" fontSize={12} />
-                    <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
+                    <YAxis
+                      stroke="var(--color-muted-foreground)"
+                      fontSize={11}
+                      tickFormatter={(v: number) => Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(v)}
+                      width={60}
+                    />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: 'var(--color-card)',
@@ -205,7 +218,7 @@ export function TrendsPage() {
                     <Line
                       type="monotone"
                       dataKey="Peer Median"
-                      stroke="#6b7280"
+                      stroke="var(--color-muted-foreground)"
                       strokeWidth={2}
                       strokeDasharray="5 5"
                       dot={false}
@@ -246,7 +259,7 @@ export function TrendsPage() {
                             {row.end_value.toLocaleString()}
                           </td>
                           <td className={`px-5 py-3 text-right tabular-nums font-medium ${
-                            row.cagr_pct > 0 ? 'text-green-500' : row.cagr_pct < 0 ? 'text-red-500' : 'text-muted-foreground'
+                            row.cagr_pct > 0 ? 'text-[var(--color-signal-green)]' : row.cagr_pct < 0 ? 'text-[var(--color-signal-red)]' : 'text-muted-foreground'
                           }`}>
                             {row.cagr_pct > 0 ? '+' : ''}{row.cagr_pct}%
                           </td>
@@ -289,17 +302,17 @@ export function TrendsPage() {
 }
 
 function MomentumIcon({ direction }: { direction: string }) {
-  if (direction === 'improving') return <TrendingUp className="h-5 w-5 text-green-500" />
-  if (direction === 'declining') return <TrendingDown className="h-5 w-5 text-red-500" />
+  if (direction === 'improving') return <TrendingUp className="h-5 w-5 text-[var(--color-signal-green)]" />
+  if (direction === 'declining') return <TrendingDown className="h-5 w-5 text-[var(--color-signal-red)]" />
   return <Minus className="h-5 w-5 text-muted-foreground" />
 }
 
 function MomentumBadge({ direction }: { direction: string }) {
   if (direction === 'improving') {
-    return <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-500">Improving</span>
+    return <span className="rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-green)]">Improving</span>
   }
   if (direction === 'declining') {
-    return <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-500">Declining</span>
+    return <span className="rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-red)]">Declining</span>
   }
   return <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Stable</span>
 }

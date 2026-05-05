@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
 import { Plus, FileText, Trash2, Zap, Download, Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import {
   useCustomReports,
@@ -12,12 +13,16 @@ import {
   type CustomReport,
 } from '@/hooks/useReportBuilder'
 import { useCompanies, useKpiDefinitions, usePeerGroups } from '@/hooks/useData'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
+import { CardSkeleton } from '@/components/ui/page-skeleton'
 
 const STATUS_CONFIG = {
   draft: { icon: Clock, color: 'text-muted-foreground', bg: 'bg-muted', label: 'Draft' },
   generating: { icon: Loader2, color: 'text-[var(--color-primary)]', bg: 'bg-[var(--color-primary)]/10', label: 'Generating...' },
-  ready: { icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10', label: 'Ready' },
-  error: { icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-500/10', label: 'Error' },
+  ready: { icon: CheckCircle2, color: 'text-[var(--color-signal-green)]', bg: 'bg-[var(--color-signal-green)]/10', label: 'Ready' },
+  error: { icon: AlertCircle, color: 'text-[var(--color-signal-red)]', bg: 'bg-[var(--color-signal-red)]/10', label: 'Error' },
 }
 
 export function ReportBuilderPage() {
@@ -31,22 +36,19 @@ export function ReportBuilderPage() {
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Report Builder</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Report Builder</h1>
+            <p className="mt-1 text-[13px] text-muted-foreground">
               Create custom reports from your benchmark data with AI-generated narratives.
             </p>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90"
-          >
+          <Button onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4" />
             New Report
-          </button>
+          </Button>
         </div>
 
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-muted-foreground">Loading...</div>
+          <CardSkeleton />
         ) : !reports || reports.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
             <FileText className="mx-auto h-10 w-10 text-muted-foreground/50" />
@@ -54,13 +56,10 @@ export function ReportBuilderPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               Create your first report from a template or build one from scratch.
             </p>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white"
-            >
+            <Button onClick={() => setShowCreate(true)} className="mt-4">
               <Plus className="h-4 w-4" />
               Create Report
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="space-y-3">
@@ -70,7 +69,7 @@ export function ReportBuilderPage() {
           </div>
         )}
 
-        {showCreate && <CreateReportDialog onClose={() => setShowCreate(false)} />}
+        <CreateReportDialog open={showCreate} onClose={() => setShowCreate(false)} />
       </div>
     </>
   )
@@ -83,6 +82,7 @@ export function ReportBuilderPage() {
 function ReportCard({ report, onView }: { report: CustomReport; onView: () => void }) {
   const generateMutation = useGenerateReport()
   const deleteMutation = useDeleteReport()
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const status = STATUS_CONFIG[report.status]
   const StatusIcon = status.icon
 
@@ -115,15 +115,14 @@ function ReportCard({ report, onView }: { report: CustomReport; onView: () => vo
 
         <div className="flex items-center gap-1">
           {report.status === 'ready' && (
-            <button
-              onClick={onView}
-              className="flex min-h-[36px] items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
+            <Button variant="outline" size="sm" onClick={onView}>
               <Download className="h-3.5 w-3.5" />
               View
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => {
               generateMutation.mutate(report.id, {
                 onSuccess: () => toast.success('Report generated'),
@@ -131,25 +130,32 @@ function ReportCard({ report, onView }: { report: CustomReport; onView: () => vo
               })
             }}
             disabled={generateMutation.isPending || report.status === 'generating'}
-            className="flex min-h-[36px] items-center gap-1.5 rounded-lg bg-[var(--color-primary)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/20 disabled:opacity-50"
           >
             <Zap className="h-3.5 w-3.5" />
             Generate
-          </button>
-          <button
-            onClick={() => {
-              if (confirm('Delete this report?')) {
-                deleteMutation.mutate(report.id, {
-                  onSuccess: () => toast.success('Report deleted'),
-                })
-              }
-            }}
-            className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-red-500"
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Delete report"
+            onClick={() => setShowDeleteConfirm(true)}
           >
             <Trash2 className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </div>
+      <ConfirmDeleteDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete Report"
+        description="Are you sure you want to delete this report? This action cannot be undone."
+        onConfirm={() => {
+          deleteMutation.mutate(report.id, {
+            onSuccess: () => { toast.success('Report deleted'); setShowDeleteConfirm(false) },
+          })
+        }}
+        isPending={deleteMutation.isPending}
+      />
     </div>
   )
 }
@@ -158,7 +164,7 @@ function ReportCard({ report, onView }: { report: CustomReport; onView: () => vo
 // Create Report Dialog
 // ---------------------------------------------------------------------------
 
-function CreateReportDialog({ onClose }: { onClose: () => void }) {
+function CreateReportDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data: templates } = useReportTemplates()
   const { data: companies } = useCompanies()
   const { data: kpiDefs } = useKpiDefinitions()
@@ -206,9 +212,11 @@ function CreateReportDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl border border-border bg-card p-6" onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-4 text-lg font-semibold text-foreground">Create Report</h2>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create Report</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Title</label>
@@ -233,43 +241,46 @@ function CreateReportDialog({ onClose }: { onClose: () => void }) {
 
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Template</label>
-            <select
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            >
-              <option value="">Custom (no template)</option>
-              {(templates ?? []).map((t) => (
-                <option key={t.id} value={t.id}>{t.name} — {t.description}</option>
-              ))}
-            </select>
+            <Select value={templateId} onValueChange={(v) => setTemplateId(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Custom (no template)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Custom (no template)</SelectItem>
+                {(templates ?? []).map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name} — {t.description}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Fiscal Year</label>
-              <select
-                value={fiscalYear}
-                onChange={(e) => setFiscalYear(Number(e.target.value))}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              >
-                {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 - i).map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
+              <Select value={String(fiscalYear)} onValueChange={(v) => setFiscalYear(Number(v))}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 - i).map((y) => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Peer Group</label>
-              <select
-                value={peerGroupId}
-                onChange={(e) => setPeerGroupId(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              >
-                <option value="">All Companies</option>
-                {(peerGroups ?? []).map((pg) => (
-                  <option key={pg.id} value={pg.id}>{pg.name}</option>
-                ))}
-              </select>
+              <Select value={peerGroupId} onValueChange={(v) => setPeerGroupId(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="All Companies" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Companies</SelectItem>
+                  {(peerGroups ?? []).map((pg) => (
+                    <SelectItem key={pg.id} value={pg.id}>{pg.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -298,13 +309,13 @@ function CreateReportDialog({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Cancel</button>
-            <button type="submit" disabled={createMutation.isPending} className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending ? 'Creating...' : 'Create Report'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

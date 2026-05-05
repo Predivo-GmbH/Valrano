@@ -2,11 +2,16 @@ import { useState, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { Link } from 'react-router-dom'
 import { CalendarDays, Plus, RefreshCw, ExternalLink, Trash2, Eye, Sparkles, Loader2, Globe } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEvent, useCheckPublication, useCompanies } from '@/hooks/useCalendar'
 import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
 import { useSubscription } from '@/hooks/useSubscription'
 import type { PublicationEventStatus, ReportType } from '@/types/database'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
+import { CardSkeleton } from '@/components/ui/page-skeleton'
 
 const STATUS_COLORS: Record<PublicationEventStatus, string> = {
   scheduled: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
@@ -47,6 +52,7 @@ export function CalendarPage() {
   const { data: companies } = useCompanies()
   const checkMutation = useCheckPublication()
   const deleteMutation = useDeletePublicationEvent()
+  const [deleteEventId, setDeleteEventId] = useState<string | null>(null)
 
   // Group events by month
   const groupedByMonth = (events ?? []).reduce<Record<string, typeof events>>((acc, ev) => {
@@ -63,8 +69,8 @@ export function CalendarPage() {
       <Helmet><title>Publication Calendar - BenchmarkSignal</title></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Publication Calendar</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Publication Calendar</h1>
+          <p className="mt-1 text-[13px] text-muted-foreground">
             Track competitor report publications and monitor IR pages for new reports.
           </p>
         </div>
@@ -108,42 +114,41 @@ export function CalendarPage() {
 
         {/* Filters + Actions */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
-          >
-            <option value="all">All statuses</option>
-            {Object.entries(STATUS_LABELS).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
+          <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v)}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <select
-            value={filterCompany}
-            onChange={(e) => setFilterCompany(e.target.value)}
-            className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
-          >
-            <option value="all">All companies</option>
-            {(companies ?? []).map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <Select value={filterCompany} onValueChange={(v) => setFilterCompany(v)}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="All companies" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All companies</SelectItem>
+              {(companies ?? []).map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <div className="ml-auto">
-            <button
-              onClick={() => setShowCreateDialog(true)}
-              className="flex items-center gap-2 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
-            >
+            <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4" />
               Add Event
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Timeline */}
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-muted-foreground">Loading events...</div>
+          <CardSkeleton />
         ) : sortedMonths.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
             <CalendarDays className="mx-auto h-12 w-12 text-muted-foreground/50" />
@@ -151,13 +156,10 @@ export function CalendarPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Add competitor publication dates to start monitoring.
             </p>
-            <button
-              onClick={() => setShowCreateDialog(true)}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-[var(--color-bg-tertiary)]"
-            >
+            <Button variant="outline" onClick={() => setShowCreateDialog(true)} className="mt-4">
               <Plus className="h-4 w-4" />
               Add First Event
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="space-y-8">
@@ -222,7 +224,10 @@ export function CalendarPage() {
                               </a>
                             )}
                             {(ev.status === 'scheduled' || ev.status === 'due_today' || ev.status === 'overdue') && (
-                              <button
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Check now"
                                 onClick={() => {
                                   checkMutation.mutate(ev.id, {
                                     onSuccess: () => toast.success('Check completed'),
@@ -230,11 +235,9 @@ export function CalendarPage() {
                                   })
                                 }}
                                 disabled={checkMutation.isPending}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground disabled:opacity-50"
-                                title="Check now"
                               >
                                 <RefreshCw className={`h-3.5 w-3.5 ${checkMutation.isPending ? 'animate-spin' : ''}`} />
-                              </button>
+                              </Button>
                             )}
                             {ev.report_id && (
                               <Link
@@ -245,19 +248,14 @@ export function CalendarPage() {
                                 <Eye className="h-3.5 w-3.5" />
                               </Link>
                             )}
-                            <button
-                              onClick={() => {
-                                if (confirm('Delete this publication event?')) {
-                                  deleteMutation.mutate(ev.id, {
-                                    onSuccess: () => toast.success('Event deleted'),
-                                  })
-                                }
-                              }}
-                              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-red-400"
-                              title="Delete"
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Delete event"
+                              onClick={() => setDeleteEventId(ev.id)}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       )
@@ -270,12 +268,26 @@ export function CalendarPage() {
         )}
 
         {/* Create Dialog */}
-        {showCreateDialog && (
-          <CreateEventDialog
-            companies={companies ?? []}
-            onClose={() => setShowCreateDialog(false)}
-          />
-        )}
+        <CreateEventDialog
+          open={showCreateDialog}
+          companies={companies ?? []}
+          onClose={() => setShowCreateDialog(false)}
+        />
+
+        <ConfirmDeleteDialog
+          open={deleteEventId !== null}
+          onOpenChange={(o) => { if (!o) setDeleteEventId(null) }}
+          title="Delete Publication Event"
+          description="Are you sure you want to delete this publication event? This action cannot be undone."
+          onConfirm={() => {
+            if (deleteEventId) {
+              deleteMutation.mutate(deleteEventId, {
+                onSuccess: () => { toast.success('Event deleted'); setDeleteEventId(null) },
+              })
+            }
+          }}
+          isPending={deleteMutation.isPending}
+        />
       </div>
     </>
   )
@@ -285,9 +297,11 @@ export function CalendarPage() {
 // Create Event Dialog — Smart with AI Suggestions
 // ---------------------------------------------------------------------------
 function CreateEventDialog({
+  open,
   companies,
   onClose,
 }: {
+  open: boolean
   companies: { id: string; name: string }[]
   onClose: () => void
 }) {
@@ -393,13 +407,12 @@ function CreateEventDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Add Publication Event</h2>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add Publication Event</DialogTitle>
+        </DialogHeader>
+        <div className="flex justify-end">
           <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
             {TIER_LABELS[tier] ?? TIER_LABELS.starter}
           </span>
@@ -409,32 +422,32 @@ function CreateEventDialog({
           {/* Company */}
           <div>
             <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company</label>
-            <select
-              value={companyId}
-              onChange={(e) => handleCompanyChange(e.target.value)}
-              required
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            >
-              <option value="">Select company</option>
-              {companies.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <Select value={companyId} onValueChange={(v) => handleCompanyChange(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select company" />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Report Type + Fiscal Year */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Report Type</label>
-              <select
-                value={reportType}
-                onChange={(e) => setReportType(e.target.value as ReportType)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              >
-                {Object.entries(REPORT_TYPE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
+              <Select value={reportType} onValueChange={(v) => setReportType(v as ReportType)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(REPORT_TYPE_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Fiscal Year</label>
@@ -450,27 +463,28 @@ function CreateEventDialog({
           {reportType === 'quarterly' && (
             <div>
               <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Quarter</label>
-              <select
-                value={fiscalQuarter ?? ''}
-                onChange={(e) => setFiscalQuarter(e.target.value ? parseInt(e.target.value) : null)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              >
-                <option value="">Select quarter</option>
-                <option value="1">Q1</option>
-                <option value="2">Q2</option>
-                <option value="3">Q3</option>
-                <option value="4">Q4</option>
-              </select>
+              <Select value={fiscalQuarter ? String(fiscalQuarter) : ''} onValueChange={(v) => setFiscalQuarter(v ? parseInt(v) : null)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select quarter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Q1</SelectItem>
+                  <SelectItem value="2">Q2</SelectItem>
+                  <SelectItem value="3">Q3</SelectItem>
+                  <SelectItem value="4">Q4</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           )}
 
           {/* AI Suggest Button */}
           <div className="rounded-lg border border-dashed border-blue-500/30 bg-blue-500/5 p-3">
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={handleSuggestDates}
               disabled={suggestDatesMutation.isPending || !companyId}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-500/10 px-4 py-2.5 text-sm font-medium text-blue-400 transition-colors hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full"
             >
               {suggestDatesMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -478,7 +492,7 @@ function CreateEventDialog({
                 <Sparkles className="h-4 w-4" />
               )}
               {suggestDatesMutation.isPending ? 'Predicting...' : 'Suggest Date & Time with AI'}
-            </button>
+            </Button>
             <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
               Uses 1 AI credit · Based on historical patterns and industry data
             </p>
@@ -524,8 +538,10 @@ function CreateEventDialog({
             <div className="mb-1 flex items-center justify-between">
               <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">IR Page URL</label>
               {companyId && !irPageUrl && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="xs"
                   onClick={() => {
                     suggestIrUrlMutation.mutate(
                       { company_id: companyId, company_name: selectedCompanyName },
@@ -541,7 +557,6 @@ function CreateEventDialog({
                     )
                   }}
                   disabled={suggestIrUrlMutation.isPending}
-                  className="flex items-center gap-1 text-[10px] font-medium text-blue-400 hover:text-blue-300"
                 >
                   {suggestIrUrlMutation.isPending ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -549,7 +564,7 @@ function CreateEventDialog({
                     <Globe className="h-3 w-3" />
                   )}
                   Auto-discover
-                </button>
+                </Button>
               )}
             </div>
             <input
@@ -590,23 +605,13 @@ function CreateEventDialog({
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createMutation.isPending}
-              className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
-            >
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={createMutation.isPending}>
               {createMutation.isPending ? 'Creating...' : 'Create Event'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

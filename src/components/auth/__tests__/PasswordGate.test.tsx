@@ -3,7 +3,7 @@ import PasswordGate from '@/components/auth/PasswordGate'
 
 describe('PasswordGate', () => {
   beforeEach(() => {
-    sessionStorage.clear()
+    localStorage.clear()
   })
 
   it('shows password input when locked', () => {
@@ -13,7 +13,7 @@ describe('PasswordGate', () => {
   })
 
   it('shows children when session is unlocked', () => {
-    sessionStorage.setItem('bs_unlocked', 'true')
+    localStorage.setItem('bs_unlocked', 'true')
     render(<PasswordGate><div>Protected</div></PasswordGate>)
     expect(screen.getByText('Protected')).toBeInTheDocument()
   })
