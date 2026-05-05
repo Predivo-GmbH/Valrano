@@ -20,6 +20,8 @@ import { MyCompanyPage } from '@/pages/MyCompanyPage'
 import { MyBenchmarkPage } from '@/pages/MyBenchmarkPage'
 import { TrendsPage } from '@/pages/TrendsPage'
 import { AnalyticsPage } from '@/pages/AnalyticsPage'
+import { ReportBuilderPage } from '@/pages/ReportBuilderPage'
+import { ReportViewerPage } from '@/pages/ReportViewerPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import SignUpPage from '@/pages/auth/SignUpPage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
@@ -74,6 +76,8 @@ function App() {
                           <Route path="/my-company/benchmark" element={<MyBenchmarkPage />} />
                           <Route path="/trends" element={<TrendsPage />} />
                           <Route path="/analytics" element={<AnalyticsPage />} />
+                          <Route path="/reports" element={<ReportBuilderPage />} />
+                          <Route path="/reports/:id" element={<ReportViewerPage />} />
                         </Route>
                       </Route>
 

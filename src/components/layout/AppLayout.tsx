@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
-import { Sun, Moon, Upload, LayoutDashboard, ClipboardCheck, FileText, Settings, LogOut, User, Menu, X, CalendarDays, Building2, TrendingUp, BarChart3 } from 'lucide-react'
+import { Sun, Moon, Upload, LayoutDashboard, ClipboardCheck, FileText, Settings, LogOut, User, Menu, X, CalendarDays, Building2, TrendingUp, BarChart3, FileBarChart } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
@@ -98,6 +98,10 @@ export function AppLayout() {
                 <BarChart3 className="h-4 w-4" aria-hidden="true" />
                 Analytics
               </NavLink>
+              <NavLink to="/reports" className={({ isActive }) => navLinkCls(isActive)}>
+                <FileBarChart className="h-4 w-4" aria-hidden="true" />
+                Reports
+              </NavLink>
               <NavLink to="/my-company" className={({ isActive }) => navLinkCls(isActive)}>
                 <Building2 className="h-4 w-4" aria-hidden="true" />
                 My Company
@@ -189,6 +193,10 @@ export function AppLayout() {
               <NavLink to="/analytics" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
                 <BarChart3 className="h-4 w-4" aria-hidden="true" />
                 Analytics
+              </NavLink>
+              <NavLink to="/reports" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
+                <FileBarChart className="h-4 w-4" aria-hidden="true" />
+                Reports
               </NavLink>
               <NavLink to="/my-company" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
                 <Building2 className="h-4 w-4" aria-hidden="true" />
