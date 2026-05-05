@@ -49,6 +49,8 @@ export interface Company {
   reporting_currency: string | null;
   fiscal_year_end: string | null;
   website_url: string | null;
+  ir_page_url: string | null;
+  typical_publication_pattern: string | null;
   logo_url: string | null;
   is_active: boolean;
   created_at: string;
@@ -328,6 +330,138 @@ export type SubscriptionUpdate = Partial<SubscriptionInsert>;
 export type UserProfileUpdate = Partial<Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>>;
 export type BenchmarkRuleUpdate = Partial<BenchmarkRuleInsert>;
 export type BenchmarkDocumentUpdate = Partial<BenchmarkDocumentInsert>;
+
+// ---------------------------------------------------------------------------
+// Supabase Database shape (for createClient<Database> generic)
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Block 1 types — Publication Event Monitoring
+// ---------------------------------------------------------------------------
+
+export type PublicationEventStatus = 'scheduled' | 'due_today' | 'overdue' | 'detected' | 'ingested' | 'benchmark_ready' | 'cancelled';
+export type CheckMethod = 'head_request' | 'html_scrape' | 'ai_parse';
+export type CheckResult = 'not_found' | 'found' | 'error';
+
+export interface PublicationEvent {
+  id: string;
+  company_id: string;
+  report_type: ReportType;
+  fiscal_year: number;
+  fiscal_quarter: number | null;
+  expected_date: string;
+  expected_time: string | null;
+  actual_detected_at: string | null;
+  ir_page_url: string | null;
+  direct_pdf_url: string | null;
+  status: PublicationEventStatus;
+  monitoring_start_hours_before: number;
+  monitoring_interval_minutes: number;
+  notify_on_detection: boolean;
+  notes: string | null;
+  report_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MonitorCheck {
+  id: string;
+  publication_event_id: string;
+  checked_at: string;
+  check_method: CheckMethod | null;
+  result: CheckResult;
+  found_url: string | null;
+  error_message: string | null;
+  response_time_ms: number | null;
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Block 4 types — Approval Chains
+// ---------------------------------------------------------------------------
+
+export type ApprovalRole = 'analyst' | 'manager' | 'director' | 'c_suite';
+export type ApprovalStepStatus = 'pending' | 'in_review' | 'approved' | 'changes_requested' | 'skipped';
+
+export interface ApprovalChainStep {
+  step_number: number;
+  role: ApprovalRole;
+  user_id: string | null;
+  is_optional: boolean;
+}
+
+export interface ApprovalChain {
+  id: string;
+  benchmark_rule_id: string | null;
+  name: string;
+  steps: ApprovalChainStep[];
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApprovalStep {
+  id: string;
+  document_id: string;
+  chain_id: string;
+  step_number: number;
+  assignee_id: string | null;
+  role: ApprovalRole | null;
+  status: ApprovalStepStatus;
+  comments: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApprovalComment {
+  id: string;
+  step_id: string;
+  author_id: string | null;
+  comment: string;
+  attachment_path: string | null;
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Block 5 types — Notifications
+// ---------------------------------------------------------------------------
+
+export type NotificationType = 'report_detected' | 'document_generated' | 'approval_assigned' | 'approval_action' | 'document_delivered';
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  link: string | null;
+  is_read: boolean;
+  related_document_id: string | null;
+  related_report_id: string | null;
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Insert types — Block 1, 4, 5
+// ---------------------------------------------------------------------------
+
+export type PublicationEventInsert = Omit<PublicationEvent, 'id' | 'created_at' | 'updated_at'>;
+export type MonitorCheckInsert = Omit<MonitorCheck, 'id' | 'created_at'>;
+export type ApprovalChainInsert = Omit<ApprovalChain, 'id' | 'created_at' | 'updated_at'>;
+export type ApprovalStepInsert = Omit<ApprovalStep, 'id' | 'created_at' | 'updated_at'>;
+export type ApprovalCommentInsert = Omit<ApprovalComment, 'id' | 'created_at'>;
+export type NotificationInsert = Omit<Notification, 'id' | 'created_at'>;
+
+// ---------------------------------------------------------------------------
+// Update types — Block 1, 4, 5
+// ---------------------------------------------------------------------------
+
+export type PublicationEventUpdate = Partial<PublicationEventInsert>;
+export type ApprovalChainUpdate = Partial<ApprovalChainInsert>;
+export type ApprovalStepUpdate = Partial<ApprovalStepInsert>;
+export type NotificationUpdate = Partial<NotificationInsert>;
 
 // ---------------------------------------------------------------------------
 // Supabase Database shape (for createClient<Database> generic)

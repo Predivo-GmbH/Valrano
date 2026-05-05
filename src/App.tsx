@@ -14,6 +14,8 @@ import { ReviewPage } from '@/pages/ReviewPage'
 import { DocumentsPage } from '@/pages/DocumentsPage'
 import { DocumentViewerPage } from '@/pages/DocumentViewerPage'
 import { BenchmarkRulesPage } from '@/pages/BenchmarkRulesPage'
+import { CalendarPage } from '@/pages/CalendarPage'
+import { ApprovalChainsPage } from '@/pages/ApprovalChainsPage'
 import LoginPage from '@/pages/auth/LoginPage'
 import SignUpPage from '@/pages/auth/SignUpPage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
@@ -62,6 +64,8 @@ function App() {
                           <Route path="/documents" element={<DocumentsPage />} />
                           <Route path="/documents/:id" element={<DocumentViewerPage />} />
                           <Route path="/settings/benchmark-rules" element={<BenchmarkRulesPage />} />
+                          <Route path="/settings/approval-chains" element={<ApprovalChainsPage />} />
+                          <Route path="/calendar" element={<CalendarPage />} />
                         </Route>
                       </Route>
 

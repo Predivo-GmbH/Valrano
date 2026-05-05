@@ -6,6 +6,7 @@ import type {
   Company,
   NarrativeStyle,
   KpiSelectionItem,
+  ApprovalChain,
 } from '@/types/database'
 
 // ---------------------------------------------------------------------------
@@ -224,6 +225,97 @@ export function useUpdateDocumentStatus() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['benchmark-documents'] })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Approval Chain Hooks
+// ---------------------------------------------------------------------------
+
+export function useApprovalChains() {
+  return useQuery({
+    queryKey: ['approval-chains'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('approval_chains')
+        .select('*, benchmark_rules(*)')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as (ApprovalChain & { benchmark_rules: BenchmarkRule | null })[]
+    },
+  })
+}
+
+export function useCreateApprovalChain() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const { data, error } = await supabase
+        .from('approval_chains')
+        .insert(params)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['approval-chains'] })
+    },
+  })
+}
+
+export function useApprovalSteps(documentId: string | undefined) {
+  return useQuery({
+    queryKey: ['approval-steps', documentId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('approval_steps')
+        .select('*')
+        .eq('document_id', documentId!)
+        .order('step_number', { ascending: true })
+      if (error) throw error
+      return data
+    },
+    enabled: !!documentId,
+  })
+}
+
+export function useAdvanceApproval() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (params: { document_id: string; action: string; comment?: string }) => {
+      const { data, error } = await supabase.functions.invoke('advance-approval', {
+        body: params,
+      })
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['approval-steps'] })
+      queryClient.invalidateQueries({ queryKey: ['benchmark-documents'] })
+    },
+  })
+}
+
+export function useCreateApprovalComment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (params: {
+      approval_step_id: string
+      comment: string
+      [key: string]: unknown
+    }) => {
+      const { data, error } = await supabase
+        .from('approval_comments')
+        .insert(params)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['approval-steps'] })
     },
   })
 }

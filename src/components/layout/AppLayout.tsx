@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
-import { Sun, Moon, Upload, LayoutDashboard, ClipboardCheck, FileText, Settings, LogOut, User, Menu, X } from 'lucide-react'
+import { Sun, Moon, Upload, LayoutDashboard, ClipboardCheck, FileText, Settings, LogOut, User, Menu, X, CalendarDays } from 'lucide-react'
+import { NotificationBell } from './NotificationBell'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -85,14 +86,19 @@ export function AppLayout() {
                 <FileText className="h-4 w-4" aria-hidden="true" />
                 Documents
               </NavLink>
+              <NavLink to="/calendar" className={({ isActive }) => navLinkCls(isActive)}>
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                Calendar
+              </NavLink>
               <NavLink to="/settings/benchmark-rules" className={({ isActive }) => navLinkCls(isActive)}>
                 <Settings className="h-4 w-4" aria-hidden="true" />
                 Rules
               </NavLink>
             </div>
 
-            {/* Right side — theme toggle + user menu + mobile hamburger */}
+            {/* Right side — notifications + theme toggle + user menu + mobile hamburger */}
             <div className="flex items-center gap-1">
+              <NotificationBell />
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 aria-label="Toggle theme"
@@ -159,6 +165,10 @@ export function AppLayout() {
               <NavLink to="/documents" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
                 <FileText className="h-4 w-4" aria-hidden="true" />
                 Documents
+              </NavLink>
+              <NavLink to="/calendar" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                Calendar
               </NavLink>
               <NavLink to="/settings/benchmark-rules" onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
                 <Settings className="h-4 w-4" aria-hidden="true" />
