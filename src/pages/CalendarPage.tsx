@@ -134,15 +134,17 @@ export function CalendarPage() {
                     {groupedByMonth[month]!.map((ev) => {
                       const company = ev.companies as { id: string; name: string; ticker: string | null } | undefined
                       const dateStr = new Date(ev.expected_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                      const timeStr = ev.expected_time ? ev.expected_time.slice(0, 5) : null
 
                       return (
                         <div
                           key={ev.id}
                           className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-[var(--color-bg-tertiary)]"
                         >
-                          {/* Date */}
-                          <div className="w-24 shrink-0 text-sm font-medium text-foreground">
-                            {dateStr}
+                          {/* Date + Time */}
+                          <div className="w-28 shrink-0">
+                            <div className="text-sm font-medium text-foreground">{dateStr}</div>
+                            {timeStr && <div className="text-[11px] text-muted-foreground">{timeStr} CET</div>}
                           </div>
 
                           {/* Company + Report Type */}
@@ -255,6 +257,7 @@ function CreateEventDialog({
   const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear())
   const [fiscalQuarter, setFiscalQuarter] = useState<number | null>(null)
   const [expectedDate, setExpectedDate] = useState('')
+  const [expectedTime, setExpectedTime] = useState('07:00')
   const [irPageUrl, setIrPageUrl] = useState('')
   const [directPdfUrl, setDirectPdfUrl] = useState('')
   const [notes, setNotes] = useState('')
@@ -270,6 +273,7 @@ function CreateEventDialog({
         fiscal_year: fiscalYear,
         fiscal_quarter: reportType === 'quarterly' ? fiscalQuarter : null,
         expected_date: expectedDate,
+        expected_time: expectedTime ? `${expectedTime}:00` : null,
         ir_page_url: irPageUrl || null,
         direct_pdf_url: directPdfUrl || null,
         notes: notes || null,
@@ -348,15 +352,27 @@ function CreateEventDialog({
             </div>
           )}
 
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Expected Publication Date</label>
-            <input
-              type="date"
-              value={expectedDate}
-              onChange={(e) => setExpectedDate(e.target.value)}
-              required
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Expected Publication Date</label>
+              <input
+                type="date"
+                value={expectedDate}
+                onChange={(e) => setExpectedDate(e.target.value)}
+                required
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Expected Time (CET)</label>
+              <input
+                type="time"
+                value={expectedTime}
+                onChange={(e) => setExpectedTime(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">Monitoring peaks around this time</p>
+            </div>
           </div>
 
           <div>

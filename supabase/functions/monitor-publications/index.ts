@@ -4,15 +4,17 @@ import { getCorsHeaders } from '../_shared/cors.ts'
 import { jsonResponse, errorResponse } from '../_shared/auth.ts'
 
 /**
- * monitor-publications — Automated scheduler
+ * monitor-publications — Automated scheduler (time-precise)
  *
- * Called periodically by GitHub Actions cron.
- * Queries publication_events in their monitoring window and triggers
- * check-publication for each one.
+ * Called every 2 minutes by GitHub Actions cron.
+ * Uses exact expected_date + expected_time for precision monitoring.
  *
- * Smart Monitoring Windows:
- * - 3 days before expected_date → check every 6h
- * - On expected_date → check every 30min
+ * Smart Monitoring Windows (based on minutes from expected datetime):
+ * - > 3 days before → don't check (too early)
+ * - 3 days to 1 hour before → check every 6h (safety net)
+ * - 1 hour before to 30 min after → check every 2 min (HOT WINDOW)
+ * - 30 min to 4 hours after → check every 5 min
+ * - 4 to 24 hours after → check every 30 min
  * - 1-7 days overdue → check every 2h
  * - 8-30 days overdue → check every 12h
  * - >30 days overdue → mark stale, stop checking
@@ -25,17 +27,42 @@ import { jsonResponse, errorResponse } from '../_shared/auth.ts'
 interface PublicationEvent {
   id: string
   expected_date: string
+  expected_time: string | null
   status: string
   last_checked_at: string | null
 }
 
-function getMonitoringInterval(daysFromExpected: number): number | null {
-  // daysFromExpected: negative = before, 0 = today, positive = overdue
-  if (daysFromExpected < -3) return null // too early
-  if (daysFromExpected <= -1) return 6 * 60 // 3 days before: 6h in minutes
-  if (daysFromExpected === 0) return 30 // on day: 30min
-  if (daysFromExpected <= 7) return 2 * 60 // 1-7 days overdue: 2h
-  if (daysFromExpected <= 30) return 12 * 60 // 8-30 days: 12h
+/**
+ * Returns the expected publication datetime as a Date object.
+ * Combines expected_date + expected_time. If no time, defaults to 07:00 (common publication time).
+ */
+function getExpectedDatetime(event: PublicationEvent): Date {
+  const date = event.expected_date
+  const time = event.expected_time ?? '07:00:00'
+  return new Date(`${date}T${time}`)
+}
+
+/**
+ * Returns the required interval (in minutes) between checks based on
+ * how many minutes until/since the expected publication datetime.
+ */
+function getMonitoringInterval(minutesFromExpected: number): number | null {
+  // minutesFromExpected: negative = before, positive = after expected time
+  const THREE_DAYS = 3 * 24 * 60
+  const ONE_HOUR = 60
+  const THIRTY_MIN = 30
+  const FOUR_HOURS = 4 * 60
+  const ONE_DAY = 24 * 60
+  const SEVEN_DAYS = 7 * 24 * 60
+  const THIRTY_DAYS = 30 * 24 * 60
+
+  if (minutesFromExpected < -THREE_DAYS) return null // too early
+  if (minutesFromExpected < -ONE_HOUR) return 6 * 60 // 3d to 1h before: every 6h
+  if (minutesFromExpected <= THIRTY_MIN) return 2 // HOT WINDOW: every 2 minutes
+  if (minutesFromExpected <= FOUR_HOURS) return 5 // 30min to 4h after: every 5 min
+  if (minutesFromExpected <= ONE_DAY) return 30 // 4h to 24h after: every 30 min
+  if (minutesFromExpected <= SEVEN_DAYS) return 2 * 60 // 1-7 days overdue: 2h
+  if (minutesFromExpected <= THIRTY_DAYS) return 12 * 60 // 8-30 days: 12h
   return null // >30 days: stale
 }
 
@@ -73,7 +100,7 @@ serve(async (req: Request) => {
     // ------------------------------------------------------------------
     const { data: events, error: eventsError } = await adminClient
       .from('publication_events')
-      .select('id, expected_date, status, last_checked_at')
+      .select('id, expected_date, expected_time, status, last_checked_at')
       .in('status', ['scheduled', 'due_today', 'overdue'])
 
     if (eventsError) throw new Error(`Events query failed: ${eventsError.message}`)
@@ -84,16 +111,15 @@ serve(async (req: Request) => {
     const results: { event_id: string; action: string; detail?: string }[] = []
 
     for (const event of events as PublicationEvent[]) {
-      const expectedDate = new Date(event.expected_date)
-      const todayDate = new Date(today)
-      const daysFromExpected = Math.round(
-        (todayDate.getTime() - expectedDate.getTime()) / 86_400_000
-      )
+      const expectedDatetime = getExpectedDatetime(event)
+      const now = Date.now()
+      const minutesFromExpected = (now - expectedDatetime.getTime()) / 60_000
+      const daysFromExpected = minutesFromExpected / (24 * 60)
 
       // ------------------------------------------------------------------
       // 2. Auto-manage statuses
       // ------------------------------------------------------------------
-      if (daysFromExpected > 30 && event.status !== 'stale') {
+      if (daysFromExpected > 30) {
         await adminClient
           .from('publication_events')
           .update({ status: 'stale' })
@@ -102,13 +128,15 @@ serve(async (req: Request) => {
         continue
       }
 
-      if (daysFromExpected === 0 && event.status === 'scheduled') {
+      // Same day as expected and within ±12h of expected time
+      if (Math.abs(minutesFromExpected) <= 12 * 60 && event.status === 'scheduled') {
         await adminClient
           .from('publication_events')
           .update({ status: 'due_today' })
           .eq('id', event.id)
         results.push({ event_id: event.id, action: 'status_update', detail: 'due_today' })
-      } else if (daysFromExpected > 0 && event.status !== 'overdue') {
+      } else if (minutesFromExpected > 24 * 60 && event.status !== 'overdue') {
+        // More than 24h past expected time → overdue
         await adminClient
           .from('publication_events')
           .update({ status: 'overdue' })
@@ -117,9 +145,9 @@ serve(async (req: Request) => {
       }
 
       // ------------------------------------------------------------------
-      // 3. Determine if we should check now
+      // 3. Determine if we should check now (time-precise)
       // ------------------------------------------------------------------
-      const interval = getMonitoringInterval(daysFromExpected)
+      const interval = getMonitoringInterval(minutesFromExpected)
       if (interval === null) {
         results.push({ event_id: event.id, action: 'skipped', detail: 'outside_window' })
         continue
@@ -127,7 +155,7 @@ serve(async (req: Request) => {
 
       const minutesSinceLastCheck = minutesSince(event.last_checked_at)
       if (minutesSinceLastCheck < interval) {
-        results.push({ event_id: event.id, action: 'skipped', detail: 'too_recent' })
+        results.push({ event_id: event.id, action: 'skipped', detail: `too_recent (interval=${interval}min)` })
         continue
       }
 

@@ -2,8 +2,9 @@ name: Monitor Publications (Cron)
 
 on:
   schedule:
-    # Run every 30 minutes
-    - cron: '*/30 * * * *'
+    # Run every 2 minutes for time-precise monitoring
+    # Most runs are no-ops (only events in their hot window get checked)
+    - cron: '*/2 * * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:

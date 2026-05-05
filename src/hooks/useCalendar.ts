@@ -96,6 +96,7 @@ export function useCreatePublicationEvent() {
       fiscal_year: number
       fiscal_quarter?: number | null
       expected_date: string
+      expected_time?: string | null
       ir_page_url?: string | null
       direct_pdf_url?: string | null
       notes?: string | null
