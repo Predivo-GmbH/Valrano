@@ -3,8 +3,26 @@ import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 
 // ---------------------------------------------------------------------------
-// Benchmark document content structure (matches BenchmarkContentJson)
+// Benchmark document content structure (matches EnhancedBenchmarkContentJson)
 // ---------------------------------------------------------------------------
+interface AccountingComparison {
+  kpi_code: string
+  kpi_name: string
+  your_policy: string
+  competitor_policy: string
+  adjustment_amount: number | null
+  adjustment_currency: string
+  explanation: string
+}
+
+interface SourceCitation {
+  kpi_code: string
+  value: number
+  report_title: string
+  page_number: number | null
+  extraction_confidence: number
+}
+
 interface BenchmarkContentJson {
   executive_summary: string
   key_findings: string[]
@@ -31,6 +49,8 @@ interface BenchmarkContentJson {
     high_confidence_pct: number
     fx_rates_used: string[]
   }
+  accounting_comparisons?: AccountingComparison[]
+  source_citations?: SourceCitation[]
 }
 
 // ---------------------------------------------------------------------------
@@ -122,6 +142,27 @@ serve(async (req: Request) => {
       .single()
 
     if (custError) throw new Error(`Customer company lookup failed: ${custError.message}`)
+
+    // ------------------------------------------------------------------
+    // 3b. Load accounting profile (Phase 4)
+    // ------------------------------------------------------------------
+    // Load the accounting profile (Phase 4 — for accounting-aware comparisons)
+    const { data: accountingProfile } = await adminClient
+      .from('accounting_profiles')
+      .select('*')
+      .limit(1)
+      .single()
+
+    let accountingContext = ''
+    if (accountingProfile) {
+      accountingContext = `\n\nACCOUNTING PROFILE (User's Framework):
+- Standard: ${accountingProfile.accounting_standard}
+- Company: ${accountingProfile.company_name}
+- Policies: ${JSON.stringify(accountingProfile.policies ?? {}, null, 2)}
+- KPI Mappings: ${JSON.stringify(accountingProfile.kpi_mappings ?? {}, null, 2)}
+
+When comparing KPIs, identify any accounting policy differences between the user's framework and the competitor's reporting. Flag adjustments needed for like-for-like comparison.`
+    }
 
     // ------------------------------------------------------------------
     // 4. Load all normalized KPI values for the fiscal year
@@ -297,6 +338,38 @@ serve(async (req: Request) => {
                   items: { type: 'string' },
                   description: 'Areas where the competitor outperforms or poses strategic risk',
                 },
+                accounting_comparisons: {
+                  type: 'array',
+                  description: 'Accounting policy differences that affect KPI comparability',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      kpi_code: { type: 'string' },
+                      kpi_name: { type: 'string' },
+                      your_policy: { type: 'string', description: 'How the user calculates this KPI' },
+                      competitor_policy: { type: 'string', description: 'How the competitor calculates this KPI' },
+                      adjustment_amount: { type: ['number', 'null'], description: 'Estimated adjustment in CHF millions' },
+                      adjustment_currency: { type: 'string', description: 'CHF' },
+                      explanation: { type: 'string', description: 'Why this difference matters' },
+                    },
+                    required: ['kpi_code', 'kpi_name', 'your_policy', 'competitor_policy', 'explanation'],
+                  },
+                },
+                source_citations: {
+                  type: 'array',
+                  description: 'Source citations for key data points',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      kpi_code: { type: 'string' },
+                      value: { type: 'number' },
+                      report_title: { type: 'string' },
+                      page_number: { type: ['integer', 'null'] },
+                      extraction_confidence: { type: 'number', description: '0.0 to 1.0' },
+                    },
+                    required: ['kpi_code', 'value', 'report_title', 'extraction_confidence'],
+                  },
+                },
               },
               required: ['executive_summary', 'key_findings', 'competitive_position', 'sections', 'risk_flags'],
             },
@@ -320,7 +393,10 @@ ${comparisonData.join('\n\n')}
 Group the analysis into logical sections (Financial Performance, ESG & Sustainability, Operational Performance as applicable).
 For each KPI, assess whether it represents a "risk" (competitor outperforms), "advantage" (we outperform), or "neutral".
 Be specific with numbers. Reference actual values. Identify strategic implications.
-Flag areas where the competitor is gaining ground or significantly outperforming.`,
+Flag areas where the competitor is gaining ground or significantly outperforming.
+${accountingContext}
+${accountingProfile ? `\nIMPORTANT: Include accounting_comparisons showing policy differences that affect comparability.` : ''}
+Include source_citations for each KPI value with the report title (e.g. "${triggerCompany.name} ${report.report_type === 'annual' ? 'Annual' : report.report_type} Report FY ${report.fiscal_year}") and confidence level.`,
           },
         ],
       }),
@@ -346,9 +422,28 @@ Flag areas where the competitor is gaining ground or significantly outperforming
 
     const generated = toolUseBlock.input as Omit<BenchmarkContentJson, 'data_quality'>
 
+    // Build source citations from extraction data if Claude didn't provide them
+    let sourceCitations = generated.source_citations ?? []
+    if (sourceCitations.length === 0) {
+      // Auto-generate from KPI data
+      for (const row of rows) {
+        const code = (row as any).kpi_definitions?.code
+        if (!code || !selectedCodes.has(code)) continue
+        sourceCitations.push({
+          kpi_code: code,
+          value: row.normalized_value,
+          report_title: `${(row as any).companies?.name ?? 'Unknown'} Report FY ${report.fiscal_year}`,
+          page_number: null,
+          extraction_confidence: row.confidence ?? 0.5,
+        })
+      }
+    }
+
     // Assemble full content
     const contentJson: BenchmarkContentJson = {
       ...generated,
+      accounting_comparisons: generated.accounting_comparisons ?? [],
+      source_citations: sourceCitations,
       data_quality: {
         total_kpis_compared: selectedCodes.size,
         high_confidence_pct: highConfPct,
@@ -515,6 +610,35 @@ function renderBenchmarkHtml(
   <!-- Sections -->
   ${sectionsHtml}
 
+  <!-- Accounting Differences (Phase 4) -->
+  ${
+    (content.accounting_comparisons ?? []).length > 0
+      ? `<div style="margin-bottom:32px">
+    <h2 style="font-size:18px;font-weight:600;color:#f8fafc;margin:0 0 12px 0;padding-bottom:8px;border-bottom:1px solid #334155">Accounting Differences</h2>
+    <p style="font-size:13px;color:#94a3b8;margin:0 0 16px 0">The following accounting policy differences affect comparability. Values have been adjusted to ${meta.customerName}'s framework where possible.</p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="border-bottom:1px solid #334155">
+          <th style="text-align:left;padding:8px 12px;color:#94a3b8;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">KPI</th>
+          <th style="text-align:left;padding:8px 12px;color:#94a3b8;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">${meta.customerName} Policy</th>
+          <th style="text-align:left;padding:8px 12px;color:#94a3b8;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">${meta.triggerName} Policy</th>
+          <th style="text-align:right;padding:8px 12px;color:#94a3b8;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.05em">Adjustment</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${content.accounting_comparisons!.map((ac) => `
+        <tr style="border-bottom:1px solid #1e293b">
+          <td style="padding:10px 12px;color:#e2e8f0;font-weight:500">${ac.kpi_name}</td>
+          <td style="padding:10px 12px;color:#cbd5e1;font-size:12px">${ac.your_policy}</td>
+          <td style="padding:10px 12px;color:#cbd5e1;font-size:12px">${ac.competitor_policy}</td>
+          <td style="padding:10px 12px;text-align:right;color:${ac.adjustment_amount && ac.adjustment_amount < 0 ? '#ef4444' : '#22c55e'};font-variant-numeric:tabular-nums">${ac.adjustment_amount ? `${ac.adjustment_amount > 0 ? '+' : ''}${fmtVal(ac.adjustment_amount)}` : '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`
+      : ''
+  }
+
   <!-- Risk Flags -->
   ${
     content.risk_flags.length > 0
@@ -523,6 +647,26 @@ function renderBenchmarkHtml(
     <ul style="margin:0;padding:0 0 0 20px;list-style:disc">
       ${content.risk_flags.map((r) => `<li style="font-size:14px;line-height:1.7;color:#fca5a5;margin-bottom:6px">${r}</li>`).join('')}
     </ul>
+  </div>`
+      : ''
+  }
+
+  <!-- Source Citations (Phase 4) -->
+  ${
+    (content.source_citations ?? []).length > 0
+      ? `<div style="margin-bottom:24px;margin-top:32px">
+    <h2 style="font-size:14px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 12px 0">Sources & Confidence</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">
+      ${content.source_citations!.map((sc) => {
+        const confColor = sc.extraction_confidence >= 0.85 ? '#22c55e' : sc.extraction_confidence >= 0.6 ? '#f59e0b' : '#ef4444'
+        const confLabel = sc.extraction_confidence >= 0.85 ? 'High' : sc.extraction_confidence >= 0.6 ? 'Medium' : 'Low'
+        return `<div style="padding:8px 12px;border-radius:6px;background:#1e293b;border:1px solid #334155;font-size:12px">
+          <div style="color:#e2e8f0;font-weight:500">${sc.kpi_code}: ${fmtVal(sc.value)}</div>
+          <div style="color:#94a3b8;margin-top:2px">${sc.report_title}${sc.page_number ? `, p.${sc.page_number}` : ''}</div>
+          <div style="margin-top:4px"><span style="color:${confColor};font-weight:600">${confLabel}</span> confidence (${Math.round(sc.extraction_confidence * 100)}%)</div>
+        </div>`
+      }).join('')}
+    </div>
   </div>`
       : ''
   }

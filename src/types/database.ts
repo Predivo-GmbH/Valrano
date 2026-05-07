@@ -581,6 +581,84 @@ export type AccountingProfileInsert = Omit<AccountingProfile, 'id' | 'created_at
 export type AccountingProfileUpdate = Partial<AccountingProfileInsert>;
 
 // ---------------------------------------------------------------------------
+// Phase 3 types — AI Assistant (Chat + Insights)
+// ---------------------------------------------------------------------------
+
+export type InsightType = 'trend_reversal' | 'outlier' | 'risk_flag' | 'opportunity';
+export type InsightPriority = 'low' | 'medium' | 'high';
+export type ChatRole = 'user' | 'assistant';
+
+export interface ChatSession {
+  id: string;
+  user_id: string;
+  title: string | null;
+  page_context: string | null;
+  created_at: string;
+  last_message_at: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: ChatRole;
+  content: string;
+  citations: ChatCitation[];
+  created_at: string;
+}
+
+export interface ChatCitation {
+  report_id?: string;
+  report_title?: string;
+  page?: number;
+  text?: string;
+}
+
+export interface AiInsight {
+  id: string;
+  user_id: string;
+  insight_type: InsightType;
+  title: string;
+  body: string;
+  related_company_id: string | null;
+  related_kpi_code: string | null;
+  fiscal_year: number | null;
+  priority: InsightPriority | null;
+  is_dismissed: boolean;
+  created_at: string;
+}
+
+export type ChatSessionInsert = Omit<ChatSession, 'id' | 'created_at' | 'last_message_at'>;
+export type ChatMessageInsert = Omit<ChatMessage, 'id' | 'created_at'>;
+export type AiInsightInsert = Omit<AiInsight, 'id' | 'created_at'>;
+
+// ---------------------------------------------------------------------------
+// Phase 4 types — Enhanced Document Generation
+// ---------------------------------------------------------------------------
+
+export interface AccountingComparison {
+  kpi_code: string;
+  kpi_name: string;
+  your_policy: string;
+  competitor_policy: string;
+  adjustment_amount: number | null;
+  adjustment_currency: string;
+  explanation: string;
+}
+
+export interface SourceCitation {
+  kpi_code: string;
+  value: number;
+  report_title: string;
+  page_number: number | null;
+  extraction_confidence: number;
+}
+
+export interface EnhancedBenchmarkContentJson extends BenchmarkContentJson {
+  accounting_comparisons?: AccountingComparison[];
+  source_citations?: SourceCitation[];
+}
+
+// ---------------------------------------------------------------------------
 // Extended KpiValue with accounting adjustment fields
 // ---------------------------------------------------------------------------
 

@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { useBenchmarkDocument, useUpdateDocumentStatus } from '@/hooks/useBenchmark'
-import type { DocumentStatus, BenchmarkContentJson } from '@/types/database'
+import type { DocumentStatus, EnhancedBenchmarkContentJson } from '@/types/database'
 import {
   ArrowLeft,
   Printer,
@@ -14,6 +14,10 @@ import {
   TrendingDown,
   Minus,
   Loader2,
+  Scale,
+  BookOpen,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -62,7 +66,7 @@ function SignalBadge({ signal }: { signal: string }) {
 // ---------------------------------------------------------------------------
 
 function DocumentContent({ content, triggerName, customerName }: {
-  content: BenchmarkContentJson
+  content: EnhancedBenchmarkContentJson
   triggerName: string
   customerName: string
 }) {
@@ -172,6 +176,94 @@ function DocumentContent({ content, triggerName, customerName }: {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Accounting Differences (Phase 4) */}
+      {content.accounting_comparisons && content.accounting_comparisons.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Scale className="h-4 w-4 text-[var(--color-accent)]" />
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Accounting Differences
+            </h2>
+          </div>
+          <p className="mb-3 text-[12px] text-muted-foreground">
+            The following accounting policy differences affect comparability. Values have been adjusted to {customerName}'s framework where possible.
+          </p>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full min-w-max border-collapse text-[13px]">
+              <thead>
+                <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">KPI</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">{customerName} Policy</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">{triggerName} Policy</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Adjustment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {content.accounting_comparisons.map((ac, i) => (
+                  <tr key={i} className="border-b border-border last:border-0 hover:bg-[var(--color-bg-tertiary)] transition-colors">
+                    <td className="px-4 py-3 font-medium text-foreground">{ac.kpi_name}</td>
+                    <td className="px-4 py-3 text-[12px] text-muted-foreground">{ac.your_policy}</td>
+                    <td className="px-4 py-3 text-[12px] text-muted-foreground">{ac.competitor_policy}</td>
+                    <td className={cn(
+                      'px-4 py-3 text-right tabular-nums font-medium',
+                      ac.adjustment_amount && ac.adjustment_amount < 0
+                        ? 'text-[var(--color-signal-red)]'
+                        : 'text-[var(--color-signal-green)]',
+                    )}>
+                      {ac.adjustment_amount
+                        ? `${ac.adjustment_amount > 0 ? '+' : ''}${formatVal(ac.adjustment_amount)}`
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Source Citations & Confidence (Phase 4) */}
+      {content.source_citations && content.source_citations.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Sources & Confidence
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {content.source_citations.map((sc, i) => {
+              const confPct = Math.round(sc.extraction_confidence * 100)
+              const isHigh = sc.extraction_confidence >= 0.85
+              const isMedium = sc.extraction_confidence >= 0.6
+              const confColor = isHigh
+                ? 'text-[var(--color-signal-green)]'
+                : isMedium
+                  ? 'text-[var(--color-signal-amber)]'
+                  : 'text-[var(--color-signal-red)]'
+              const confLabel = isHigh ? 'High' : isMedium ? 'Medium' : 'Low'
+              const ConfIcon = isHigh ? ShieldCheck : ShieldAlert
+
+              return (
+                <div key={i} className="rounded-lg border border-border bg-[var(--color-bg-tertiary)] p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[12px] font-medium text-foreground">{sc.kpi_code}</span>
+                    <span className="text-[12px] tabular-nums text-foreground">{formatVal(sc.value)}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {sc.report_title}{sc.page_number ? `, p.${sc.page_number}` : ''}
+                  </p>
+                  <div className={cn('flex items-center gap-1 mt-1.5', confColor)}>
+                    <ConfIcon className="h-3 w-3" />
+                    <span className="text-[10px] font-semibold">{confLabel} ({confPct}%)</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

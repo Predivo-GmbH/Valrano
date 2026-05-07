@@ -4,6 +4,7 @@ import { useCompanies, useKpiDefinitions, useKpiValues, useReports } from '@/hoo
 import { usePrimaryCompany, useMyCompanyKpis } from '@/hooks/useMyCompany'
 import { usePublicationEvents } from '@/hooks/useCalendar'
 import { useBenchmarkDocuments } from '@/hooks/useBenchmark'
+import { useInsights, useDismissInsight, useGenerateInsights } from '@/hooks/useInsights'
 import { useSmartYear } from '@/hooks/useSmartYear'
 import type { Company, KpiDefinition, KpiValue, KpiCategory } from '@/types/database'
 import { formatKpiValue } from '@/lib/format'
@@ -32,6 +33,12 @@ import {
   FileCheck,
   Sparkles,
   ExternalLink,
+  Loader2,
+  X,
+  TrendingUp as TrendingUpIcon,
+  AlertTriangle,
+  Lightbulb,
+  Target,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -526,6 +533,123 @@ const CATEGORY_LABELS: Record<KpiCategory, string> = {
   financial: 'Financial',
   esg: 'ESG',
   operational: 'Operational',
+}
+
+// ---------------------------------------------------------------------------
+// AI Insights section
+// ---------------------------------------------------------------------------
+
+const INSIGHT_ICONS: Record<string, typeof Sparkles> = {
+  trend_reversal: TrendingUpIcon,
+  outlier: Target,
+  risk_flag: AlertTriangle,
+  opportunity: Lightbulb,
+}
+
+const INSIGHT_COLORS: Record<string, string> = {
+  trend_reversal: 'text-[var(--color-accent)]',
+  outlier: 'text-[var(--color-signal-amber)]',
+  risk_flag: 'text-[var(--color-signal-red)]',
+  opportunity: 'text-[var(--color-signal-green)]',
+}
+
+const PRIORITY_BADGE: Record<string, string> = {
+  high: 'bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)]',
+  medium: 'bg-[var(--color-signal-amber)]/10 text-[var(--color-signal-amber)]',
+  low: 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
+}
+
+function AiInsightsSection() {
+  const { data: insights, isLoading } = useInsights({ dismissed: false })
+  const dismissInsight = useDismissInsight()
+  const generateInsights = useGenerateInsights()
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-[15px] font-semibold text-foreground flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-muted-foreground" />
+          AI Insights
+        </h2>
+        <button
+          onClick={() => generateInsights.mutate()}
+          disabled={generateInsights.isPending}
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground disabled:opacity-40"
+        >
+          {generateInsights.isPending ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Sparkles className="h-3 w-3" />
+          )}
+          {generateInsights.isPending ? 'Generating...' : 'Generate'}
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-20 animate-pulse rounded-lg bg-[var(--color-bg-tertiary)]" />
+          ))}
+        </div>
+      ) : !insights || insights.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 flex flex-col items-center justify-center text-center">
+          <div className="mb-3 rounded-full bg-[var(--color-bg-tertiary)] p-3">
+            <Sparkles className="h-5 w-5 text-muted-foreground/50" />
+          </div>
+          <p className="text-[13px] font-medium text-muted-foreground">No insights yet</p>
+          <p className="text-[11px] text-muted-foreground/70 mt-1 max-w-sm">
+            Click "Generate" to analyze your benchmark data and surface key findings.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {insights.map((insight) => {
+            const Icon = INSIGHT_ICONS[insight.insight_type] ?? Sparkles
+            const iconColor = INSIGHT_COLORS[insight.insight_type] ?? 'text-muted-foreground'
+            const priorityClass = PRIORITY_BADGE[insight.priority ?? 'low'] ?? PRIORITY_BADGE.low
+
+            return (
+              <div
+                key={insight.id}
+                className="group relative rounded-lg border border-border bg-card p-4 transition-colors hover:bg-[var(--color-bg-tertiary)]"
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 flex-shrink-0 ${iconColor}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-[13px] font-medium text-foreground truncate">
+                        {insight.title}
+                      </h3>
+                      <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${priorityClass}`}>
+                        {insight.priority}
+                      </span>
+                    </div>
+                    <p className="text-[12px] leading-relaxed text-muted-foreground">
+                      {insight.body}
+                    </p>
+                    {insight.companies && (
+                      <p className="mt-1 text-[11px] text-muted-foreground/70">
+                        {insight.companies.name}{insight.related_kpi_code ? ` · ${insight.related_kpi_code}` : ''}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => dismissInsight.mutate(insight.id)}
+                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                    aria-label="Dismiss insight"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function DashboardPage() {
@@ -1290,23 +1414,9 @@ export function DashboardPage() {
       </div>
 
       {/* ================================================================== */}
-      {/* Section 6: AI Insights (Phase 3 placeholder)                      */}
+      {/* Section 6: AI Insights                                            */}
       {/* ================================================================== */}
-      <div className="mb-8">
-        <h2 className="text-[15px] font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-muted-foreground" />
-          AI Insights
-        </h2>
-        <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 flex flex-col items-center justify-center text-center">
-          <div className="mb-3 rounded-full bg-[var(--color-bg-tertiary)] p-3">
-            <Sparkles className="h-5 w-5 text-muted-foreground/50" />
-          </div>
-          <p className="text-[13px] font-medium text-muted-foreground">AI-powered insights coming soon</p>
-          <p className="text-[11px] text-muted-foreground/70 mt-1 max-w-sm">
-            Proactive analysis of your benchmark data, accounting differences, and competitive positioning.
-          </p>
-        </div>
-      </div>
+      <AiInsightsSection />
     </div>
   )
 }

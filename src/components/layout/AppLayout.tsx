@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
 import { Sun, Moon, LayoutDashboard, Users, Settings, LogOut, User, Menu, X, BarChart3, FileBarChart } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
+import { ChatPanel } from './ChatPanel'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -191,6 +192,9 @@ export function AppLayout() {
         <main id="main-content" className="pt-16">
           <Outlet />
         </main>
+
+        {/* AI Assistant — persistent across all pages */}
+        <ChatPanel />
       </div>
     </TooltipProvider>
   )
