@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useCompanies, useKpiDefinitions, useKpiValues, useReports } from '@/hooks/useData'
 import { usePrimaryCompany, useMyCompanyKpis } from '@/hooks/useMyCompany'
 import { usePublicationEvents } from '@/hooks/useCalendar'
+import { useBenchmarkDocuments } from '@/hooks/useBenchmark'
 import { useSmartYear } from '@/hooks/useSmartYear'
 import type { Company, KpiDefinition, KpiValue, KpiCategory } from '@/types/database'
 import { formatKpiValue } from '@/lib/format'
@@ -17,8 +18,6 @@ import {
   Upload,
   Building2,
   Users,
-  TrendingUp,
-  Clock,
   AlertCircle,
   Activity,
   FileText,
@@ -28,6 +27,11 @@ import {
   ArrowDown,
   ChevronDown,
   ChevronRight,
+  Zap,
+  Calendar,
+  FileCheck,
+  Sparkles,
+  ExternalLink,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -113,6 +117,56 @@ function computePercentile(myValue: number, peerValues: number[]): number {
   const allValues = [...peerValues, myValue].sort((a, b) => a - b)
   const rank = allValues.indexOf(myValue)
   return Math.round((rank / (allValues.length - 1)) * 100)
+}
+
+function getCountdown(dateStr: string): string {
+  const now = new Date()
+  const target = new Date(dateStr)
+  const diffMs = target.getTime() - now.getTime()
+  if (diffMs < 0) {
+    const daysAgo = Math.floor(Math.abs(diffMs) / 86400000)
+    if (daysAgo === 0) return 'Today'
+    return `${daysAgo}d overdue`
+  }
+  const days = Math.floor(diffMs / 86400000)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  if (days < 7) return `${days} days`
+  if (days < 30) return `${Math.floor(days / 7)}w ${days % 7}d`
+  return `${Math.floor(days / 30)}mo`
+}
+
+function getEventStatusColor(status: string): string {
+  switch (status) {
+    case 'overdue': return 'text-[var(--color-signal-red)]'
+    case 'due_today': return 'text-[var(--color-signal-amber)]'
+    case 'detected': return 'text-[var(--color-signal-green)]'
+    case 'ingested': return 'text-[var(--color-accent)]'
+    case 'benchmark_ready': return 'text-[var(--color-primary)]'
+    default: return 'text-muted-foreground'
+  }
+}
+
+function getEventStatusDot(status: string): string {
+  switch (status) {
+    case 'overdue': return 'bg-[var(--color-signal-red)]'
+    case 'due_today': return 'bg-[var(--color-signal-amber)]'
+    case 'detected': return 'bg-[var(--color-signal-green)]'
+    case 'ingested': return 'bg-[var(--color-accent)]'
+    case 'benchmark_ready': return 'bg-[var(--color-primary)]'
+    default: return 'bg-muted-foreground'
+  }
+}
+
+function getDocStatusBadge(status: string): { label: string; className: string } {
+  switch (status) {
+    case 'draft': return { label: 'Draft', className: 'bg-muted text-muted-foreground' }
+    case 'in_review': return { label: 'In Review', className: 'bg-[var(--color-signal-amber)]/10 text-[var(--color-signal-amber)]' }
+    case 'approved': return { label: 'Approved', className: 'bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)]' }
+    case 'delivered': return { label: 'Delivered', className: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]' }
+    case 'rejected': return { label: 'Rejected', className: 'bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)]' }
+    default: return { label: status, className: 'bg-muted text-muted-foreground' }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -497,6 +551,7 @@ export function DashboardPage() {
 
   const { data: reports } = useReports()
   const { data: publicationEvents } = usePublicationEvents()
+  const { data: benchmarkDocs } = useBenchmarkDocuments()
   const { data: myCompanyKpis } = useMyCompanyKpis(primaryCompanyData?.id, effectiveYear)
 
   const isLoading = companiesLoading || defsLoading || valuesLoading || yearLoading
@@ -624,27 +679,6 @@ export function DashboardPage() {
   // Computed metrics for summary cards
   // ---------------------------------------------------------------------------
 
-  const positionMetric = useMemo(() => {
-    if (!myCompanyKpis || myCompanyKpis.length === 0 || !kpiValues || !companies) return null
-    const percentiles: number[] = []
-    for (const myKpi of myCompanyKpis) {
-      const defId = myKpi.kpi_definition_id
-      const peerNums: number[] = []
-      for (const c of companies) {
-        const v = valueMap.get(`${c.id}__${defId}`)
-        if (v?.normalized_value != null) peerNums.push(v.normalized_value)
-      }
-      if (peerNums.length > 0) {
-        const higherIsBetter = !LOWER_IS_BETTER_CODES.has(myKpi.kpi_definitions?.code ?? '')
-        let p = computePercentile(myKpi.value, peerNums)
-        if (!higherIsBetter) p = 100 - p
-        percentiles.push(p)
-      }
-    }
-    if (percentiles.length === 0) return null
-    return Math.round(percentiles.reduce((a, b) => a + b, 0) / percentiles.length)
-  }, [myCompanyKpis, kpiValues, companies, valueMap])
-
   const activeMonitored = useMemo(() => {
     if (!publicationEvents) return 0
     return publicationEvents.filter(
@@ -652,18 +686,52 @@ export function DashboardPage() {
     ).length
   }, [publicationEvents])
 
-  const dataFreshness = useMemo(() => {
-    if (!reports || reports.length === 0) return null
-    const sorted = [...reports].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
-    return getRelativeTime(sorted[0].created_at)
-  }, [reports])
+  const pipelineActive = useMemo(() => {
+    if (!publicationEvents) return 0
+    return publicationEvents.filter(
+      (e) => e.status === 'detected' || e.status === 'ingested'
+    ).length
+  }, [publicationEvents])
+
+  const nextReport = useMemo(() => {
+    if (!publicationEvents) return null
+    const upcoming = publicationEvents
+      .filter((e) => e.status === 'scheduled' || e.status === 'due_today' || e.status === 'overdue')
+      .sort((a, b) => new Date(a.expected_date).getTime() - new Date(b.expected_date).getTime())
+    if (upcoming.length === 0) return null
+    const event = upcoming[0]
+    const companyName = (event as unknown as { companies: Company }).companies?.name ?? 'Unknown'
+    return { countdown: getCountdown(event.expected_date), company: companyName, status: event.status }
+  }, [publicationEvents])
+
+  const documentsReady = useMemo(() => {
+    if (!benchmarkDocs) return 0
+    return benchmarkDocs.filter((d) => d.status === 'approved' || d.status === 'delivered').length
+  }, [benchmarkDocs])
 
   const pendingReviews = useMemo(() => {
     if (!kpiValues) return 0
     return (kpiValues as KpiValueWithJoins[]).filter((v) => v.needs_review).length
   }, [kpiValues])
+
+  const upcomingEvents = useMemo(() => {
+    if (!publicationEvents) return []
+    return publicationEvents
+      .filter((e) => e.status !== 'cancelled' && e.status !== 'benchmark_ready')
+      .sort((a, b) => {
+        const statusOrder: Record<string, number> = { overdue: 0, due_today: 1, detected: 2, ingested: 3, scheduled: 4 }
+        const aOrder = statusOrder[a.status] ?? 5
+        const bOrder = statusOrder[b.status] ?? 5
+        if (aOrder !== bOrder) return aOrder - bOrder
+        return new Date(a.expected_date).getTime() - new Date(b.expected_date).getTime()
+      })
+      .slice(0, 6)
+  }, [publicationEvents])
+
+  const recentDocuments = useMemo(() => {
+    if (!benchmarkDocs) return []
+    return benchmarkDocs.slice(0, 5)
+  }, [benchmarkDocs])
 
   // ---------------------------------------------------------------------------
   // Performance snapshot KPIs
@@ -805,25 +873,25 @@ export function DashboardPage() {
         ) : (
           <>
             <MetricCard
-              icon={<TrendingUp className="h-4 w-4 text-[var(--color-signal-green)]" />}
-              label="Your Position"
-              value={positionMetric !== null ? `P${positionMetric}` : '\u2014'}
-              subtitle={`vs ${companies?.length ?? 0} peers`}
-              accentColor="bg-[var(--color-signal-green)]/10"
-            />
-            <MetricCard
-              icon={<Users className="h-4 w-4 text-[var(--color-accent)]" />}
-              label="Peers Tracked"
-              value={String(companies?.length ?? 0)}
-              subtitle={`${companiesWithData.length} with data · ${activeMonitored} monitored`}
+              icon={<Zap className="h-4 w-4 text-[var(--color-accent)]" />}
+              label="Pipeline Active"
+              value={String(pipelineActive + activeMonitored)}
+              subtitle={`${activeMonitored} monitored · ${pipelineActive} processing`}
               accentColor="bg-[var(--color-accent)]/10"
             />
             <MetricCard
-              icon={<Clock className="h-4 w-4 text-[var(--color-primary)]" />}
-              label="Data Freshness"
-              value={dataFreshness ?? '\u2014'}
-              subtitle="Last report uploaded"
+              icon={<Calendar className="h-4 w-4 text-[var(--color-primary)]" />}
+              label="Next Report"
+              value={nextReport?.countdown ?? '\u2014'}
+              subtitle={nextReport ? nextReport.company : 'No upcoming reports'}
               accentColor="bg-[var(--color-primary)]/10"
+            />
+            <MetricCard
+              icon={<FileCheck className="h-4 w-4 text-[var(--color-signal-green)]" />}
+              label="Documents Ready"
+              value={String(documentsReady)}
+              subtitle={`${benchmarkDocs?.length ?? 0} total generated`}
+              accentColor="bg-[var(--color-signal-green)]/10"
             />
             <MetricCard
               icon={<AlertCircle className="h-4 w-4 text-[var(--color-signal-amber)]" />}
@@ -837,7 +905,63 @@ export function DashboardPage() {
       </div>
 
       {/* ================================================================== */}
-      {/* Section 3: Performance Snapshot                                    */}
+      {/* Section 3: Upcoming Publications Timeline                         */}
+      {/* ================================================================== */}
+      {upcomingEvents.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[15px] font-semibold text-foreground flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              Upcoming Publications
+            </h2>
+            <Link
+              to="/calendar"
+              className="text-[11px] font-medium text-[var(--color-accent)] hover:underline flex items-center gap-1"
+            >
+              View Calendar
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            {upcomingEvents.map((event, i) => {
+              const companyName = (event as unknown as { companies: Company }).companies?.name ?? 'Unknown'
+              const isOverdue = event.status === 'overdue'
+              const isDueToday = event.status === 'due_today'
+              return (
+                <div
+                  key={event.id}
+                  className={`flex items-center gap-3 px-4 py-3 ${i < upcomingEvents.length - 1 ? 'border-b border-border/50' : ''} ${
+                    isOverdue ? 'bg-[var(--color-signal-red)]/[0.03]' : isDueToday ? 'bg-[var(--color-signal-amber)]/[0.03]' : ''
+                  }`}
+                >
+                  <div className={`flex-shrink-0 h-2 w-2 rounded-full ${getEventStatusDot(event.status)}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-medium text-foreground truncate">{companyName}</span>
+                      <span className="flex-shrink-0 text-[10px] text-muted-foreground bg-[var(--color-bg-tertiary)] rounded px-1.5 py-px">
+                        {event.report_type}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      FY {event.fiscal_year}{event.fiscal_quarter ? ` Q${event.fiscal_quarter}` : ''}
+                      {' · '}
+                      {new Date(event.expected_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    </div>
+                  </div>
+                  <div className={`flex-shrink-0 text-[12px] font-semibold tabular-nums ${getEventStatusColor(event.status)}`}>
+                    {event.status === 'detected' ? 'Detected' :
+                     event.status === 'ingested' ? 'Ingested' :
+                     getCountdown(event.expected_date)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================== */}
+      {/* Section 3b: Performance Snapshot                                   */}
       {/* ================================================================== */}
       {performanceKpis.length > 0 && (
         <div className="mb-8">
@@ -1080,26 +1204,109 @@ export function DashboardPage() {
       </div>
 
       {/* ================================================================== */}
-      {/* Section 5: Recent Activity                                         */}
+      {/* Section 5: Recent Documents + Recent Activity (2-col on desktop)  */}
       {/* ================================================================== */}
-      {activityItems.length > 0 && (
+      <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Documents */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[15px] font-semibold text-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              Recent Documents
+            </h2>
+            <Link
+              to="/documents"
+              className="text-[11px] font-medium text-[var(--color-accent)] hover:underline flex items-center gap-1"
+            >
+              View All
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            {recentDocuments.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                <FileText className="h-6 w-6 text-muted-foreground/40 mb-2" />
+                <p className="text-[13px] text-muted-foreground">No documents generated yet</p>
+                <p className="text-[11px] text-muted-foreground/70 mt-1">Documents appear here when reports are processed</p>
+              </div>
+            ) : (
+              recentDocuments.map((doc, i) => {
+                const badge = getDocStatusBadge(doc.status)
+                const triggerName = doc.trigger_company?.name ?? 'Unknown'
+                return (
+                  <Link
+                    key={doc.id}
+                    to={`/documents/${doc.id}`}
+                    className={`flex items-center gap-3 px-4 py-3 hover:bg-[var(--color-bg-tertiary)]/30 transition-colors duration-100 ${
+                      i < recentDocuments.length - 1 ? 'border-b border-border/50' : ''
+                    }`}
+                  >
+                    <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-medium text-foreground truncate">
+                        {doc.title || `${triggerName} Benchmark`}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        {triggerName} · FY {doc.fiscal_year}
+                        {doc.generated_at ? ` · ${getRelativeTime(doc.generated_at)}` : ''}
+                      </div>
+                    </div>
+                    <span className={`flex-shrink-0 rounded px-2 py-0.5 text-[10px] font-medium ${badge.className}`}>
+                      {badge.label}
+                    </span>
+                  </Link>
+                )
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Recent Activity */}
         <div>
           <h2 className="text-[15px] font-semibold text-foreground mb-3 flex items-center gap-2">
             <Activity className="h-4 w-4 text-muted-foreground" />
             Recent Activity
           </h2>
           <div className="rounded-xl border border-border bg-card px-5 py-2">
-            {activityItems.map((item, i) => (
-              <ActivityItem
-                key={i}
-                icon={item.icon}
-                description={item.description}
-                time={getRelativeTime(item.time.toISOString())}
-              />
-            ))}
+            {activityItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                <Activity className="h-6 w-6 text-muted-foreground/40 mb-2" />
+                <p className="text-[13px] text-muted-foreground">No recent activity</p>
+              </div>
+            ) : (
+              activityItems.map((item, i) => (
+                <ActivityItem
+                  key={i}
+                  icon={item.icon}
+                  description={item.description}
+                  time={getRelativeTime(item.time.toISOString())}
+                />
+              ))
+            )}
           </div>
         </div>
-      )}
+      </div>
+
+      {/* ================================================================== */}
+      {/* Section 6: AI Insights (Phase 3 placeholder)                      */}
+      {/* ================================================================== */}
+      <div className="mb-8">
+        <h2 className="text-[15px] font-semibold text-foreground mb-3 flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-muted-foreground" />
+          AI Insights
+        </h2>
+        <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 flex flex-col items-center justify-center text-center">
+          <div className="mb-3 rounded-full bg-[var(--color-bg-tertiary)] p-3">
+            <Sparkles className="h-5 w-5 text-muted-foreground/50" />
+          </div>
+          <p className="text-[13px] font-medium text-muted-foreground">AI-powered insights coming soon</p>
+          <p className="text-[11px] text-muted-foreground/70 mt-1 max-w-sm">
+            Proactive analysis of your benchmark data, accounting differences, and competitive positioning.
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
