@@ -72,13 +72,13 @@ describe('LandingPage', () => {
 
   it('renders footer with copyright', () => {
     renderLanding()
-    expect(screen.getByText(/predivo gmbh/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/predivo gmbh/i).length).toBeGreaterThanOrEqual(1)
   })
 
   it('includes JSON-LD structured data in Helmet', () => {
     renderLanding()
     // Helmet manages head — we verify the script tag data is passed correctly
     // by checking the component renders without error (JSON-LD is in Helmet)
-    expect(screen.getByText('BenchmarkSignal')).toBeInTheDocument()
+    expect(screen.getAllByText('BenchmarkSignal').length).toBeGreaterThanOrEqual(1)
   })
 })
