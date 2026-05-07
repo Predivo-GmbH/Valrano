@@ -8,7 +8,7 @@ import { useInsights, useDismissInsight, useGenerateInsights } from '@/hooks/use
 import { useSmartYear } from '@/hooks/useSmartYear'
 import { useOnboardingDismissed } from '@/hooks/useOnboarding'
 import WelcomeWizard, { SetupProgressBanner } from '@/components/onboarding'
-import type { Company, KpiDefinition, KpiValue, KpiCategory } from '@/types/database'
+import type { Company, KpiValue, KpiCategory } from '@/types/database'
 import {
   getGreeting,
   getRelativeTime,
