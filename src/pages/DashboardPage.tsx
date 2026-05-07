@@ -8,7 +8,7 @@ import { useInsights, useDismissInsight, useGenerateInsights } from '@/hooks/use
 import { useSmartYear } from '@/hooks/useSmartYear'
 import { useOnboardingDismissed } from '@/hooks/useOnboarding'
 import WelcomeWizard, { SetupProgressBanner } from '@/components/onboarding'
-import type { Company, KpiValue, KpiCategory } from '@/types/database'
+import type { Company, KpiCategory } from '@/types/database'
 import {
   getGreeting,
   getRelativeTime,
@@ -24,11 +24,6 @@ import {
   SortableHeader,
 } from '@/components/dashboard'
 import type { KpiValueWithJoins, SortConfig } from '@/components/dashboard'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
