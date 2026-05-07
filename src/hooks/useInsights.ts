@@ -51,7 +51,7 @@ export function useDismissInsight() {
 export function useGenerateInsights() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (params?: { fiscal_year?: number }) => {
+    mutationFn: async (params: { fiscal_year?: number } | void) => {
       const { data, error } = await supabase.functions.invoke('generate-insights', {
         body: params ?? {},
       })
