@@ -25,34 +25,26 @@ describe('LandingPage', () => {
     expect(screen.getByText('The Solution')).toBeInTheDocument()
     // "Features" appears in both nav and section label — use getAllByText
     expect(screen.getAllByText('Features').length).toBeGreaterThanOrEqual(2)
-    expect(screen.getAllByText('Pricing').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText(/enterprise solution/i)).toBeInTheDocument()
     expect(screen.getAllByText('FAQ').length).toBeGreaterThanOrEqual(2)
     expect(
       screen.getByText(/stop building peer comparisons manually/i),
     ).toBeInTheDocument()
   })
 
-  it('renders 3 pricing tiers without prices', () => {
+  it('renders enterprise pricing section without tier prices', () => {
     renderLanding()
-    expect(screen.getAllByText('Starter').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Professional').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Enterprise').length).toBeGreaterThanOrEqual(1)
-    // No tier prices (e.g., "CHF 28,800/year") visible — only "Request a Demo"
-    expect(screen.queryByText(/CHF\s*28,800/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/CHF\s*58,800/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/CHF\s*118,800/)).not.toBeInTheDocument()
+    expect(screen.getByText(/tailored to your organization/i)).toBeInTheDocument()
+    expect(screen.getByText(/schedule a consultation/i)).toBeInTheDocument()
+    // No multi-tier pricing
+    expect(screen.queryByText('Starter')).not.toBeInTheDocument()
+    expect(screen.queryByText('Professional')).not.toBeInTheDocument()
   })
 
-  it('renders Request a Demo mailto links', () => {
+  it('renders Schedule a Consultation mailto link', () => {
     renderLanding()
-    const demoLinks = screen.getAllByText('Request a Demo')
-    expect(demoLinks.length).toBeGreaterThanOrEqual(3)
-    // Pricing demo links should be mailto
-    const mailtoLinks = demoLinks.filter(
-      (el) =>
-        el.closest('a')?.href.includes('mailto:'),
-    )
-    expect(mailtoLinks.length).toBeGreaterThanOrEqual(3)
+    const ctaLink = screen.getByText(/schedule a consultation/i).closest('a')
+    expect(ctaLink?.href).toContain('mailto:')
   })
 
   it('renders FAQ items and toggles them', async () => {

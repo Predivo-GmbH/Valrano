@@ -10,7 +10,6 @@ import {
   Globe,
   ChevronDown,
   ArrowRight,
-  Check,
   AlertCircle,
   Menu,
   X,
@@ -199,61 +198,15 @@ const STATS = [
   { value: 15, suffix: '+', label: 'Peers monitored continuously', icon: Users },
 ]
 
-const TIERS = [
-  {
-    name: 'Starter',
-    target: 'Mid-cap corporates',
-    peers: '5',
-    highlights: [
-      'Core financial KPIs (9)',
-      'Quarterly + annual reports',
-      'Multi-currency normalization',
-      'Email alerts',
-      'Up to 3 users',
-      'Same-day insights',
-    ],
-  },
-  {
-    name: 'Professional',
-    target: 'Large-cap corporates',
-    peers: '15',
-    featured: true,
-    highlights: [
-      'Extended financial (50+) + ESG KPIs',
-      'AI-generated board briefings',
-      'Sentiment analysis (earnings calls)',
-      'Natural language query',
-      '60-minute SLA',
-      'Up to 10 users',
-    ],
-  },
-  {
-    name: 'Enterprise',
-    target: 'Mega-cap / multi-vertical',
-    peers: '30+',
-    highlights: [
-      'Custom KPI definitions',
-      'Predictive what-if scenarios',
-      'API + PowerBI / Tableau',
-      'SSO / SAML',
-      'Unlimited users',
-      'Dedicated CSM + QBR',
-    ],
-  },
-]
-
-const COMPARISON_ROWS = [
-  { label: 'Peers monitored', values: ['5', '15', '30+'] },
-  { label: 'Financial KPIs', values: ['9', '50+', 'Custom'] },
-  { label: 'ESG KPIs', values: [false, true, true] },
-  { label: 'Board briefings', values: [false, true, true] },
-  { label: 'Sentiment analysis', values: [false, true, true] },
-  { label: 'Natural language query', values: [false, true, true] },
-  { label: '60-minute SLA', values: [false, true, true] },
-  { label: 'API / BI integration', values: [false, false, true] },
-  { label: 'SSO / SAML', values: [false, false, true] },
-  { label: 'Users included', values: ['3', '10', 'Unlimited'] },
-  { label: 'Dedicated CSM', values: [false, false, true] },
+const ENTERPRISE_INCLUDES = [
+  { icon: Users, text: 'Unlimited users with SSO / SAML' },
+  { icon: BarChart3, text: '50+ financial and ESG KPIs per peer' },
+  { icon: Globe, text: 'Up to 30+ peers monitored continuously' },
+  { icon: Zap, text: '60-minute publication-to-briefing SLA' },
+  { icon: FileText, text: 'AI-generated board briefings with source citations' },
+  { icon: Shield, text: 'API + PowerBI / Tableau integration' },
+  { icon: TrendingUp, text: 'Sentiment analysis on earnings calls' },
+  { icon: Target, text: 'Dedicated Customer Success Manager + QBR' },
 ]
 
 const FAQS = [
@@ -305,11 +258,11 @@ const jsonLd = {
       description:
         'AI-powered competitive benchmarking: extract financial and ESG KPIs from peer PDF reports, normalize across currencies and standards, deliver board-ready briefings in 60 minutes.',
       offers: {
-        '@type': 'AggregateOffer',
+        '@type': 'Offer',
         priceCurrency: 'CHF',
-        lowPrice: '28800',
-        highPrice: '118800',
-        offerCount: 3,
+        price: '0',
+        availability: 'https://schema.org/OnlineOnly',
+        description: 'Contact us for enterprise pricing',
       },
     },
     {
@@ -713,105 +666,49 @@ export default function LandingPage() {
           id="pricing"
           className="border-t border-[var(--color-border)] bg-[var(--color-card)]"
         >
-          <div className="mx-auto max-w-6xl px-6 py-20 md:py-[80px]">
+          <div className="mx-auto max-w-4xl px-6 py-20 md:py-[80px]">
             <div className="text-center">
-              <SectionLabel>Pricing</SectionLabel>
+              <SectionLabel>Enterprise Solution</SectionLabel>
               <h2 className="mt-2 text-[clamp(1.75rem,4vw,3rem)] font-bold tracking-[-0.02em] text-[var(--color-foreground)]">
-                Plans that scale with your peer group
+                Tailored to your organization
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-[var(--color-muted-foreground)]">
-                Annual contracts. No monthly option. Enterprise SaaS standard.
-                All plans include multi-currency normalization and full audit
-                trail.
+                Every deployment is configured for your peer group, KPI
+                taxonomy, and reporting cadence. We work with your team to
+                ensure BenchmarkSignal fits seamlessly into your existing
+                workflows.
               </p>
             </div>
 
-            {/* Tier cards */}
-            <div className="mt-14 grid gap-8 md:grid-cols-3">
-              {TIERS.map((tier) => (
-                <div
-                  key={tier.name}
-                  className={`relative overflow-visible rounded-xl border p-5 transition-all duration-300 hover:-translate-y-1 sm:p-8 ${
-                    tier.featured
-                      ? 'border-[var(--color-accent)] bg-[var(--color-background)] shadow-[0_0_40px_var(--color-accent)/10]'
-                      : 'border-[var(--color-border)] bg-[var(--color-background)]'
-                  }`}
-                >
-                  {tier.featured && (
-                    <span className="landing-gradient-badge absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">
-                      Most Popular
-                    </span>
-                  )}
-                  <h3 className="text-lg font-semibold text-[var(--color-foreground)]">
-                    {tier.name}
-                  </h3>
-                  <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-                    {tier.target}
-                  </p>
-                  <p className="mt-4 text-sm text-[var(--color-muted-foreground)]">
-                    Up to{' '}
-                    <span className="text-2xl font-bold text-[var(--color-foreground)]">
-                      {tier.peers}
-                    </span>{' '}
-                    peers monitored
-                  </p>
-                  <ul className="mt-6 space-y-3">
-                    {tier.highlights.map((h) => (
-                      <li
-                        key={h}
-                        className="flex items-start gap-3 text-sm text-[var(--color-muted-foreground)]"
-                      >
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-signal-green)]" aria-hidden="true" />
-                        {h}
-                      </li>
-                    ))}
-                  </ul>
-                  <a
-                    href="mailto:roger@predivo.ch?subject=BenchmarkSignal%20Demo%20Request"
-                    className={`mt-8 block min-h-[44px] w-full rounded-full py-3 text-center text-sm font-medium transition-all hover:opacity-90 ${
-                      tier.featured
-                        ? 'bg-[var(--color-accent)] text-white shadow-lg shadow-[var(--color-accent)]/20 hover:shadow-xl hover:shadow-[var(--color-accent)]/30'
-                        : 'border border-[var(--color-border)] bg-[var(--color-background)] text-[var(--color-foreground)] hover:bg-[var(--color-bg-tertiary)]'
-                    }`}
+            <div className="mt-14 rounded-xl border border-[var(--color-accent)]/30 bg-[var(--color-background)] p-6 shadow-[0_0_40px_var(--color-accent)/6] sm:p-10">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {ENTERPRISE_INCLUDES.map((item) => (
+                  <div
+                    key={item.text}
+                    className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-[var(--color-accent)]/5"
                   >
-                    Request a Demo
-                  </a>
-                </div>
-              ))}
-            </div>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-accent)]/10">
+                      <item.icon className="h-4.5 w-4.5 text-[var(--color-accent)]" aria-hidden="true" />
+                    </div>
+                    <span className="text-[15px] leading-snug text-[var(--color-foreground)]">
+                      {item.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
 
-            {/* Comparison table */}
-            <div className="mt-12 overflow-x-auto rounded-xl border border-[var(--color-border)]">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-tertiary)]">
-                    <th className="px-4 py-3 text-left font-medium text-[var(--color-muted-foreground)]">Feature</th>
-                    {TIERS.map((t) => (
-                      <th key={t.name} className={`px-4 py-3 text-center font-medium ${t.featured ? 'text-[var(--color-accent)]' : 'text-[var(--color-muted-foreground)]'}`}>
-                        {t.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {COMPARISON_ROWS.map((row, i) => (
-                    <tr key={row.label} className={`border-b border-[var(--color-border)] ${i % 2 === 0 ? '' : 'bg-[var(--color-bg-tertiary)]/50'}`}>
-                      <td className="whitespace-nowrap px-4 py-3 font-medium text-[var(--color-foreground)]">{row.label}</td>
-                      {row.values.map((val, j) => (
-                        <td key={j} className="px-4 py-3 text-center">
-                          {val === true ? (
-                            <Check className="mx-auto h-4 w-4 text-[var(--color-signal-green)]" aria-label="Included" />
-                          ) : val === false ? (
-                            <span className="text-[var(--color-muted-foreground)]" aria-label="Not included">&mdash;</span>
-                          ) : (
-                            <span className="text-[var(--color-foreground)]">{val}</span>
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="mt-10 flex flex-col items-center gap-4 border-t border-[var(--color-border)] pt-8 sm:flex-row sm:justify-center">
+                <a
+                  href="mailto:roger@predivo.ch?subject=BenchmarkSignal%20Demo%20Request"
+                  className="inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-8 py-3.5 text-[15px] font-medium text-white shadow-lg shadow-[var(--color-accent)]/20 transition-all hover:opacity-90 hover:shadow-xl hover:shadow-[var(--color-accent)]/30"
+                >
+                  Schedule a Consultation
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+                <span className="text-sm text-[var(--color-muted-foreground)]">
+                  Typical onboarding: 2 weeks
+                </span>
+              </div>
             </div>
           </div>
         </section>
