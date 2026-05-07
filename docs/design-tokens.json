@@ -205,5 +205,18 @@
   "animation": {
     "transition": "all 200ms ease",
     "colorTransition": "color 200ms ease, background-color 200ms ease"
+  },
+
+  "_usage_rules": {
+    "_updated": "2026-05-07",
+    "_note": "These rules were established after a dark-mode contrast audit (commit 60f7167). In dark mode, primary (#E8EAED) is LIGHT — never pair with text-white.",
+    "button_text": "Always use primary-foreground on primary backgrounds, never text-white",
+    "focus_rings": "Use accent (#3B82F6) for all focus rings, never primary",
+    "interactive_links": "Use accent for clickable text links, never primary",
+    "toggle_on": "Use accent for checked/active toggles, never primary",
+    "toggle_off": "Must include visible border (border-border) — background-only is invisible on dark cards",
+    "notification_badges": "Use destructive (#EF4444) + destructive-foreground, never primary + text-white",
+    "active_tabs": "Use accent/10 bg + accent text, never primary/10 + primary text",
+    "progress_indicators": "Use accent, never primary"
   }
 }

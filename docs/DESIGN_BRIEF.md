@@ -196,4 +196,37 @@ Theme stored in localStorage, respects system preference on first visit.
 
 ---
 
+## 11. Color Usage Rules (Established 2026-05-07)
+
+These rules were established after a dark-mode contrast audit that found 30+ readability failures.
+
+### Root Cause
+In dark mode, `--color-primary` = `#E8EAED` (light gray/near-white). Buttons using `bg-primary text-white` had invisible text (white on near-white). Links, focus rings, and toggles using `primary` as their interactive color were also invisible or low-contrast.
+
+### Mandatory Rules
+
+| Context | Correct Pattern | WRONG (banned) |
+|---------|----------------|-----------------|
+| **Button text on `bg-primary`** | `text-[var(--color-primary-foreground)]` | `text-white` |
+| **Focus rings** | `ring-[var(--color-accent)]` or `ring-accent` | `ring-[var(--color-primary)]` or `ring-primary` |
+| **Interactive links** | `text-[var(--color-accent)]` or `text-accent` | `text-[var(--color-primary)]` or `text-primary` |
+| **Toggle ON state** | `bg-[var(--color-accent)]` (blue) | `bg-[var(--color-primary)]` (invisible light gray) |
+| **Toggle OFF state** | Must have `border border-border` | Background-only (invisible on dark card) |
+| **Notification badges** | `bg-destructive text-destructive-foreground` | `bg-primary text-white` |
+| **Active tab indicators** | `bg-accent/10 text-accent` | `bg-primary/10 text-primary` |
+| **Progress indicators** | `bg-accent` | `bg-primary` |
+| **Input focus borders** | `focus:border-accent focus:ring-accent/30` | `focus:border-primary focus:ring-primary/20` |
+
+### Color Role Summary
+
+- **`--color-primary` / `--color-primary-foreground`**: Semantic surface pair for button fills. In dark mode, primary is LIGHT (#E8EAED) and primary-foreground is DARK (#0A0B0D). Always use them as a pair.
+- **`--color-accent`**: Blue (#3B82F6 dark / #2563EB light). Use for ALL interactive indicators: focus rings, links, active states, toggles, progress dots, selected items.
+- **`--color-destructive`**: Red (#EF4444). Use for badges, error states, delete actions.
+- **Never use `text-white` on `bg-primary`** — it's only valid when the background is guaranteed dark (e.g., landing page hero with hardcoded dark bg).
+
+### Commit Reference
+Fixes applied in commit `60f7167` (2026-05-07), 19 files changed. See `docs/UX-AUDIT-2026-05-05.md` resolved findings section.
+
+---
+
 *This design brief serves as the brand direction input for Stitch mockup generation and all subsequent frontend implementation. All design decisions trace back to this document.*
