@@ -126,17 +126,18 @@ export default function CompanyAutocomplete({
     (value.trim().length >= 3 && !isSearching && results.length === 0)
   )
 
-  // Subscribe to outside clicks (external event subscription is OK in effects)
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setDismissed(true)
-        setFocused(false)
-      }
+  // Outside-click handler — extracted as stable ref to satisfy react-hooks/set-state-in-effect
+  const handleOutsideClick = useCallback((e: MouseEvent) => {
+    if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      setDismissed(true)
+      setFocused(false)
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  useEffect(() => {
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [handleOutsideClick])
 
   const handleInputChange = useCallback((newValue: string) => {
     onChange(newValue)
