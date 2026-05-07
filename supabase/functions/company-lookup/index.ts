@@ -9,7 +9,7 @@ import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/aut
  * based on a partial name query. Returns normalized results with
  * sector, country, currency, and other metadata auto-detected.
  *
- * POST { query: string, country_filter?: string }
+ * POST { query: string }
  * Returns { results: CompanyResult[] }
  */
 
@@ -99,67 +99,117 @@ function formatUid(uid: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// OpenCorporates API
+// Wikidata API (international companies, free, no API key)
 // ---------------------------------------------------------------------------
 
-const OC_BASE = 'https://api.opencorporates.com/v0.4.8'
+const WIKIDATA_API = 'https://www.wikidata.org/w/api.php'
 
-interface OCCompany {
-  company: {
-    name: string
-    jurisdiction_code: string
-    company_type: string | null
-    company_number: string | null
-    current_status: string | null
-    incorporation_date: string | null
-    industry_codes?: Array<{ industry_code: { code: string; description: string; code_scheme_id: string } }>
-    registered_address?: { country: string } | null
-  }
+interface WikiSearchResult {
+  id: string
+  label: string
+  description: string
 }
 
-async function searchOpenCorporates(query: string, countryFilter?: string): Promise<CompanyResult[]> {
+// Map nationality words in Wikidata descriptions to country/currency
+const DESCRIPTION_COUNTRY_MAP: Record<string, { country: string; code: string; currency: string }> = {
+  american: { country: 'United States', code: 'us', currency: 'USD' },
+  british: { country: 'United Kingdom', code: 'gb', currency: 'GBP' },
+  german: { country: 'Germany', code: 'de', currency: 'EUR' },
+  french: { country: 'France', code: 'fr', currency: 'EUR' },
+  italian: { country: 'Italy', code: 'it', currency: 'EUR' },
+  spanish: { country: 'Spain', code: 'es', currency: 'EUR' },
+  dutch: { country: 'Netherlands', code: 'nl', currency: 'EUR' },
+  swedish: { country: 'Sweden', code: 'se', currency: 'SEK' },
+  norwegian: { country: 'Norway', code: 'no', currency: 'NOK' },
+  danish: { country: 'Denmark', code: 'dk', currency: 'DKK' },
+  finnish: { country: 'Finland', code: 'fi', currency: 'EUR' },
+  austrian: { country: 'Austria', code: 'at', currency: 'EUR' },
+  japanese: { country: 'Japan', code: 'jp', currency: 'JPY' },
+  chinese: { country: 'China', code: 'cn', currency: 'CNY' },
+  canadian: { country: 'Canada', code: 'ca', currency: 'CAD' },
+  australian: { country: 'Australia', code: 'au', currency: 'AUD' },
+  indian: { country: 'India', code: 'in', currency: 'INR' },
+  korean: { country: 'South Korea', code: 'kr', currency: 'KRW' },
+  brazilian: { country: 'Brazil', code: 'br', currency: 'BRL' },
+  singaporean: { country: 'Singapore', code: 'sg', currency: 'SGD' },
+  luxembourgish: { country: 'Luxembourg', code: 'lu', currency: 'EUR' },
+  irish: { country: 'Ireland', code: 'ie', currency: 'EUR' },
+  belgian: { country: 'Belgium', code: 'be', currency: 'EUR' },
+  portuguese: { country: 'Portugal', code: 'pt', currency: 'EUR' },
+}
+
+// Filter: only accept results that look like companies
+const COMPANY_KEYWORDS = [
+  'company', 'corporation', 'bank', 'insurance', 'firm', 'conglomerate',
+  'manufacturer', 'airline', 'automaker', 'retailer', 'pharmaceutical',
+  'technology', 'telecom', 'energy', 'financial', 'services', 'group',
+  'multinational', 'holding', 'enterprise', 'brand', 'provider',
+]
+
+async function searchWikidata(query: string): Promise<CompanyResult[]> {
   try {
     const params = new URLSearchParams({
-      q: query,
-      per_page: '8',
-      order: 'score',
-    })
-    if (countryFilter) {
-      const jCode = COUNTRY_TO_JURISDICTION[countryFilter.toLowerCase()]
-      if (jCode) params.set('jurisdiction_code', jCode)
-    }
-
-    const res = await fetch(`${OC_BASE}/companies/search?${params}`, {
-      headers: { 'Accept': 'application/json' },
+      action: 'wbsearchentities',
+      search: query,
+      language: 'en',
+      type: 'item',
+      limit: '15',
+      format: 'json',
+      origin: '*',
     })
 
+    const res = await fetch(`${WIKIDATA_API}?${params}`)
     if (!res.ok) {
-      console.warn(`OpenCorporates search failed: ${res.status}`)
+      console.warn(`Wikidata search failed: ${res.status}`)
       return []
     }
 
     const data = await res.json()
-    const companies: OCCompany[] = data?.results?.companies ?? []
+    const items: WikiSearchResult[] = (data.search ?? []).map((s: Record<string, unknown>) => ({
+      id: s.id,
+      label: s.label ?? s.display?.label?.value ?? '',
+      description: s.description ?? s.display?.description?.value ?? '',
+    }))
 
-    return companies.map((c) => {
-      const jCode = c.company.jurisdiction_code?.toLowerCase() ?? ''
-      const country = JURISDICTION_TO_COUNTRY[jCode] ?? jCode.toUpperCase()
-      const countryCode = jCode.split('_')[0]
+    // Filter to only company-like entities
+    const companies = items.filter((item) => {
+      const desc = item.description.toLowerCase()
+      return COMPANY_KEYWORDS.some((kw) => desc.includes(kw))
+    })
+
+    return companies.slice(0, 8).map((item) => {
+      const desc = item.description.toLowerCase()
+
+      // Extract country from description nationality words
+      let country = ''
+      let countryCode = ''
+      let currency = 'USD'
+      for (const [keyword, info] of Object.entries(DESCRIPTION_COUNTRY_MAP)) {
+        if (desc.includes(keyword)) {
+          country = info.country
+          countryCode = info.code
+          currency = info.currency
+          break
+        }
+      }
+
+      // Extract sector from description
+      const sector = mapPurposeToSector(item.description)
 
       return {
-        name: c.company.name,
-        jurisdiction: country,
-        country_code: countryCode,
-        sector: mapIndustryCodesToSector(c.company.industry_codes ?? []),
-        currency: COUNTRY_CODE_TO_CURRENCY[countryCode] ?? 'USD',
-        legal_form: c.company.company_type ?? null,
-        uid: c.company.company_number ?? null,
+        name: item.label,
+        jurisdiction: country || 'International',
+        country_code: countryCode || '',
+        sector,
+        currency,
+        legal_form: null,
+        uid: item.id, // Wikidata QID
         ticker: null,
-        source: 'opencorporates' as const,
+        source: 'opencorporates' as const, // Keep source label for UI badge
       }
     })
   } catch (err) {
-    console.warn('OpenCorporates search error:', err)
+    console.warn('Wikidata search error:', err)
     return []
   }
 }
@@ -194,49 +244,6 @@ function mapPurposeToSector(purpose: string): string | null {
   return null
 }
 
-function mapIndustryCodesToSector(
-  codes: Array<{ industry_code: { code: string; description: string; code_scheme_id: string } }>,
-): string | null {
-  if (codes.length === 0) return null
-  // Try to map from description
-  for (const entry of codes) {
-    const desc = entry.industry_code.description?.toLowerCase() ?? ''
-    for (const [sector, keywords] of Object.entries(SECTOR_KEYWORDS)) {
-      if (keywords.some((kw) => desc.includes(kw))) return sector
-    }
-  }
-  return null
-}
-
-// ---------------------------------------------------------------------------
-// Country / Jurisdiction / Currency Mappings
-// ---------------------------------------------------------------------------
-
-const JURISDICTION_TO_COUNTRY: Record<string, string> = {
-  ch: 'Switzerland', de: 'Germany', at: 'Austria', fr: 'France',
-  gb: 'United Kingdom', us: 'United States', us_de: 'United States', us_ny: 'United States', us_ca: 'United States',
-  nl: 'Netherlands', lu: 'Luxembourg', it: 'Italy', es: 'Spain',
-  se: 'Sweden', no: 'Norway', dk: 'Denmark', fi: 'Finland',
-  be: 'Belgium', ie: 'Ireland', pt: 'Portugal', jp: 'Japan',
-  cn: 'China', au: 'Australia', ca: 'Canada', sg: 'Singapore',
-  hk: 'Hong Kong', kr: 'South Korea', in: 'India', br: 'Brazil',
-}
-
-const COUNTRY_TO_JURISDICTION: Record<string, string> = {
-  switzerland: 'ch', germany: 'de', austria: 'at', france: 'fr',
-  'united kingdom': 'gb', 'united states': 'us', netherlands: 'nl',
-  luxembourg: 'lu', italy: 'it', spain: 'es', sweden: 'se',
-  norway: 'no', denmark: 'dk', finland: 'fi',
-}
-
-const COUNTRY_CODE_TO_CURRENCY: Record<string, string> = {
-  ch: 'CHF', de: 'EUR', at: 'EUR', fr: 'EUR', nl: 'EUR', lu: 'EUR',
-  it: 'EUR', es: 'EUR', fi: 'EUR', be: 'EUR', ie: 'EUR', pt: 'EUR',
-  gb: 'GBP', us: 'USD', se: 'SEK', no: 'NOK', dk: 'DKK',
-  jp: 'JPY', cn: 'CNY', au: 'AUD', ca: 'CAD', sg: 'SGD',
-  hk: 'HKD', kr: 'KRW', in: 'INR', br: 'BRL',
-}
-
 // ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
@@ -249,7 +256,7 @@ serve(async (req: Request) => {
   try {
     await authenticateRequest(req)
 
-    const { query, country_filter } = await req.json()
+    const { query } = await req.json()
     if (!query || typeof query !== 'string' || query.trim().length < 2) {
       return jsonResponse({ results: [] })
     }
@@ -259,7 +266,7 @@ serve(async (req: Request) => {
     // Search both sources in parallel
     const [zefixResults, ocResults] = await Promise.all([
       searchZefix(trimmed),
-      searchOpenCorporates(trimmed, country_filter),
+      searchWikidata(trimmed),
     ])
 
     // Deduplicate: if a company appears in both Zefix and OC, prefer Zefix (richer data)

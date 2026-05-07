@@ -200,7 +200,7 @@ function SetupGuidanceState({
           Add your company details so we know who to benchmark against your peers.
         </p>
         <Link
-          to="/my-company"
+          to="/settings?tab=company"
           className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
         >
           <Building2 className="h-4 w-4" />
@@ -241,7 +241,7 @@ function SetupGuidanceState({
         Upload an annual report or enter KPI values manually so we can generate your benchmark position.
       </p>
       <Link
-        to="/upload"
+        to="/peers"
         className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
       >
         <Upload className="h-4 w-4" />
@@ -276,7 +276,7 @@ function FilteredEmptyState({ fiscalYear, onClearYear, availableYears }: {
           </button>
         )}
         <Link
-          to="/upload"
+          to="/peers"
           className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
         >
           <Upload className="h-4 w-4" />
@@ -1049,6 +1049,57 @@ export function DashboardPage() {
       </div>
 
       {/* ================================================================== */}
+      {/* Pipeline Status Bar                                               */}
+      {/* ================================================================== */}
+      {publicationEvents && publicationEvents.length > 0 && (() => {
+        const counts = { scheduled: 0, detected: 0, ingested: 0, benchmark_ready: 0 }
+        for (const ev of publicationEvents) {
+          if (ev.status === 'scheduled' || ev.status === 'due_today' || ev.status === 'overdue') counts.scheduled++
+          else if (ev.status === 'detected') counts.detected++
+          else if (ev.status === 'ingested') counts.ingested++
+          else if (ev.status === 'benchmark_ready') counts.benchmark_ready++
+        }
+        const stages = [
+          { label: 'Scheduled', count: counts.scheduled, color: 'bg-blue-500' },
+          { label: 'Detected', count: counts.detected, color: 'bg-green-500' },
+          { label: 'Ingested', count: counts.ingested, color: 'bg-emerald-500' },
+          { label: 'Benchmark', count: counts.benchmark_ready, color: 'bg-violet-500' },
+        ]
+        return (
+          <div className="mb-8 rounded-xl border border-border bg-card p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[13px] font-semibold uppercase tracking-[0.05em] text-muted-foreground flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Pipeline Status
+              </h2>
+              <Link
+                to="/peers?tab=calendar"
+                className="text-[11px] font-medium text-[var(--color-accent)] hover:underline"
+              >
+                View Calendar →
+              </Link>
+            </div>
+            <div className="flex items-center gap-2">
+              {stages.map((stage, i) => (
+                <div key={stage.label} className="flex items-center gap-2 flex-1">
+                  {i > 0 && (
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+                  )}
+                  <div className="flex-1 rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2.5 text-center">
+                    <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                      <span className={`h-2 w-2 rounded-full ${stage.color}`} />
+                      <span className="text-[18px] font-semibold tabular-nums text-foreground">{stage.count}</span>
+                    </div>
+                    <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{stage.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ================================================================== */}
       {/* Section 3: Upcoming Publications Timeline                         */}
       {/* ================================================================== */}
       {upcomingEvents.length > 0 && (
@@ -1059,7 +1110,7 @@ export function DashboardPage() {
               Upcoming Publications
             </h2>
             <Link
-              to="/calendar"
+              to="/peers?tab=calendar"
               className="text-[11px] font-medium text-[var(--color-accent)] hover:underline flex items-center gap-1"
             >
               View Calendar
@@ -1334,7 +1385,7 @@ export function DashboardPage() {
                       ))}
                     </div>
                     <p className="mt-2 text-[10px] text-muted-foreground">
-                      <Link to="/upload" className="text-[var(--color-accent)] hover:underline">
+                      <Link to="/peers" className="text-[var(--color-accent)] hover:underline">
                         Upload reports
                       </Link>
                       {' '}to include them in your benchmark.
