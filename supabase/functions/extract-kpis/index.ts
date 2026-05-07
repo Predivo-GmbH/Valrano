@@ -52,12 +52,21 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { adminClient } = await authenticateRequest(req)
+    const { user, adminClient } = await authenticateRequest(req)
 
     const { report_id: reportId } = await req.json()
     if (!reportId) {
       return jsonResponse({ error: 'Missing required field: report_id' }, 400)
     }
+
+    // ------------------------------------------------------------------
+    // 1a. Load user's accounting profile (if exists)
+    // ------------------------------------------------------------------
+    const { data: accountingProfile } = await adminClient
+      .from('accounting_profiles')
+      .select('accounting_standard, policies, kpi_mappings, company_name')
+      .eq('user_id', user.id)
+      .maybeSingle()
 
     // ------------------------------------------------------------------
     // 1. Load report + company
@@ -202,7 +211,21 @@ serve(async (req: Request) => {
               {
                 type: 'text',
                 text: `You are a financial data extraction expert. Extract all financial and ESG KPIs from this corporate report for ${companyName}${companyTicker ? ` (${companyTicker})` : ''}.
+${accountingProfile ? `
+IMPORTANT CONTEXT — USER'S ACCOUNTING FRAMEWORK:
+The user's company (${accountingProfile.company_name}) uses ${accountingProfile.accounting_standard}.
+Their specific accounting policies:
+${JSON.stringify(accountingProfile.policies, null, 2)}
 
+Their KPI calculation methods:
+${JSON.stringify(accountingProfile.kpi_mappings, null, 2)}
+
+When extracting KPIs from this competitor's report, pay special attention to:
+1. How THIS competitor defines EBITDA vs how the user defines it (what's included/excluded)
+2. How THIS competitor defines Net Debt vs the user's definition
+3. Any accounting standard differences (e.g., IFRS vs US GAAP treatment of leases, R&D)
+4. In source_text, note any accounting treatment differences you observe
+` : ''}
 Extract these KPIs if present:
 - REVENUE: Total net revenue/sales
 - EBITDA: Earnings before interest, taxes, depreciation, amortization
@@ -227,7 +250,7 @@ For each KPI found:
 - Note the fiscal_year and fiscal_quarter (null for annual)
 - Assign a confidence score (0-1): 1.0 = clearly stated, 0.9 = derived/calculated, 0.7 = estimated from context
 - Record the source_page number
-- Include surrounding source_text for audit trail
+- Include surrounding source_text for audit trail${accountingProfile ? '\n- In source_text, note any accounting policy differences vs the user\'s framework (e.g., "Competitor includes restructuring in EBITDA; user excludes it")' : ''}
 
 Important: Values are typically in millions unless stated otherwise. Convert all values to millions.`,
               },

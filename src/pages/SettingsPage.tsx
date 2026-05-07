@@ -1,14 +1,16 @@
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { Building2, Settings, Shield, User } from 'lucide-react'
+import { BookOpen, Building2, Settings, Shield, User } from 'lucide-react'
 import { AccountPage } from './AccountPage'
 import { MyCompanyPage } from './MyCompanyPage'
+import { AccountingProfilePage } from './AccountingProfilePage'
 import { BenchmarkRulesPage } from './BenchmarkRulesPage'
 import { ApprovalChainsPage } from './ApprovalChainsPage'
 
 const TABS = [
   { id: 'account', label: 'Account', icon: User },
   { id: 'company', label: 'My Company', icon: Building2 },
+  { id: 'accounting', label: 'Accounting Profile', icon: BookOpen },
   { id: 'rules', label: 'Benchmark Rules', icon: Settings },
   { id: 'approvals', label: 'Approval Chains', icon: Shield },
 ] as const
@@ -74,6 +76,7 @@ export function SettingsPage() {
         >
           {activeTab === 'account' && <AccountPage />}
           {activeTab === 'company' && <MyCompanyPage />}
+          {activeTab === 'accounting' && <AccountingProfilePage />}
           {activeTab === 'rules' && <BenchmarkRulesPage />}
           {activeTab === 'approvals' && <ApprovalChainsPage />}
         </div>

@@ -514,6 +514,84 @@ export type MyCompanyUpdate = Partial<MyCompanyInsert>;
 export type MyCompanyKpiUpdate = Partial<MyCompanyKpiInsert>;
 
 // ---------------------------------------------------------------------------
+// Accounting Profile types — Phase 1: AI-extracted accounting framework
+// ---------------------------------------------------------------------------
+
+export type AccountingStandard = 'IFRS' | 'US_GAAP' | 'Swiss_GAAP_FER' | 'HGB' | 'other';
+
+export interface AccountingPolicy {
+  method: string;
+  description?: string;
+  source_page?: number;
+  [key: string]: unknown;
+}
+
+export interface EbitdaDefinition {
+  excludes: string[];
+  includes: string[];
+  source_page?: number;
+}
+
+export interface NetDebtDefinition {
+  includes: string[];
+  excludes: string[];
+  deducts: string[];
+  source_page?: number;
+}
+
+export interface AccountingPolicies {
+  revenue_recognition?: AccountingPolicy;
+  rd_treatment?: AccountingPolicy;
+  lease_treatment?: AccountingPolicy & { standard?: string; on_balance_sheet?: boolean };
+  ebitda_definition?: EbitdaDefinition;
+  net_debt_definition?: NetDebtDefinition;
+  goodwill_treatment?: AccountingPolicy;
+  pension_accounting?: AccountingPolicy;
+  fx_translation?: AccountingPolicy;
+  segment_reporting?: AccountingPolicy & { segments?: string[] };
+  [key: string]: unknown;
+}
+
+export interface KpiMapping {
+  formula: string;
+  adjustments?: string[];
+  label_in_report?: string;
+  source_page?: number;
+}
+
+export interface AccountingProfile {
+  id: string;
+  user_id: string;
+  company_name: string;
+  accounting_standard: string;
+  accounting_standard_confidence: number | null;
+  policies: AccountingPolicies;
+  kpi_mappings: Record<string, KpiMapping>;
+  source_report_id: string | null;
+  source_report_title: string | null;
+  ai_model: string | null;
+  extracted_at: string | null;
+  manually_edited: boolean;
+  last_edited_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AccountingProfileInsert = Omit<AccountingProfile, 'id' | 'created_at' | 'updated_at'>;
+export type AccountingProfileUpdate = Partial<AccountingProfileInsert>;
+
+// ---------------------------------------------------------------------------
+// Extended KpiValue with accounting adjustment fields
+// ---------------------------------------------------------------------------
+
+export interface KpiValueWithAdjustment extends KpiValue {
+  accounting_adjustment: number | null;
+  adjustment_reason: string | null;
+  pre_adjustment_value: number | null;
+  accounting_confidence: number | null;
+}
+
+// ---------------------------------------------------------------------------
 // Supabase Database shape (for createClient<Database> generic)
 // ---------------------------------------------------------------------------
 
@@ -589,6 +667,11 @@ export interface Database {
         Row: BenchmarkDocument;
         Insert: BenchmarkDocumentInsert;
         Update: BenchmarkDocumentUpdate;
+      };
+      accounting_profiles: {
+        Row: AccountingProfile;
+        Insert: AccountingProfileInsert;
+        Update: AccountingProfileUpdate;
       };
     };
     Enums: {

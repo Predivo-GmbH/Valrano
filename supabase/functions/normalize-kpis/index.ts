@@ -36,6 +36,7 @@ interface KpiValueRow {
   raw_value: number | null
   raw_currency: string | null
   fiscal_year: number
+  source_text: string | null
   kpi_definitions: { code: string }
   reports: { fiscal_year: number; publication_date: string | null }
 }
@@ -52,12 +53,21 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { adminClient } = await authenticateRequest(req)
+    const { user, adminClient } = await authenticateRequest(req)
 
     const { report_id: reportId } = await req.json()
     if (!reportId) {
       return jsonResponse({ error: 'Missing required field: report_id' }, 400)
     }
+
+    // ------------------------------------------------------------------
+    // 0. Load user's accounting profile for accounting-aware normalization
+    // ------------------------------------------------------------------
+    const { data: accountingProfile } = await adminClient
+      .from('accounting_profiles')
+      .select('accounting_standard, policies, kpi_mappings')
+      .eq('user_id', user.id)
+      .maybeSingle()
 
     // ------------------------------------------------------------------
     // 1. Load all un-normalized kpi_values for this report
@@ -69,6 +79,7 @@ serve(async (req: Request) => {
         raw_value,
         raw_currency,
         fiscal_year,
+        source_text,
         kpi_definitions ( code ),
         reports ( fiscal_year, publication_date )
       `)
@@ -166,16 +177,51 @@ serve(async (req: Request) => {
       }
 
       // ------------------------------------------------------------------
-      // 3. Persist normalized value
+      // 3. Check for accounting adjustment needs (if profile exists)
       // ------------------------------------------------------------------
+      let accountingAdjustment: number | null = null
+      let adjustmentReason: string | null = null
+      let preAdjustmentValue: number | null = null
+      let accountingConfidence: number | null = null
+
+      // If the source_text mentions accounting differences, flag it
+      // The actual adjustment value would need a separate AI call for precision,
+      // but we can flag the need for review based on the extraction context
+      if (accountingProfile && kv.source_text) {
+        const diffIndicators = [
+          'restructuring', 'impairment', 'one-off', 'exceptional',
+          'non-recurring', 'adjusted', 'excluding', 'including',
+          'lease liabilit', 'right-of-use',
+        ]
+        const lowerText = kv.source_text.toLowerCase()
+        const hasDiff = diffIndicators.some((ind) => lowerText.includes(ind))
+
+        if (hasDiff) {
+          preAdjustmentValue = normalizedValue
+          adjustmentReason = `Potential accounting difference detected in source text. Manual review recommended.`
+          accountingConfidence = 0.5 // Flag for review
+        }
+      }
+
+      // ------------------------------------------------------------------
+      // 4. Persist normalized value + accounting fields
+      // ------------------------------------------------------------------
+      const updatePayload: Record<string, unknown> = {
+        normalized_value: normalizedValue,
+        normalized_currency: 'CHF',
+        fx_rate_used: fxRateUsed,
+        fx_rate_type: fxRateType,
+      }
+
+      // Only set accounting fields if we have data
+      if (accountingAdjustment !== null) updatePayload.accounting_adjustment = accountingAdjustment
+      if (adjustmentReason !== null) updatePayload.adjustment_reason = adjustmentReason
+      if (preAdjustmentValue !== null) updatePayload.pre_adjustment_value = preAdjustmentValue
+      if (accountingConfidence !== null) updatePayload.accounting_confidence = accountingConfidence
+
       const { error: updateError } = await adminClient
         .from('kpi_values')
-        .update({
-          normalized_value: normalizedValue,
-          normalized_currency: 'CHF',
-          fx_rate_used: fxRateUsed,
-          fx_rate_type: fxRateType,
-        })
+        .update(updatePayload)
         .eq('id', kv.id)
 
       if (updateError) {
