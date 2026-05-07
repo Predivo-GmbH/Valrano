@@ -40,10 +40,7 @@ function useCompanySearch() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const search = useCallback((query: string) => {
-    // Clear previous timer
     if (timerRef.current) clearTimeout(timerRef.current)
-
-    // Abort previous request
     if (abortRef.current) abortRef.current.abort()
 
     if (query.trim().length < 3) {
@@ -54,7 +51,6 @@ function useCompanySearch() {
 
     setIsSearching(true)
 
-    // Debounce 300ms
     timerRef.current = setTimeout(async () => {
       const controller = new AbortController()
       abortRef.current = controller
@@ -107,7 +103,7 @@ function useCompanySearch() {
 }
 
 // ---------------------------------------------------------------------------
-// Component
+// Component - all state changes in event handlers only, never in effects
 // ---------------------------------------------------------------------------
 
 export default function CompanyAutocomplete({
@@ -118,42 +114,48 @@ export default function CompanyAutocomplete({
   className,
   id,
 }: CompanyAutocompleteProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [dismissed, setDismissed] = useState(true)
+  const [focused, setFocused] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const containerRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
   const { results, isSearching, search, clear } = useCompanySearch()
 
-  // Handle input changes — trigger search inline
-  const handleChange = useCallback((newValue: string) => {
-    onChange(newValue)
-    if (newValue.trim().length >= 3) {
-      search(newValue)
-      setIsOpen(true)
-    } else {
-      clear()
-      setIsOpen(false)
-    }
-    setSelectedIndex(-1)
-  }, [onChange, search, clear])
+  // Derive dropdown visibility from state (no effects)
+  const isOpen = focused && !dismissed && (
+    results.length > 0 ||
+    (value.trim().length >= 3 && !isSearching && results.length === 0)
+  )
 
-  // Close on outside click
+  // Subscribe to outside clicks (external event subscription is OK in effects)
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false)
+        setDismissed(true)
+        setFocused(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  const handleSelect = (company: CompanyResult) => {
+  const handleInputChange = useCallback((newValue: string) => {
+    onChange(newValue)
+    setSelectedIndex(-1)
+    if (newValue.trim().length >= 3) {
+      search(newValue)
+      setDismissed(false)
+    } else {
+      clear()
+      setDismissed(true)
+    }
+  }, [onChange, search, clear])
+
+  const handleSelect = useCallback((company: CompanyResult) => {
     onChange(company.name)
     onSelect(company)
-    setIsOpen(false)
+    setDismissed(true)
     clear()
-  }
+  }, [onChange, onSelect, clear])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen || results.length === 0) return
@@ -174,7 +176,7 @@ export default function CompanyAutocomplete({
         }
         break
       case 'Escape':
-        setIsOpen(false)
+        setDismissed(true)
         break
     }
   }
@@ -184,13 +186,16 @@ export default function CompanyAutocomplete({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         <Input
-          ref={inputRef}
           id={id}
           value={value}
-          onChange={(e) => handleChange(e.target.value)}
+          onChange={(e) => handleInputChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => {
-            if (results.length > 0) setIsOpen(true)
+            setFocused(true)
+            if (results.length > 0) setDismissed(false)
+          }}
+          onBlur={() => {
+            setTimeout(() => setFocused(false), 150)
           }}
           placeholder={placeholder}
           className={cn('pl-9', className)}
@@ -222,7 +227,7 @@ export default function CompanyAutocomplete({
                   : 'text-foreground hover:bg-muted/50',
               )}
               onMouseDown={(e) => {
-                e.preventDefault() // Prevent blur
+                e.preventDefault()
                 handleSelect(company)
               }}
               onMouseEnter={() => setSelectedIndex(idx)}
