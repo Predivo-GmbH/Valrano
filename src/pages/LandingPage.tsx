@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { useTheme } from 'next-themes'
 import {
   FileText,
   Zap,
@@ -17,6 +18,8 @@ import {
   Target,
   Timer,
   Users,
+  Sun,
+  Moon,
 } from 'lucide-react'
 
 /* ── Animated count-up hook ─────────────────────────── */
@@ -328,6 +331,7 @@ function useAnimationStyles() {
 /* ── Landing Page ─────────────────────────────────────── */
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { theme, setTheme } = useTheme()
   useAnimationStyles()
 
   return (
@@ -402,6 +406,13 @@ export default function LandingPage() {
             >
               FAQ
             </a>
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label="Toggle theme"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+            >
+              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
             <Link
               to="/login"
               className="inline-flex min-h-[44px] items-center text-sm font-medium text-[var(--color-foreground)] transition-colors hover:text-[var(--color-accent)]"
@@ -436,6 +447,13 @@ export default function LandingPage() {
             <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block min-h-[44px] py-3 text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Pricing</a>
             <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block min-h-[44px] py-3 text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">FAQ</a>
             <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block min-h-[44px] py-3 text-sm font-medium text-[var(--color-foreground)]">Sign in</Link>
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="flex min-h-[44px] items-center gap-2 py-3 text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            </button>
           </div>
         )}
       </nav>
