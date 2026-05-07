@@ -13,6 +13,7 @@ import {
 import { useCreateMyCompany, useUpsertMyCompanyKpis } from '@/hooks/useMyCompany'
 import { useKpiDefinitions, useCompanies } from '@/hooks/useData'
 import { useOnboarding, dismissOnboarding } from '@/hooks/useOnboarding'
+import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete'
 import { cn } from '@/lib/utils'
 import {
   Building2,
@@ -88,6 +89,24 @@ const COUNTRIES = [
 
 const CURRENCIES = ['CHF', 'EUR', 'USD', 'GBP', 'SEK', 'NOK', 'DKK']
 
+// Map jurisdiction name → COUNTRIES value for auto-fill
+const JURISDICTION_TO_COUNTRY_LABEL: Record<string, string> = {
+  switzerland: 'Switzerland',
+  germany: 'Germany',
+  austria: 'Austria',
+  france: 'France',
+  'united kingdom': 'United Kingdom',
+  'united states': 'United States',
+  netherlands: 'Netherlands',
+  luxembourg: 'Luxembourg',
+  italy: 'Italy',
+  spain: 'Spain',
+  sweden: 'Sweden',
+  norway: 'Norway',
+  denmark: 'Denmark',
+  finland: 'Finland',
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -111,6 +130,24 @@ export default function WelcomeWizard({ onComplete }: { onComplete: () => void }
   const { data: kpiDefinitions } = useKpiDefinitions()
   const { data: companies } = useCompanies()
   const { status } = useOnboarding()
+
+  // -------------------------------------------------------------------------
+  // Company Autocomplete
+  // -------------------------------------------------------------------------
+
+  const handleCompanySelect = useCallback((company: CompanyResult) => {
+    const countryLabel = JURISDICTION_TO_COUNTRY_LABEL[company.jurisdiction.toLowerCase()]
+    const currency = CURRENCIES.includes(company.currency) ? company.currency : 'CHF'
+    const sector = company.sector && SECTORS.includes(company.sector) ? company.sector : ''
+
+    setCompanyForm((f) => ({
+      ...f,
+      name: company.name,
+      country: countryLabel ?? f.country,
+      reporting_currency: currency,
+      sector: sector || f.sector,
+    }))
+  }, [])
 
   // -------------------------------------------------------------------------
   // Navigation
@@ -252,13 +289,17 @@ export default function WelcomeWizard({ onComplete }: { onComplete: () => void }
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="company-name">Company Name *</Label>
-          <Input
+          <CompanyAutocomplete
             id="company-name"
             value={companyForm.name}
-            onChange={(e) => setCompanyForm((f) => ({ ...f, name: e.target.value }))}
-            placeholder="e.g. Swiss Re AG"
+            onChange={(v) => setCompanyForm((f) => ({ ...f, name: v }))}
+            onSelect={handleCompanySelect}
+            placeholder="Start typing to search (e.g. Swiss Re)"
             className="bg-input/30"
           />
+          <p className="text-xs text-muted-foreground">
+            Type 3+ letters to search Swiss &amp; international company registers
+          </p>
         </div>
 
         <div className="space-y-2">

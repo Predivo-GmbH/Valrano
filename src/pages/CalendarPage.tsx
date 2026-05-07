@@ -40,7 +40,7 @@ const REPORT_TYPE_LABELS: Record<ReportType, string> = {
   sustainability: 'Sustainability',
 }
 
-export function CalendarPage() {
+export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterCompany, setFilterCompany] = useState<string>('all')
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -64,16 +64,16 @@ export function CalendarPage() {
 
   const sortedMonths = Object.keys(groupedByMonth).sort()
 
-  return (
+  const content = (
     <>
-      <Helmet><title>Publication Calendar - BenchmarkSignal</title></Helmet>
-      <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
+      {!embedded && (
         <div className="mb-6">
           <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Publication Calendar</h1>
           <p className="mt-1 text-[13px] text-muted-foreground">
             Track competitor report publications and monitor IR pages for new reports.
           </p>
         </div>
+      )}
 
         {/* Automation Info Banner */}
         <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
@@ -288,6 +288,16 @@ export function CalendarPage() {
           }}
           isPending={deleteMutation.isPending}
         />
+    </>
+  )
+
+  if (embedded) return content
+
+  return (
+    <>
+      <Helmet><title>Publication Calendar - BenchmarkSignal</title></Helmet>
+      <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
+        {content}
       </div>
     </>
   )

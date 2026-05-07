@@ -62,7 +62,7 @@ function EmptyReviewState() {
 // Main review page
 // ---------------------------------------------------------------------------
 
-export function ReviewPage() {
+export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
   const queryClient = useQueryClient()
   const [approvingId, setApprovingId] = useState<string | null>(null)
 
@@ -109,28 +109,36 @@ export function ReviewPage() {
 
   const pendingCount = reviewItems?.length ?? 0
 
-  return (
-    <div className="mx-auto max-w-[1440px] px-6 py-8">
+  const content = (
+    <>
+      {!embedded && (
+        <div className="mb-6 flex items-end justify-between">
+          <div>
+            <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">
+              Review Queue
+            </h1>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              KPI values with low extraction confidence require manual verification.
+            </p>
+          </div>
 
-      {/* Header */}
-      <div className="mb-6 flex items-end justify-between">
-        <div>
-          <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">
-            Review Queue
-          </h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            KPI values with low extraction confidence require manual verification.
-          </p>
+          {!isLoading && pendingCount > 0 && (
+            <span
+              className="rounded-full bg-[var(--color-signal-amber)]/10 px-3 py-1 text-[12px] font-semibold text-[var(--color-signal-amber)]"
+            >
+              {pendingCount} pending
+            </span>
+          )}
         </div>
+      )}
 
-        {!isLoading && pendingCount > 0 && (
-          <span
-            className="rounded-full bg-[var(--color-signal-amber)]/10 px-3 py-1 text-[12px] font-semibold text-[var(--color-signal-amber)]"
-          >
+      {embedded && !isLoading && pendingCount > 0 && (
+        <div className="mb-4 flex justify-end">
+          <span className="rounded-full bg-[var(--color-signal-amber)]/10 px-3 py-1 text-[12px] font-semibold text-[var(--color-signal-amber)]">
             {pendingCount} pending
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Table card */}
       <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -269,6 +277,14 @@ export function ReviewPage() {
           Approved values are immediately reflected in the Dashboard peer comparison table.
         </p>
       )}
+    </>
+  )
+
+  if (embedded) return content
+
+  return (
+    <div className="mx-auto max-w-[1440px] px-6 py-8">
+      {content}
     </div>
   )
 }

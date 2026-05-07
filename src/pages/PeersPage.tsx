@@ -1,11 +1,13 @@
 import { useState, useRef, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useCompanies, useReports } from '@/hooks/useData'
 import { usePublicationEvents, useCheckPublication } from '@/hooks/useCalendar'
 import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
 import type { Company, ReportType, PublicationEventStatus } from '@/types/database'
+import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -21,10 +23,14 @@ import {
   FileText,
   Loader2,
   Search,
+  CalendarDays,
+  ClipboardCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
+import { CalendarPage } from './CalendarPage'
+import { ReviewPage } from './ReviewPage'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -103,6 +109,19 @@ function AddCompanyDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [nameError, setNameError] = useState(false)
 
+  const handleCompanyAutoSelect = (company: CompanyResult) => {
+    setName(company.name)
+    if (company.sector) {
+      // Map to closest matching SECTOR_OPTIONS value
+      const match = SECTOR_OPTIONS.find((s) =>
+        company.sector!.toLowerCase().includes(s.toLowerCase()) ||
+        s.toLowerCase().includes(company.sector!.split(' ')[0].toLowerCase()),
+      )
+      if (match) setSector(match)
+    }
+    setNameError(false)
+  }
+
   const resetForm = () => {
     setName('')
     setTicker('')
@@ -166,16 +185,19 @@ function AddCompanyDialog({
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Company Name <span className="text-red-500">*</span>
             </Label>
-            <Input
+            <CompanyAutocomplete
               value={name}
-              onChange={(e) => { setName(e.target.value); setNameError(false) }}
-              placeholder="e.g. Holcim Group"
-              aria-invalid={nameError}
+              onChange={(v) => { setName(v); setNameError(false) }}
+              onSelect={handleCompanyAutoSelect}
+              placeholder="Start typing to search..."
               className={cn(
                 'rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground',
                 nameError && 'border-red-500',
               )}
             />
+            <p className="text-[10px] text-muted-foreground">
+              Type 3+ letters to search company registers
+            </p>
             {nameError && (
               <p className="text-[11px] text-red-500">Company name is required</p>
             )}
@@ -645,7 +667,85 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 // Main Page
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Tab definitions
+// ---------------------------------------------------------------------------
+
+const PEER_TABS = [
+  { id: 'competitors', label: 'Competitors', icon: Building2 },
+  { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { id: 'review', label: 'Review Queue', icon: ClipboardCheck },
+] as const
+
+type PeerTabId = (typeof PEER_TABS)[number]['id']
+
+const peerTabCls = (isActive: boolean) =>
+  `flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] ${
+    isActive
+      ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+      : 'text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground'
+  }`
+
 export function PeersPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = (searchParams.get('tab') as PeerTabId) || 'competitors'
+
+  return (
+    <>
+      <Helmet><title>Peers - BenchmarkSignal</title></Helmet>
+      <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
+        {/* Page header */}
+        <div className="mb-6">
+          <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">
+            Peers
+          </h1>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Manage competitors, publication schedules, and review extracted KPIs
+          </p>
+        </div>
+
+        {/* Tab bar */}
+        <div
+          role="tablist"
+          aria-label="Peers sections"
+          className="mb-6 flex items-center gap-1 border-b border-border pb-3"
+        >
+          {PEER_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              role="tab"
+              id={`peer-tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              aria-controls={`peer-tabpanel-${tab.id}`}
+              onClick={() => setSearchParams({ tab: tab.id })}
+              className={peerTabCls(activeTab === tab.id)}
+            >
+              <tab.icon className="h-4 w-4" aria-hidden="true" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab panels */}
+        <div
+          role="tabpanel"
+          id={`peer-tabpanel-${activeTab}`}
+          aria-labelledby={`peer-tab-${activeTab}`}
+        >
+          {activeTab === 'competitors' && <CompetitorsTab />}
+          {activeTab === 'calendar' && <CalendarPage embedded />}
+          {activeTab === 'review' && <ReviewPage embedded />}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Competitors Tab (formerly PeersPage content)
+// ---------------------------------------------------------------------------
+
+function CompetitorsTab() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploadCompanyId, setUploadCompanyId] = useState<string | undefined>(undefined)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
@@ -736,24 +836,13 @@ export function PeersPage() {
 
   return (
     <>
-      <Helmet><title>Peers - BenchmarkSignal</title></Helmet>
-      <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
-
-        {/* Header */}
-        <div className="mb-6 flex items-end justify-between">
-          <div>
-            <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">
-              Peers
-            </h1>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              Manage your competitive peer group
-            </p>
-          </div>
-          <Button onClick={handleAddPeer}>
-            <Plus className="h-4 w-4" />
-            Add Peer
-          </Button>
-        </div>
+      {/* Action bar */}
+      <div className="mb-6 flex items-center justify-end">
+        <Button onClick={handleAddPeer}>
+          <Plus className="h-4 w-4" />
+          Add Peer
+        </Button>
+      </div>
 
         {/* Search */}
         {!isLoading && peerCards.length > 0 && (
@@ -883,7 +972,6 @@ export function PeersPage() {
             </div>
           )
         })()}
-      </div>
 
       {/* Add Company Dialog */}
       <AddCompanyDialog
