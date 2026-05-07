@@ -1,6 +1,16 @@
 import { render, screen, waitFor } from '@/test/test-utils'
 import { DashboardPage } from '../DashboardPage'
 
+vi.mock('@/hooks/useOnboarding', () => ({
+  useOnboardingDismissed: () => ({ data: true, isLoading: false }),
+  useOnboarding: () => ({
+    status: { hasCompany: true, hasKpis: true, hasPeers: true, isComplete: true, completedSteps: 3, totalSteps: 3 },
+    isLoading: false,
+    primaryCompany: null,
+  }),
+  dismissOnboarding: vi.fn(),
+}))
+
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: vi.fn((table: string) => {

@@ -6,6 +6,8 @@ import { usePublicationEvents } from '@/hooks/useCalendar'
 import { useBenchmarkDocuments } from '@/hooks/useBenchmark'
 import { useInsights, useDismissInsight, useGenerateInsights } from '@/hooks/useInsights'
 import { useSmartYear } from '@/hooks/useSmartYear'
+import { useOnboardingDismissed } from '@/hooks/useOnboarding'
+import WelcomeWizard, { SetupProgressBanner } from '@/components/onboarding'
 import type { Company, KpiDefinition, KpiValue, KpiCategory } from '@/types/database'
 import { formatKpiValue } from '@/lib/format'
 import {
@@ -654,12 +656,21 @@ function AiInsightsSection() {
 
 export function DashboardPage() {
   const { defaultYear, availableYears, isLoading: yearLoading } = useSmartYear()
+  const { data: onboardingDismissed, isLoading: dismissedLoading } = useOnboardingDismissed()
+  const [showWizard, setShowWizard] = useState(false)
   const [fiscalYear, setFiscalYear] = useState<number | null>(null)
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>('financial')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ columnId: null, direction: 'desc' })
   const [showEmptyPeers, setShowEmptyPeers] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showRightFade, setShowRightFade] = useState(true)
+
+  // Show wizard on first visit (onboarding not yet dismissed)
+  useEffect(() => {
+    if (!dismissedLoading && onboardingDismissed === false) {
+      setShowWizard(true)
+    }
+  }, [dismissedLoading, onboardingDismissed])
 
   const effectiveYear = fiscalYear ?? defaultYear
 
@@ -952,6 +963,18 @@ export function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-[1440px] px-6 py-8">
+
+      {/* Welcome Wizard overlay */}
+      {showWizard && (
+        <WelcomeWizard onComplete={() => setShowWizard(false)} />
+      )}
+
+      {/* Setup progress banner (shows when wizard dismissed but steps incomplete) */}
+      {!showWizard && (
+        <div className="mb-6">
+          <SetupProgressBanner onResumeSetup={() => setShowWizard(true)} />
+        </div>
+      )}
 
       {/* ================================================================== */}
       {/* Section 1: Welcome Header                                          */}
