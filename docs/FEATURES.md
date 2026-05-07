@@ -1,9 +1,17 @@
 # BenchmarkSignal Feature Registry
 
 **Project:** BenchmarkSignal (Automated Competitive Benchmarking for Listed Corporations)
-**Last Updated:** 2026-05-04
-**Total Features:** 16
-**Implemented:** 4 / Unit Tests: 4 files / E2E Tests: 1 spec file / Accessibility: 0 spec files
+**Last Updated:** 2026-05-07
+**Total Features:** 16 (core) + Phase 1-2 features (see PRODUCT-VISION-2026-05-07.md)
+**Implemented:** 4 core + Accounting Profile (Phase 1) + Dashboard Command Center (Phase 2) + Landing Page redesign
+**Unit Tests:** 4 files / **E2E Tests:** 1 spec file / **Accessibility:** 0 spec files
+
+### Recent Changes (2026-05-07)
+- **Phase 1: Accounting Profile** — `accounting_profiles` table, `analyze-accounting-profile` edge function, Settings UI tab (commit `df7752d`)
+- **Phase 2: Dashboard Command Center** — Pipeline metric cards, upcoming publications timeline, recent documents, AI insights placeholder (commit `2344294`)
+- **Landing Page Redesign** — Animated hero, bento grid, stats counter, pricing table (commit `91f2bad`)
+- **Dark Mode Contrast Fix** — 30+ readability issues fixed across 19 files (commit `60f7167`). See DESIGN_BRIEF.md §11 for color usage rules.
+- **Design docs updated** — Color usage rules in DESIGN_BRIEF.md §11, design-tokens.json, UX audit resolved findings (commit `5f6544b`)
 
 ---
 

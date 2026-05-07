@@ -423,6 +423,53 @@ No finding is dropped. Every issue has a resolution path.
 
 ---
 
+## Implementation Progress
+
+### Pre-Sprint: Dark Mode Contrast Fix (2026-05-07, commit `60f7167`)
+
+Before starting Sprints A-D, a foundational dark mode readability audit was performed. This was necessary because the contrast issues made it impossible to properly evaluate UI changes during the sprint work.
+
+**30+ fixes across 19 files:**
+- All auth buttons: `text-white` → `text-primary-foreground` (invisible text in dark mode)
+- All focus rings: `ring-primary` → `ring-accent` (invisible light gray → visible blue)
+- All interactive links: `text-primary` → `text-accent`
+- Notification toggles: visible OFF state border, blue ON state
+- NotificationBell badge: red instead of invisible light gray
+- FY dropdown: overflow fix
+- Heatmap: dynamic text color based on percentile
+- WelcomeWizard: stepper and peer selection contrast
+- SetupProgressBanner: visible border
+- CardFooter: visible background
+- Settings tabs: visible active state
+- SignUp progress dots: visible color
+
+**Design pattern established:** See `DESIGN_BRIEF.md` §11 for mandatory color usage rules.
+
+**Sprint A partial resolution:** This pre-sprint work resolved the contrast/color items from Sprint A:
+- ~~Fix contrast (bg-tertiary, heatmap mid-band text)~~ → DONE (partially — CardFooter + heatmap fixed; full bg-tertiary token update still needed)
+- Sprint A's "Adopt `<Button>` globally" and "Adopt `<Dialog>` globally" are NOT yet done — those are structural changes requiring more work.
+
+### Phase 1: Accounting Profile (2026-05-07, commit `df7752d`)
+
+Implemented per PRODUCT-VISION-2026-05-07.md Phase 1:
+- `accounting_profiles` table + migration
+- `analyze-accounting-profile` edge function (Claude Vision extraction)
+- Settings UI tab for profile review/edit
+
+### Phase 2: Dashboard Command Center (2026-05-07, commit `2344294`)
+
+Implemented per PRODUCT-VISION-2026-05-07.md Phase 2:
+- Pipeline-focused metric cards (active pipelines, next report, documents ready, pending reviews)
+- Upcoming publications timeline (next 30 days)
+- Recent documents section
+- AI insights placeholder
+
+### Landing Page Redesign (2026-05-07, commit `91f2bad`)
+
+Complete redesign with animated hero, bento grid features, stats counter, pricing table.
+
+---
+
 ## Future Considerations (Not In Scope)
 
 - Global search across companies, KPIs, documents
