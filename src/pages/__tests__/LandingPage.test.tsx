@@ -34,9 +34,9 @@ describe('LandingPage', () => {
 
   it('renders 3 pricing tiers without prices', () => {
     renderLanding()
-    expect(screen.getByText('Starter')).toBeInTheDocument()
-    expect(screen.getByText('Professional')).toBeInTheDocument()
-    expect(screen.getByText('Enterprise')).toBeInTheDocument()
+    expect(screen.getAllByText('Starter').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Professional').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Enterprise').length).toBeGreaterThanOrEqual(1)
     // No tier prices (e.g., "CHF 28,800/year") visible — only "Request a Demo"
     expect(screen.queryByText(/CHF\s*28,800/)).not.toBeInTheDocument()
     expect(screen.queryByText(/CHF\s*58,800/)).not.toBeInTheDocument()
