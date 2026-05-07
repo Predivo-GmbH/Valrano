@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   BookOpen,
   Building2,
@@ -43,6 +44,7 @@ const STEPS = [
 
 export function OnboardingWizard() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [currentStep, setCurrentStep] = useState(0)
 
   // Shared state across steps
@@ -76,6 +78,7 @@ export function OnboardingWizard() {
   const handleComplete = async () => {
     try {
       await dismissOnboarding()
+      queryClient.setQueryData(['onboarding-dismissed'], true)
       toast.success('Pipeline activated! Your competitors will be monitored automatically.')
       navigate('/dashboard', { replace: true })
     } catch {
@@ -86,10 +89,11 @@ export function OnboardingWizard() {
   const handleSkip = async () => {
     try {
       await dismissOnboarding()
-      navigate('/dashboard', { replace: true })
     } catch {
-      navigate('/dashboard', { replace: true })
+      // Proceed even if metadata update fails
     }
+    queryClient.setQueryData(['onboarding-dismissed'], true)
+    navigate('/dashboard', { replace: true })
   }
 
   return (
