@@ -659,7 +659,7 @@ function StepSchedule({
         })
         saved++
       } catch (err) {
-        console.error(`Failed to create event for ${companyId}:`, err)
+        if (import.meta.env.DEV) console.error(`Failed to create event for ${companyId}:`, err)
       }
     }
     if (saved > 0) {

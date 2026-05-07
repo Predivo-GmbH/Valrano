@@ -199,7 +199,7 @@ export default function WelcomeWizard({ onComplete }: { onComplete: () => void }
           }
         }
       } catch (err) {
-        console.error('Failed to create company:', err)
+        if (import.meta.env.DEV) console.error('Failed to create company:', err)
         setIsSubmitting(false)
         return
       }
@@ -214,7 +214,7 @@ export default function WelcomeWizard({ onComplete }: { onComplete: () => void }
         await dismissOnboarding()
         queryClient.invalidateQueries({ queryKey: ['onboarding-dismissed'] })
       } catch (err) {
-        console.warn('Failed to persist onboarding dismissal:', err)
+        if (import.meta.env.DEV) console.warn('Failed to persist onboarding dismissal:', err)
       }
       onComplete()
     }
@@ -513,11 +513,11 @@ export default function WelcomeWizard({ onComplete }: { onComplete: () => void }
   // -------------------------------------------------------------------------
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm">
+    <div role="dialog" aria-modal="true" aria-labelledby="welcome-wizard-title" className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm">
       <div className="w-full max-w-2xl mx-4">
         {/* Header */}
         <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 id="welcome-wizard-title" className="text-2xl font-bold text-foreground">
             Welcome to BenchmarkSignal
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

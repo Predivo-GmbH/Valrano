@@ -229,7 +229,7 @@ function BrowserFrame() {
             <div className="flex items-center gap-4"><div className="h-6 w-6 rounded bg-[var(--color-accent)]/20" /><div className="h-3 w-24 rounded bg-[var(--color-muted-foreground)]/20" /></div>
             <div className="flex gap-3"><div className="h-3 w-16 rounded bg-[var(--color-muted-foreground)]/15" /><div className="h-3 w-16 rounded bg-[var(--color-muted-foreground)]/15" /><div className="h-3 w-16 rounded bg-[var(--color-muted-foreground)]/15" /></div>
           </div>
-          <div className="mb-4 grid grid-cols-4 gap-3">
+          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               { label: 'Revenue', val: 'CHF 2.4B', color: 'var(--color-signal-green)' },
               { label: 'EBITDA Margin', val: '24.3%', color: 'var(--color-accent)' },
@@ -536,7 +536,7 @@ export default function LandingPage() {
               Replace CHF 300K consulting engagements and 200 hours of manual analyst work with a single platform that extracts, normalizes, and compares financial and ESG KPIs from peer reports automatically.
             </p>
             <div className="landing-animate-in landing-delay-4 mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <a href="#pricing" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-white shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35">
+              <a href="#pricing" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35">
                 <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', backgroundSize: '200% 100%', animation: 'landing-shimmer 1.5s infinite' }} />
                 <span className="relative">Request a Demo</span>
                 <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
@@ -631,7 +631,7 @@ export default function LandingPage() {
                 {ENTERPRISE_INCLUDES.map((item, i) => <EnterpriseItem key={item.text} item={item} index={i} />)}
               </div>
               <div className="mt-10 flex flex-col items-center gap-4 border-t border-[var(--color-border)] pt-8 sm:flex-row sm:justify-center">
-                <a href="mailto:roger@predivo.ch?subject=BenchmarkSignal%20Demo%20Request" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-3.5 text-[15px] font-medium text-white shadow-lg shadow-[var(--color-accent)]/20 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/30">
+                <a href="mailto:roger@predivo.ch?subject=BenchmarkSignal%20Demo%20Request" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-3.5 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/20 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/30">
                   <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', backgroundSize: '200% 100%', animation: 'landing-shimmer 1.5s infinite' }} />
                   <span className="relative">Schedule a Consultation</span>
                   <ArrowRight className="relative h-4 w-4" aria-hidden="true" />
@@ -663,7 +663,7 @@ export default function LandingPage() {
               <h2 className="text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Stop building peer comparisons manually</h2>
               <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg md:text-xl">Your team spends 3-5 days building peer comparisons that are outdated before the board meeting. BenchmarkSignal delivers them in 60 minutes, continuously, for less than a single Bloomberg seat.</p>
               <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-                <a href="mailto:roger@predivo.ch?subject=BenchmarkSignal%20Demo%20Request" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-white shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35">
+                <a href="mailto:roger@predivo.ch?subject=BenchmarkSignal%20Demo%20Request" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35">
                   <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', backgroundSize: '200% 100%', animation: 'landing-shimmer 1.5s infinite' }} />
                   <span className="relative">Request a Demo</span>
                   <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />

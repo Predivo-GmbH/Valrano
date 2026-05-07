@@ -84,7 +84,7 @@ function useCompanySearch() {
         }
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') return
-        console.warn('Company search failed:', err)
+        if (import.meta.env.DEV) console.warn('Company search failed:', err)
         if (!controller.signal.aborted) setResults([])
       } finally {
         if (!controller.signal.aborted) setIsSearching(false)

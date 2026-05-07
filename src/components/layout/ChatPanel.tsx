@@ -149,8 +149,7 @@ export function ChatPanel() {
           'fixed bottom-0 right-0 top-16 z-40 flex w-[400px] max-w-[100vw] flex-col border-l border-border bg-[var(--color-background)] shadow-2xl transition-transform duration-300',
           isOpen ? 'translate-x-0' : 'translate-x-full',
         )}
-        role="dialog"
-        aria-modal="false"
+        role="complementary"
         aria-label="AI Assistant"
       >
         {/* Header */}
