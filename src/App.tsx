@@ -7,6 +7,8 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import PasswordGate from '@/components/auth/PasswordGate'
 import { AppLayout } from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import { OnboardingGuard } from '@/components/auth/OnboardingGuard'
+import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
 import LandingPage from '@/pages/LandingPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { DocumentViewerPage } from '@/pages/DocumentViewerPage'
@@ -58,6 +60,8 @@ function App() {
 
                       {/* Protected app routes */}
                       <Route element={<ProtectedRoute />}>
+                        <Route path="/onboarding" element={<OnboardingWizard />} />
+                        <Route element={<OnboardingGuard />}>
                         <Route element={<AppLayout />}>
                           <Route path="/dashboard" element={<DashboardPage />} />
                           <Route path="/peers" element={<PeersPage />} />
@@ -78,6 +82,7 @@ function App() {
                           <Route path="/my-company/benchmark" element={<Navigate to="/settings?tab=company" replace />} />
                           <Route path="/settings/benchmark-rules" element={<Navigate to="/settings?tab=rules" replace />} />
                           <Route path="/settings/approval-chains" element={<Navigate to="/settings?tab=approvals" replace />} />
+                        </Route>
                         </Route>
                       </Route>
 
