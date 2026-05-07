@@ -23,7 +23,7 @@ import {
   KpiSnapshotCard,
   SortableHeader,
 } from '@/components/dashboard'
-import type { KpiValueWithJoins, SortConfig } from '@/components/dashboard'
+import type { KpiValueWithJoins, SortConfig, KpiSnapshotCardProps } from '@/components/dashboard'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
@@ -603,7 +603,7 @@ export function DashboardPage() {
 
   const performanceKpis = useMemo(() => {
     if (!myCompanyKpis || myCompanyKpis.length === 0 || !companies) return []
-    const results: KpiSnapshotProps[] = []
+    const results: KpiSnapshotCardProps[] = []
     for (const myKpi of myCompanyKpis.slice(0, 6)) {
       const def = myKpi.kpi_definitions
       if (!def) continue
