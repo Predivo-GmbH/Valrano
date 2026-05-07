@@ -657,7 +657,8 @@ function AiInsightsSection() {
 export function DashboardPage() {
   const { defaultYear, availableYears, isLoading: yearLoading } = useSmartYear()
   const { data: onboardingDismissed, isLoading: dismissedLoading } = useOnboardingDismissed()
-  const [showWizard, setShowWizard] = useState(false)
+  const [wizardDismissedLocally, setWizardDismissedLocally] = useState(false)
+  const [wizardReopened, setWizardReopened] = useState(false)
   const [fiscalYear, setFiscalYear] = useState<number | null>(null)
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>('financial')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ columnId: null, direction: 'desc' })
@@ -665,12 +666,8 @@ export function DashboardPage() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showRightFade, setShowRightFade] = useState(true)
 
-  // Show wizard on first visit (onboarding not yet dismissed)
-  useEffect(() => {
-    if (!dismissedLoading && onboardingDismissed === false) {
-      setShowWizard(true)
-    }
-  }, [dismissedLoading, onboardingDismissed])
+  // Derive wizard visibility: show when not dismissed (server + local), or reopened from banner
+  const showWizard = wizardReopened || (!dismissedLoading && onboardingDismissed === false && !wizardDismissedLocally)
 
   const effectiveYear = fiscalYear ?? defaultYear
 
@@ -966,13 +963,13 @@ export function DashboardPage() {
 
       {/* Welcome Wizard overlay */}
       {showWizard && (
-        <WelcomeWizard onComplete={() => setShowWizard(false)} />
+        <WelcomeWizard onComplete={() => { setWizardDismissedLocally(true); setWizardReopened(false) }} />
       )}
 
       {/* Setup progress banner (shows when wizard dismissed but steps incomplete) */}
       {!showWizard && (
         <div className="mb-6">
-          <SetupProgressBanner onResumeSetup={() => setShowWizard(true)} />
+          <SetupProgressBanner onResumeSetup={() => setWizardReopened(true)} />
         </div>
       )}
 
