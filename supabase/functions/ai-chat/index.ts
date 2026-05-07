@@ -19,6 +19,16 @@ serve(async (req: Request) => {
       })
     }
 
+    // M2: Message length limit
+    if (typeof message !== 'string' || message.length > 4000) {
+      return new Response(JSON.stringify({ error: 'Message too long (max 4000 characters)' }), {
+        status: 400,
+        headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Original missing-message check removed — now handled above with length validation
+
     // ------------------------------------------------------------------
     // 1. Get or create session
     // ------------------------------------------------------------------
@@ -128,9 +138,25 @@ serve(async (req: Request) => {
       if (docId) {
         const { data: doc } = await adminClient
           .from('benchmark_documents')
-          .select('title, content_json, fiscal_year, trigger_company:companies!benchmark_documents_trigger_company_id_fkey(name)')
+          .select('title, content_json, fiscal_year, customer_company_id, trigger_company:companies!benchmark_documents_trigger_company_id_fkey(name)')
           .eq('id', docId)
           .single()
+        // M2: Verify user owns this document's company
+        if (doc) {
+          const { data: ownerCheck } = await adminClient
+            .from('companies')
+            .select('id')
+            .eq('id', doc.customer_company_id)
+            .eq('user_id', user.id)
+            .single()
+          if (!ownerCheck) {
+            // User doesn't own this document — skip context loading
+            return new Response(JSON.stringify({ error: 'Unauthorized document access' }), {
+              status: 403,
+              headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+            })
+          }
+        }
         if (doc) {
           contextData += `\nCurrent Document: "${doc.title}" (FY ${doc.fiscal_year})\n`
           if (doc.content_json) {

@@ -4,22 +4,24 @@ import { Link } from 'react-router-dom'
 import { CalendarDays, Plus, RefreshCw, ExternalLink, Trash2, Eye, Sparkles, Loader2, Globe } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEvent, useCheckPublication, useCompanies } from '@/hooks/useCalendar'
+import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEvent, useCheckPublication } from '@/hooks/useCalendar'
+import { useCompanies } from '@/hooks/useData'
 import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
 import { useSubscription } from '@/hooks/useSubscription'
 import type { PublicationEventStatus, ReportType } from '@/types/database'
+import { REPORT_TYPE_LABELS_SHORT as REPORT_TYPE_LABELS } from '@/lib/constants'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 
 const STATUS_COLORS: Record<PublicationEventStatus, string> = {
-  scheduled: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  due_today: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  overdue: 'bg-red-500/15 text-red-400 border-red-500/30',
-  detected: 'bg-green-500/15 text-green-400 border-green-500/30',
-  ingested: 'bg-green-500/15 text-green-300 border-green-500/30',
-  benchmark_ready: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  scheduled: 'bg-[var(--color-financial-blue)]/15 text-[var(--color-financial-blue)] border-[var(--color-financial-blue)]/30',
+  due_today: 'bg-[var(--color-signal-amber)]/15 text-[var(--color-signal-amber)] border-[var(--color-signal-amber)]/30',
+  overdue: 'bg-[var(--color-signal-red)]/15 text-[var(--color-signal-red)] border-[var(--color-signal-red)]/30',
+  detected: 'bg-[var(--color-signal-green)]/15 text-[var(--color-signal-green)] border-[var(--color-signal-green)]/30',
+  ingested: 'bg-[var(--color-signal-amber)]/15 text-[var(--color-signal-amber)] border-[var(--color-signal-amber)]/30',
+  benchmark_ready: 'bg-[var(--color-accent)]/15 text-[var(--color-accent)] border-[var(--color-accent)]/30',
   cancelled: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
 }
 
@@ -33,12 +35,6 @@ const STATUS_LABELS: Record<PublicationEventStatus, string> = {
   cancelled: 'Cancelled',
 }
 
-const REPORT_TYPE_LABELS: Record<ReportType, string> = {
-  annual: 'Annual',
-  quarterly: 'Quarterly',
-  half_year: 'Half-Year',
-  sustainability: 'Sustainability',
-}
 
 export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const [filterStatus, setFilterStatus] = useState<string>('all')

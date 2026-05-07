@@ -1,6 +1,6 @@
 import { getPasswordScore } from './password-utils'
 
-const COLORS = ['bg-[var(--color-destructive)]', 'bg-orange-500', 'bg-amber-500', 'bg-[var(--color-primary)]', 'bg-green-500']
+const COLORS = ['bg-[var(--color-destructive)]', 'bg-[var(--color-signal-amber)]', 'bg-[var(--color-signal-amber)]', 'bg-[var(--color-primary)]', 'bg-[var(--color-signal-green)]']
 
 export default function PasswordStrength({ password }: { password: string }) {
   const score = getPasswordScore(password)

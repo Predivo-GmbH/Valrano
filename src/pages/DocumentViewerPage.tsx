@@ -310,7 +310,16 @@ export function DocumentViewerPage() {
     if (!doc?.content_html) return
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
-    printWindow.document.write(doc.content_html)
+    // Sanitize AI-generated HTML — strip scripts and event handlers to prevent XSS
+    const parser = new DOMParser()
+    const parsed = parser.parseFromString(doc.content_html, 'text/html')
+    parsed.querySelectorAll('script,iframe,object,embed,link[rel="import"]').forEach(el => el.remove())
+    parsed.querySelectorAll('*').forEach(el => {
+      for (const attr of [...el.attributes]) {
+        if (attr.name.startsWith('on')) el.removeAttribute(attr.name)
+      }
+    })
+    printWindow.document.write('<!DOCTYPE html>' + parsed.documentElement.outerHTML)
     printWindow.document.close()
     printWindow.focus()
     setTimeout(() => printWindow.print(), 500)
@@ -318,7 +327,7 @@ export function DocumentViewerPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-[960px] px-6 py-8">
+      <div className="mx-auto max-w-[960px] px-4 py-8 sm:px-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 w-48 rounded bg-[var(--color-bg-tertiary)]" />
           <div className="h-4 w-96 rounded bg-[var(--color-bg-tertiary)]" />
@@ -330,7 +339,7 @@ export function DocumentViewerPage() {
 
   if (!doc) {
     return (
-      <div className="mx-auto max-w-[960px] px-6 py-8">
+      <div className="mx-auto max-w-[960px] px-4 py-8 sm:px-6">
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <FileText className="h-12 w-12 text-muted-foreground mb-4" />
           <h2 className="text-[17px] font-semibold text-foreground mb-2">Document not found</h2>
@@ -346,7 +355,7 @@ export function DocumentViewerPage() {
   const StatusIcon = statusCfg.icon
 
   return (
-    <div className="mx-auto max-w-[960px] px-6 py-8">
+    <div className="mx-auto max-w-[960px] px-4 py-8 sm:px-6">
       {/* Breadcrumbs */}
       <Breadcrumbs items={[
         { label: 'Reports', href: '/reports' },

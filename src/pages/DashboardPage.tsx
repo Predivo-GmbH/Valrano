@@ -959,7 +959,7 @@ export function DashboardPage() {
   }, [filteredDefs, companiesWithData, valueMap])
 
   return (
-    <div className="mx-auto max-w-[1440px] px-6 py-8">
+    <div className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6">
 
       {/* Welcome Wizard overlay */}
       {showWizard && (

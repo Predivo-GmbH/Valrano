@@ -7,6 +7,7 @@ import { useCompanies, useReports } from '@/hooks/useData'
 import { usePublicationEvents, useCheckPublication } from '@/hooks/useCalendar'
 import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
 import type { Company, ReportType, PublicationEventStatus } from '@/types/database'
+import { REPORT_TYPE_LABELS } from '@/lib/constants'
 import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -36,20 +37,14 @@ import { ReviewPage } from './ReviewPage'
 // Constants
 // ---------------------------------------------------------------------------
 
-const REPORT_TYPE_LABELS: Record<ReportType, string> = {
-  annual: 'Annual Report',
-  quarterly: 'Quarterly Report',
-  half_year: 'Half-Year Report',
-  sustainability: 'Sustainability Report',
-}
 
 const STATUS_COLORS: Record<PublicationEventStatus, string> = {
-  scheduled: 'bg-blue-500',
-  due_today: 'bg-amber-500',
-  overdue: 'bg-red-500',
-  detected: 'bg-green-500',
-  ingested: 'bg-green-400',
-  benchmark_ready: 'bg-emerald-500',
+  scheduled: 'bg-[var(--color-financial-blue)]',
+  due_today: 'bg-[var(--color-signal-amber)]',
+  overdue: 'bg-[var(--color-signal-red)]',
+  detected: 'bg-[var(--color-signal-green)]',
+  ingested: 'bg-[var(--color-signal-amber)]',
+  benchmark_ready: 'bg-[var(--color-accent)]',
   cancelled: 'bg-zinc-400',
 }
 
@@ -183,7 +178,7 @@ function AddCompanyDialog({
           {/* Company Name */}
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-              Company Name <span className="text-red-500">*</span>
+              Company Name <span className="text-[var(--color-destructive)]">*</span>
             </Label>
             <CompanyAutocomplete
               value={name}
@@ -192,14 +187,14 @@ function AddCompanyDialog({
               placeholder="Start typing to search..."
               className={cn(
                 'rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground',
-                nameError && 'border-red-500',
+                nameError && 'border-[var(--color-destructive)]',
               )}
             />
             <p className="text-[10px] text-muted-foreground">
               Type 3+ letters to search company registers
             </p>
             {nameError && (
-              <p className="text-[11px] text-red-500">Company name is required</p>
+              <p className="text-[11px] text-[var(--color-destructive)]">Company name is required</p>
             )}
           </div>
 

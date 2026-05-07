@@ -69,19 +69,6 @@ export function useMonitorChecks(eventId: string | undefined) {
   })
 }
 
-export function useCompanies() {
-  return useQuery({
-    queryKey: ['companies'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .order('name', { ascending: true })
-      if (error) throw error
-      return data as Company[]
-    },
-  })
-}
 
 // ---------------------------------------------------------------------------
 // Mutations

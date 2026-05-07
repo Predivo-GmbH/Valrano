@@ -83,13 +83,14 @@ serve(async (req: Request) => {
       throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
     }
 
-    // Validate cron secret (prevents unauthorized invocation)
+    // Validate cron secret (fail-closed — rejects if not configured)
     const cronSecret = Deno.env.get('CRON_SECRET')
-    if (cronSecret) {
-      const providedSecret = req.headers.get('x-cron-secret')
-      if (providedSecret !== cronSecret) {
-        return jsonResponse({ error: 'Unauthorized' }, 401)
-      }
+    if (!cronSecret) {
+      return jsonResponse({ error: 'CRON_SECRET not configured' }, 500)
+    }
+    const providedSecret = req.headers.get('x-cron-secret')
+    if (providedSecret !== cronSecret) {
+      return jsonResponse({ error: 'Unauthorized' }, 401)
     }
 
     const adminClient = createClient(sbUrl, sbServiceKey)

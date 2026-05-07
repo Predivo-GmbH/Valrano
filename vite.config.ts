@@ -32,6 +32,9 @@ export default defineConfig({
           if (id.includes('node_modules/sonner')) {
             return 'toast-vendor'
           }
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/victory-vendor')) {
+            return 'charts-vendor'
+          }
         },
       },
     },

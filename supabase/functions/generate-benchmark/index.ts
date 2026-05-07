@@ -80,7 +80,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { adminClient } = await authenticateRequest(req)
+    const { user, adminClient, userClient } = await authenticateRequest(req)
 
     const { report_id: reportId, benchmark_rule_id: ruleId } = await req.json()
     if (!reportId) {
@@ -88,9 +88,9 @@ serve(async (req: Request) => {
     }
 
     // ------------------------------------------------------------------
-    // 1. Load report + trigger company
+    // 1. Load report + trigger company (use userClient to enforce RLS)
     // ------------------------------------------------------------------
-    const { data: report, error: reportError } = await adminClient
+    const { data: report, error: reportError } = await userClient
       .from('reports')
       .select('*, companies(id, name, ticker, reporting_currency)')
       .eq('id', reportId)

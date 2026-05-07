@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
@@ -8,23 +9,27 @@ import PasswordGate from '@/components/auth/PasswordGate'
 import { AppLayout } from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import { OnboardingGuard } from '@/components/auth/OnboardingGuard'
-import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard'
-import LandingPage from '@/pages/LandingPage'
-import { DashboardPage } from '@/pages/DashboardPage'
-import { DocumentViewerPage } from '@/pages/DocumentViewerPage'
-import { AnalyticsPage } from '@/pages/AnalyticsPage'
-import { ReportBuilderPage } from '@/pages/ReportBuilderPage'
-import { ReportViewerPage } from '@/pages/ReportViewerPage'
-import { PeersPage } from '@/pages/PeersPage'
-import { SettingsPage } from '@/pages/SettingsPage'
-import { AccountPage } from '@/pages/AccountPage'
 import { RedirectIfAuthenticated } from '@/components/auth/RedirectIfAuthenticated'
-import LoginPage from '@/pages/auth/LoginPage'
-import SignUpPage from '@/pages/auth/SignUpPage'
-import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
-import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
-import AuthCallbackPage from '@/pages/auth/AuthCallbackPage'
-import AuthVerifyPage from '@/pages/auth/AuthVerifyPage'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import LandingPage from '@/pages/LandingPage'
+import { PageSkeleton } from '@/components/ui/page-skeleton'
+
+// Route-level code splitting — each page loads on demand
+const DashboardPage = lazy(() => import('@/pages/DashboardPage').then(m => ({ default: m.DashboardPage })))
+const DocumentViewerPage = lazy(() => import('@/pages/DocumentViewerPage').then(m => ({ default: m.DocumentViewerPage })))
+const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })))
+const ReportBuilderPage = lazy(() => import('@/pages/ReportBuilderPage').then(m => ({ default: m.ReportBuilderPage })))
+const ReportViewerPage = lazy(() => import('@/pages/ReportViewerPage').then(m => ({ default: m.ReportViewerPage })))
+const PeersPage = lazy(() => import('@/pages/PeersPage').then(m => ({ default: m.PeersPage })))
+const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const AccountPage = lazy(() => import('@/pages/AccountPage').then(m => ({ default: m.AccountPage })))
+const OnboardingWizard = lazy(() => import('@/components/onboarding/OnboardingWizard').then(m => ({ default: m.OnboardingWizard })))
+const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
+const SignUpPage = lazy(() => import('@/pages/auth/SignUpPage'))
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
+const AuthCallbackPage = lazy(() => import('@/pages/auth/AuthCallbackPage'))
+const AuthVerifyPage = lazy(() => import('@/pages/auth/AuthVerifyPage'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,6 +46,8 @@ function App() {
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
+            <ErrorBoundary>
+            <Suspense fallback={<PageSkeleton />}>
             <Routes>
               {/* Public landing page — redirect to dashboard if logged in */}
               <Route path="/" element={<RedirectIfAuthenticated><LandingPage /></RedirectIfAuthenticated>} />
@@ -92,6 +99,8 @@ function App() {
                 </PasswordGate>
               } />
             </Routes>
+          </Suspense>
+            </ErrorBoundary>
           </BrowserRouter>
           <Toaster
             position="bottom-right"

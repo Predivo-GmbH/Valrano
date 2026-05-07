@@ -581,7 +581,7 @@ function StepCompetitors({
                 </button>
               )}
               {company.ir_page_url && (
-                <span className="flex-shrink-0 text-[9px] text-green-500 font-medium">IR</span>
+                <span className="flex-shrink-0 text-[9px] text-[var(--color-signal-green)] font-medium">IR</span>
               )}
             </button>
           )

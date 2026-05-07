@@ -124,8 +124,8 @@ export function ReportViewerPage() {
             <p className="mt-1 text-sm text-muted-foreground">Click "Regenerate" to generate this report's content.</p>
           </div>
         ) : report.status === 'error' ? (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-8 text-center">
-            <p className="text-sm text-red-500">{report.error_message ?? 'Generation failed'}</p>
+          <div className="rounded-xl border border-[var(--color-destructive)]/20 bg-[var(--color-destructive)]/5 p-8 text-center">
+            <p className="text-sm text-[var(--color-destructive)]">{report.error_message ?? 'Generation failed'}</p>
           </div>
         ) : contentJson ? (
           <div className="space-y-6 print:space-y-4">

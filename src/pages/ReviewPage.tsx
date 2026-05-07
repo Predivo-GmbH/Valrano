@@ -283,7 +283,7 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
   if (embedded) return content
 
   return (
-    <div className="mx-auto max-w-[1440px] px-6 py-8">
+    <div className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6">
       {content}
     </div>
   )
