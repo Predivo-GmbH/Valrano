@@ -338,7 +338,7 @@ function FeatureCard({ f, index, visible }: {
       <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full blur-[40px] transition-opacity duration-500 group-hover:opacity-[0.08]" style={{ backgroundColor: f.accent, opacity: 0 }} />
       <div className="relative">
         <div className={`flex items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110 ${f.featured ? 'h-12 w-12' : 'h-10 w-10'}`} style={{ backgroundColor: `${f.accent}18` }}>
-          <f.icon className={f.featured ? 'h-6 w-6' : 'h-5 w-5'} style={{ color: f.accent }} aria-hidden="true" />
+          <f.icon className={f.featured ? 'h-6 w-6' : 'h-5 w-5'} color={f.accent} aria-hidden="true" />
         </div>
         <h3 className={`mt-4 font-semibold text-[var(--color-foreground)] ${f.featured ? 'text-xl' : 'text-[15px]'}`}>{f.title}</h3>
         <p className={`mt-2 leading-relaxed text-[var(--color-muted-foreground)] ${f.featured ? 'text-[15px]' : 'text-sm'}`}>{f.desc}</p>
