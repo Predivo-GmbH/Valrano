@@ -124,16 +124,18 @@ export default function CompanyAutocomplete({
   const inputRef = useRef<HTMLInputElement>(null)
   const { results, isSearching, search, clear } = useCompanySearch()
 
-  // Search when value changes
-  useEffect(() => {
-    if (value.trim().length >= 3) {
-      search(value)
+  // Handle input changes — trigger search inline
+  const handleChange = useCallback((newValue: string) => {
+    onChange(newValue)
+    if (newValue.trim().length >= 3) {
+      search(newValue)
       setIsOpen(true)
     } else {
       clear()
       setIsOpen(false)
     }
-  }, [value, search, clear])
+    setSelectedIndex(-1)
+  }, [onChange, search, clear])
 
   // Close on outside click
   useEffect(() => {
@@ -145,11 +147,6 @@ export default function CompanyAutocomplete({
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
-
-  // Reset selected index when results change
-  useEffect(() => {
-    setSelectedIndex(-1)
-  }, [results])
 
   const handleSelect = (company: CompanyResult) => {
     onChange(company.name)
@@ -190,7 +187,7 @@ export default function CompanyAutocomplete({
           ref={inputRef}
           id={id}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => {
             if (results.length > 0) setIsOpen(true)
