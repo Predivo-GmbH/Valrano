@@ -160,25 +160,41 @@ Guidelines:
 - When comparing companies, highlight the most significant differences
 - If asked about something outside the available data, clearly state the limitation`
 
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        stream: true,
-        system: systemPrompt,
-        messages: conversationHistory,
-      }),
-    })
+    // Retry with backoff for rate limits
+    let claudeResponse: Response | null = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicApiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4096,
+          stream: true,
+          system: systemPrompt,
+          messages: conversationHistory,
+        }),
+      })
 
-    if (!claudeResponse.ok) {
-      const errBody = await claudeResponse.text()
-      throw new Error(`Claude API error ${claudeResponse.status}: ${errBody}`)
+      if (claudeResponse.status !== 429) break
+      // Wait before retry: 2s, 5s
+      const waitMs = attempt === 0 ? 2000 : 5000
+      console.log(`Claude 429, retrying in ${waitMs}ms (attempt ${attempt + 1}/3)`)
+      await new Promise((r) => setTimeout(r, waitMs))
+    }
+
+    if (!claudeResponse!.ok) {
+      const errBody = await claudeResponse!.text()
+      if (claudeResponse!.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'AI service is temporarily busy. Please try again in a moment.' }),
+          { status: 429, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } },
+        )
+      }
+      throw new Error(`Claude API error ${claudeResponse!.status}: ${errBody}`)
     }
 
     // ------------------------------------------------------------------
@@ -193,7 +209,7 @@ Guidelines:
 
     let fullResponse = ''
     const encoder = new TextEncoder()
-    const reader = claudeResponse.body!.getReader()
+    const reader = claudeResponse!.body!.getReader()
     const decoder = new TextDecoder()
 
     const stream = new ReadableStream({
@@ -251,6 +267,7 @@ Guidelines:
 
     return new Response(stream, { headers: responseHeaders })
   } catch (err) {
+    console.error('ai-chat error:', err)
     return errorResponse(err)
   }
 })
