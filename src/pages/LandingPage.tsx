@@ -327,7 +327,7 @@ function EnterpriseItem({ item, index }: {
 
 /* ── Feature card (hooks-safe component) ─────────── */
 function FeatureCard({ f, index, visible }: {
-  f: { icon: React.ComponentType<{ className?: string }>; title: string; desc: string; span: string; featured?: boolean; accent: string }; index: number; visible: boolean
+  f: { icon: React.ComponentType<React.SVGProps<SVGSVGElement> & { className?: string }>; title: string; desc: string; span: string; featured?: boolean; accent: string }; index: number; visible: boolean
 }) {
   return (
     <div className={`group relative overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-background)] p-6 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] sm:p-7 ${f.span}`}
