@@ -23,15 +23,13 @@ import {
 /* ── Animated count-up hook ─────────────────────────── */
 function useCountUp(end: number, duration = 2000, startOnView = true) {
   const [count, setCount] = useState(0)
-  const [started, setStarted] = useState(!startOnView)
+  const [started, setStarted] = useState(
+    !startOnView || typeof IntersectionObserver === 'undefined'
+  )
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!startOnView || !ref.current) return
-    if (typeof IntersectionObserver === 'undefined') {
-      setStarted(true)
-      return
-    }
+    if (!startOnView || !ref.current || typeof IntersectionObserver === 'undefined') return
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
