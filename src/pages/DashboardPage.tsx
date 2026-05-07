@@ -781,7 +781,7 @@ export function DashboardPage() {
           <SelectTrigger className="w-[120px] rounded-lg border-border bg-card text-[13px] text-foreground">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="rounded-lg border-border bg-card text-[13px]">
+          <SelectContent align="end" className="rounded-lg border-border bg-card text-[13px]">
             {availableYears.map((y) => (
               <SelectItem key={y} value={String(y)} className="text-[13px]">
                 FY {y}

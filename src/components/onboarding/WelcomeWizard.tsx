@@ -368,7 +368,7 @@ export default function WelcomeWizard({ onComplete }: { onComplete: () => void }
                 className={cn(
                   'flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors',
                   isSelected
-                    ? 'border-primary/50 bg-primary/5'
+                    ? 'border-accent bg-accent/10'
                     : 'border-border bg-card hover:bg-muted/50',
                 )}
               >
@@ -381,7 +381,7 @@ export default function WelcomeWizard({ onComplete }: { onComplete: () => void }
                   </p>
                 </div>
                 {isSelected && (
-                  <Check className="size-4 text-primary shrink-0" />
+                  <Check className="size-4 text-accent shrink-0" />
                 )}
               </button>
             )
@@ -489,15 +489,15 @@ export default function WelcomeWizard({ onComplete }: { onComplete: () => void }
                   <div
                     className={cn(
                       'h-px w-8 sm:w-12',
-                      isDone ? 'bg-primary' : 'bg-border',
+                      isDone ? 'bg-accent' : 'bg-border',
                     )}
                   />
                 )}
                 <div
                   className={cn(
                     'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-                    isActive && 'bg-primary/10 text-primary border border-primary/30',
-                    isDone && 'bg-primary/20 text-primary',
+                    isActive && 'bg-accent/15 text-accent border border-accent/40',
+                    isDone && 'bg-accent/20 text-accent',
                     !isActive && !isDone && 'text-muted-foreground',
                   )}
                 >

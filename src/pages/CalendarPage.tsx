@@ -218,7 +218,7 @@ export function CalendarPage() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 aria-label="Open IR page"
-                                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
                               >
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </a>
@@ -243,7 +243,7 @@ export function CalendarPage() {
                               <Link
                                 to={`/documents?reportId=${ev.report_id}`}
                                 aria-label="View report"
-                                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
                               >
                                 <Eye className="h-3.5 w-3.5" />
                               </Link>

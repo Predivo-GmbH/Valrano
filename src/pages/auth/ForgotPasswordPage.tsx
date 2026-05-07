@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
             We sent a password reset link to <span className="font-medium text-[var(--color-foreground)]">{email}</span>
           </p>
-          <Link to="/login" className="mt-6 inline-block text-sm font-medium text-[var(--color-primary)] hover:underline">
+          <Link to="/login" className="mt-6 inline-block text-sm font-medium text-[var(--color-accent)] hover:underline">
             Back to sign in
           </Link>
         </div>
@@ -54,16 +54,16 @@ export default function ForgotPasswordPage() {
             <div>
               <label htmlFor="reset-email" className="block text-sm font-medium text-[var(--color-foreground)]">Email</label>
               <input id="reset-email" type="email" required autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 sm:text-sm"
+                className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 sm:text-sm"
                 placeholder="you@company.com" />
             </div>
             <button type="submit" disabled={loading}
-              className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50">
+              className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90 disabled:opacity-50">
               {loading ? 'Sending...' : 'Send Reset Link'}
             </button>
           </form>
           <p className="mt-6 text-center text-sm text-[var(--color-muted-foreground)]">
-            <Link to="/login" className="font-medium text-[var(--color-primary)] hover:underline">Back to sign in</Link>
+            <Link to="/login" className="font-medium text-[var(--color-accent)] hover:underline">Back to sign in</Link>
           </p>
         </>
       )}

@@ -37,7 +37,7 @@ export default function ResendTimer({ onResend, cooldown = 60 }: ResendTimerProp
     <button
       onClick={handleResend}
       disabled={sending}
-      className="block w-full text-center text-sm font-medium text-[var(--color-primary)] hover:underline disabled:opacity-50"
+      className="block w-full text-center text-sm font-medium text-[var(--color-accent)] hover:underline disabled:opacity-50"
     >
       {sending ? 'Sending...' : 'Resend code'}
     </button>

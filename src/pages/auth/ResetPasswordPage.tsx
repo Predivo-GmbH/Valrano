@@ -57,7 +57,7 @@ export default function ResetPasswordPage() {
           <h1 className="text-2xl font-bold text-[var(--color-foreground)]">Password updated</h1>
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">Your password has been reset successfully.</p>
           <button onClick={() => navigate('/dashboard')}
-            className="mt-6 rounded-lg bg-[var(--color-primary)] px-6 py-2.5 text-sm font-medium text-white hover:opacity-90">
+            className="mt-6 rounded-lg bg-[var(--color-primary)] px-6 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] hover:opacity-90">
             Go to Dashboard
           </button>
         </div>
@@ -69,18 +69,18 @@ export default function ResetPasswordPage() {
             <div>
               <label htmlFor="new-password" className="block text-sm font-medium text-[var(--color-foreground)]">New password</label>
               <input id="new-password" type="password" required autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
                 placeholder="Min. 8 characters" />
               <PasswordStrength password={password} />
             </div>
             <div>
               <label htmlFor="confirm-password" className="block text-sm font-medium text-[var(--color-foreground)]">Confirm password</label>
               <input id="confirm-password" type="password" required autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
                 placeholder="Confirm password" />
             </div>
             <button type="submit" disabled={loading}
-              className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50">
+              className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90 disabled:opacity-50">
               {loading ? 'Updating...' : 'Update Password'}
             </button>
           </form>

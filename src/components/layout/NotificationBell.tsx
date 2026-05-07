@@ -42,7 +42,7 @@ export function NotificationBell() {
       >
         <Bell className="h-5 w-5" />
         {count > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-primary)] px-1 text-[10px] font-bold text-white">
+          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-destructive)] px-1 text-[10px] font-bold text-[var(--color-destructive-foreground)]">
             {count > 99 ? '99+' : count}
           </span>
         )}
@@ -55,7 +55,7 @@ export function NotificationBell() {
             {count > 0 && (
               <button
                 onClick={() => markAllAsRead.mutate()}
-                className="text-xs font-medium text-[var(--color-primary)] hover:underline"
+                className="text-xs font-medium text-[var(--color-accent)] hover:underline"
               >
                 Mark all read
               </button>
@@ -72,17 +72,17 @@ export function NotificationBell() {
                 <div
                   key={n.id}
                   className={`border-b border-border px-4 py-3 transition-colors last:border-b-0 ${
-                    n.is_read ? '' : 'bg-[var(--color-primary)]/5'
+                    n.is_read ? '' : 'bg-[var(--color-accent)]/5'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-[var(--color-primary)]">
+                        <span className="text-xs font-medium text-[var(--color-accent)]">
                           {TYPE_LABELS[n.type]}
                         </span>
                         {!n.is_read && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
                         )}
                       </div>
                       <p className="mt-0.5 text-sm font-medium text-foreground">{n.title}</p>
@@ -114,7 +114,7 @@ export function NotificationBell() {
                         if (!n.is_read) markAsRead.mutate(n.id)
                         setOpen(false)
                       }}
-                      className="mt-1 inline-block text-xs font-medium text-[var(--color-primary)] hover:underline"
+                      className="mt-1 inline-block text-xs font-medium text-[var(--color-accent)] hover:underline"
                     >
                       View →
                     </Link>

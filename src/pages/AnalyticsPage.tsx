@@ -756,7 +756,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
                         className="mx-auto flex h-10 w-full max-w-[80px] items-center justify-center rounded-md text-xs font-medium"
                         style={{
                           backgroundColor: getHeatColor(cell.percentile),
-                          color: 'white',
+                          color: cell.percentile >= 40 && cell.percentile < 60 ? 'white' : cell.percentile >= 60 ? '#052e16' : 'white',
                         }}
                         title={`P${cell.percentile} \u2014 ${cell.value.toLocaleString()}`}
                       >

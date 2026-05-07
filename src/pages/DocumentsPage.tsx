@@ -260,7 +260,7 @@ export function DocumentsPage() {
                     <td className="px-6 py-4 text-right">
                       <Link
                         to={`/documents/${doc.id}`}
-                        className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-[var(--color-accent)] transition-all duration-200 hover:bg-[var(--color-accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                        className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-[var(--color-accent)] transition-all duration-200 hover:bg-[var(--color-accent)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
                       >
                         View
                         <ExternalLink className="h-3 w-3" />

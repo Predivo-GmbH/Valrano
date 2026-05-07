@@ -47,7 +47,7 @@ export default function AuthVerifyPage() {
           </div>
           <p className="text-sm text-[var(--color-muted-foreground)]">{error}</p>
           <a href={type === 'signup' ? '/signup' : '/login'}
-            className="mt-4 inline-block text-sm font-medium text-[var(--color-primary)] hover:underline">
+            className="mt-4 inline-block text-sm font-medium text-[var(--color-accent)] hover:underline">
             {type === 'signup' ? 'Try signing up again' : 'Go to login'}
           </a>
         </div>

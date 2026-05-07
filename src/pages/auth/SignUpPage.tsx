@@ -90,13 +90,13 @@ export default function SignUpPage() {
   const stepDots = (current: number) => (
     <nav className="mt-5 flex justify-center gap-2" aria-label="Sign up progress">
       {[0, 1, 2].map((i) => (
-        <div key={i} className={`h-2 w-8 rounded-full ${i <= current ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'}`} />
+        <div key={i} className={`h-2 w-8 rounded-full ${i <= current ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-border)]'}`} />
       ))}
     </nav>
   )
 
-  const inputCls = 'mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 sm:text-sm'
-  const btnCls = 'w-full rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50'
+  const inputCls = 'mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 sm:text-sm'
+  const btnCls = 'w-full rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90 disabled:opacity-50'
 
   return (
     <AuthLayout>
@@ -117,7 +117,7 @@ export default function SignUpPage() {
             <button type="submit" disabled={loading} className={btnCls}>{loading ? 'Sending code...' : 'Continue'}</button>
           </form>
           <p className="mt-6 text-center text-sm text-[var(--color-muted-foreground)]">
-            Already have an account? <Link to="/login" className="font-medium text-[var(--color-primary)] hover:underline">Sign in</Link>
+            Already have an account? <Link to="/login" className="font-medium text-[var(--color-accent)] hover:underline">Sign in</Link>
           </p>
         </div>
       )}

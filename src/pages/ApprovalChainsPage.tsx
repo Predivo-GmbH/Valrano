@@ -31,7 +31,7 @@ export function ApprovalChainsPage() {
 
         <button
           onClick={() => setShowCreate(true)}
-          className="mb-6 flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-[var(--color-primary)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+          className="mb-6 flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-[var(--color-primary)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
         >
           <Plus className="h-4 w-4" />
           Create Approval Chain
@@ -206,7 +206,7 @@ function CreateChainDialog({
                       type="button"
                       onClick={() => removeStep(i)}
                       aria-label={`Remove step ${step.step_number}`}
-                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+                      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -217,15 +217,15 @@ function CreateChainDialog({
             <button
               type="button"
               onClick={addStep}
-              className="mt-2 text-xs font-medium text-[var(--color-primary)] hover:underline"
+              className="mt-2 text-xs font-medium text-[var(--color-accent)] hover:underline"
             >
               + Add Step
             </button>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="min-h-[44px] rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">Cancel</button>
-            <button type="submit" disabled={createMutation.isPending} className="min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2">
+            <button type="button" onClick={onClose} className="min-h-[44px] rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]">Cancel</button>
+            <button type="submit" disabled={createMutation.isPending} className="min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2">
               {createMutation.isPending ? 'Creating...' : 'Create Chain'}
             </button>
           </div>

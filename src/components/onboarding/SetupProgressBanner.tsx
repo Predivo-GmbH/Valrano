@@ -56,7 +56,7 @@ export function SetupProgressBanner({ onResumeSetup }: { onResumeSetup: () => vo
   }
 
   return (
-    <div className="relative rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+    <div className="relative rounded-lg border border-accent/30 bg-accent/5 px-4 py-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Left: Progress indicators */}
         <div className="flex items-center gap-4">
@@ -72,7 +72,7 @@ export function SetupProgressBanner({ onResumeSetup }: { onResumeSetup: () => vo
                   key={step.key}
                   className={cn(
                     'flex items-center gap-1 text-xs',
-                    done ? 'text-primary' : 'text-muted-foreground',
+                    done ? 'text-accent' : 'text-muted-foreground',
                   )}
                 >
                   {done ? (

@@ -186,7 +186,7 @@ export function AccountPage() {
               <select
                 value={fiscalYear}
                 onChange={(e) => setFiscalYear(e.target.value)}
-                className="rounded-lg border border-border bg-[var(--color-background)] px-3 py-1.5 text-[13px] text-foreground outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                className="rounded-lg border border-border bg-[var(--color-background)] px-3 py-1.5 text-[13px] text-foreground outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
               >
                 <option value="calendar">Calendar Year (Jan-Dec)</option>
                 <option value="april">April - March</option>
@@ -209,7 +209,7 @@ function ToggleRow({ label, checked, onChange }: { label: string; checked: boole
         type="checkbox"
         checked={checked}
         onChange={onChange}
-        className="h-5 w-9 cursor-pointer appearance-none rounded-full bg-[var(--color-bg-tertiary)] transition-colors checked:bg-[var(--color-primary)] relative before:absolute before:left-0.5 before:top-0.5 before:h-4 before:w-4 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-4"
+        className="h-5 w-9 cursor-pointer appearance-none rounded-full border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] transition-colors checked:border-[var(--color-accent)] checked:bg-[var(--color-accent)] relative before:absolute before:left-0.5 before:top-0.5 before:h-4 before:w-4 before:rounded-full before:bg-white before:shadow-sm before:transition-transform checked:before:translate-x-4"
       />
     </label>
   )
