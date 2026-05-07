@@ -173,8 +173,12 @@ export default function WelcomeWizard({ onComplete }: { onComplete: () => void }
       setCurrentStep((s) => s + 1)
     } else {
       // Final step — mark as complete
-      await dismissOnboarding()
-      queryClient.invalidateQueries({ queryKey: ['onboarding-dismissed'] })
+      try {
+        await dismissOnboarding()
+        queryClient.invalidateQueries({ queryKey: ['onboarding-dismissed'] })
+      } catch (err) {
+        console.warn('Failed to persist onboarding dismissal:', err)
+      }
       onComplete()
     }
   }, [
@@ -195,8 +199,12 @@ export default function WelcomeWizard({ onComplete }: { onComplete: () => void }
   }, [currentStep])
 
   const handleSkip = useCallback(async () => {
-    await dismissOnboarding()
-    queryClient.invalidateQueries({ queryKey: ['onboarding-dismissed'] })
+    try {
+      await dismissOnboarding()
+      queryClient.invalidateQueries({ queryKey: ['onboarding-dismissed'] })
+    } catch (err) {
+      console.warn('Failed to persist onboarding dismissal:', err)
+    }
     onComplete()
   }, [queryClient, onComplete])
 
