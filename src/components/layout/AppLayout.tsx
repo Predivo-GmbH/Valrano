@@ -118,11 +118,38 @@ export function AppLayout() {
                   <User className="h-5 w-5" />
                 </button>
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-[var(--color-card)] py-1 shadow-lg">
+                  <div
+                    role="menu"
+                    aria-label="User menu"
+                    className="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-[var(--color-card)] py-1 shadow-lg"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') { setMenuOpen(false); return }
+                      if (e.key === 'Tab') {
+                        const items = e.currentTarget.querySelectorAll<HTMLElement>('button[role="menuitem"]')
+                        if (items.length === 0) return
+                        const first = items[0]
+                        const last = items[items.length - 1]
+                        if (e.shiftKey && document.activeElement === first) {
+                          e.preventDefault()
+                          last.focus()
+                        } else if (!e.shiftKey && document.activeElement === last) {
+                          e.preventDefault()
+                          first.focus()
+                        }
+                      }
+                    }}
+                    ref={(el) => {
+                      if (el) {
+                        const first = el.querySelector<HTMLElement>('button[role="menuitem"]')
+                        first?.focus()
+                      }
+                    }}
+                  >
                     <div className="border-b border-border px-4 py-2">
                       <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
                     </div>
                     <button
+                      role="menuitem"
                       onClick={() => { setMenuOpen(false); navigate('/account') }}
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
                     >
@@ -130,6 +157,7 @@ export function AppLayout() {
                       Account
                     </button>
                     <button
+                      role="menuitem"
                       onClick={() => { setMenuOpen(false); navigate('/settings') }}
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
                     >
@@ -138,9 +166,10 @@ export function AppLayout() {
                     </button>
                     <div className="border-t border-border my-1" />
                     <button
+                      role="menuitem"
                       onClick={async () => {
                         await signOut()
-                        navigate('/login')
+                        navigate('/')
                       }}
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
                     >
