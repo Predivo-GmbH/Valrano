@@ -16,6 +16,7 @@ import { ReportViewerPage } from '@/pages/ReportViewerPage'
 import { PeersPage } from '@/pages/PeersPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { AccountPage } from '@/pages/AccountPage'
+import { RedirectIfAuthenticated } from '@/components/auth/RedirectIfAuthenticated'
 import LoginPage from '@/pages/auth/LoginPage'
 import SignUpPage from '@/pages/auth/SignUpPage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
@@ -39,8 +40,8 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <Routes>
-              {/* Public landing page — outside PasswordGate */}
-              <Route path="/" element={<LandingPage />} />
+              {/* Public landing page — redirect to dashboard if logged in */}
+              <Route path="/" element={<RedirectIfAuthenticated><LandingPage /></RedirectIfAuthenticated>} />
 
               {/* Everything else behind PasswordGate */}
               <Route path="*" element={

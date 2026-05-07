@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useAuth } from '@/hooks/useAuth'
 import AuthLayout from '@/components/auth/AuthLayout'
@@ -17,8 +17,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const { signInWithPassword, sendLoginOtp, verifyOtp } = useAuth()
+  const { signInWithPassword, sendLoginOtp, verifyOtp, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+
+  // Redirect authenticated users to dashboard
+  if (!authLoading && user) return <Navigate to="/dashboard" replace />
 
   async function handlePasswordLogin(e: FormEvent) {
     e.preventDefault()
