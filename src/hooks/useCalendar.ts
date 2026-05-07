@@ -13,6 +13,7 @@ export function usePublicationEvents(params?: {
 }) {
   return useQuery({
     queryKey: ['publication-events', params],
+    staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       let query = supabase
         .from('publication_events')

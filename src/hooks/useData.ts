@@ -12,6 +12,7 @@ import type {
 export function useCompanies() {
   return useQuery({
     queryKey: ['companies'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('companies')
@@ -27,6 +28,7 @@ export function useCompanies() {
 export function useKpiDefinitions() {
   return useQuery({
     queryKey: ['kpi-definitions'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kpi_definitions')
@@ -42,6 +44,7 @@ export function useKpiDefinitions() {
 export function usePeerGroups() {
   return useQuery({
     queryKey: ['peer-groups'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('peer_groups')
@@ -63,9 +66,14 @@ export function useKpiValues(params: {
   return useQuery({
     queryKey: ['kpi-values', params],
     queryFn: async () => {
+      // Use !inner join when filtering by kpiCodes to push filtering to PostgREST
+      const selectClause = params.kpiCodes?.length
+        ? '*, kpi_definitions!inner(*), companies(*)'
+        : '*, kpi_definitions(*), companies(*)'
+
       let query = supabase
         .from('kpi_values')
-        .select('*, kpi_definitions(*), companies(*)')
+        .select(selectClause)
 
       if (params.companyIds?.length) {
         query = query.in('company_id', params.companyIds)
@@ -73,23 +81,17 @@ export function useKpiValues(params: {
       if (params.fiscalYear) {
         query = query.eq('fiscal_year', params.fiscalYear)
       }
-      // kpiCodes filter requires joining with kpi_definitions — use a sub-query approach
-      // by filtering after fetch when kpiCodes are provided (avoids complex PostgREST syntax)
+      if (params.kpiCodes?.length) {
+        query = query.in('kpi_definitions.code', params.kpiCodes)
+      }
 
       const { data, error } = await query.order('company_id')
       if (error) throw error
 
-      const rows = data as (KpiValue & {
+      return data as (KpiValue & {
         kpi_definitions: KpiDefinition
         companies: Company
       })[]
-
-      if (params.kpiCodes?.length) {
-        const codeSet = new Set(params.kpiCodes)
-        return rows.filter((r) => codeSet.has(r.kpi_definitions?.code))
-      }
-
-      return rows
     },
     enabled: !!(params.companyIds?.length || params.fiscalYear),
   })

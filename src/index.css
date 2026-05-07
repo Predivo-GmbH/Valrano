@@ -71,6 +71,11 @@
     @apply border-border outline-ring/50;
   }
 
+  *:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
   html {
     @apply font-sans;
   }

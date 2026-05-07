@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useCompanies, useKpiDefinitions, useKpiValues, useReports } from '@/hooks/useData'
 import { usePrimaryCompany, useMyCompanyKpis } from '@/hooks/useMyCompany'
@@ -9,7 +9,21 @@ import { useSmartYear } from '@/hooks/useSmartYear'
 import { useOnboardingDismissed } from '@/hooks/useOnboarding'
 import WelcomeWizard, { SetupProgressBanner } from '@/components/onboarding'
 import type { Company, KpiDefinition, KpiValue, KpiCategory } from '@/types/database'
-import { formatKpiValue } from '@/lib/format'
+import {
+  getGreeting,
+  getRelativeTime,
+  getCountdown,
+  getEventStatusColor,
+  getEventStatusDot,
+  getDocStatusBadge,
+} from '@/lib/dashboard-utils'
+import {
+  KpiCell,
+  MetricCard,
+  KpiSnapshotCard,
+  SortableHeader,
+} from '@/components/dashboard'
+import type { KpiValueWithJoins, SortConfig } from '@/components/dashboard'
 import {
   Tooltip,
   TooltipContent,
@@ -47,17 +61,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type KpiValueWithJoins = KpiValue & {
-  kpi_definitions: KpiDefinition
-  companies: Company
-}
-
 type ActiveCategory = KpiCategory | 'all'
-
-type SortConfig = {
-  columnId: string | null
-  direction: 'asc' | 'desc'
-}
 
 // ---------------------------------------------------------------------------
 // Signal coloring — compares a company's value against peer min/max
@@ -97,85 +101,10 @@ const LOWER_IS_BETTER_CODES = new Set([
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getGreeting(): string {
-  const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
-  return 'Good evening'
-}
-
-function getRelativeTime(dateStr: string): string {
-  const now = new Date()
-  const date = new Date(dateStr)
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
-  if (diffMins < 1) return 'just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
-  const diffDays = Math.floor(diffHours / 24)
-  if (diffDays < 7) return `${diffDays}d ago`
-  const diffWeeks = Math.floor(diffDays / 7)
-  if (diffWeeks < 5) return `${diffWeeks} week${diffWeeks > 1 ? 's' : ''} ago`
-  const diffMonths = Math.floor(diffDays / 30)
-  if (diffMonths < 12) return `${diffMonths} month${diffMonths > 1 ? 's' : ''} ago`
-  return `${Math.floor(diffMonths / 12)}y ago`
-}
-
 function computePercentile(myValue: number, peerValues: number[]): number {
   const allValues = [...peerValues, myValue].sort((a, b) => a - b)
   const rank = allValues.indexOf(myValue)
   return Math.round((rank / (allValues.length - 1)) * 100)
-}
-
-function getCountdown(dateStr: string): string {
-  const now = new Date()
-  const target = new Date(dateStr)
-  const diffMs = target.getTime() - now.getTime()
-  if (diffMs < 0) {
-    const daysAgo = Math.floor(Math.abs(diffMs) / 86400000)
-    if (daysAgo === 0) return 'Today'
-    return `${daysAgo}d overdue`
-  }
-  const days = Math.floor(diffMs / 86400000)
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Tomorrow'
-  if (days < 7) return `${days} days`
-  if (days < 30) return `${Math.floor(days / 7)}w ${days % 7}d`
-  return `${Math.floor(days / 30)}mo`
-}
-
-function getEventStatusColor(status: string): string {
-  switch (status) {
-    case 'overdue': return 'text-[var(--color-signal-red)]'
-    case 'due_today': return 'text-[var(--color-signal-amber)]'
-    case 'detected': return 'text-[var(--color-signal-green)]'
-    case 'ingested': return 'text-[var(--color-accent)]'
-    case 'benchmark_ready': return 'text-[var(--color-primary)]'
-    default: return 'text-muted-foreground'
-  }
-}
-
-function getEventStatusDot(status: string): string {
-  switch (status) {
-    case 'overdue': return 'bg-[var(--color-signal-red)]'
-    case 'due_today': return 'bg-[var(--color-signal-amber)]'
-    case 'detected': return 'bg-[var(--color-signal-green)]'
-    case 'ingested': return 'bg-[var(--color-accent)]'
-    case 'benchmark_ready': return 'bg-[var(--color-primary)]'
-    default: return 'bg-muted-foreground'
-  }
-}
-
-function getDocStatusBadge(status: string): { label: string; className: string } {
-  switch (status) {
-    case 'draft': return { label: 'Draft', className: 'bg-muted text-muted-foreground' }
-    case 'in_review': return { label: 'In Review', className: 'bg-[var(--color-signal-amber)]/10 text-[var(--color-signal-amber)]' }
-    case 'approved': return { label: 'Approved', className: 'bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)]' }
-    case 'delivered': return { label: 'Delivered', className: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]' }
-    case 'rejected': return { label: 'Rejected', className: 'bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)]' }
-    default: return { label: status, className: 'bg-muted text-muted-foreground' }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -312,145 +241,11 @@ function CardSkeleton() {
 }
 
 // ---------------------------------------------------------------------------
-// KPI value cell
-// ---------------------------------------------------------------------------
-
-interface KpiCellProps {
-  value: KpiValueWithJoins | undefined
-  signalClass: string
-  unitType: string
-}
-
-function KpiCell({ value, signalClass, unitType }: KpiCellProps) {
-  if (!value) {
-    return (
-      <td className="px-3 py-2 text-[12px] text-muted-foreground/25 tabular-nums text-right select-none">
-        ·
-      </td>
-    )
-  }
-
-  const formatted = formatKpiValue(value.normalized_value, unitType)
-  const rawLabel = value.raw_currency && value.raw_value !== null
-    ? `${value.raw_currency} ${formatKpiValue(value.raw_value, unitType)}`
-    : null
-  const sourcePage = value.source_page ? `p.${value.source_page}` : null
-
-  return (
-    <td className="px-3 py-2 text-right">
-      <Tooltip>
-        <TooltipTrigger
-          className={`cursor-default bg-transparent border-none p-0 text-[12px] tabular-nums transition-colors duration-200 ${signalClass}`}
-        >
-          {formatted}
-        </TooltipTrigger>
-        <TooltipContent
-          side="top"
-          className="max-w-xs rounded-lg border border-border bg-[var(--color-bg-elevated)] px-3 py-2 text-[11px] text-foreground shadow-none"
-        >
-          <div className="space-y-1">
-            {rawLabel && (
-              <div className="text-muted-foreground">
-                Original: <span className="text-foreground font-medium">{rawLabel}</span>
-              </div>
-            )}
-            {sourcePage && (
-              <div className="text-muted-foreground">
-                Source: <span className="text-foreground font-medium">{sourcePage}</span>
-              </div>
-            )}
-            {value.source_text && (
-              <div className="text-muted-foreground border-t border-border pt-1 mt-1 leading-relaxed">
-                "{value.source_text.slice(0, 120)}{value.source_text.length > 120 ? '...' : ''}"
-              </div>
-            )}
-            {value.needs_review && (
-              <div className="text-[var(--color-signal-amber)] font-medium">Needs review</div>
-            )}
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </td>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Summary Metric Card
-// ---------------------------------------------------------------------------
-
-interface MetricCardProps {
-  icon: React.ReactNode
-  label: string
-  value: string
-  subtitle: string
-  accentColor: string
-}
-
-function MetricCard({ icon, label, value, subtitle, accentColor }: MetricCardProps) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-1">
-      <div className="flex items-center gap-2 mb-1">
-        <div className={`flex items-center justify-center h-7 w-7 rounded-lg ${accentColor}`}>
-          {icon}
-        </div>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-          {label}
-        </span>
-      </div>
-      <div className="text-[24px] font-bold leading-tight text-foreground tabular-nums">
-        {value}
-      </div>
-      <div className="text-[11px] text-muted-foreground">
-        {subtitle}
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Performance Snapshot - KPI strip card
-// ---------------------------------------------------------------------------
-
-interface KpiSnapshotProps {
-  name: string
-  value: number
-  unitType: string
-  percentile: number
-}
-
-function KpiSnapshotCard({ name, value, unitType, percentile }: KpiSnapshotProps) {
-  const barColor =
-    percentile >= 66
-      ? 'bg-[var(--color-signal-green)]'
-      : percentile >= 33
-      ? 'bg-[var(--color-signal-amber)]'
-      : 'bg-[var(--color-signal-red)]'
-
-  return (
-    <div className="rounded-xl border border-border bg-card p-4 min-w-[180px] flex-1">
-      <div className="text-[11px] text-muted-foreground font-medium mb-1 truncate">{name}</div>
-      <div className="text-[15px] font-semibold text-foreground tabular-nums mb-2">
-        {formatKpiValue(value, unitType)}
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-1.5 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-            style={{ width: `${percentile}%` }}
-          />
-        </div>
-        <span className="text-[10px] text-muted-foreground tabular-nums">P{percentile}</span>
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Activity feed item
 // ---------------------------------------------------------------------------
 
 interface ActivityItemProps {
-  icon: React.ReactNode
+  icon: ReactNode
   description: string
   time: string
 }
@@ -466,64 +261,6 @@ function ActivityItem({ icon, description, time }: ActivityItemProps) {
       </div>
       <span className="text-[11px] text-muted-foreground whitespace-nowrap">{time}</span>
     </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Sortable column header
-// ---------------------------------------------------------------------------
-
-function SortableHeader({
-  label,
-  columnId,
-  sortConfig,
-  onSort,
-  description,
-}: {
-  label: string
-  columnId: string
-  sortConfig: SortConfig
-  onSort: (columnId: string) => void
-  description?: string | null
-}) {
-  const isActive = sortConfig.columnId === columnId
-  const SortIcon = isActive
-    ? sortConfig.direction === 'asc'
-      ? ArrowUp
-      : ArrowDown
-    : ArrowUpDown
-
-  const btnClass = `inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[10px] font-semibold uppercase tracking-[0.06em] whitespace-nowrap transition-colors duration-150 min-h-[44px] md:min-h-0 ${
-    isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-  }`
-  const iconClass = `h-2.5 w-2.5 flex-shrink-0 ${isActive ? 'opacity-100 text-foreground' : 'opacity-30 text-muted-foreground'}`
-
-  if (description) {
-    return (
-      <th className="px-3 py-2 text-right">
-        <Tooltip>
-          <TooltipTrigger className={btnClass} onClick={() => onSort(columnId)}>
-            {label}
-            <SortIcon className={iconClass} />
-          </TooltipTrigger>
-          <TooltipContent
-            side="top"
-            className="max-w-[220px] rounded-lg border border-border bg-[var(--color-bg-elevated)] px-3 py-2 text-[11px] text-muted-foreground shadow-none"
-          >
-            {description}
-          </TooltipContent>
-        </Tooltip>
-      </th>
-    )
-  }
-
-  return (
-    <th className="px-3 py-2 text-right">
-      <button onClick={() => onSort(columnId)} className={btnClass}>
-        {label}
-        <SortIcon className={iconClass} />
-      </button>
-    </th>
   )
 }
 
@@ -902,7 +639,7 @@ export function DashboardPage() {
   // ---------------------------------------------------------------------------
 
   const activityItems = useMemo(() => {
-    const items: { time: Date; icon: React.ReactNode; description: string }[] = []
+    const items: { time: Date; icon: ReactNode; description: string }[] = []
 
     if (reports) {
       for (const r of reports.slice(0, 5)) {
@@ -1242,6 +979,7 @@ export function DashboardPage() {
                         <th className="sticky left-0 z-30 bg-card px-3 py-2 text-left w-[140px] md:w-[180px] after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/40 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.3)]">
                           <button
                             onClick={() => handleSort('__name')}
+                            aria-label="Sort by company name"
                             className={`inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[10px] font-semibold uppercase tracking-[0.06em] transition-colors duration-150 min-h-[44px] md:min-h-0 ${
                               sortConfig.columnId === '__name' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                             }`}

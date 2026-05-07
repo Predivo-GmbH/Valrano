@@ -453,7 +453,11 @@ function UploadReportDialog({
               PDF File
             </Label>
             <div
+              role="button"
+              tabIndex={0}
+              aria-label="Upload PDF file"
               onClick={() => inputRef.current?.click()}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click() } }}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
@@ -848,6 +852,7 @@ function CompetitorsTab() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by company name or ticker..."
+                aria-label="Search peers by company name or ticker"
                 className="pl-9 rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
               />
             </div>

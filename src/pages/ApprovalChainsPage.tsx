@@ -23,7 +23,7 @@ export function ApprovalChainsPage() {
       <Helmet><title>Approval Chains - BenchmarkSignal</title></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Approval Chains</h1>
+          <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Approval Chains</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Configure review and approval workflows for benchmark documents.
           </p>

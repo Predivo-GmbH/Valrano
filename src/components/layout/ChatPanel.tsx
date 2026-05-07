@@ -292,6 +292,7 @@ export function ChatPanel() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask about your benchmarking data..."
+              aria-label="Message to AI assistant"
               rows={1}
               className="flex-1 resize-none bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground outline-none max-h-32"
               style={{ minHeight: '24px' }}

@@ -106,7 +106,7 @@ function useCompanySearch() {
 // Component - all state changes in event handlers only, never in effects
 // ---------------------------------------------------------------------------
 
-export default function CompanyAutocomplete({
+export function CompanyAutocomplete({
   value,
   onChange,
   onSelect,

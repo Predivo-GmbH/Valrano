@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import {
@@ -33,7 +33,7 @@ import { PageSkeleton } from '@/components/ui/page-skeleton'
 
 type TabId = 'trends' | 'pivot' | 'scatter' | 'heatmap'
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+const TABS: { id: TabId; label: string; icon: ReactNode }[] = [
   { id: 'trends', label: 'Trends', icon: <BarChart3 className="h-4 w-4" /> },
   { id: 'pivot', label: 'Pivot Table', icon: <Table2 className="h-4 w-4" /> },
   { id: 'scatter', label: 'Scatter', icon: <ScatterIcon className="h-4 w-4" /> },
@@ -124,15 +124,15 @@ export function AnalyticsPage() {
         {/* Summary cards */}
         {companies && kpiDefs && (
           <div className="mb-6 grid grid-cols-3 gap-3">
-            <div className="rounded-lg border border-border bg-card px-4 py-3">
+            <div className="rounded-xl border border-border bg-card px-4 py-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Companies</div>
               <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">{companyIds.length}</div>
             </div>
-            <div className="rounded-lg border border-border bg-card px-4 py-3">
+            <div className="rounded-xl border border-border bg-card px-4 py-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">KPIs Tracked</div>
               <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">{kpiDefs.length}</div>
             </div>
-            <div className="rounded-lg border border-border bg-card px-4 py-3">
+            <div className="rounded-xl border border-border bg-card px-4 py-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Data Range</div>
               <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">
                 {availableYears.length > 0
@@ -145,7 +145,7 @@ export function AnalyticsPage() {
 
         {/* Tab bar */}
         <div
-          className="mb-6 flex items-center gap-1 rounded-lg border border-border bg-card p-1"
+          className="mb-6 flex items-center gap-1 rounded-xl border border-border bg-card p-1"
           role="tablist"
           aria-label="Analytics views"
         >

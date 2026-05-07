@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { KpiValue, KpiDefinition, Company } from '@/types/database'
@@ -141,7 +142,7 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
       )}
 
       {/* Table card */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
 
         {isLoading ? (
           <div className="p-8 space-y-px animate-pulse">
@@ -283,8 +284,11 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
   if (embedded) return content
 
   return (
-    <div className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6">
+  <>
+    <Helmet><title>Review Queue | BenchmarkSignal</title></Helmet>
+    <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
       {content}
     </div>
+  </>
   )
 }

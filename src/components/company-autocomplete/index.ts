@@ -1,2 +1,2 @@
-export { default as CompanyAutocomplete } from './CompanyAutocomplete'
+export { CompanyAutocomplete } from './CompanyAutocomplete'
 export type { CompanyResult } from './CompanyAutocomplete'

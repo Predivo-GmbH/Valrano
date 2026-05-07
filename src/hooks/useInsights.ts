@@ -14,6 +14,7 @@ export function useInsights(params?: { dismissed?: boolean }) {
         .from('ai_insights')
         .select('*, companies:related_company_id(id, name, ticker)')
         .order('created_at', { ascending: false })
+        .limit(50)
 
       if (params?.dismissed !== undefined) {
         query = query.eq('is_dismissed', params.dismissed)
