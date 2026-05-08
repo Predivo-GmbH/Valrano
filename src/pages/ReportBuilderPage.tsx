@@ -242,7 +242,7 @@ function EmptyState({ onCreateReport }: { onCreateReport: () => void }) {
       </p>
       <div className="flex items-center gap-3">
         <Link
-          to="/upload"
+          to="/peers?tab=upload"
           className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-2.5 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)]"
         >
           Upload a Report
@@ -314,10 +314,14 @@ function BenchmarkDocCard({ doc, formatDate }: { doc: BenchmarkDoc; formatDate: 
             <Eye className="h-3.5 w-3.5" />
             View
           </Link>
-          <Button variant="ghost" size="sm">
+          <Link
+            to={`/documents/${doc.id}`}
+            target="_blank"
+            className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'inline-flex items-center gap-1.5')}
+          >
             <Download className="h-3.5 w-3.5" />
             Export PDF
-          </Button>
+          </Link>
         </div>
       </div>
     </div>
@@ -383,7 +387,7 @@ function CustomReportCard({
                 <Eye className="h-3.5 w-3.5" />
                 View
               </Button>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={onView}>
                 <Download className="h-3.5 w-3.5" />
                 Export PDF
               </Button>

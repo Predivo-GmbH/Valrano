@@ -32,6 +32,7 @@ const AuthCallbackPage = lazy(() => import('@/pages/auth/AuthCallbackPage'))
 const AuthVerifyPage = lazy(() => import('@/pages/auth/AuthVerifyPage'))
 const AuthConfirmPage = lazy(() => import('@/pages/auth/AuthConfirmPage'))
 const NewsPage = lazy(() => import('@/pages/NewsPage'))
+const CompanyProfilePage = lazy(() => import('@/pages/CompanyProfilePage').then(m => ({ default: m.CompanyProfilePage })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +81,7 @@ function App() {
                           <Route path="/reports" element={<ReportBuilderPage />} />
                           <Route path="/reports/:id" element={<ReportViewerPage />} />
                           <Route path="/documents/:id" element={<DocumentViewerPage />} />
+                          <Route path="/companies/:id" element={<CompanyProfilePage />} />
                           <Route path="/account" element={<AccountPage />} />
                           <Route path="/settings" element={<SettingsPage />} />
 
