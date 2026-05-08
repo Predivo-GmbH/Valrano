@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -70,16 +70,23 @@ export function OnboardingWizard() {
   >({})
 
   // Sync existing data into state once loaded
+  const competitorCount = existingCompetitorIds.length
+  const scheduleCount = Object.keys(existingSchedules).length
   const didSeedCompetitors = useRef(false)
-  if (existingCompetitorIds.length > 0 && !didSeedCompetitors.current && selectedCompanyIds.length === 0) {
-    didSeedCompetitors.current = true
-    setSelectedCompanyIds(existingCompetitorIds)
-  }
+  useEffect(() => {
+    if (competitorCount > 0 && !didSeedCompetitors.current) {
+      didSeedCompetitors.current = true
+      setSelectedCompanyIds(prev => prev.length === 0 ? existingCompetitorIds : prev)
+    }
+  }, [competitorCount]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const didSeedSchedules = useRef(false)
-  if (Object.keys(existingSchedules).length > 0 && !didSeedSchedules.current && Object.keys(schedules).length === 0) {
-    didSeedSchedules.current = true
-    setSchedules(existingSchedules)
-  }
+  useEffect(() => {
+    if (scheduleCount > 0 && !didSeedSchedules.current) {
+      didSeedSchedules.current = true
+      setSchedules(prev => Object.keys(prev).length === 0 ? existingSchedules : prev)
+    }
+  }, [scheduleCount]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // A step is "done" if the real data exists OR the user filled it in this session
   const stepDone = (step: number): boolean => {
@@ -270,16 +277,10 @@ function StepFramework() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedReportId, setSelectedReportId] = useState('')
-  const [companyName, setCompanyName] = useState(primaryCompany?.name ?? '')
+  const [companyNameOverride, setCompanyNameOverride] = useState<string | null>(null)
+  const companyName = companyNameOverride ?? primaryCompany?.name ?? ''
+  const setCompanyName = (name: string) => setCompanyNameOverride(name)
   const [uploading, setUploading] = useState(false)
-
-  // Sync company name when primary company loads async
-  const didSync = useRef(false)
-  if (primaryCompany?.name && !didSync.current && !companyName) {
-    didSync.current = true
-    // Safe: React 19 allows setState during render if value changes
-    setCompanyName(primaryCompany.name)
-  }
 
   const ownReports = (reports ?? [])
     .filter((r) => r.pdf_storage_path)
