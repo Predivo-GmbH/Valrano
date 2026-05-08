@@ -27,7 +27,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
 })
 
-function createWrapper(user: any) {
+function createWrapper(user: import('@supabase/supabase-js').User | null) {
   const authValue: AuthContextValue = {
     user,
     loading: false,

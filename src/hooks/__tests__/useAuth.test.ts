@@ -42,7 +42,7 @@ describe('useAuth', () => {
   it('returns user when authenticated', () => {
     const authedValue = {
       ...mockAuthValue,
-      user: { id: 'user-1', email: 'test@example.com' } as any,
+      user: { id: 'user-1', email: 'test@example.com' } as unknown as import('@supabase/supabase-js').User,
     }
     function authedWrapper({ children }: { children: ReactNode }) {
       return createElement(AuthContext.Provider, { value: authedValue }, children)
