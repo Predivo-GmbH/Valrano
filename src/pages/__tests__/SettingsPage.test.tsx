@@ -9,12 +9,14 @@ vi.mock('@/hooks/useAuth', () => ({
 }))
 
 vi.mock('@/hooks/useSubscription', () => ({
+  SUPER_ADMIN_EMAIL: 'roger@mueller.ro',
   useSubscription: () => ({
     subscription: null,
     tier: 'starter',
     status: 'active',
     isLoading: false,
     isActive: true,
+    isSuperAdmin: false,
   }),
 }))
 
