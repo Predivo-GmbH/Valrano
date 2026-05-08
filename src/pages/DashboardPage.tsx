@@ -397,6 +397,8 @@ export function DashboardPage() {
   const [showEmptyPeers, setShowEmptyPeers] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showRightFade, setShowRightFade] = useState(true)
+  const [columnsExpanded, setColumnsExpanded] = useState(false)
+  const MAX_VISIBLE_COLUMNS = 4
 
   // Derive wizard visibility: show when not dismissed (server + local), or reopened from banner
   const showWizard = wizardReopened || (!dismissedLoading && onboardingDismissed === false && !wizardDismissedLocally)
@@ -426,6 +428,17 @@ export function DashboardPage() {
     if (activeCategory === 'all') return kpiDefs
     return kpiDefs.filter((d) => d.category === activeCategory)
   }, [kpiDefs, activeCategory])
+
+  // Reset column expansion when category changes
+  useEffect(() => { setColumnsExpanded(false) }, [activeCategory])
+
+  // Visible columns: capped unless expanded
+  const visibleDefs = useMemo(() => {
+    if (columnsExpanded || filteredDefs.length <= MAX_VISIBLE_COLUMNS) return filteredDefs
+    return filteredDefs.slice(0, MAX_VISIBLE_COLUMNS)
+  }, [filteredDefs, columnsExpanded])
+
+  const hiddenColumnCount = filteredDefs.length - visibleDefs.length
 
   // Build lookup: company_id + kpi_definition_id -> KpiValue row
   const valueMap = useMemo(() => {
@@ -996,7 +1009,7 @@ export function DashboardPage() {
                           </button>
                         </th>
 
-                        {filteredDefs.map((def) => (
+                        {visibleDefs.map((def) => (
                           <SortableHeader
                             key={def.id}
                             label={def.name}
@@ -1006,6 +1019,17 @@ export function DashboardPage() {
                             description={def.description}
                           />
                         ))}
+                        {hiddenColumnCount > 0 && (
+                          <th className="px-2 py-2 text-center align-middle">
+                            <button
+                              onClick={() => setColumnsExpanded(true)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-bg-tertiary)] px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)]/80 hover:text-foreground whitespace-nowrap"
+                            >
+                              +{hiddenColumnCount} more
+                              <ChevronRight className="h-3 w-3" />
+                            </button>
+                          </th>
+                        )}
                       </tr>
                     </thead>
 
@@ -1046,7 +1070,7 @@ export function DashboardPage() {
                               </div>
                             </td>
 
-                            {filteredDefs.map((def) => {
+                            {visibleDefs.map((def) => {
                               const v = valueMap.get(`${company.id}__${def.id}`)
                               const allVals = peerVals.get(def.id) ?? []
                               const higherIsBetter = !LOWER_IS_BETTER_CODES.has(def.code)
@@ -1064,6 +1088,7 @@ export function DashboardPage() {
                                 />
                               )
                             })}
+                            {hiddenColumnCount > 0 && <td />}
                           </tr>
                         )
                       })}
@@ -1090,6 +1115,14 @@ export function DashboardPage() {
                     Worst
                   </span>
                 </div>
+                {columnsExpanded && filteredDefs.length > MAX_VISIBLE_COLUMNS && (
+                  <button
+                    onClick={() => setColumnsExpanded(false)}
+                    className="text-[10px] font-medium text-[var(--color-accent)] hover:underline"
+                  >
+                    Show less
+                  </button>
+                )}
                 <span className="text-[10px] text-muted-foreground">
                   {activeCategory !== 'all' ? `${CATEGORY_LABELS[activeCategory as KpiCategory]} · ` : ''}FY {effectiveYear}
                 </span>
