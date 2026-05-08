@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useBenchmarkRules, useCreateBenchmarkRule, useDeleteBenchmarkRule } from '@/hooks/useBenchmark'
 import { useCompanies, useKpiDefinitions } from '@/hooks/useData'
 import { useMyCompanies } from '@/hooks/useMyCompany'
@@ -66,26 +66,28 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
   const { data: kpiDefs } = useKpiDefinitions()
   const createMutation = useCreateBenchmarkRule()
 
+  // Derive default customer company from my_companies primary record
+  const defaultCustomerCompanyId = (() => {
+    const primary = myCompanies?.find((mc) => mc.is_primary) ?? myCompanies?.[0]
+    if (!primary) return ''
+    const match = companies?.find((c) => c.name.toLowerCase() === primary.name.toLowerCase())
+    return match?.id ?? ''
+  })()
+
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [customerCompanyId, setCustomerCompanyId] = useState('')
 
   const [narrativeStyle, setNarrativeStyle] = useState<NarrativeStyle>('executive_brief')
 
-  // Auto-select primary my_company when data loads
-  useEffect(() => {
-    if (customerCompanyId) return
-    const primary = myCompanies?.find((mc) => mc.is_primary) ?? myCompanies?.[0]
-    if (!primary) return
-    const match = companies?.find((c) => c.name.toLowerCase() === primary.name.toLowerCase())
-    if (match) setCustomerCompanyId(match.id)
-  }, [myCompanies, companies, customerCompanyId])
+  // The effective company ID: user's selection takes priority, otherwise derived default
+  const effectiveCompanyId = customerCompanyId || defaultCustomerCompanyId
   const [autoGenerate, setAutoGenerate] = useState(true)
   const [selectedKpis, setSelectedKpis] = useState<Set<string>>(new Set())
 
   const handleCreate = async () => {
     if (!name.trim()) { toast.error('Enter a rule name'); return }
-    if (!customerCompanyId) { toast.error('Select a customer company'); return }
+    if (!effectiveCompanyId) { toast.error('Select a customer company'); return }
     if (selectedKpis.size === 0) { toast.error('Select at least one KPI'); return }
 
     const kpiSelection: KpiSelectionItem[] = (kpiDefs ?? [])
@@ -99,7 +101,7 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
 
     try {
       await createMutation.mutateAsync({
-        customer_company_id: customerCompanyId,
+        customer_company_id: effectiveCompanyId,
         name: name.trim(),
         description: description.trim() || undefined,
         kpi_selection: kpiSelection,
@@ -173,7 +175,7 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Customer Company (your company)
             </Label>
-            <Select value={customerCompanyId} onValueChange={(v) => { if (v !== null) setCustomerCompanyId(v) }}>
+            <Select value={effectiveCompanyId} onValueChange={(v) => { if (v !== null) setCustomerCompanyId(v) }}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
                 <SelectValue placeholder="Select company" />
               </SelectTrigger>
