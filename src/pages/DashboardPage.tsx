@@ -1010,11 +1010,11 @@ export function DashboardPage() {
             ) : (
               <div className="relative">
                 <div ref={scrollRef} className="overflow-x-auto scrollbar-thin">
-                  <table className="table-premium w-full border-collapse">
+                  <table className="table-premium w-full border-collapse" style={{ tableLayout: 'fixed' }}>
                     <thead>
                       <tr className="border-b-2 border-border">
                         {/* Company column header — sticky */}
-                        <th className="sticky left-0 z-30 bg-card px-3 py-2 text-left w-[140px] md:w-[180px] after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/40 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.3)]">
+                        <th className="sticky left-0 z-30 bg-card px-3 py-2 text-left after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/40 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.3)]" style={{ width: '180px' }}>
                           <button
                             onClick={() => handleSort('__name')}
                             aria-label="Sort by company name"
@@ -1042,7 +1042,7 @@ export function DashboardPage() {
                           />
                         ))}
                         {hiddenColumnCount > 0 && (
-                          <th className="px-2 py-2 text-right align-middle">
+                          <th className="px-2 py-2 text-right align-middle" style={{ width: '100px' }}>
                             <button
                               onClick={() => setColumnsExpanded(true)}
                               className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-bg-tertiary)] px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)]/80 hover:text-foreground whitespace-nowrap ml-auto"
@@ -1072,7 +1072,7 @@ export function DashboardPage() {
                             }`}
                           >
                             {/* Company name — sticky, no avatar */}
-                            <td className={`sticky left-0 z-20 bg-card px-3 py-2 w-[140px] md:w-[180px] after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/30 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.3)] ${isPrimary ? 'border-l-2 border-l-[var(--color-accent)]' : ''}`}>
+                            <td className={`sticky left-0 z-20 bg-card px-3 py-2 after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/30 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.3)] ${isPrimary ? 'border-l-2 border-l-[var(--color-accent)]' : ''}`} style={{ width: '180px' }}>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   <Link
