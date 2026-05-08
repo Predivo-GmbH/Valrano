@@ -120,6 +120,14 @@ export function useFetchNews() {
   return useMutation({
     mutationFn: async (companyId: string) => {
       const { data: { session } } = await supabase.auth.getSession()
+
+      // Dev toggle: check if news gathering is disabled for this user
+      if (session?.user) {
+        const { isNewsGatheringEnabled } = await import('@/lib/dev-flags')
+        if (!isNewsGatheringEnabled(session.user.id)) {
+          throw new Error('News gathering is disabled for this user (dev toggle)')
+        }
+      }
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-company-news`,
         {
