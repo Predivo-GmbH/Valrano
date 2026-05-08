@@ -133,7 +133,7 @@ export default function LoginPage() {
               placeholder="Enter your password" />
           </div>
           <button type="submit" disabled={loading}
-            className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90 disabled:opacity-50">
+            className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-medium text-white transition-all hover:brightness-110 hover:shadow-lg hover:shadow-[var(--color-accent)]/25 active:scale-[0.98] disabled:opacity-50 cursor-pointer">
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
@@ -153,7 +153,7 @@ export default function LoginPage() {
               placeholder="you@company.com" />
           </div>
           <button type="submit" disabled={loading}
-            className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90 disabled:opacity-50">
+            className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-medium text-white transition-all hover:brightness-110 hover:shadow-lg hover:shadow-[var(--color-accent)]/25 active:scale-[0.98] disabled:opacity-50 cursor-pointer">
             {loading ? 'Sending code...' : 'Send Sign-In Code'}
           </button>
         </form>
