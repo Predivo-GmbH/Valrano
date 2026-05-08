@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useBenchmarkRules, useCreateBenchmarkRule, useDeleteBenchmarkRule } from '@/hooks/useBenchmark'
 import { useCompanies, useKpiDefinitions } from '@/hooks/useData'
 import { useMyCompanies } from '@/hooks/useMyCompany'
@@ -70,15 +70,16 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
   const [description, setDescription] = useState('')
   const [customerCompanyId, setCustomerCompanyId] = useState('')
 
-  // Auto-select primary my_company when data loads
-  const primaryMyCompany = myCompanies?.find((mc) => mc.is_primary) ?? myCompanies?.[0]
-  const matchedCompanyId = primaryMyCompany
-    ? companies?.find((c) => c.name.toLowerCase() === primaryMyCompany.name.toLowerCase())?.id
-    : undefined
-  if (matchedCompanyId && !customerCompanyId) {
-    setCustomerCompanyId(matchedCompanyId)
-  }
   const [narrativeStyle, setNarrativeStyle] = useState<NarrativeStyle>('executive_brief')
+
+  // Auto-select primary my_company when data loads
+  useEffect(() => {
+    if (customerCompanyId) return
+    const primary = myCompanies?.find((mc) => mc.is_primary) ?? myCompanies?.[0]
+    if (!primary) return
+    const match = companies?.find((c) => c.name.toLowerCase() === primary.name.toLowerCase())
+    if (match) setCustomerCompanyId(match.id)
+  }, [myCompanies, companies, customerCompanyId])
   const [autoGenerate, setAutoGenerate] = useState(true)
   const [selectedKpis, setSelectedKpis] = useState<Set<string>>(new Set())
 
