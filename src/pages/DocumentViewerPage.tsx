@@ -319,6 +319,7 @@ export function DocumentViewerPage() {
         if (attr.name.startsWith('on')) el.removeAttribute(attr.name)
       }
     })
+    printWindow.document.open()
     printWindow.document.write('<!DOCTYPE html>' + parsed.documentElement.outerHTML)
     printWindow.document.close()
     printWindow.focus()

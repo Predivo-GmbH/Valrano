@@ -64,7 +64,7 @@ describe('useSubscription', () => {
 
   it('returns starter tier when no subscription found', async () => {
     const { result } = renderHook(() => useSubscription(), {
-      wrapper: createWrapper({ id: 'user-1', email: 'test@example.com' }),
+      wrapper: createWrapper({ id: 'user-1', email: 'test@example.com' } as import('@supabase/supabase-js').User),
     })
     await waitFor(() => {
       expect(result.current.tier).toBe('starter')

@@ -107,10 +107,11 @@ function AddCompanyDialog({
   const handleCompanyAutoSelect = (company: CompanyResult) => {
     setName(company.name)
     if (company.sector) {
+      const sectorVal = company.sector
       // Map to closest matching SECTOR_OPTIONS value
       const match = SECTOR_OPTIONS.find((s) =>
-        company.sector!.toLowerCase().includes(s.toLowerCase()) ||
-        s.toLowerCase().includes(company.sector!.split(' ')[0].toLowerCase()),
+        sectorVal.toLowerCase().includes(s.toLowerCase()) ||
+        s.toLowerCase().includes(sectorVal.split(' ')[0].toLowerCase()),
       )
       if (match) setSector(match)
     }

@@ -8,6 +8,8 @@ export function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setStatus(session ? 'authenticated' : 'unauthenticated')
+    }).catch(() => {
+      setStatus('unauthenticated')
     })
   }, [])
 

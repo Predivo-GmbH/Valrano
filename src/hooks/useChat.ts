@@ -78,7 +78,8 @@ export function useSendMessage() {
         throw new Error(err.error || 'Chat failed')
       }
 
-      const reader = response.body!.getReader()
+      if (!response.body) throw new Error('Response body is null')
+      const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let fullText = ''
       let sessionId = params.session_id ?? ''

@@ -240,7 +240,7 @@ export default function WelcomeWizard({ onComplete }: { onComplete: () => void }
       await dismissOnboarding()
       queryClient.invalidateQueries({ queryKey: ['onboarding-dismissed'] })
     } catch (err) {
-      console.warn('Failed to persist onboarding dismissal:', err)
+      if (import.meta.env.DEV) console.warn('Failed to persist onboarding dismissal:', err)
     }
     onComplete()
   }, [queryClient, onComplete])

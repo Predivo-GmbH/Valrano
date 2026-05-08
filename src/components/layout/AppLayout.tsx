@@ -4,8 +4,10 @@ import { useTheme } from 'next-themes'
 import { Sun, Moon, LayoutDashboard, Users, Settings, LogOut, User, Menu, X, BarChart3, FileBarChart } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
 import { ChatPanel } from './ChatPanel'
+import { DevTierSwitcher } from '@/components/dev/DevTierSwitcher'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -219,11 +221,14 @@ export function AppLayout() {
 
         {/* Content area offset below fixed nav */}
         <main id="main-content" className="pt-16">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </main>
 
         {/* AI Assistant — persistent across all pages */}
         <ChatPanel />
+        <DevTierSwitcher />
       </div>
     </TooltipProvider>
   )

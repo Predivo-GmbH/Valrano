@@ -691,7 +691,7 @@ export function DashboardPage() {
   }, [filteredDefs, companiesWithData, valueMap])
 
   return (
-    <div className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6">
+    <div className="section-fade-in mx-auto max-w-[1440px] px-4 py-8 sm:px-6">
 
       {/* Welcome Wizard overlay */}
       {showWizard && (
@@ -798,7 +798,7 @@ export function DashboardPage() {
           { label: 'Benchmark', count: counts.benchmark_ready, color: 'bg-violet-500' },
         ]
         return (
-          <div className="mb-8 rounded-xl border border-border bg-card p-5">
+          <div className="card-premium mb-8 rounded-xl border border-border bg-card p-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-[13px] font-semibold uppercase tracking-[0.05em] text-muted-foreground flex items-center gap-2">
                 <Activity className="h-4 w-4" />
@@ -849,7 +849,7 @@ export function DashboardPage() {
               <ExternalLink className="h-3 w-3" />
             </Link>
           </div>
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="card-premium rounded-xl border border-border bg-card overflow-hidden">
             {upcomingEvents.map((event, i) => {
               const companyName = (event as unknown as { companies: Company }).companies?.name ?? 'Unknown'
               const isOverdue = event.status === 'overdue'
@@ -912,7 +912,7 @@ export function DashboardPage() {
       {/* ================================================================== */}
       <div className="mb-8">
         <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as ActiveCategory)}>
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="card-premium rounded-xl border border-border bg-card overflow-hidden">
             {/* Card header: title + category tabs */}
             <div className="flex flex-col gap-3 px-4 py-3 border-b border-border sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
@@ -1150,7 +1150,7 @@ export function DashboardPage() {
               <ExternalLink className="h-3 w-3" />
             </Link>
           </div>
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="card-premium rounded-xl border border-border bg-card overflow-hidden">
             {recentDocuments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
                 <FileText className="h-6 w-6 text-muted-foreground/40 mb-2" />
@@ -1197,7 +1197,7 @@ export function DashboardPage() {
             <Activity className="h-4 w-4 text-muted-foreground" />
             Recent Activity
           </h2>
-          <div className="rounded-xl border border-border bg-card px-5 py-2">
+          <div className="card-premium rounded-xl border border-border bg-card px-5 py-2">
             {activityItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
                 <Activity className="h-6 w-6 text-muted-foreground/40 mb-2" />

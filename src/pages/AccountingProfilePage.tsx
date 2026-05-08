@@ -16,6 +16,7 @@ import {
 } from '@/hooks/useAccountingProfile'
 import { useReports } from '@/hooks/useData'
 import type { AccountingPolicies, KpiMapping } from '@/types/database'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 
 // ---------------------------------------------------------------------------
 // Policy display config
@@ -181,6 +182,7 @@ export function AccountingProfilePage() {
 
   const [selectedReportId, setSelectedReportId] = useState<string>('')
   const [showKpiMappings, setShowKpiMappings] = useState(false)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   // Filter to user's own company reports (annual type preferred)
   const ownReports = (reports ?? [])
@@ -199,9 +201,7 @@ export function AccountingProfilePage() {
 
   const handleDelete = () => {
     if (!profile) return
-    if (window.confirm('Remove your accounting profile? This cannot be undone.')) {
-      deleteMutation.mutate(profile.id)
-    }
+    setConfirmDeleteOpen(true)
   }
 
   if (isLoading) {
@@ -447,6 +447,15 @@ export function AccountingProfilePage() {
           apples-to-apples comparison.
         </p>
       </div>
+
+      <ConfirmDeleteDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Remove accounting profile"
+        description="Remove your accounting profile? This cannot be undone."
+        onConfirm={() => { if (profile) deleteMutation.mutate(profile.id) }}
+        isPending={deleteMutation.isPending}
+      />
     </div>
   )
 }

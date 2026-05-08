@@ -274,7 +274,7 @@ function BenchmarkDocCard({ doc, formatDate }: { doc: BenchmarkDoc; formatDate: 
   const statusCfg = DOC_STATUS_CONFIG[doc.status] ?? DOC_STATUS_CONFIG.draft
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 transition-colors hover:bg-card/80">
+    <div className="card-premium rounded-xl border border-border bg-card p-5 transition-colors hover:bg-card/80">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -344,7 +344,7 @@ function CustomReportCard({
   const StatusIcon = status.icon
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 transition-colors hover:bg-card/80">
+    <div className="card-premium rounded-xl border border-border bg-card p-5 transition-colors hover:bg-card/80">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

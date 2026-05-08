@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
-import type { Subscription } from '@/types/database'
+import type { Subscription, SubscriptionTier } from '@/types/database'
+
+const DEV_EMAIL = 'roger@mueller.ro'
+const DEV_TIER_KEY = 'benchmarksignal-dev-tier'
 
 export function useSubscription() {
   const { user } = useAuth()
@@ -21,11 +24,21 @@ export function useSubscription() {
     enabled: !!user,
   })
 
+  // Dev tier override — only for roger@mueller.ro
+  const devOverride = user?.email === DEV_EMAIL
+    ? (localStorage.getItem(DEV_TIER_KEY) as SubscriptionTier | null)
+    : null
+
+  const tier = devOverride ?? subscription?.tier ?? 'starter'
+
   return {
     subscription,
-    tier: subscription?.tier ?? 'starter',
+    tier,
     status: subscription?.status ?? 'active',
     isLoading,
     isActive: subscription?.status === 'active' || subscription?.status === 'trialing',
+    isDevOverride: !!devOverride,
   }
 }
+
+export { DEV_EMAIL, DEV_TIER_KEY }
