@@ -710,7 +710,7 @@ export default function LandingPage() {
             </div>
             <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-[var(--color-border)] pt-8 sm:flex-row">
               <p className="text-xs text-[var(--color-muted-foreground)]">&copy; {new Date().getFullYear()} BenchmarkSignal by Predivo GmbH. All rights reserved.</p>
-              <div className="flex items-center gap-4 text-xs text-[var(--color-muted-foreground)]"><span>Zurich, Switzerland</span></div>
+              <p className="text-xs text-[var(--color-muted-foreground)]">Swiss-made &middot; Privacy-first</p>
             </div>
           </div>
         </footer>
