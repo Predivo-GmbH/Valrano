@@ -41,7 +41,7 @@ const TABS: { id: TabId; label: string; icon: ReactNode }[] = [
 ]
 
 const CHART_COLORS = [
-  'var(--color-primary)',
+  'var(--color-accent)',
   'var(--color-signal-green)',
   'var(--color-signal-amber)',
   'var(--color-signal-red)',
@@ -124,15 +124,15 @@ export function AnalyticsPage() {
         {/* Summary cards */}
         {companies && kpiDefs && (
           <div className="mb-6 grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-border bg-card px-4 py-3">
+            <div className="card-premium rounded-xl border border-border bg-card px-4 py-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Companies</div>
               <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">{companyIds.length}</div>
             </div>
-            <div className="rounded-xl border border-border bg-card px-4 py-3">
+            <div className="card-premium rounded-xl border border-border bg-card px-4 py-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">KPIs Tracked</div>
               <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">{kpiDefs.length}</div>
             </div>
-            <div className="rounded-xl border border-border bg-card px-4 py-3">
+            <div className="card-premium rounded-xl border border-border bg-card px-4 py-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Data Range</div>
               <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">
                 {availableYears.length > 0
@@ -145,25 +145,28 @@ export function AnalyticsPage() {
 
         {/* Tab bar */}
         <div
-          className="mb-6 flex items-center gap-1 rounded-xl border border-border bg-card p-1"
+          className="mb-6 flex items-center gap-1 border-b border-border pb-3"
           role="tablist"
           aria-label="Analytics views"
         >
           {TABS.map((tab) => (
-            <Button
+            <button
               key={tab.id}
               role="tab"
               aria-selected={activeTab === tab.id}
               aria-controls={`tabpanel-${tab.id}`}
               aria-label={tab.label}
               id={`tab-${tab.id}`}
-              variant={activeTab === tab.id ? 'default' : 'ghost'}
               onClick={() => setTab(tab.id)}
-              className="flex min-h-[44px] items-center gap-2"
+              className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] ${
+                activeTab === tab.id
+                  ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                  : 'text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground'
+              }`}
             >
               {tab.icon}
               <span className="hidden sm:inline">{tab.label}</span>
-            </Button>
+            </button>
           ))}
         </div>
 
@@ -396,7 +399,7 @@ function TrendsPanel({
 
   if (disabled) {
     return (
-      <div className="rounded-xl border border-border bg-card p-12 text-center">
+      <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
         <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground/50" />
         <p className="mt-3 text-sm text-[var(--color-signal-red)]">
           Fix the year range to view trends.
@@ -409,7 +412,7 @@ function TrendsPanel({
 
   if (!trends || trends.length === 0) {
     return (
-      <div className="rounded-xl border border-border bg-card p-12 text-center">
+      <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
         <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground/50" />
         <h3 className="mt-3 text-lg font-semibold text-foreground">No trend data</h3>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -420,9 +423,9 @@ function TrendsPanel({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 section-fade-in">
       {/* Line Chart */}
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="card-premium rounded-xl border border-border bg-card p-5">
         <h3 className="mb-4 font-semibold text-foreground">
           {trends[0].kpi_name} — Multi-Year Trend
         </h3>
@@ -472,7 +475,7 @@ function TrendsPanel({
 
       {/* CAGR Table */}
       {cagrData && cagrData.length > 0 && (
-        <div className="rounded-xl border border-border bg-card">
+        <div className="card-premium rounded-xl border border-border bg-card">
           <div className="border-b border-border px-5 py-3">
             <h3 className="font-semibold text-foreground">
               CAGR ({startYear}–{endYear})
@@ -515,7 +518,7 @@ function TrendsPanel({
 
       {/* Momentum Indicators */}
       {momentumData && momentumData.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="card-premium rounded-xl border border-border bg-card p-5">
           <h3 className="mb-4 font-semibold text-foreground">Momentum Indicators (3-Year Trailing)</h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {momentumData.slice(0, 12).map((item, i) => (
@@ -550,7 +553,7 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
   if (isLoading) return <PageSkeleton />
   if (!data || data.cells.length === 0) {
     return (
-      <div className="rounded-xl border border-border bg-card p-12 text-center">
+      <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
         <Table2 className="mx-auto h-8 w-8 text-muted-foreground/50" />
         <p className="mt-3 text-sm text-muted-foreground">No data available for {fiscalYear}</p>
       </div>
@@ -564,7 +567,7 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-x-auto">
+    <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border">
@@ -621,7 +624,7 @@ function ScatterPanel({
 
   if (!xKpi || !yKpi) {
     return (
-      <div className="rounded-xl border border-border bg-card p-12 text-center">
+      <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
         <ScatterIcon className="mx-auto h-8 w-8 text-muted-foreground/50" />
         <p className="mt-3 text-sm text-muted-foreground">Select two KPIs to plot against each other.</p>
       </div>
@@ -631,8 +634,10 @@ function ScatterPanel({
   if (isLoading) return <PageSkeleton />
   if (!points || points.length === 0) {
     return (
-      <div className="rounded-xl border border-border bg-card p-12 text-center">
-        <p className="text-sm text-muted-foreground">No data points available for these KPIs in {fiscalYear}</p>
+      <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
+        <ScatterIcon className="mx-auto h-10 w-10 text-muted-foreground/50" />
+        <h3 className="mt-3 text-lg font-semibold text-foreground">No data points</h3>
+        <p className="mt-1 text-sm text-muted-foreground">No data points available for these KPIs in {fiscalYear}</p>
       </div>
     )
   }
@@ -641,7 +646,7 @@ function ScatterPanel({
   const yLabel = kpiDefs?.find((k) => k.code === yKpi)?.name ?? yKpi
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="card-premium rounded-xl border border-border bg-card p-5">
       <h3 className="mb-4 font-semibold text-foreground">
         {xLabel} vs {yLabel} ({fiscalYear})
       </h3>
@@ -710,7 +715,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
   if (isLoading) return <PageSkeleton />
   if (!data || data.cells.length === 0) {
     return (
-      <div className="rounded-xl border border-border bg-card p-12 text-center">
+      <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
         <Grid3X3 className="mx-auto h-8 w-8 text-muted-foreground/50" />
         <p className="mt-3 text-sm text-muted-foreground">No data available for {fiscalYear}</p>
       </div>
@@ -725,7 +730,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-card overflow-x-auto">
+      <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
@@ -756,7 +761,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
                         className="mx-auto flex h-10 w-full max-w-[80px] items-center justify-center rounded-md text-xs font-medium"
                         style={{
                           backgroundColor: getHeatColor(cell.percentile),
-                          color: cell.percentile >= 40 && cell.percentile < 60 ? 'white' : cell.percentile >= 60 ? '#052e16' : 'white',
+                          color: 'var(--color-foreground)',
                         }}
                         title={`P${cell.percentile} \u2014 ${cell.value.toLocaleString()}`}
                       >
@@ -772,7 +777,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
       </div>
 
       {/* Legend */}
-      <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+      <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
         <span>Weak (P0)</span>
         <div className="flex h-4">
           {[0, 20, 40, 60, 80, 100].map((p) => (
@@ -791,9 +796,9 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
 
 function getHeatColor(percentile: number): string {
   if (percentile >= 80) return 'var(--color-signal-green)'
-  if (percentile >= 60) return '#34d399'
-  if (percentile >= 40) return '#6b7280'
-  if (percentile >= 20) return '#f87171'
+  if (percentile >= 60) return 'var(--color-signal-green)'
+  if (percentile >= 40) return 'var(--color-muted-foreground)'
+  if (percentile >= 20) return 'var(--color-signal-red)'
   return 'var(--color-signal-red)'
 }
 
@@ -805,10 +810,10 @@ function MomentumIcon({ direction }: { direction: string }) {
 
 function MomentumBadge({ direction }: { direction: string }) {
   if (direction === 'improving') {
-    return <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-green)]">▲ Improving</span>
+    return <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-green)]"><TrendingUp className="h-3 w-3" /> Improving</span>
   }
   if (direction === 'declining') {
-    return <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-red)]">▼ Declining</span>
+    return <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-red)]"><TrendingDown className="h-3 w-3" /> Declining</span>
   }
   return <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">● Stable</span>
 }

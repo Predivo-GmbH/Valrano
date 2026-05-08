@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { Plus, Trash2 } from 'lucide-react'
+import { PageSkeleton } from '@/components/ui/page-skeleton'
 import { toast } from 'sonner'
 import { useApprovalChains, useCreateApprovalChain } from '@/hooks/useBenchmark'
 import { useBenchmarkRules } from '@/hooks/useBenchmark'
@@ -38,7 +39,7 @@ export function ApprovalChainsPage() {
         </button>
 
         {isLoading ? (
-          <div className="py-20 text-center text-sm text-muted-foreground">Loading...</div>
+          <PageSkeleton />
         ) : (chains ?? []).length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
             <h3 className="text-lg font-semibold text-foreground">No approval chains</h3>

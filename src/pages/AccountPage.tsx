@@ -61,9 +61,9 @@ export function AccountPage() {
           </p>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 section-fade-in">
           {/* 1. Profile section */}
-          <section className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <section className="card-premium rounded-xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-[15px] font-semibold text-foreground">Profile</h2>
@@ -84,7 +84,7 @@ export function AccountPage() {
           </section>
 
           {/* 2. Security section */}
-          <section className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <section className="card-premium rounded-xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-[15px] font-semibold text-foreground">Security</h2>
@@ -105,7 +105,7 @@ export function AccountPage() {
           </section>
 
           {/* 3. Notifications section */}
-          <section className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <section className="card-premium rounded-xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center gap-2">
               <Bell className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-[15px] font-semibold text-foreground">Notifications</h2>
@@ -136,7 +136,7 @@ export function AccountPage() {
           </section>
 
           {/* 4. Subscription section */}
-          <section className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <section className="card-premium rounded-xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-[15px] font-semibold text-foreground">Subscription</h2>
@@ -160,7 +160,7 @@ export function AccountPage() {
           </section>
 
           {/* 5. Preferences section */}
-          <section className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <section className="card-premium rounded-xl border border-border bg-card p-6 space-y-4">
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-[15px] font-semibold text-foreground">Preferences</h2>

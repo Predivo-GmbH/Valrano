@@ -136,6 +136,74 @@
   background-color: var(--color-muted-foreground);
 }
 
+/* ── Premium app utilities ─────────────────────────── */
+
+/* Card with hover lift + shadow expand */
+.card-premium {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card-premium:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0,0,0,0.1), 0 4px 10px -6px rgba(0,0,0,0.1);
+  border-color: var(--color-accent);
+}
+.dark .card-premium:hover {
+  box-shadow: 0 8px 25px -5px rgba(0,0,0,0.4), 0 0 15px -3px color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+
+/* Pulsing status dot */
+.status-pulse {
+  position: relative;
+}
+.status-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  background: inherit;
+  animation: status-ping 2s cubic-bezier(0,0,0.2,1) infinite;
+}
+@keyframes status-ping {
+  0% { transform: scale(1); opacity: 0.6; }
+  75%, 100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Section fade-in on mount */
+.section-fade-in {
+  animation: section-appear 0.4s ease-out both;
+}
+@keyframes section-appear {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Stagger children — use with [style="--stagger:N"] */
+.stagger-child {
+  animation: section-appear 0.4s ease-out both;
+  animation-delay: calc(var(--stagger, 0) * 60ms);
+}
+
+/* Stat card with accent top border */
+.stat-card-accent {
+  border-top: 2px solid var(--color-accent);
+}
+
+/* Gradient text utility */
+.text-gradient-accent {
+  background: linear-gradient(135deg, var(--color-accent), #8B5CF6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Nav border glow (bottom edge) */
+.nav-glow {
+  box-shadow: 0 1px 0 0 var(--color-border), 0 1px 6px -1px color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+.dark .nav-glow {
+  box-shadow: 0 1px 0 0 var(--color-border), 0 1px 10px -1px color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -470,7 +470,7 @@ function CreateEventDialog({
                 type="number"
                 value={fiscalYear}
                 onChange={(e) => setFiscalYear(parseInt(e.target.value))}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base md:text-sm text-foreground"
               />
             </div>
           </div>
@@ -535,7 +535,7 @@ function CreateEventDialog({
                 onChange={(e) => setExpectedDate(e.target.value)}
                 onBlur={() => setTouched((t) => ({ ...t, date: true }))}
                 aria-invalid={dateInvalid}
-                className={`w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground ${dateInvalid ? 'border-[var(--color-signal-red)]' : 'border-border'}`}
+                className={`w-full rounded-lg border bg-background px-3 py-2 text-base md:text-sm text-foreground ${dateInvalid ? 'border-[var(--color-signal-red)]' : 'border-border'}`}
               />
               {dateInvalid && <p className="mt-1 text-[12px] text-[var(--color-signal-red)]">Publication date is required.</p>}
             </div>
@@ -546,7 +546,7 @@ function CreateEventDialog({
                 type="time"
                 value={expectedTime}
                 onChange={(e) => setExpectedTime(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base md:text-sm text-foreground"
               />
               <p className="mt-1 text-[10px] text-muted-foreground">Peak monitoring ±30 min around this time</p>
             </div>
@@ -592,7 +592,7 @@ function CreateEventDialog({
               value={irPageUrl}
               onChange={(e) => setIrPageUrl(e.target.value)}
               placeholder="https://www.company.com/investors"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base md:text-sm text-foreground"
             />
             {irPageUrl && suggestIrUrlMutation.data?.validated && (
               <p className="mt-1 text-[10px] text-green-400">Validated — page exists</p>
@@ -608,7 +608,7 @@ function CreateEventDialog({
               value={directPdfUrl}
               onChange={(e) => setDirectPdfUrl(e.target.value)}
               placeholder="https://www.company.com/report.pdf"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base md:text-sm text-foreground"
             />
           </div>
 
@@ -621,7 +621,7 @@ function CreateEventDialog({
               onChange={(e) => setNotes(e.target.value.slice(0, 500))}
               placeholder="e.g., CRH typically publishes in late February"
               rows={3}
-              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-base md:text-sm text-foreground"
             />
             <p className="mt-1 text-[11px] text-muted-foreground">{notes.length}/500</p>
           </div>

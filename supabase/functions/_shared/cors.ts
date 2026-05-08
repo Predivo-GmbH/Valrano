@@ -9,6 +9,7 @@ export function getCorsHeaders(req: Request) {
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
   }
 }
 
@@ -16,6 +17,7 @@ export function getCorsHeaders(req: Request) {
 export const corsHeaders = {
   'Access-Control-Allow-Origin': 'https://benchmarksignal.predivo.ch',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 /**

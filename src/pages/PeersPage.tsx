@@ -536,7 +536,7 @@ function PeerCard({
   const { company, isMonitoring, monitoringStatus, lastReport, nextExpectedDate, kpiExtracted, kpiPendingReview, nextEventId } = peer
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-[var(--color-primary)]/30">
+    <div className="card-premium rounded-xl border border-border bg-card p-5 transition-colors hover:border-[var(--color-primary)]/30">
       {/* Header: Company name + monitoring indicator */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

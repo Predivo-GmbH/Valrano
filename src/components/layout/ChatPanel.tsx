@@ -162,7 +162,7 @@ export function ChatPanel() {
             <button
               onClick={handleNewChat}
               aria-label="New chat"
-              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground transition-colors"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground transition-colors"
             >
               <Plus className="h-4 w-4" />
             </button>
@@ -170,7 +170,7 @@ export function ChatPanel() {
               onClick={() => setShowHistory(!showHistory)}
               aria-label="Chat history"
               className={cn(
-                'flex h-8 w-8 items-center justify-center rounded-md transition-colors',
+                'flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md transition-colors',
                 showHistory
                   ? 'bg-[var(--color-bg-tertiary)] text-foreground'
                   : 'text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground',
@@ -181,7 +181,7 @@ export function ChatPanel() {
             <button
               onClick={() => setIsOpen(false)}
               aria-label="Close AI assistant"
-              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground transition-colors"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -303,7 +303,7 @@ export function ChatPanel() {
               disabled={!input.trim() || isStreaming}
               aria-label="Send message"
               className={cn(
-                'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md transition-colors',
+                'flex min-h-[44px] min-w-[44px] flex-shrink-0 items-center justify-center rounded-md transition-colors',
                 input.trim() && !isStreaming
                   ? 'bg-[var(--color-primary)] text-[var(--color-primary-foreground)]'
                   : 'text-muted-foreground',

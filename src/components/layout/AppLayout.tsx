@@ -74,7 +74,7 @@ export function AppLayout() {
 
         {/* Fixed frosted-glass nav — 64px height per design tokens */}
         <nav
-          className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-[var(--color-background)]/80 backdrop-blur-xl"
+          className="nav-glow fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-[var(--color-background)]/80 backdrop-blur-xl backdrop-saturate-150"
           aria-label="Main navigation"
         >
           <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-4 sm:px-6">

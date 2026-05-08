@@ -17,7 +17,7 @@ export const KpiSnapshotCard = React.memo(function KpiSnapshotCard({ name, value
       : 'bg-[var(--color-signal-red)]'
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 min-w-[180px] flex-1">
+    <div className="card-premium rounded-xl border border-border bg-card p-4 min-w-[180px] flex-1">
       <div className="text-[11px] text-muted-foreground font-medium mb-1 truncate">{name}</div>
       <div className="text-[15px] font-semibold text-foreground tabular-nums mb-2">
         {formatKpiValue(value, unitType)}
