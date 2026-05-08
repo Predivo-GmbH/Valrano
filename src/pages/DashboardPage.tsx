@@ -429,9 +429,6 @@ export function DashboardPage() {
     return kpiDefs.filter((d) => d.category === activeCategory)
   }, [kpiDefs, activeCategory])
 
-  // Reset column expansion when category changes
-  useEffect(() => { setColumnsExpanded(false) }, [activeCategory])
-
   // Visible columns: capped unless expanded
   const visibleDefs = useMemo(() => {
     if (columnsExpanded || filteredDefs.length <= MAX_VISIBLE_COLUMNS) return filteredDefs
@@ -932,7 +929,7 @@ export function DashboardPage() {
       {/* Section 4: Peer Comparison Table                                   */}
       {/* ================================================================== */}
       <div className="mb-8">
-        <Tabs value={activeCategory} onValueChange={(v) => setActiveCategory(v as ActiveCategory)}>
+        <Tabs value={activeCategory} onValueChange={(v) => { setActiveCategory(v as ActiveCategory); setColumnsExpanded(false) }}>
           <div className="card-premium rounded-xl border border-border bg-card overflow-hidden">
             {/* Card header: title + category tabs */}
             <div className="flex flex-col gap-3 px-4 py-3 border-b border-border sm:flex-row sm:items-center sm:justify-between">
