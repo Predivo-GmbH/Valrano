@@ -702,6 +702,129 @@ export interface KpiValueWithAdjustment extends KpiValue {
 }
 
 // ---------------------------------------------------------------------------
+// News Intelligence types
+// ---------------------------------------------------------------------------
+
+export type NewsSentiment = 'positive' | 'negative' | 'neutral' | 'mixed';
+export type NewsSourceType = 'google_news_rss' | 'newsapi' | 'company_ir' | 'custom_rss';
+export type DigestType = 'weekly' | 'monthly';
+export type SentimentTrend = 'improving' | 'stable' | 'deteriorating' | 'mixed';
+export type SegmentType = 'product' | 'geography' | 'business_unit';
+export type AdjustmentType = 'segment_exclusion' | 'segment_inclusion' | 'accounting_reclass' | 'one_off_removal' | 'currency_normalization' | 'scope_alignment';
+
+export interface CompanyNews {
+  id: string;
+  company_id: string;
+  source_id: string | null;
+  title: string;
+  url: string;
+  published_at: string | null;
+  author: string | null;
+  snippet: string | null;
+  full_text: string | null;
+  language: string;
+  sentiment: NewsSentiment | null;
+  relevance_score: number | null;
+  topics: string[];
+  ai_summary: string | null;
+  is_relevant: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NewsSource {
+  id: string;
+  company_id: string;
+  source_type: NewsSourceType;
+  source_url: string;
+  source_name: string;
+  search_query: string | null;
+  is_active: boolean;
+  last_fetched_at: string | null;
+  fetch_interval_hours: number;
+  created_at: string;
+}
+
+export interface NewsDigest {
+  id: string;
+  company_id: string;
+  period_start: string;
+  period_end: string;
+  digest_type: DigestType;
+  summary: string;
+  key_events: { date: string; title: string; impact: string; category: string }[];
+  sentiment_trend: SentimentTrend | null;
+  article_count: number;
+  ai_model_used: string | null;
+  created_at: string;
+}
+
+export interface ReportContext {
+  id: string;
+  report_id: string;
+  company_id: string;
+  fiscal_year: number;
+  competitor_mentions: { company_name: string; matched_company_id: string | null; context: string; sentiment: string; page: number }[];
+  strategic_initiatives: { initiative: string; description: string; timeline?: string; page: number }[];
+  risk_factors: { factor: string; description: string; severity: string; page: number }[];
+  market_commentary: string | null;
+  management_guidance: { metric: string; guidance_value: string; guidance_type: string; comparison_period?: string; page: number }[];
+  restructuring_notes: { description: string; financial_impact_mln?: number; currency?: string; page: number }[];
+  ma_activity: { type: string; target: string; description: string; value_mln?: number; currency?: string; page: number }[];
+  key_quotes: { quote: string; speaker: string; role: string; page: number }[];
+  business_segments: { name: string; description: string; products?: string; revenue_pct?: number; page: number }[];
+  geographic_mix: { region: string; revenue_pct: number; page: number }[];
+  ai_model_used: string | null;
+  extraction_confidence: number | null;
+  extracted_at: string;
+  created_at: string;
+}
+
+export interface SegmentBreakdown {
+  id: string;
+  report_id: string;
+  company_id: string;
+  fiscal_year: number;
+  segment_name: string;
+  segment_type: SegmentType;
+  revenue: number | null;
+  ebitda: number | null;
+  ebit: number | null;
+  operating_profit: number | null;
+  assets: number | null;
+  capex: number | null;
+  employees: number | null;
+  revenue_pct: number | null;
+  ebitda_pct: number | null;
+  currency: string | null;
+  source_page: number | null;
+  confidence: number | null;
+  notes: string | null;
+  ai_model_used: string | null;
+  created_at: string;
+}
+
+export interface ComparabilityAdjustment {
+  id: string;
+  benchmark_document_id: string | null;
+  adjusted_company_id: string;
+  reference_company_id: string;
+  fiscal_year: number;
+  kpi_code: string;
+  original_value: number;
+  adjusted_value: number;
+  adjustment_amount: number;
+  adjustment_type: AdjustmentType;
+  segments_involved: string[];
+  rationale: string;
+  confidence: number | null;
+  data_sources: string[];
+  currency: string;
+  ai_model_used: string | null;
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
 // Supabase Database shape (for createClient<Database> generic)
 // ---------------------------------------------------------------------------
 

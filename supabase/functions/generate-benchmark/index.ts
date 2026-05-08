@@ -165,6 +165,163 @@ When comparing KPIs, identify any accounting policy differences between the user
     }
 
     // ------------------------------------------------------------------
+    // 3c. Load news intelligence context
+    // ------------------------------------------------------------------
+    // Recent news for trigger and customer companies (last 6 months)
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+
+    const { data: triggerNews } = await adminClient
+      .from('company_news')
+      .select('title, published_at, ai_summary, sentiment, topics')
+      .eq('company_id', triggerCompany.id)
+      .eq('is_relevant', true)
+      .gte('published_at', sixMonthsAgo.toISOString())
+      .order('published_at', { ascending: false })
+      .limit(30)
+
+    const { data: customerNews } = await adminClient
+      .from('company_news')
+      .select('title, published_at, ai_summary, sentiment, topics')
+      .eq('company_id', customerCompany.id)
+      .eq('is_relevant', true)
+      .gte('published_at', sixMonthsAgo.toISOString())
+      .order('published_at', { ascending: false })
+      .limit(30)
+
+    // News digests
+    const { data: triggerDigests } = await adminClient
+      .from('news_digests')
+      .select('summary, key_events, sentiment_trend, period_start, period_end')
+      .eq('company_id', triggerCompany.id)
+      .order('period_end', { ascending: false })
+      .limit(4)
+
+    const { data: customerDigests } = await adminClient
+      .from('news_digests')
+      .select('summary, key_events, sentiment_trend, period_start, period_end')
+      .eq('company_id', customerCompany.id)
+      .order('period_end', { ascending: false })
+      .limit(4)
+
+    // Build news context block
+    let newsContext = ''
+    const formatNewsBlock = (articles: typeof triggerNews, digests: typeof triggerDigests, name: string) => {
+      let block = ''
+      if (digests && digests.length > 0) {
+        block += `\n  Recent Digests:\n`
+        for (const d of digests) {
+          block += `  - ${d.period_start} to ${d.period_end} (${d.sentiment_trend}): ${d.summary}\n`
+        }
+      }
+      if (articles && articles.length > 0) {
+        block += `\n  Key Headlines:\n`
+        for (const a of articles.slice(0, 15)) {
+          block += `  - [${a.published_at?.slice(0, 10) ?? '?'}] ${a.title}${a.ai_summary ? ` — ${a.ai_summary}` : ''} (${a.sentiment})\n`
+        }
+      }
+      return block ? `\n### ${name}:\n${block}` : ''
+    }
+
+    const triggerNewsBlock = formatNewsBlock(triggerNews, triggerDigests, triggerCompany.name)
+    const customerNewsBlock = formatNewsBlock(customerNews, customerDigests, customerCompany.name)
+
+    if (triggerNewsBlock || customerNewsBlock) {
+      newsContext = `\n\n## RECENT NEWS INTELLIGENCE (Last 6 Months)
+Use this context to EXPLAIN why KPI changes occurred. Reference specific events, M&A, restructuring, market shifts.
+${triggerNewsBlock}${customerNewsBlock}`
+    }
+
+    // ------------------------------------------------------------------
+    // 3d. Load report contexts (strategic intelligence from annual reports)
+    // ------------------------------------------------------------------
+    const { data: triggerReportCtx } = await adminClient
+      .from('report_contexts')
+      .select('*')
+      .eq('company_id', triggerCompany.id)
+      .eq('fiscal_year', report.fiscal_year)
+      .limit(1)
+      .maybeSingle()
+
+    const { data: customerReportCtx } = await adminClient
+      .from('report_contexts')
+      .select('*')
+      .eq('company_id', customerCompany.id)
+      .order('fiscal_year', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    let reportContextBlock = ''
+    const formatReportCtx = (ctx: typeof triggerReportCtx, name: string) => {
+      if (!ctx) return ''
+      const parts: string[] = [`\n### ${name} — FY${ctx.fiscal_year} Report Context:`]
+
+      if (ctx.competitor_mentions?.length) {
+        parts.push(`  Competitor mentions: ${ctx.competitor_mentions.map((m: { company_name: string; context: string }) => `${m.company_name} (${m.context.slice(0, 100)})`).join('; ')}`)
+      }
+      if (ctx.strategic_initiatives?.length) {
+        parts.push(`  Strategic initiatives: ${ctx.strategic_initiatives.map((i: { initiative: string }) => i.initiative).join(', ')}`)
+      }
+      if (ctx.management_guidance?.length) {
+        parts.push(`  Management guidance: ${ctx.management_guidance.map((g: { metric: string; guidance_value: string; comparison_period?: string }) => `${g.metric}: ${g.guidance_value} (${g.comparison_period ?? 'n/a'})`).join(', ')}`)
+      }
+      if (ctx.restructuring_notes?.length) {
+        parts.push(`  Restructuring: ${ctx.restructuring_notes.map((r: { description: string; financial_impact_mln?: number; currency?: string }) => `${r.description}${r.financial_impact_mln ? ` (${r.financial_impact_mln}M ${r.currency ?? 'CHF'})` : ''}`).join('; ')}`)
+      }
+      if (ctx.ma_activity?.length) {
+        parts.push(`  M&A: ${ctx.ma_activity.map((m: { type: string; target: string; value_mln?: number; currency?: string }) => `${m.type}: ${m.target}${m.value_mln ? ` (${m.value_mln}M ${m.currency ?? 'CHF'})` : ''}`).join('; ')}`)
+      }
+      if (ctx.risk_factors?.length) {
+        parts.push(`  Key risks: ${ctx.risk_factors.filter((r: { severity: string }) => r.severity === 'high').map((r: { factor: string }) => r.factor).join(', ')}`)
+      }
+      if (ctx.market_commentary) {
+        parts.push(`  Market outlook: ${ctx.market_commentary.slice(0, 300)}`)
+      }
+
+      return parts.join('\n')
+    }
+
+    const triggerCtx = formatReportCtx(triggerReportCtx, triggerCompany.name)
+    const customerCtx = formatReportCtx(customerReportCtx, customerCompany.name)
+    if (triggerCtx || customerCtx) {
+      reportContextBlock = `\n\n## ANNUAL REPORT STRATEGIC CONTEXT
+Use this to provide deeper strategic analysis. Reference management guidance, M&A, restructuring when explaining KPI movements.
+${triggerCtx}${customerCtx}`
+    }
+
+    // ------------------------------------------------------------------
+    // 3e. Load segment breakdowns for comparability context
+    // ------------------------------------------------------------------
+    const { data: triggerSegments } = await adminClient
+      .from('segment_breakdowns')
+      .select('segment_name, segment_type, revenue, ebitda, revenue_pct, ebitda_pct, currency, notes')
+      .eq('company_id', triggerCompany.id)
+      .eq('fiscal_year', report.fiscal_year)
+      .order('revenue_pct', { ascending: false })
+
+    const { data: customerSegments } = await adminClient
+      .from('segment_breakdowns')
+      .select('segment_name, segment_type, revenue, ebitda, revenue_pct, ebitda_pct, currency, notes')
+      .eq('company_id', customerCompany.id)
+      .order('revenue_pct', { ascending: false })
+      .limit(20)
+
+    let segmentContext = ''
+    if ((triggerSegments?.length ?? 0) > 0 || (customerSegments?.length ?? 0) > 0) {
+      const formatSegments = (segs: typeof triggerSegments, name: string) => {
+        if (!segs?.length) return ''
+        return `\n### ${name} Segments:\n${segs.map(s =>
+          `  - ${s.segment_name} (${s.segment_type}): Revenue ${s.revenue ?? '?'}M ${s.currency ?? 'CHF'} (${s.revenue_pct ?? '?'}%), EBITDA ${s.ebitda ?? '?'}M (${s.ebitda_pct ?? '?'}%)${s.notes ? ` [${s.notes}]` : ''}`
+        ).join('\n')}`
+      }
+
+      segmentContext = `\n\n## SEGMENT BREAKDOWNS — COMPARABILITY
+CRITICAL: If one company has business segments the other doesn't (e.g., roofing, solutions, etc.), note this in your analysis. Flag where raw KPI comparisons are misleading due to different business mix.
+When writing the narrative, explicitly state which segments make direct comparison difficult and what the "like-for-like" picture looks like.
+${formatSegments(triggerSegments, triggerCompany.name)}${formatSegments(customerSegments, customerCompany.name)}`
+    }
+
+    // ------------------------------------------------------------------
     // 4. Load all normalized KPI values for the fiscal year
     // ------------------------------------------------------------------
     const { data: allKpiValues, error: kpiError } = await adminClient
@@ -396,7 +553,8 @@ Be specific with numbers. Reference actual values. Identify strategic implicatio
 Flag areas where the competitor is gaining ground or significantly outperforming.
 ${accountingContext}
 ${accountingProfile ? `\nIMPORTANT: Include accounting_comparisons showing policy differences that affect comparability.` : ''}
-Include source_citations for each KPI value with the report title (e.g. "${triggerCompany.name} ${report.report_type === 'annual' ? 'Annual' : report.report_type} Report FY ${report.fiscal_year}") and confidence level.`,
+Include source_citations for each KPI value with the report title (e.g. "${triggerCompany.name} ${report.report_type === 'annual' ? 'Annual' : report.report_type} Report FY ${report.fiscal_year}") and confidence level.
+${newsContext}${reportContextBlock}${segmentContext}`,
           },
         ],
       }),
@@ -487,6 +645,35 @@ Include source_citations for each KPI value with the report title (e.g. "${trigg
 
     if (docError) throw new Error(`Document insert failed: ${docError.message}`)
 
+    // ------------------------------------------------------------------
+    // 9. Auto-compute comparability adjustments (non-blocking)
+    // ------------------------------------------------------------------
+    let comparabilityCount = 0
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')
+      if (supabaseUrl) {
+        const compResp = await fetch(`${supabaseUrl}/functions/v1/compute-comparability`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            adjusted_company_id: customerCompany.id,
+            reference_company_id: triggerCompany.id,
+            fiscal_year: report.fiscal_year,
+            benchmark_document_id: doc.id,
+          }),
+        })
+        if (compResp.ok) {
+          const compResult = await compResp.json()
+          comparabilityCount = compResult.adjustments_count ?? 0
+        }
+      }
+    } catch (compErr) {
+      console.error('Comparability computation failed (non-fatal):', (compErr as Error).message)
+    }
+
     return jsonResponse({
       document_id: doc.id,
       title,
@@ -494,6 +681,7 @@ Include source_citations for each KPI value with the report title (e.g. "${trigg
       sections: contentJson.sections.length,
       risk_flags: contentJson.risk_flags.length,
       competitive_position: contentJson.competitive_position,
+      comparability_adjustments: comparabilityCount,
     })
   } catch (err) {
     return errorResponse(err)

@@ -31,6 +31,7 @@ const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const AuthCallbackPage = lazy(() => import('@/pages/auth/AuthCallbackPage'))
 const AuthVerifyPage = lazy(() => import('@/pages/auth/AuthVerifyPage'))
 const AuthConfirmPage = lazy(() => import('@/pages/auth/AuthConfirmPage'))
+const NewsPage = lazy(() => import('@/pages/NewsPage'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -75,6 +76,7 @@ function App() {
                           <Route path="/dashboard" element={<DashboardPage />} />
                           <Route path="/peers" element={<PeersPage />} />
                           <Route path="/analytics" element={<AnalyticsPage />} />
+                          <Route path="/news" element={<NewsPage />} />
                           <Route path="/reports" element={<ReportBuilderPage />} />
                           <Route path="/reports/:id" element={<ReportViewerPage />} />
                           <Route path="/documents/:id" element={<DocumentViewerPage />} />

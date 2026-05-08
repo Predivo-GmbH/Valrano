@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
-import { Sun, Moon, LayoutDashboard, Users, Settings, LogOut, User, Menu, X, BarChart3, FileBarChart } from 'lucide-react'
+import { Sun, Moon, LayoutDashboard, Users, Settings, LogOut, User, Menu, X, BarChart3, FileBarChart, Newspaper } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
 import { ChatPanel } from './ChatPanel'
 import { DevTierSwitcher } from '@/components/dev/DevTierSwitcher'
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/peers', label: 'Peers', icon: Users },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/news', label: 'News', icon: Newspaper },
   { to: '/reports', label: 'Reports', icon: FileBarChart },
   { to: '/settings', label: 'Settings', icon: Settings },
 ] as const

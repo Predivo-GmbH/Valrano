@@ -72,6 +72,19 @@ serve(async (req: Request) => {
       steps.push({ step: 'normalize-kpis', status: 'completed', duration_ms: Date.now() - start })
     }
 
+    // 4b. Extract strategic context + segment breakdowns (parallel-safe, non-blocking)
+    {
+      const start = Date.now()
+      try {
+        await callEdgeFunction('extract-report-context', { report_id })
+        steps.push({ step: 'extract-report-context', status: 'completed', duration_ms: Date.now() - start })
+      } catch (err) {
+        // Non-fatal — benchmark can still generate without context
+        console.error('extract-report-context failed (non-fatal):', (err as Error).message)
+        steps.push({ step: 'extract-report-context', status: 'failed', duration_ms: Date.now() - start })
+      }
+    }
+
     // 5. Generate benchmark document
     {
       const start = Date.now()
