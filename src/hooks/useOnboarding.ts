@@ -1,16 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { usePrimaryCompany, useMyCompanyKpis } from '@/hooks/useMyCompany'
+import { useAccountingProfile } from '@/hooks/useAccountingProfile'
 import { usePeerGroups } from '@/hooks/useData'
+import { usePublicationEvents } from '@/hooks/useCalendar'
 
 // ---------------------------------------------------------------------------
-// Onboarding Status
+// Onboarding Status — aligned with the 4-step OnboardingWizard
 // ---------------------------------------------------------------------------
 
 export interface OnboardingStatus {
-  hasCompany: boolean
-  hasKpis: boolean
-  hasPeers: boolean
+  hasFramework: boolean
+  hasCompetitors: boolean
+  hasSchedule: boolean
   isComplete: boolean
   completedSteps: number
   totalSteps: number
@@ -18,29 +19,30 @@ export interface OnboardingStatus {
 
 /**
  * Checks whether the current user has completed all onboarding steps:
- * 1. Has a company profile (my_companies table)
- * 2. Has KPI data entered (my_company_kpis table)
- * 3. Has at least one peer group with members
+ * 1. Accounting Framework — has an accounting_profiles row
+ * 2. Add Competitors — has at least one peer group with members
+ * 3. Publication Schedule — has at least one publication_event
+ * Step 4 (Activate Pipeline) is a confirmation — complete when 1-3 are done.
  */
 export function useOnboarding() {
-  const { data: primaryCompany, isLoading: companyLoading } = usePrimaryCompany()
-  const { data: kpis, isLoading: kpisLoading } = useMyCompanyKpis(primaryCompany?.id)
+  const { data: profile, isLoading: profileLoading } = useAccountingProfile()
   const { data: peerGroups, isLoading: peersLoading } = usePeerGroups()
+  const { data: events, isLoading: eventsLoading } = usePublicationEvents()
 
-  const hasCompany = !!primaryCompany
-  const hasKpis = !!(kpis && kpis.length > 0)
-  const hasPeers = !!(peerGroups && peerGroups.some(pg => pg.peer_group_members.length > 0))
+  const hasFramework = !!profile
+  const hasCompetitors = !!(peerGroups && peerGroups.some(pg => pg.peer_group_members.length > 0))
+  const hasSchedule = !!(events && events.length > 0)
 
-  const completedSteps = [hasCompany, hasKpis, hasPeers].filter(Boolean).length
-  const totalSteps = 3
+  const completedSteps = [hasFramework, hasCompetitors, hasSchedule].filter(Boolean).length
+  const totalSteps = 3 // steps 1-3 are trackable; step 4 is just "activate"
   const isComplete = completedSteps === totalSteps
 
-  const isLoading = companyLoading || (hasCompany && kpisLoading) || peersLoading
+  const isLoading = profileLoading || peersLoading || eventsLoading
 
   const status: OnboardingStatus = {
-    hasCompany,
-    hasKpis,
-    hasPeers,
+    hasFramework,
+    hasCompetitors,
+    hasSchedule,
     isComplete,
     completedSteps,
     totalSteps,
@@ -49,7 +51,6 @@ export function useOnboarding() {
   return {
     status,
     isLoading,
-    primaryCompany,
   }
 }
 

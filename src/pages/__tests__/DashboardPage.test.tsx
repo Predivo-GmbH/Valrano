@@ -4,9 +4,8 @@ import { DashboardPage } from '../DashboardPage'
 vi.mock('@/hooks/useOnboarding', () => ({
   useOnboardingDismissed: () => ({ data: true, isLoading: false }),
   useOnboarding: () => ({
-    status: { hasCompany: true, hasKpis: true, hasPeers: true, isComplete: true, completedSteps: 3, totalSteps: 3 },
+    status: { hasFramework: true, hasCompetitors: true, hasSchedule: true, isComplete: true, completedSteps: 3, totalSteps: 3 },
     isLoading: false,
-    primaryCompany: null,
   }),
   dismissOnboarding: vi.fn(),
 }))

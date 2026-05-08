@@ -1,2 +1,2 @@
-export { default } from './WelcomeWizard'
+export { OnboardingWizard } from './OnboardingWizard'
 export { SetupProgressBanner } from './SetupProgressBanner'

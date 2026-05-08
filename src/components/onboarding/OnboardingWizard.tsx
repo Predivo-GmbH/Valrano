@@ -17,13 +17,13 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
-import { useCompanies, useReports } from '@/hooks/useData'
+import { useCompanies, useReports, usePeerGroups } from '@/hooks/useData'
 import { useAccountingProfile, useAnalyzeAccountingProfile } from '@/hooks/useAccountingProfile'
 import { useCreateMyCompany, usePrimaryCompany } from '@/hooks/useMyCompany'
 import { useUploadReport } from '@/hooks/useExtraction'
-import { useCreatePublicationEvent } from '@/hooks/useCalendar'
+import { useCreatePublicationEvent, usePublicationEvents } from '@/hooks/useCalendar'
 import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
-import { dismissOnboarding } from '@/hooks/useOnboarding'
+import { dismissOnboarding, useOnboarding } from '@/hooks/useOnboarding'
 import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete'
 import type { Company } from '@/types/database'
 
@@ -45,19 +45,58 @@ const STEPS = [
 export function OnboardingWizard() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { status } = useOnboarding()
+  const { data: peerGroups } = usePeerGroups()
+  const { data: existingEvents } = usePublicationEvents()
   const [currentStep, setCurrentStep] = useState(0)
 
-  // Shared state across steps
+  // Pre-populate from existing data
+  const existingCompetitorIds = (peerGroups ?? [])
+    .flatMap(pg => pg.peer_group_members.map(m => m.company_id))
+    .filter((id, i, arr) => arr.indexOf(id) === i)
+
+  const existingSchedules: Record<string, { reportType: string; expectedDate: string }> = {}
+  for (const ev of existingEvents ?? []) {
+    existingSchedules[ev.company_id] = {
+      reportType: ev.report_type,
+      expectedDate: ev.expected_date,
+    }
+  }
+
+  // Shared state across steps — seeded from existing data
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
   const [schedules, setSchedules] = useState<
     Record<string, { reportType: string; expectedDate: string }>
   >({})
 
+  // Sync existing data into state once loaded
+  const didSeedCompetitors = useRef(false)
+  if (existingCompetitorIds.length > 0 && !didSeedCompetitors.current && selectedCompanyIds.length === 0) {
+    didSeedCompetitors.current = true
+    setSelectedCompanyIds(existingCompetitorIds)
+  }
+  const didSeedSchedules = useRef(false)
+  if (Object.keys(existingSchedules).length > 0 && !didSeedSchedules.current && Object.keys(schedules).length === 0) {
+    didSeedSchedules.current = true
+    setSchedules(existingSchedules)
+  }
+
+  // A step is "done" if the real data exists OR the user filled it in this session
+  const stepDone = (step: number): boolean => {
+    switch (step) {
+      case 0: return status.hasFramework
+      case 1: return status.hasCompetitors || selectedCompanyIds.length >= 1
+      case 2: return status.hasSchedule || Object.keys(schedules).length >= 1
+      case 3: return status.isComplete
+      default: return false
+    }
+  }
+
   const canProceed = (step: number): boolean => {
     switch (step) {
       case 0: return true // Framework is optional (can skip)
-      case 1: return selectedCompanyIds.length >= 1
-      case 2: return Object.keys(schedules).length >= 1
+      case 1: return stepDone(1)
+      case 2: return stepDone(2)
       case 3: return true
       default: return false
     }
@@ -116,43 +155,46 @@ export function OnboardingWizard() {
       {/* Progress bar */}
       <div className="mx-auto w-full max-w-[900px] px-4 pt-8 sm:px-6">
         <div className="flex items-center gap-1">
-          {STEPS.map((step, i) => (
-            <div key={step.id} className="flex flex-1 items-center gap-1">
-              <button
-                onClick={() => i < currentStep ? setCurrentStep(i) : undefined}
-                className={cn(
-                  'flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-medium transition-all',
-                  i === currentStep
-                    ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
-                    : i < currentStep
-                    ? 'text-[var(--color-accent)] cursor-pointer hover:bg-[var(--color-accent)]/5'
-                    : 'text-muted-foreground/50',
-                )}
-              >
-                <div
+          {STEPS.map((step, i) => {
+            const done = stepDone(i)
+            const active = i === currentStep
+            const clickable = done || i < currentStep
+            return (
+              <div key={step.id} className="flex flex-1 items-center gap-1">
+                <button
+                  onClick={() => clickable ? setCurrentStep(i) : undefined}
                   className={cn(
-                    'flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold',
-                    i === currentStep
-                      ? 'bg-[var(--color-accent)] text-white'
-                      : i < currentStep
-                      ? 'bg-[var(--color-accent)] text-white'
-                      : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
+                    'flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-medium transition-all',
+                    active
+                      ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                      : done || i < currentStep
+                      ? 'text-[var(--color-accent)] cursor-pointer hover:bg-[var(--color-accent)]/5'
+                      : 'text-muted-foreground/50',
                   )}
                 >
-                  {i < currentStep ? <Check className="h-3 w-3" /> : i + 1}
-                </div>
-                <span className="hidden sm:inline">{step.label}</span>
-              </button>
-              {i < STEPS.length - 1 && (
-                <div
-                  className={cn(
-                    'h-[2px] flex-1',
-                    i < currentStep ? 'bg-[var(--color-accent)]' : 'bg-border',
-                  )}
-                />
-              )}
-            </div>
-          ))}
+                  <div
+                    className={cn(
+                      'flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold',
+                      active || done
+                        ? 'bg-[var(--color-accent)] text-white'
+                        : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
+                    )}
+                  >
+                    {done && !active ? <Check className="h-3 w-3" /> : i + 1}
+                  </div>
+                  <span className="hidden sm:inline">{step.label}</span>
+                </button>
+                {i < STEPS.length - 1 && (
+                  <div
+                    className={cn(
+                      'h-[2px] flex-1',
+                      done ? 'bg-[var(--color-accent)]' : 'bg-border',
+                    )}
+                  />
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -228,8 +270,16 @@ function StepFramework() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedReportId, setSelectedReportId] = useState('')
-  const [companyName, setCompanyName] = useState('')
+  const [companyName, setCompanyName] = useState(primaryCompany?.name ?? '')
   const [uploading, setUploading] = useState(false)
+
+  // Sync company name when primary company loads async
+  const didSync = useRef(false)
+  if (primaryCompany?.name && !didSync.current && !companyName) {
+    didSync.current = true
+    // Safe: React 19 allows setState during render if value changes
+    setCompanyName(primaryCompany.name)
+  }
 
   const ownReports = (reports ?? [])
     .filter((r) => r.pdf_storage_path)

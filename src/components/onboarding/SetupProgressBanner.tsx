@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { useOnboarding, resetOnboarding } from '@/hooks/useOnboarding'
 import { cn } from '@/lib/utils'
-import { Building2, BarChart3, Radio, Check, X } from 'lucide-react'
+import { BookOpen, Building2, Calendar, Check, X } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -13,9 +13,9 @@ import { Building2, BarChart3, Radio, Check, X } from 'lucide-react'
 const DISMISS_KEY = 'benchmarksignal-setup-banner-dismissed'
 
 const STEPS = [
-  { key: 'hasCompany' as const, label: 'Add Company', icon: Building2 },
-  { key: 'hasKpis' as const, label: 'Enter KPIs', icon: BarChart3 },
-  { key: 'hasPeers' as const, label: 'Add Peers', icon: Radio },
+  { key: 'hasFramework' as const, label: 'Accounting Framework', icon: BookOpen },
+  { key: 'hasCompetitors' as const, label: 'Add Competitors', icon: Building2 },
+  { key: 'hasSchedule' as const, label: 'Publication Schedule', icon: Calendar },
 ]
 
 // ---------------------------------------------------------------------------
