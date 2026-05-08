@@ -567,7 +567,7 @@ export function DocumentViewerPage() {
             editable={isEditable}
             onContentChange={(updated) => {
               if (!doc.id) return
-              updateContent.mutate({ id: doc.id, content_json: updated as Record<string, unknown> })
+              updateContent.mutate({ id: doc.id, content_json: updated as unknown as Record<string, unknown> })
               toast.success('Document updated')
             }}
           />
