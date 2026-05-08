@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useBenchmarkRules, useCreateBenchmarkRule, useDeleteBenchmarkRule } from '@/hooks/useBenchmark'
 import { useCompanies, useKpiDefinitions } from '@/hooks/useData'
+import { useMyCompanies } from '@/hooks/useMyCompany'
 import type { NarrativeStyle, KpiSelectionItem } from '@/types/database'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -61,12 +62,22 @@ interface CreateRuleDialogProps {
 
 function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
   const { data: companies } = useCompanies()
+  const { data: myCompanies } = useMyCompanies()
   const { data: kpiDefs } = useKpiDefinitions()
   const createMutation = useCreateBenchmarkRule()
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [customerCompanyId, setCustomerCompanyId] = useState('')
+
+  // Auto-select primary my_company when data loads
+  const primaryMyCompany = myCompanies?.find((mc) => mc.is_primary) ?? myCompanies?.[0]
+  const matchedCompanyId = primaryMyCompany
+    ? companies?.find((c) => c.name.toLowerCase() === primaryMyCompany.name.toLowerCase())?.id
+    : undefined
+  if (matchedCompanyId && !customerCompanyId) {
+    setCustomerCompanyId(matchedCompanyId)
+  }
   const [narrativeStyle, setNarrativeStyle] = useState<NarrativeStyle>('executive_brief')
   const [autoGenerate, setAutoGenerate] = useState(true)
   const [selectedKpis, setSelectedKpis] = useState<Set<string>>(new Set())
@@ -182,7 +193,7 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
             </Label>
             <Select value={narrativeStyle} onValueChange={(v) => setNarrativeStyle(v as NarrativeStyle)}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                <SelectValue />
+                <SelectValue>{STYLE_LABELS[narrativeStyle]}</SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-lg border-border bg-card text-[13px]">
                 {(Object.entries(STYLE_LABELS) as [NarrativeStyle, string][]).map(([k, label]) => (
