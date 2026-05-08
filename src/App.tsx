@@ -30,6 +30,7 @@ const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const AuthCallbackPage = lazy(() => import('@/pages/auth/AuthCallbackPage'))
 const AuthVerifyPage = lazy(() => import('@/pages/auth/AuthVerifyPage'))
+const AuthConfirmPage = lazy(() => import('@/pages/auth/AuthConfirmPage'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,6 +65,7 @@ function App() {
                       <Route path="/reset-password" element={<ResetPasswordPage />} />
                       <Route path="/auth/callback" element={<AuthCallbackPage />} />
                       <Route path="/auth/verify" element={<AuthVerifyPage />} />
+                      <Route path="/auth/confirm" element={<AuthConfirmPage />} />
 
                       {/* Protected app routes */}
                       <Route element={<ProtectedRoute />}>

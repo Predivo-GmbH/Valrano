@@ -142,7 +142,115 @@ function button(text: string, href: string): string {
   ].join('')
 }
 
-// ─── Templates ───────────────────────────────────────────────────────────────
+// ─── OTP block ──────────────────────────────────────────────────────────────
+
+function otpBlock(token: string): string {
+  return [
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:20px 0;">',
+    '<tr>',
+    '<td style="background-color:#EFF6FF;border:1px solid ' + ACCENT + '44;border-left:4px solid ' + ACCENT + ';border-radius:8px;padding:24px;text-align:center;" bgcolor="#EFF6FF">',
+    '<p style="font-size:36px;font-weight:700;letter-spacing:10px;color:#18181b;margin:0;font-family:\'Courier New\',monospace;">' + token + '</p>',
+    '</td>',
+    '</tr>',
+    '</table>',
+    '<p style="margin:4px 0 0;font-family:' + FONT + ';font-size:13px;color:#a1a1aa;text-align:center;">Valid for 10 minutes. Or click the button below.</p>',
+  ].join('')
+}
+
+// ─── Auth Email Templates ───────────────────────────────────────────────────
+
+export interface AuthEmailPayload {
+  user: {
+    email: string
+    user_metadata?: Record<string, unknown>
+  }
+  email_data: {
+    token: string
+    token_hash: string
+    redirect_to: string
+    email_action_type: string
+    site_url: string
+    token_new?: string
+    token_hash_new?: string
+  }
+}
+
+function buildActionUrl(payload: AuthEmailPayload): string {
+  const { token_hash, email_action_type, redirect_to } = payload.email_data
+  const type = email_action_type === 'signup' ? 'signup' :
+               email_action_type === 'recovery' ? 'recovery' :
+               email_action_type === 'magiclink' ? 'magiclink' :
+               email_action_type === 'email_change' ? 'email_change' :
+               email_action_type
+  const redirectTo = redirect_to || APP_URL
+  return APP_URL + '/auth/confirm?token_hash=' + token_hash + '&type=' + type + '&redirect_to=' + encodeURIComponent(redirectTo)
+}
+
+export function getAuthEmailContent(payload: AuthEmailPayload): { subject: string; html: string } {
+  const { email_action_type, token } = payload.email_data
+  const actionUrl = buildActionUrl(payload)
+
+  switch (email_action_type) {
+    case 'signup':
+      return {
+        subject: 'BenchmarkSignal \u2013 Confirm your email',
+        html: layout(
+          '<h1 style="' + ST.h1 + '">Confirm your email</h1>' +
+          '<p style="' + ST.p + '">Enter this code to verify your email and create your BenchmarkSignal account.</p>' +
+          otpBlock(token) +
+          button('Confirm Email', actionUrl) +
+          '<p style="' + ST.hint + '">If you didn&rsquo;t create an account, you can safely ignore this email.</p>'
+        ),
+      }
+
+    case 'magiclink':
+      return {
+        subject: 'Your BenchmarkSignal login code',
+        html: layout(
+          '<h1 style="' + ST.h1 + '">Sign in</h1>' +
+          '<p style="' + ST.p + '">Use this code to sign in to your BenchmarkSignal account.</p>' +
+          otpBlock(token) +
+          button('Sign In', actionUrl) +
+          '<p style="' + ST.hint + '">If you didn&rsquo;t request this, you can safely ignore this email.</p>'
+        ),
+      }
+
+    case 'recovery':
+      return {
+        subject: 'BenchmarkSignal \u2013 Reset your password',
+        html: layout(
+          '<h1 style="' + ST.h1 + '">Reset your password</h1>' +
+          '<p style="' + ST.p + '">Click the button below to reset your password.</p>' +
+          button('Reset Password', actionUrl) +
+          '<p style="' + ST.hint + '">If you didn&rsquo;t request this, you can safely ignore this email.</p>'
+        ),
+      }
+
+    case 'email_change':
+      return {
+        subject: 'BenchmarkSignal \u2013 Confirm email change',
+        html: layout(
+          '<h1 style="' + ST.h1 + '">Confirm email change</h1>' +
+          '<p style="' + ST.p + '">Confirm the change to your email address.</p>' +
+          button('Confirm Email', actionUrl) +
+          '<p style="' + ST.hint + '">If you didn&rsquo;t make this change, secure your account immediately.</p>'
+        ),
+      }
+
+    default:
+      return {
+        subject: 'BenchmarkSignal \u2013 Action required',
+        html: layout(
+          '<h1 style="' + ST.h1 + '">Action required</h1>' +
+          '<p style="' + ST.p + '">Your verification code:</p>' +
+          otpBlock(token) +
+          button('Continue', actionUrl)
+        ),
+      }
+  }
+}
+
+// ─── Transactional Templates ────────────────────────────────────────────────
 
 export function welcomeEmail(userName: string): { subject: string; html: string } {
   const firstName = userName.split(' ')[0]
