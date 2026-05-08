@@ -33,14 +33,14 @@ export const SortableHeader = React.memo(function SortableHeader({
       : ArrowDown
     : ArrowUpDown
 
-  const btnClass = `inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[10px] font-semibold uppercase tracking-[0.06em] whitespace-nowrap transition-colors duration-150 min-h-[44px] md:min-h-0 ${
+  const btnClass = `inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0 text-[10px] font-semibold uppercase tracking-[0.06em] transition-colors duration-150 min-h-[44px] md:min-h-0 text-right ${
     isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
   }`
   const iconClass = `h-2.5 w-2.5 flex-shrink-0 ${isActive ? 'opacity-100 text-foreground' : 'opacity-30 text-muted-foreground'}`
 
   if (description) {
     return (
-      <th className="px-3 py-2 text-right min-w-[100px]">
+      <th className="px-2 py-2 text-right">
         <Tooltip>
           <TooltipTrigger className={btnClass} onClick={() => onSort(columnId)} aria-label={`Sort by ${label}`}>
             {label}
@@ -58,7 +58,7 @@ export const SortableHeader = React.memo(function SortableHeader({
   }
 
   return (
-    <th className="px-3 py-2 text-right min-w-[100px]">
+    <th className="px-2 py-2 text-right">
       <button onClick={() => onSort(columnId)} className={btnClass} aria-label={`Sort by ${label}`}>
         {label}
         <SortIcon className={iconClass} />

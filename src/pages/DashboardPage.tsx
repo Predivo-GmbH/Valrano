@@ -1004,7 +1004,7 @@ export function DashboardPage() {
             ) : (
               <div className="relative">
                 <div ref={scrollRef} className="overflow-x-auto scrollbar-thin">
-                  <table className="table-premium w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                  <table className="table-premium w-full border-collapse">
                     <thead>
                       <tr className="border-b-2 border-border">
                         {/* Company column header — sticky */}
