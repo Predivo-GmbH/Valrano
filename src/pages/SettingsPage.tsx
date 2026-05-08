@@ -1,14 +1,16 @@
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { BookOpen, Building2, Settings, Shield, User } from 'lucide-react'
+import { BookOpen, Building2, Settings, Shield, User, Users } from 'lucide-react'
 import { AccountPage } from './AccountPage'
 import { MyCompanyPage } from './MyCompanyPage'
 import { AccountingProfilePage } from './AccountingProfilePage'
 import { BenchmarkRulesPage } from './BenchmarkRulesPage'
 import { ApprovalChainsPage } from './ApprovalChainsPage'
+import { TeamPage } from './TeamPage'
 
 const TABS = [
   { id: 'account', label: 'Account', icon: User },
+  { id: 'team', label: 'Team', icon: Users },
   { id: 'company', label: 'My Company', icon: Building2 },
   { id: 'accounting', label: 'Accounting Profile', icon: BookOpen },
   { id: 'rules', label: 'Benchmark Rules', icon: Settings },
@@ -75,6 +77,7 @@ export function SettingsPage() {
           aria-labelledby={`tab-${activeTab}`}
         >
           {activeTab === 'account' && <AccountPage />}
+          {activeTab === 'team' && <TeamPage />}
           {activeTab === 'company' && <MyCompanyPage />}
           {activeTab === 'accounting' && <AccountingProfilePage />}
           {activeTab === 'rules' && <BenchmarkRulesPage />}

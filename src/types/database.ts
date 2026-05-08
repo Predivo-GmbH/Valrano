@@ -62,6 +62,7 @@ export interface PeerGroup {
   name: string;
   description: string | null;
   owner_id: string | null;
+  workspace_id: string | null;
   is_default: boolean;
   created_at: string;
   updated_at: string;
@@ -512,6 +513,37 @@ export type SelfBenchmarkInsert = Omit<SelfBenchmark, 'id' | 'created_at' | 'upd
 
 export type MyCompanyUpdate = Partial<MyCompanyInsert>;
 export type MyCompanyKpiUpdate = Partial<MyCompanyKpiInsert>;
+
+// ---------------------------------------------------------------------------
+// Workspace types — Team-based access
+// ---------------------------------------------------------------------------
+
+export type WorkspaceRole = 'admin' | 'editor' | 'viewer';
+
+export interface Workspace {
+  id: string;
+  name: string;
+  slug: string | null;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkspaceMember {
+  id: string;
+  workspace_id: string;
+  user_id: string;
+  role: WorkspaceRole;
+  invited_by: string | null;
+  invited_at: string | null;
+  accepted_at: string | null;
+  created_at: string;
+}
+
+export type WorkspaceInsert = Omit<Workspace, 'id' | 'created_at' | 'updated_at'>;
+export type WorkspaceMemberInsert = Omit<WorkspaceMember, 'id' | 'created_at'>;
+export type WorkspaceUpdate = Partial<WorkspaceInsert>;
+export type WorkspaceMemberUpdate = Partial<Pick<WorkspaceMember, 'role'>>;
 
 // ---------------------------------------------------------------------------
 // Accounting Profile types — Phase 1: AI-extracted accounting framework
