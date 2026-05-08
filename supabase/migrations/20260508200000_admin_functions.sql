@@ -51,3 +51,41 @@ BEGIN
   SET tier = new_tier, updated_at = now();
 END;
 $$;
+
+-- RPC: admin_list_users — returns all users with email from auth.users
+-- SECURITY DEFINER required because authenticated role cannot SELECT auth.users
+CREATE OR REPLACE FUNCTION public.admin_list_users()
+RETURNS TABLE(
+  id uuid,
+  email text,
+  full_name text,
+  company_name text,
+  created_at timestamptz,
+  tier text
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  caller_email text;
+BEGIN
+  caller_email := current_setting('request.jwt.claims', true)::json ->> 'email';
+  IF caller_email IS NULL OR caller_email != 'roger@mueller.ro' THEN
+    RAISE EXCEPTION 'Unauthorized: super admin only';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    au.id,
+    au.email::text,
+    up.full_name::text,
+    up.company_name::text,
+    up.created_at,
+    COALESCE(s.tier, 'starter')::text
+  FROM auth.users au
+  LEFT JOIN public.user_profiles up ON up.id = au.id
+  LEFT JOIN public.subscriptions s ON s.user_id = au.id
+  ORDER BY au.created_at ASC;
+END;
+$$;

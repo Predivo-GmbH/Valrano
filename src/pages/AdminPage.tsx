@@ -11,6 +11,7 @@ const TIERS: SubscriptionTier[] = ['starter', 'professional', 'enterprise']
 
 interface UserRow {
   id: string
+  email: string
   full_name: string | null
   company_name: string | null
   created_at: string
@@ -46,28 +47,16 @@ function AdminPanel({
     queryKey: ['admin-users'],
     staleTime: 30_000,
     queryFn: async () => {
-      // Fetch profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('user_profiles')
-        .select('id, full_name, company_name, created_at')
-        .order('created_at', { ascending: true })
-      if (profilesError) throw profilesError
-
-      // Fetch subscriptions
-      const { data: subs, error: subsError } = await supabase
-        .from('subscriptions')
-        .select('id, user_id, tier')
-      if (subsError) throw subsError
-
-      const subMap = new Map(subs?.map((s) => [s.user_id, s.tier as SubscriptionTier]) ?? [])
-
-      return (profiles ?? []).map((p) => ({
-        id: p.id,
-        full_name: p.full_name,
-        company_name: p.company_name,
-        created_at: p.created_at,
-        tier: subMap.get(p.id) ?? 'starter',
-      })) as UserRow[]
+      const { data, error } = await supabase.rpc('admin_list_users')
+      if (error) throw error
+      return (data ?? []).map((u: Record<string, unknown>) => ({
+        id: u.id as string,
+        email: u.email as string,
+        full_name: u.full_name as string | null,
+        company_name: u.company_name as string | null,
+        created_at: u.created_at as string,
+        tier: (u.tier as SubscriptionTier) ?? 'starter',
+      }))
     },
   })
 
@@ -137,15 +126,15 @@ function AdminPanel({
                   <td className="px-4 py-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">
-                        {u.full_name || u.id.slice(0, 8)}
+                        {u.email}
                       </p>
-                      {u.company_name && (
-                        <p className="text-xs text-muted-foreground truncate">{u.company_name}</p>
+                      {(u.full_name || u.company_name) && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {[u.full_name, u.company_name].filter(Boolean).join(' · ')}
+                        </p>
                       )}
                       <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                         {new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                        {' · '}
-                        <span className="font-mono">{u.id.slice(0, 8)}</span>
                       </p>
                     </div>
                   </td>
