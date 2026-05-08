@@ -13,7 +13,7 @@ function getInitials(email: string): string {
 }
 
 export function AccountPage() {
-  const { user, deleteAccount, signOut } = useAuth()
+  const { user, deleteAccount } = useAuth()
   const { tier, isLoading: subLoading } = useSubscription()
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
