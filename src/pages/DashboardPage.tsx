@@ -747,12 +747,13 @@ export function DashboardPage() {
         <WelcomeWizard onComplete={() => { setWizardDismissedLocally(true); setWizardReopened(false) }} />
       )}
 
+      {/* When wizard is showing, hide dashboard content to avoid ghost UI behind overlay */}
+      {showWizard ? null : <>
+
       {/* Setup progress banner (shows when wizard dismissed but steps incomplete) */}
-      {!showWizard && (
-        <div className="mb-6">
-          <SetupProgressBanner onResumeSetup={() => setWizardReopened(true)} />
-        </div>
-      )}
+      <div className="mb-6">
+        <SetupProgressBanner onResumeSetup={() => setWizardReopened(true)} />
+      </div>
 
       {/* ================================================================== */}
       {/* Section 1: Welcome Header                                          */}
@@ -1056,7 +1057,7 @@ export function DashboardPage() {
                           />
                         ))}
                         {hiddenColumnCount > 0 && (
-                          <th className="px-2 py-2 text-right align-middle w-full">
+                          <th className="px-2 py-2 text-right align-middle">
                             <button
                               onClick={() => setColumnsExpanded(true)}
                               className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-bg-tertiary)] px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)]/80 hover:text-foreground whitespace-nowrap ml-auto"
@@ -1127,7 +1128,7 @@ export function DashboardPage() {
                                 />
                               )
                             })}
-                            {hiddenColumnCount > 0 && <td className="w-full" />}
+                            {hiddenColumnCount > 0 && <td />}
                           </tr>
                         )
                       })}
@@ -1302,6 +1303,7 @@ export function DashboardPage() {
       {/* Section 6: AI Insights                                            */}
       {/* ================================================================== */}
       <AiInsightsSection />
+      </>}
     </div>
   )
 }

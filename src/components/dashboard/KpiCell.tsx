@@ -21,7 +21,7 @@ export interface KpiCellProps {
 export const KpiCell = React.memo(function KpiCell({ value, signalClass, unitType }: KpiCellProps) {
   if (!value) {
     return (
-      <td className="px-3 py-2 text-[12px] text-muted-foreground/25 tabular-nums text-right select-none">
+      <td className="px-3 py-2 text-[12px] text-muted-foreground/25 tabular-nums text-right select-none min-w-[100px]">
         ·
       </td>
     )
@@ -34,7 +34,7 @@ export const KpiCell = React.memo(function KpiCell({ value, signalClass, unitTyp
   const sourcePage = value.source_page ? `p.${value.source_page}` : null
 
   return (
-    <td className="px-3 py-2 text-right">
+    <td className="px-3 py-2 text-right min-w-[100px]">
       <Tooltip>
         <TooltipTrigger
           className={`cursor-default bg-transparent border-none p-0 text-[12px] tabular-nums transition-colors duration-200 ${signalClass}`}

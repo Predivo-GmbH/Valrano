@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { DEV_EMAIL, DEV_TIER_KEY } from '@/hooks/useSubscription'
+import { DEV_EMAILS, DEV_TIER_KEY } from '@/hooks/useSubscription'
 import type { SubscriptionTier } from '@/types/database'
 import { Settings2 } from 'lucide-react'
 import { getNewsDisabledUsers, setNewsDisabledUsers } from '@/lib/dev-flags'
@@ -15,7 +15,7 @@ export function DevTierSwitcher() {
   const [open, setOpen] = useState(false)
   const [disabledUsers, setDisabledUsers] = useState<Set<string>>(getNewsDisabledUsers)
 
-  if (user?.email !== DEV_EMAIL) return null
+  if (!DEV_EMAILS.includes(user?.email ?? '')) return null
 
   const current = (localStorage.getItem(DEV_TIER_KEY) as SubscriptionTier | null) ?? 'starter'
 
@@ -43,7 +43,7 @@ export function DevTierSwitcher() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-[9999]">
+    <div className="fixed bottom-20 right-4 z-[9999]">
       {open && (
         <div className="mb-2 max-h-[70vh] overflow-y-auto rounded-lg border border-border bg-card p-3 shadow-xl w-64">
           {/* Tier section */}
