@@ -432,8 +432,6 @@ export function DashboardPage() {
   const [showEmptyPeers, setShowEmptyPeers] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showRightFade, setShowRightFade] = useState(true)
-  const [columnsExpanded, setColumnsExpanded] = useState(false)
-  const MAX_VISIBLE_COLUMNS = 4
 
   const effectiveYear = fiscalYear ?? defaultYear
 
@@ -461,13 +459,9 @@ export function DashboardPage() {
     return kpiDefs.filter((d) => d.category === activeCategory)
   }, [kpiDefs, activeCategory])
 
-  // Visible columns: capped unless expanded
-  const visibleDefs = useMemo(() => {
-    if (columnsExpanded || filteredDefs.length <= MAX_VISIBLE_COLUMNS) return filteredDefs
-    return filteredDefs.slice(0, MAX_VISIBLE_COLUMNS)
-  }, [filteredDefs, columnsExpanded])
+  // All columns always visible
+  const visibleDefs = filteredDefs
 
-  const hiddenColumnCount = filteredDefs.length - visibleDefs.length
 
   // Build lookup: company_id + kpi_definition_id -> KpiValue row
   const valueMap = useMemo(() => {
@@ -954,7 +948,7 @@ export function DashboardPage() {
       {/* Section 4: Peer Comparison Table                                   */}
       {/* ================================================================== */}
       <div className="mb-8">
-        <Tabs value={activeCategory} onValueChange={(v) => { setActiveCategory(v as ActiveCategory); setColumnsExpanded(false) }}>
+        <Tabs value={activeCategory} onValueChange={(v) => { setActiveCategory(v as ActiveCategory) }}>
           <div className="card-premium rounded-xl border border-border bg-card overflow-hidden">
             {/* Card header: title + category tabs */}
             <div className="flex flex-col gap-3 px-4 py-3 border-b border-border sm:flex-row sm:items-center sm:justify-between">
@@ -1041,17 +1035,6 @@ export function DashboardPage() {
                             description={def.description}
                           />
                         ))}
-                        {hiddenColumnCount > 0 && (
-                          <th className="px-2 py-2 text-right align-middle" style={{ width: '100px' }}>
-                            <button
-                              onClick={() => setColumnsExpanded(true)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-bg-tertiary)] px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)]/80 hover:text-foreground whitespace-nowrap ml-auto"
-                            >
-                              +{hiddenColumnCount} more
-                              <ChevronRight className="h-3 w-3" />
-                            </button>
-                          </th>
-                        )}
                       </tr>
                     </thead>
 
@@ -1113,7 +1096,6 @@ export function DashboardPage() {
                                 />
                               )
                             })}
-                            {hiddenColumnCount > 0 && <td />}
                           </tr>
                         )
                       })}
@@ -1140,14 +1122,6 @@ export function DashboardPage() {
                     Worst
                   </span>
                 </div>
-                {columnsExpanded && filteredDefs.length > MAX_VISIBLE_COLUMNS && (
-                  <button
-                    onClick={() => setColumnsExpanded(false)}
-                    className="text-[10px] font-medium text-[var(--color-accent)] hover:underline"
-                  >
-                    Show less
-                  </button>
-                )}
                 <span className="text-[10px] text-muted-foreground">
                   {activeCategory !== 'all' ? `${CATEGORY_LABELS[activeCategory as KpiCategory]} · ` : ''}FY {effectiveYear}
                 </span>
