@@ -22,7 +22,8 @@ import { useAccountingProfile, useAnalyzeAccountingProfile } from '@/hooks/useAc
 import { useCreateMyCompany, usePrimaryCompany } from '@/hooks/useMyCompany'
 import { useUploadReport } from '@/hooks/useExtraction'
 import { useCreatePublicationEvent, usePublicationEvents } from '@/hooks/useCalendar'
-import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
+import { useSuggestDates, useSuggestIrUrl, useSuggestCompetitors } from '@/hooks/useAiSuggestions'
+import type { CompetitorSuggestion } from '@/hooks/useAiSuggestions'
 import { dismissOnboarding, useOnboarding } from '@/hooks/useOnboarding'
 import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete'
 import type { Company } from '@/types/database'
@@ -46,6 +47,7 @@ export function OnboardingWizard() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { status } = useOnboarding()
+  const { data: primaryCompany } = usePrimaryCompany()
   const { data: peerGroups } = usePeerGroups()
   const { data: existingEvents } = usePublicationEvents()
   const [currentStep, setCurrentStep] = useState(0)
@@ -212,6 +214,7 @@ export function OnboardingWizard() {
           <StepCompetitors
             selectedIds={selectedCompanyIds}
             onSelectedIdsChange={setSelectedCompanyIds}
+            myCompanyName={primaryCompany?.name ?? ''}
           />
         )}
         {currentStep === 2 && (
@@ -517,13 +520,17 @@ function StepFramework() {
 function StepCompetitors({
   selectedIds,
   onSelectedIdsChange,
+  myCompanyName,
 }: {
   selectedIds: string[]
   onSelectedIdsChange: (ids: string[]) => void
+  myCompanyName: string
 }) {
   const { data: companies, isLoading } = useCompanies()
   const [search, setSearch] = useState('')
   const suggestIrUrl = useSuggestIrUrl()
+  const suggestCompetitors = useSuggestCompetitors()
+  const [aiSuggestions, setAiSuggestions] = useState<CompetitorSuggestion[]>([])
 
   const filtered = (companies ?? []).filter(
     (c) =>
@@ -555,6 +562,30 @@ function StepCompetitors({
     )
   }
 
+  const handleAiSuggest = () => {
+    if (!myCompanyName) {
+      toast.error('Set up your company name in Step 1 first')
+      return
+    }
+    suggestCompetitors.mutate(
+      { company_name: myCompanyName },
+      {
+        onSuccess: (data) => {
+          setAiSuggestions(data.suggestions)
+          // Auto-select suggestions that exist in DB
+          const newIds = data.suggestions
+            .filter((s) => s.existing_id && !selectedIds.includes(s.existing_id))
+            .map((s) => s.existing_id!)
+          if (newIds.length > 0) {
+            onSelectedIdsChange([...selectedIds, ...newIds])
+          }
+          toast.success(`Found ${data.suggestions.length} competitor suggestions`)
+        },
+        onError: (err) => toast.error(err.message),
+      },
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -568,21 +599,109 @@ function StepCompetitors({
       <div>
         <h2 className="text-[22px] font-semibold text-foreground">Add Your Competitors</h2>
         <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
-          Select the companies you want to benchmark against. The system will monitor their investor relations
-          pages for new report publications.
+          Select the companies you want to benchmark against. Let AI suggest competitors based on your
+          company, or search manually.
         </p>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search companies..."
-          className="block w-full rounded-lg border border-border bg-[var(--color-bg-tertiary)] pl-10 pr-3 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-        />
+      {/* AI Suggest button */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleAiSuggest}
+          disabled={suggestCompetitors.isPending || !myCompanyName}
+          className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-[13px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {suggestCompetitors.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
+          {suggestCompetitors.isPending ? 'Finding competitors...' : 'AI Suggest Competitors'}
+        </button>
+        {myCompanyName && (
+          <span className="text-[12px] text-muted-foreground">
+            for <span className="font-medium text-foreground">{myCompanyName}</span>
+          </span>
+        )}
+        {!myCompanyName && (
+          <span className="text-[11px] text-muted-foreground">
+            Add your company name in Step 1 first
+          </span>
+        )}
+      </div>
+
+      {/* AI Suggestions */}
+      {aiSuggestions.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-accent)]">
+            AI Suggestions
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {aiSuggestions.map((s, i) => {
+              const isInDb = s.in_database && s.existing_id
+              const isSelected = isInDb ? selectedIds.includes(s.existing_id!) : false
+              return (
+                <button
+                  key={`ai-${i}`}
+                  onClick={() => isInDb ? toggleCompany(s.existing_id!) : undefined}
+                  disabled={!isInDb}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
+                    isSelected
+                      ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
+                      : isInDb
+                      ? 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50'
+                      : 'border-border/50 opacity-60 cursor-not-allowed',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0',
+                      isSelected
+                        ? 'bg-[var(--color-accent)] text-white'
+                        : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
+                    )}
+                  >
+                    {isSelected ? <Check className="h-4 w-4" /> : s.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium text-foreground truncate">{s.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {s.ticker ?? ''}{s.ticker && s.sector ? ' · ' : ''}{s.sector ?? ''}
+                    </p>
+                    {s.reasoning && (
+                      <p className="text-[10px] text-muted-foreground/70 mt-0.5 line-clamp-1">
+                        {s.reasoning}
+                      </p>
+                    )}
+                  </div>
+                  {!isInDb && (
+                    <span className="flex-shrink-0 text-[9px] text-muted-foreground font-medium">
+                      Not in DB
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Search + Manual selection */}
+      <div className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {aiSuggestions.length > 0 ? 'Or search manually' : 'Search companies'}
+        </p>
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search companies..."
+            className="block w-full rounded-lg border border-border bg-[var(--color-bg-tertiary)] pl-10 pr-3 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+          />
+        </div>
       </div>
 
       {/* Selected count */}
@@ -593,59 +712,61 @@ function StepCompetitors({
       )}
 
       {/* Company grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-1">
-        {filtered.map((company) => {
-          const isSelected = selectedIds.includes(company.id)
-          return (
-            <button
-              key={company.id}
-              onClick={() => toggleCompany(company.id)}
-              className={cn(
-                'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
-                isSelected
-                  ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
-                  : 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50',
-              )}
-            >
-              <div
+      {(search || !aiSuggestions.length) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[400px] overflow-y-auto pr-1">
+          {filtered.map((company) => {
+            const isSelected = selectedIds.includes(company.id)
+            return (
+              <button
+                key={company.id}
+                onClick={() => toggleCompany(company.id)}
                 className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0',
+                  'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
                   isSelected
-                    ? 'bg-[var(--color-accent)] text-white'
-                    : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
+                    ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
+                    : 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50',
                 )}
               >
-                {isSelected ? <Check className="h-4 w-4" /> : company.name.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {company.ticker ?? 'No ticker'} · {company.sector ?? 'N/A'}
-                </p>
-              </div>
-              {isSelected && !company.ir_page_url && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleSuggestIrUrl(company)
-                  }}
-                  className="flex-shrink-0 rounded-md bg-[var(--color-bg-tertiary)] px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  title="Find IR page"
+                <div
+                  className={cn(
+                    'flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0',
+                    isSelected
+                      ? 'bg-[var(--color-accent)] text-white'
+                      : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
+                  )}
                 >
-                  <Globe className="h-3 w-3" />
-                </button>
-              )}
-              {company.ir_page_url && (
-                <span className="flex-shrink-0 text-[9px] text-[var(--color-signal-green)] font-medium">IR</span>
-              )}
-            </button>
-          )
-        })}
-      </div>
+                  {isSelected ? <Check className="h-4 w-4" /> : company.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {company.ticker ?? 'No ticker'} · {company.sector ?? 'N/A'}
+                  </p>
+                </div>
+                {isSelected && !company.ir_page_url && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleSuggestIrUrl(company)
+                    }}
+                    className="flex-shrink-0 rounded-md bg-[var(--color-bg-tertiary)] px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    title="Find IR page"
+                  >
+                    <Globe className="h-3 w-3" />
+                  </button>
+                )}
+                {company.ir_page_url && (
+                  <span className="flex-shrink-0 text-[9px] text-[var(--color-signal-green)] font-medium">IR</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
-      {filtered.length === 0 && (
+      {search && filtered.length === 0 && (
         <p className="text-[12px] text-muted-foreground text-center py-8">
-          No companies found matching "{search}"
+          No companies found matching &ldquo;{search}&rdquo;
         </p>
       )}
     </div>

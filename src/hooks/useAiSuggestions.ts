@@ -51,6 +51,46 @@ export function useSuggestDates() {
   })
 }
 
+// ---------------------------------------------------------------------------
+// Competitor Suggestions
+// ---------------------------------------------------------------------------
+
+export interface CompetitorSuggestion {
+  name: string
+  ticker?: string
+  sector?: string
+  reasoning?: string
+  existing_id: string | null
+  in_database: boolean
+}
+
+interface CompetitorSuggestionResponse {
+  suggestions: CompetitorSuggestion[]
+  company_name: string
+  usage: { used: number; limit: number; tier: string }
+}
+
+export function useSuggestCompetitors() {
+  return useMutation<CompetitorSuggestionResponse, Error, {
+    company_name: string
+    sector?: string
+    country?: string
+  }>({
+    mutationFn: async (params) => {
+      const { data, error } = await supabase.functions.invoke('suggest-competitors', {
+        body: params,
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      return data as CompetitorSuggestionResponse
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// IR URL Suggestions
+// ---------------------------------------------------------------------------
+
 export function useSuggestIrUrl() {
   return useMutation<IrUrlResponse, Error, {
     company_id: string
