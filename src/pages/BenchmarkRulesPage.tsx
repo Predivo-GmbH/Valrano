@@ -315,7 +315,7 @@ export function BenchmarkRulesPage() {
           {rules.map((rule) => (
             <div
               key={rule.id}
-              className="rounded-lg border border-border bg-card p-5 transition-all duration-200 hover:bg-[var(--color-bg-tertiary)]/50"
+              className="card-premium rounded-lg border border-border bg-card p-5"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">

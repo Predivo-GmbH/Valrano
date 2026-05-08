@@ -217,7 +217,7 @@ export function AccountPage() {
           </section>
 
           {/* 6. Danger Zone */}
-          <section className="rounded-xl border border-red-300 dark:border-red-900 bg-card p-6 space-y-4">
+          <section className="card-danger rounded-xl bg-card p-6 space-y-4">
             <div className="flex items-center gap-2">
               <Trash2 className="h-4 w-4 text-red-500" />
               <h2 className="text-[15px] font-semibold text-red-600 dark:text-red-400">Danger Zone</h2>

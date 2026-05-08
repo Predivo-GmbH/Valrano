@@ -410,7 +410,7 @@ export function AccountingProfilePage() {
 
         {showKpiMappings && kpiMappingEntries.length > 0 && (
           <div className="border-t border-border overflow-x-auto">
-            <table className="w-full min-w-max border-collapse">
+            <table className="table-premium w-full min-w-max border-collapse">
               <thead>
                 <tr className="border-b border-border bg-[var(--color-bg-tertiary)]/20">
                   <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
