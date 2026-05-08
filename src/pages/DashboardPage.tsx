@@ -6,8 +6,7 @@ import { usePublicationEvents } from '@/hooks/useCalendar'
 import { useBenchmarkDocuments } from '@/hooks/useBenchmark'
 import { useInsights, useDismissInsight, useGenerateInsights } from '@/hooks/useInsights'
 import { useSmartYear } from '@/hooks/useSmartYear'
-import { useOnboardingDismissed } from '@/hooks/useOnboarding'
-import WelcomeWizard, { SetupProgressBanner } from '@/components/onboarding'
+import { SetupProgressBanner } from '@/components/onboarding'
 import type { Company, KpiCategory } from '@/types/database'
 import {
   getGreeting,
@@ -427,9 +426,6 @@ function AiInsightsSection() {
 
 export function DashboardPage() {
   const { defaultYear, availableYears, isLoading: yearLoading } = useSmartYear()
-  const { data: onboardingDismissed, isLoading: dismissedLoading } = useOnboardingDismissed()
-  const [wizardDismissedLocally, setWizardDismissedLocally] = useState(false)
-  const [wizardReopened, setWizardReopened] = useState(false)
   const [fiscalYear, setFiscalYear] = useState<number | null>(null)
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>('financial')
   const [sortConfig, setSortConfig] = useState<SortConfig>({ columnId: null, direction: 'desc' })
@@ -438,9 +434,6 @@ export function DashboardPage() {
   const [showRightFade, setShowRightFade] = useState(true)
   const [columnsExpanded, setColumnsExpanded] = useState(false)
   const MAX_VISIBLE_COLUMNS = 4
-
-  // Derive wizard visibility: show when not dismissed (server + local), or reopened from banner
-  const showWizard = wizardReopened || (!dismissedLoading && onboardingDismissed === false && !wizardDismissedLocally)
 
   const effectiveYear = fiscalYear ?? defaultYear
 
@@ -742,17 +735,9 @@ export function DashboardPage() {
   return (
     <div className="section-fade-in mx-auto max-w-[1440px] px-4 py-8 sm:px-6">
 
-      {/* Welcome Wizard overlay */}
-      {showWizard && (
-        <WelcomeWizard onComplete={() => { setWizardDismissedLocally(true); setWizardReopened(false) }} />
-      )}
-
-      {/* When wizard is showing, hide dashboard content to avoid ghost UI behind overlay */}
-      {showWizard ? null : <>
-
       {/* Setup progress banner (shows when wizard dismissed but steps incomplete) */}
       <div className="mb-6">
-        <SetupProgressBanner onResumeSetup={() => setWizardReopened(true)} />
+        <SetupProgressBanner />
       </div>
 
       {/* ================================================================== */}
@@ -1303,7 +1288,6 @@ export function DashboardPage() {
       {/* Section 6: AI Insights                                            */}
       {/* ================================================================== */}
       <AiInsightsSection />
-      </>}
     </div>
   )
 }

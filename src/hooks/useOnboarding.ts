@@ -78,3 +78,13 @@ export async function dismissOnboarding() {
   })
   if (error) throw error
 }
+
+/**
+ * Resets onboarding_dismissed flag so user can re-enter the wizard.
+ */
+export async function resetOnboarding() {
+  const { error } = await supabase.auth.updateUser({
+    data: { onboarding_dismissed: false },
+  })
+  if (error) throw error
+}

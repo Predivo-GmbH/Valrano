@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
-import { useOnboarding } from '@/hooks/useOnboarding'
+import { useOnboarding, resetOnboarding } from '@/hooks/useOnboarding'
 import { cn } from '@/lib/utils'
 import { Building2, BarChart3, Radio, Check, X } from 'lucide-react'
 
@@ -20,7 +22,9 @@ const STEPS = [
 // Component
 // ---------------------------------------------------------------------------
 
-export function SetupProgressBanner({ onResumeSetup }: { onResumeSetup: () => void }) {
+export function SetupProgressBanner() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { status, isLoading } = useOnboarding()
   const [dismissed, setDismissed] = useState(() => {
     try {
@@ -89,7 +93,11 @@ export function SetupProgressBanner({ onResumeSetup }: { onResumeSetup: () => vo
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
-          <Button size="xs" onClick={onResumeSetup}>
+          <Button size="xs" onClick={async () => {
+            try { await resetOnboarding() } catch { /* proceed anyway */ }
+            queryClient.setQueryData(['onboarding-dismissed'], false)
+            navigate('/onboarding', { replace: true })
+          }}>
             Complete Setup
           </Button>
           <Button
