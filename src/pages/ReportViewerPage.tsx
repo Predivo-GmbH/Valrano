@@ -23,7 +23,7 @@ export function ReportViewerPage() {
   if (!report) {
     return (
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
-        <div className="rounded-xl border border-border bg-card p-12 text-center">
+        <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
           <p className="text-sm text-muted-foreground">Report not found.</p>
           <Button variant="link" onClick={() => navigate('/reports')} className="mt-3">
             Back to Reports
@@ -118,7 +118,7 @@ export function ReportViewerPage() {
 
         {/* Report Content */}
         {report.status === 'draft' ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center">
+          <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
             <Clock className="mx-auto h-8 w-8 text-muted-foreground/50" />
             <h3 className="mt-3 text-lg font-semibold text-foreground">Draft — Not Generated Yet</h3>
             <p className="mt-1 text-sm text-muted-foreground">Click "Regenerate" to generate this report's content.</p>
@@ -169,7 +169,7 @@ export function ReportViewerPage() {
                 <p className="text-sm leading-relaxed text-muted-foreground">{section.content}</p>
                 {section.data_points && section.data_points.length > 0 && (
                   <div className="mt-4 overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="table-premium w-full text-sm">
                       <thead>
                         <tr className="border-b border-border text-xs font-medium uppercase tracking-wider text-muted-foreground">
                           <th className="px-3 py-2 text-left">Metric</th>
@@ -191,7 +191,7 @@ export function ReportViewerPage() {
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-card p-12 text-center">
+          <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
             <p className="text-sm text-muted-foreground">No content available.</p>
           </div>
         )}

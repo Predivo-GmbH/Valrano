@@ -217,9 +217,9 @@ function FilteredEmptyState({ fiscalYear, onClearYear, availableYears }: {
 
 function TableSkeleton() {
   return (
-    <div className="animate-pulse space-y-px">
+    <div className="space-y-px">
       {[...Array(6)].map((_, i) => (
-        <div key={i} className="h-[52px] bg-[var(--color-bg-tertiary)] rounded" />
+        <div key={i} className="h-[52px] skeleton-shimmer" />
       ))}
     </div>
   )
@@ -227,10 +227,10 @@ function TableSkeleton() {
 
 function CardSkeleton() {
   return (
-    <div className="animate-pulse rounded-xl border border-border bg-card p-5">
-      <div className="h-4 w-16 bg-[var(--color-bg-tertiary)] rounded mb-3" />
-      <div className="h-7 w-12 bg-[var(--color-bg-tertiary)] rounded mb-2" />
-      <div className="h-3 w-24 bg-[var(--color-bg-tertiary)] rounded" />
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="h-4 w-16 skeleton-shimmer mb-3" />
+      <div className="h-7 w-12 skeleton-shimmer mb-2" />
+      <div className="h-3 w-24 skeleton-shimmer" />
     </div>
   )
 }
@@ -247,7 +247,7 @@ interface ActivityItemProps {
 
 function ActivityItem({ icon, description, time }: ActivityItemProps) {
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-border last:border-0">
+    <div className="row-accent flex items-center gap-3 py-3 border-b border-border last:border-0">
       <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center">
         {icon}
       </div>
@@ -322,11 +322,11 @@ function AiInsightsSection() {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-lg bg-[var(--color-bg-tertiary)]" />
+            <div key={i} className="h-20 skeleton-shimmer rounded-lg" />
           ))}
         </div>
       ) : !insights || insights.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 flex flex-col items-center justify-center text-center">
+        <div className="card-gradient-border rounded-xl bg-card/50 p-8 flex flex-col items-center justify-center text-center">
           <div className="mb-3 rounded-full bg-[var(--color-bg-tertiary)] p-3">
             <Sparkles className="h-5 w-5 text-muted-foreground/50" />
           </div>
@@ -345,7 +345,7 @@ function AiInsightsSection() {
             return (
               <div
                 key={insight.id}
-                className="group relative rounded-lg border border-border bg-card p-4 transition-colors hover:bg-[var(--color-bg-tertiary)]"
+                className="group relative card-premium rounded-lg border border-border bg-card p-4"
               >
                 <div className="flex items-start gap-3">
                   <div className={`mt-0.5 flex-shrink-0 ${iconColor}`}>
@@ -748,34 +748,42 @@ export function DashboardPage() {
           </>
         ) : (
           <>
-            <MetricCard
-              icon={<Zap className="h-4 w-4 text-[var(--color-accent)]" />}
-              label="Pipeline Active"
-              value={String(pipelineActive + activeMonitored)}
-              subtitle={`${activeMonitored} monitored · ${pipelineActive} processing`}
-              accentColor="bg-[var(--color-accent)]/10"
-            />
-            <MetricCard
-              icon={<Calendar className="h-4 w-4 text-[var(--color-primary)]" />}
-              label="Next Report"
-              value={nextReport?.countdown ?? '\u2014'}
-              subtitle={nextReport ? nextReport.company : 'No upcoming reports'}
-              accentColor="bg-[var(--color-primary)]/10"
-            />
-            <MetricCard
-              icon={<FileCheck className="h-4 w-4 text-[var(--color-signal-green)]" />}
-              label="Documents Ready"
-              value={String(documentsReady)}
-              subtitle={`${benchmarkDocs?.length ?? 0} total generated`}
-              accentColor="bg-[var(--color-signal-green)]/10"
-            />
-            <MetricCard
-              icon={<AlertCircle className="h-4 w-4 text-[var(--color-signal-amber)]" />}
-              label="Pending Reviews"
-              value={String(pendingReviews)}
-              subtitle="KPIs need attention"
-              accentColor="bg-[var(--color-signal-amber)]/10"
-            />
+            <div className="stagger-child" style={{ '--stagger': 0 } as React.CSSProperties}>
+              <MetricCard
+                icon={<Zap className="h-4 w-4 text-[var(--color-accent)]" />}
+                label="Pipeline Active"
+                value={String(pipelineActive + activeMonitored)}
+                subtitle={`${activeMonitored} monitored · ${pipelineActive} processing`}
+                accentColor="bg-[var(--color-accent)]/10"
+              />
+            </div>
+            <div className="stagger-child" style={{ '--stagger': 1 } as React.CSSProperties}>
+              <MetricCard
+                icon={<Calendar className="h-4 w-4 text-[var(--color-primary)]" />}
+                label="Next Report"
+                value={nextReport?.countdown ?? '\u2014'}
+                subtitle={nextReport ? nextReport.company : 'No upcoming reports'}
+                accentColor="bg-[var(--color-primary)]/10"
+              />
+            </div>
+            <div className="stagger-child" style={{ '--stagger': 2 } as React.CSSProperties}>
+              <MetricCard
+                icon={<FileCheck className="h-4 w-4 text-[var(--color-signal-green)]" />}
+                label="Documents Ready"
+                value={String(documentsReady)}
+                subtitle={`${benchmarkDocs?.length ?? 0} total generated`}
+                accentColor="bg-[var(--color-signal-green)]/10"
+              />
+            </div>
+            <div className="stagger-child" style={{ '--stagger': 3 } as React.CSSProperties}>
+              <MetricCard
+                icon={<AlertCircle className="h-4 w-4 text-[var(--color-signal-amber)]" />}
+                label="Pending Reviews"
+                value={String(pendingReviews)}
+                subtitle="KPIs need attention"
+                accentColor="bg-[var(--color-signal-amber)]/10"
+              />
+            </div>
           </>
         )}
       </div>
@@ -817,7 +825,7 @@ export function DashboardPage() {
                   {i > 0 && (
                     <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
                   )}
-                  <div className="flex-1 rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2.5 text-center">
+                  <div className={`flex-1 rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2.5 text-center border-t-2`} style={{ borderTopColor: stage.color === 'bg-blue-500' ? '#3b82f6' : stage.color === 'bg-green-500' ? '#22c55e' : stage.color === 'bg-emerald-500' ? '#10b981' : '#8b5cf6' }}>
                     <div className="flex items-center justify-center gap-1.5 mb-0.5">
                       <span className={`h-2 w-2 rounded-full ${stage.color}`} />
                       <span className="text-[18px] font-semibold tabular-nums text-foreground">{stage.count}</span>
@@ -857,11 +865,11 @@ export function DashboardPage() {
               return (
                 <div
                   key={event.id}
-                  className={`flex items-center gap-3 px-4 py-3 ${i < upcomingEvents.length - 1 ? 'border-b border-border/50' : ''} ${
+                  className={`row-accent flex items-center gap-3 px-4 py-3 ${i < upcomingEvents.length - 1 ? 'border-b border-border/50' : ''} ${
                     isOverdue ? 'bg-[var(--color-signal-red)]/[0.03]' : isDueToday ? 'bg-[var(--color-signal-amber)]/[0.03]' : ''
                   }`}
                 >
-                  <div className={`flex-shrink-0 h-2 w-2 rounded-full ${getEventStatusDot(event.status)}`} />
+                  <div className={`flex-shrink-0 h-2 w-2 rounded-full ${getEventStatusDot(event.status)} ${isOverdue || isDueToday ? 'status-pulse' : ''}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-[13px] font-medium text-foreground truncate">{companyName}</span>
@@ -967,7 +975,7 @@ export function DashboardPage() {
             ) : (
               <div className="relative">
                 <div ref={scrollRef} className="overflow-x-auto scrollbar-thin">
-                  <table className="w-full min-w-max border-collapse">
+                  <table className="table-premium w-full min-w-max border-collapse">
                     <thead>
                       <tr className="border-b-2 border-border">
                         {/* Company column header — sticky */}
@@ -1165,7 +1173,7 @@ export function DashboardPage() {
                   <Link
                     key={doc.id}
                     to={`/documents/${doc.id}`}
-                    className={`flex items-center gap-3 px-4 py-3 hover:bg-[var(--color-bg-tertiary)]/30 transition-colors duration-100 ${
+                    className={`row-accent flex items-center gap-3 px-4 py-3 transition-colors duration-100 ${
                       i < recentDocuments.length - 1 ? 'border-b border-border/50' : ''
                     }`}
                   >

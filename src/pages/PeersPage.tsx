@@ -557,6 +557,7 @@ function PeerCard({
               isMonitoring
                 ? STATUS_COLORS[monitoringStatus ?? 'scheduled']
                 : 'bg-zinc-400',
+              isMonitoring && (monitoringStatus === 'overdue' || monitoringStatus === 'due_today') && 'status-pulse',
             )}
           />
           <span className="text-[11px] text-muted-foreground">
@@ -693,7 +694,7 @@ export function PeersPage() {
   return (
     <>
       <Helmet><title>Peers - BenchmarkSignal</title></Helmet>
-      <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
+      <div className="section-fade-in mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Page header */}
         <div className="mb-6">
           <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">

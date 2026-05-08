@@ -145,9 +145,9 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
       <div className="rounded-xl border border-border bg-card overflow-hidden">
 
         {isLoading ? (
-          <div className="p-8 space-y-px animate-pulse">
+          <div className="p-8 space-y-px">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-[69px] rounded bg-[var(--color-bg-tertiary)]" />
+              <div key={i} className="h-[69px] skeleton-shimmer" />
             ))}
           </div>
         ) : !reviewItems || reviewItems.length === 0 ? (

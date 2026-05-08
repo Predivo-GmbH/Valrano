@@ -122,7 +122,7 @@ function DocumentContent({ content, triggerName, customerName }: {
 
           {section.kpi_comparisons.length > 0 && (
             <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full min-w-max border-collapse text-[13px]">
+              <table className="table-premium w-full min-w-max border-collapse text-[13px]">
                 <thead>
                   <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
                     <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">KPI</th>
@@ -192,7 +192,7 @@ function DocumentContent({ content, triggerName, customerName }: {
             The following accounting policy differences affect comparability. Values have been adjusted to {customerName}'s framework where possible.
           </p>
           <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full min-w-max border-collapse text-[13px]">
+            <table className="table-premium w-full min-w-max border-collapse text-[13px]">
               <thead>
                 <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
                   <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">KPI</th>
@@ -329,10 +329,10 @@ export function DocumentViewerPage() {
   if (isLoading) {
     return (
       <div className="mx-auto max-w-[960px] px-4 py-8 sm:px-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 rounded bg-[var(--color-bg-tertiary)]" />
-          <div className="h-4 w-96 rounded bg-[var(--color-bg-tertiary)]" />
-          <div className="h-[400px] rounded-lg bg-[var(--color-bg-tertiary)]" />
+        <div className="space-y-4">
+          <div className="h-8 w-48 skeleton-shimmer" />
+          <div className="h-4 w-96 skeleton-shimmer" />
+          <div className="h-[400px] skeleton-shimmer rounded-lg" />
         </div>
       </div>
     )
@@ -356,7 +356,7 @@ export function DocumentViewerPage() {
   const StatusIcon = statusCfg.icon
 
   return (
-    <div className="mx-auto max-w-[960px] px-4 py-8 sm:px-6">
+    <div className="section-fade-in mx-auto max-w-[960px] px-4 py-8 sm:px-6">
       {/* Breadcrumbs */}
       <Breadcrumbs items={[
         { label: 'Reports', href: '/reports' },

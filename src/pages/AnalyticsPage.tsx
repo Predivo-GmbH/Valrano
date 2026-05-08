@@ -424,7 +424,7 @@ function TrendsPanel({
   return (
     <div className="space-y-6 section-fade-in">
       {/* Line Chart */}
-      <div className="card-premium rounded-xl border border-border bg-card p-5">
+      <div className="card-premium card-accent-top rounded-xl border border-border bg-card p-5">
         <h3 className="mb-4 font-semibold text-foreground">
           {trends[0].kpi_name} — Multi-Year Trend
         </h3>
@@ -481,7 +481,7 @@ function TrendsPanel({
             </h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="table-premium w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   <th className="px-5 py-3 text-left">Company</th>
@@ -567,7 +567,7 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
 
   return (
     <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="table-premium w-full text-sm">
         <thead>
           <tr className="border-b border-border">
             <th className="sticky left-0 bg-card px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -730,7 +730,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
   return (
     <div className="space-y-4">
       <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="table-premium w-full text-sm">
           <thead>
             <tr className="border-b border-border">
               <th className="sticky left-0 bg-card px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
