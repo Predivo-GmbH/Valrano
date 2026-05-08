@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
-import type { Subscription, SubscriptionTier } from '@/types/database'
+import type { Subscription } from '@/types/database'
 
 export const SUPER_ADMIN_EMAIL = 'roger@mueller.ro'
 
