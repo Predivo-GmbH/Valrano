@@ -256,9 +256,14 @@ export default function NewsPage() {
                       <div className="flex-1 min-w-0">
                         {/* Title + link */}
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="text-sm font-medium text-[var(--color-foreground)] leading-snug">
+                          <a
+                            href={article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-[var(--color-foreground)] leading-snug hover:text-[var(--color-accent)] hover:underline transition-colors"
+                          >
                             {article.title}
-                          </h3>
+                          </a>
                           <a
                             href={article.url}
                             target="_blank"
@@ -267,6 +272,23 @@ export default function NewsPage() {
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
+                        </div>
+                        {/* Source domain + author */}
+                        <div className="mt-0.5 flex items-center gap-2 text-[10px] text-[var(--color-muted-foreground)]">
+                          <a
+                            href={article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--color-accent)] hover:underline"
+                          >
+                            {(() => { try { return new URL(article.url).hostname.replace('www.', '') } catch { return 'Source' } })()}
+                          </a>
+                          {article.author && (
+                            <span>by {article.author}</span>
+                          )}
+                          {article.published_at && (
+                            <span>{new Date(article.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                          )}
                         </div>
 
                         {/* AI Summary */}

@@ -373,9 +373,12 @@ function AiInsightsSection() {
                         </Link>
                       )}
                       {insight.related_kpi_code && (
-                        <span className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 text-[9px] font-medium">
+                        <Link
+                          to={`/analytics?kpi=${encodeURIComponent(insight.related_kpi_code)}`}
+                          className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 text-[9px] font-medium hover:text-[var(--color-accent)] hover:underline transition-colors"
+                        >
                           {insight.related_kpi_code}
-                        </span>
+                        </Link>
                       )}
                       {insight.fiscal_year && (
                         <span>FY {insight.fiscal_year}</span>
@@ -383,7 +386,26 @@ function AiInsightsSection() {
                       {insight.created_at && (
                         <span>Generated {getRelativeTime(insight.created_at)}</span>
                       )}
-                      <span className="italic">Source: AI analysis of uploaded KPI data</span>
+                      <span className="text-[10px]">
+                        Sources:{' '}
+                        <Link to="/peers" className="text-[var(--color-accent)] hover:underline">Uploaded Reports</Link>
+                        {insight.companies && (
+                          <>
+                            {' · '}
+                            <Link to={`/companies/${insight.companies.id}`} className="text-[var(--color-accent)] hover:underline">
+                              {insight.companies.name} Profile
+                            </Link>
+                          </>
+                        )}
+                        {insight.related_kpi_code && (
+                          <>
+                            {' · '}
+                            <Link to={`/analytics?kpi=${encodeURIComponent(insight.related_kpi_code)}`} className="text-[var(--color-accent)] hover:underline">
+                              {insight.related_kpi_code} Analytics
+                            </Link>
+                          </>
+                        )}
+                      </span>
                     </div>
                   </div>
                   <button
