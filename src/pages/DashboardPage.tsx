@@ -1024,7 +1024,7 @@ export function DashboardPage() {
             ) : (
               <div className="relative">
                 <div ref={scrollRef} className="overflow-x-auto scrollbar-thin">
-                  <table className="table-premium w-full min-w-max border-collapse">
+                  <table className="table-premium w-full border-collapse">
                     <thead>
                       <tr className="border-b-2 border-border">
                         {/* Company column header — sticky */}
@@ -1056,10 +1056,10 @@ export function DashboardPage() {
                           />
                         ))}
                         {hiddenColumnCount > 0 && (
-                          <th className="px-2 py-2 text-center align-middle">
+                          <th className="px-2 py-2 text-right align-middle w-full">
                             <button
                               onClick={() => setColumnsExpanded(true)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-bg-tertiary)] px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)]/80 hover:text-foreground whitespace-nowrap"
+                              className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-bg-tertiary)] px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)]/80 hover:text-foreground whitespace-nowrap ml-auto"
                             >
                               +{hiddenColumnCount} more
                               <ChevronRight className="h-3 w-3" />
@@ -1127,7 +1127,7 @@ export function DashboardPage() {
                                 />
                               )
                             })}
-                            {hiddenColumnCount > 0 && <td />}
+                            {hiddenColumnCount > 0 && <td className="w-full" />}
                           </tr>
                         )
                       })}
