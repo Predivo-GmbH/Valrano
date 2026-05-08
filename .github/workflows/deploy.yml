@@ -32,6 +32,22 @@ jobs:
       - name: Install lftp
         run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
 
+      - name: Write site-id marker
+        run: echo "benchmarksignal" > dist/.site-id
+
+      - name: Verify deploy target (site-id guard)
+        run: |
+          REMOTE_ID=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "cat benchmarksignal.predivo.ch/.site-id; quit" 2>/dev/null || echo "")
+          if [ -n "$REMOTE_ID" ] && [ "$REMOTE_ID" != "benchmarksignal" ]; then
+            echo "::error::DEPLOY ABORTED — remote .site-id is '$REMOTE_ID', expected 'benchmarksignal'. Wrong FTP target!"
+            exit 1
+          fi
+          echo "Site-id guard passed (remote='${REMOTE_ID:-<none>}')"
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+
       - name: Upload new hashed assets
         run: |
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
@@ -54,6 +70,7 @@ jobs:
           put ./dist/robots.txt -o benchmarksignal.predivo.ch/robots.txt
           put ./dist/sitemap.xml -o benchmarksignal.predivo.ch/sitemap.xml
           put ./dist/og-image.svg -o benchmarksignal.predivo.ch/og-image.svg
+          put ./dist/.site-id -o benchmarksignal.predivo.ch/.site-id
           bye
           SCRIPT
         env:
