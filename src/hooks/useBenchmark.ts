@@ -229,6 +229,25 @@ export function useUpdateDocumentStatus() {
   })
 }
 
+export function useUpdateDocumentContent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (params: { id: string; content_json: Record<string, unknown> }) => {
+      const { data, error } = await supabase
+        .from('benchmark_documents')
+        .update({ content_json: params.content_json })
+        .eq('id', params.id)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['benchmark-documents'] })
+    },
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Approval Chain Hooks
 // ---------------------------------------------------------------------------

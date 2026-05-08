@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
-import { useBenchmarkDocument, useUpdateDocumentStatus } from '@/hooks/useBenchmark'
+import { useBenchmarkDocument, useUpdateDocumentStatus, useUpdateDocumentContent } from '@/hooks/useBenchmark'
 import type { DocumentStatus, EnhancedBenchmarkContentJson } from '@/types/database'
 import {
   ArrowLeft,
@@ -65,10 +66,68 @@ function SignalBadge({ signal }: { signal: string }) {
 // Document content renderer
 // ---------------------------------------------------------------------------
 
-function DocumentContent({ content, triggerName, customerName }: {
+function EditableText({ value, onSave, multiline = false, className = '' }: {
+  value: string
+  onSave: (newValue: string) => void
+  multiline?: boolean
+  className?: string
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+
+  if (!editing) {
+    return (
+      <span
+        className={cn('cursor-pointer rounded px-1 -mx-1 hover:bg-[var(--color-accent)]/5 hover:ring-1 hover:ring-[var(--color-accent)]/20 transition-all', className)}
+        onClick={() => { setDraft(value); setEditing(true) }}
+        title="Click to edit"
+      >
+        {value}
+      </span>
+    )
+  }
+
+  const handleSave = () => {
+    if (draft.trim() && draft !== value) onSave(draft.trim())
+    setEditing(false)
+  }
+
+  if (multiline) {
+    return (
+      <div className="space-y-2">
+        <textarea
+          className="w-full rounded-lg border border-[var(--color-accent)]/30 bg-card p-3 text-[13px] text-foreground outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 resize-y min-h-[80px]"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          autoFocus
+          onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false) }}
+        />
+        <div className="flex gap-2">
+          <button onClick={handleSave} className="rounded-md bg-[var(--color-accent)] px-3 py-1 text-[11px] font-medium text-white hover:brightness-110">Save</button>
+          <button onClick={() => setEditing(false)} className="rounded-md border border-border px-3 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground">Cancel</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <input
+      className="w-full rounded-lg border border-[var(--color-accent)]/30 bg-card px-3 py-2 text-[13px] text-foreground outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      autoFocus
+      onBlur={handleSave}
+      onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false) }}
+    />
+  )
+}
+
+function DocumentContent({ content, triggerName, customerName, editable = false, onContentChange }: {
   content: EnhancedBenchmarkContentJson
   triggerName: string
   customerName: string
+  editable?: boolean
+  onContentChange?: (updated: EnhancedBenchmarkContentJson) => void
 }) {
   const posConfig = POSITION_CONFIG[content.competitive_position] ?? POSITION_CONFIG.stable
   const PosIcon = posConfig.icon
@@ -88,9 +147,18 @@ function DocumentContent({ content, triggerName, customerName }: {
         <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
           Executive Summary
         </h2>
-        <p className="text-[14px] leading-relaxed text-foreground">
-          {content.executive_summary}
-        </p>
+        {editable ? (
+          <EditableText
+            value={content.executive_summary}
+            multiline
+            className="text-[14px] leading-relaxed text-foreground block"
+            onSave={(v) => onContentChange?.({ ...content, executive_summary: v })}
+          />
+        ) : (
+          <p className="text-[14px] leading-relaxed text-foreground">
+            {content.executive_summary}
+          </p>
+        )}
       </div>
 
       {/* Key Findings */}
@@ -104,7 +172,20 @@ function DocumentContent({ content, triggerName, customerName }: {
               <span className="mt-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)]/10 text-[10px] font-bold text-[var(--color-accent)]">
                 {i + 1}
               </span>
-              <span className="text-[13px] leading-relaxed text-foreground">{finding}</span>
+              {editable ? (
+                <EditableText
+                  value={finding}
+                  multiline
+                  className="text-[13px] leading-relaxed text-foreground block flex-1"
+                  onSave={(v) => {
+                    const updated = [...content.key_findings]
+                    updated[i] = v
+                    onContentChange?.({ ...content, key_findings: updated })
+                  }}
+                />
+              ) : (
+                <span className="text-[13px] leading-relaxed text-foreground">{finding}</span>
+              )}
             </li>
           ))}
         </ul>
@@ -116,9 +197,24 @@ function DocumentContent({ content, triggerName, customerName }: {
           <h2 className="mb-3 text-[17px] font-semibold text-foreground border-b border-border pb-2">
             {section.title}
           </h2>
-          <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
-            {section.narrative}
-          </p>
+          {editable ? (
+            <div className="mb-4">
+              <EditableText
+                value={section.narrative}
+                multiline
+                className="text-[13px] leading-relaxed text-muted-foreground block"
+                onSave={(v) => {
+                  const updated = [...content.sections]
+                  updated[idx] = { ...section, narrative: v }
+                  onContentChange?.({ ...content, sections: updated })
+                }}
+              />
+            </div>
+          ) : (
+            <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
+              {section.narrative}
+            </p>
+          )}
 
           {section.kpi_comparisons.length > 0 && (
             <div className="overflow-x-auto rounded-lg border border-border">
@@ -295,6 +391,8 @@ export function DocumentViewerPage() {
   const { id } = useParams<{ id: string }>()
   const { data: doc, isLoading } = useBenchmarkDocument(id)
   const updateStatus = useUpdateDocumentStatus()
+  const updateContent = useUpdateDocumentContent()
+  const isEditable = doc?.status === 'draft' || doc?.status === 'in_review'
 
   const handleStatusChange = async (newStatus: string) => {
     if (!doc) return
@@ -451,6 +549,14 @@ export function DocumentViewerPage() {
         </div>
       )}
 
+      {/* Edit hint */}
+      {isEditable && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/5 px-4 py-2.5 text-[12px] text-[var(--color-accent)]">
+          <FileText className="h-4 w-4 flex-shrink-0" />
+          <span>This document is editable. Click any text section to modify it. Changes are saved automatically.</span>
+        </div>
+      )}
+
       {/* Document content */}
       <div className="rounded-lg border border-border bg-card p-6 sm:p-8">
         {doc.content_json ? (
@@ -458,6 +564,12 @@ export function DocumentViewerPage() {
             content={doc.content_json}
             triggerName={doc.trigger_company?.name ?? 'Competitor'}
             customerName={doc.customer_company?.name ?? 'Customer'}
+            editable={isEditable}
+            onContentChange={(updated) => {
+              if (!doc.id) return
+              updateContent.mutate({ id: doc.id, content_json: updated as Record<string, unknown> })
+              toast.success('Document updated')
+            }}
           />
         ) : (
           <div className="py-12 text-center text-[13px] text-muted-foreground">

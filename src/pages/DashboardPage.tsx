@@ -363,11 +363,28 @@ function AiInsightsSection() {
                     <p className="text-[12px] leading-relaxed text-muted-foreground">
                       {insight.body}
                     </p>
-                    {insight.companies && (
-                      <p className="mt-1 text-[11px] text-muted-foreground/70">
-                        {insight.companies.name}{insight.related_kpi_code ? ` · ${insight.related_kpi_code}` : ''}
-                      </p>
-                    )}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground/70">
+                      {insight.companies && (
+                        <Link
+                          to={`/companies/${insight.companies.id}`}
+                          className="hover:text-[var(--color-accent)] hover:underline transition-colors"
+                        >
+                          {insight.companies.name}{insight.companies.ticker ? ` (${insight.companies.ticker})` : ''}
+                        </Link>
+                      )}
+                      {insight.related_kpi_code && (
+                        <span className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 text-[9px] font-medium">
+                          {insight.related_kpi_code}
+                        </span>
+                      )}
+                      {insight.fiscal_year && (
+                        <span>FY {insight.fiscal_year}</span>
+                      )}
+                      {insight.created_at && (
+                        <span>Generated {getRelativeTime(insight.created_at)}</span>
+                      )}
+                      <span className="italic">Source: AI analysis of uploaded KPI data</span>
+                    </div>
                   </div>
                   <button
                     onClick={() => dismissInsight.mutate(insight.id)}
@@ -1050,9 +1067,12 @@ export function DashboardPage() {
                             <td className={`sticky left-0 z-20 bg-card px-3 py-2 w-[140px] md:w-[180px] after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/30 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.3)] ${isPrimary ? 'border-l-2 border-l-[var(--color-accent)]' : ''}`}>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-[12px] font-medium text-foreground truncate max-w-[100px] md:max-w-[140px]">
+                                  <Link
+                                    to={`/companies/${company.id}`}
+                                    className="text-[12px] font-medium text-foreground truncate max-w-[100px] md:max-w-[140px] hover:text-[var(--color-accent)] hover:underline transition-colors"
+                                  >
                                     {company.name}
-                                  </span>
+                                  </Link>
                                   {isPrimary && (
                                     <span className="flex-shrink-0 rounded bg-[var(--color-accent)]/10 px-1 py-px text-[9px] font-bold uppercase leading-none text-[var(--color-accent)]">
                                       You
@@ -1147,12 +1167,13 @@ export function DashboardPage() {
                       {companiesWithoutData
                         .sort((a, b) => a.name.localeCompare(b.name))
                         .map((company) => (
-                        <span
+                        <Link
                           key={company.id}
-                          className="text-[10px] text-muted-foreground/70 bg-[var(--color-bg-tertiary)] rounded px-2 py-0.5"
+                          to={`/companies/${company.id}`}
+                          className="text-[10px] text-muted-foreground/70 bg-[var(--color-bg-tertiary)] rounded px-2 py-0.5 hover:text-[var(--color-accent)] hover:underline transition-colors"
                         >
                           {company.name}
-                        </span>
+                        </Link>
                       ))}
                     </div>
                     <p className="mt-2 text-[10px] text-muted-foreground">
