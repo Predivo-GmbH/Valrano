@@ -9,7 +9,7 @@ import { ShieldCheck, Loader2 } from 'lucide-react'
 
 const TIERS: SubscriptionTier[] = ['starter', 'professional', 'enterprise']
 
-interface UserRow {
+interface AdminUser {
   id: string
   email: string
   full_name: string | null
@@ -43,7 +43,7 @@ function AdminPanel({
   setDisabledUsers: React.Dispatch<React.SetStateAction<Set<string>>>
   queryClient: ReturnType<typeof useQueryClient>
 }) {
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading } = useQuery<AdminUser[]>({
     queryKey: ['admin-users'],
     staleTime: 30_000,
     queryFn: async () => {
