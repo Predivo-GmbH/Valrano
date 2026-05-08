@@ -4,7 +4,7 @@ import { useTheme } from 'next-themes'
 import { Sun, Moon, LayoutDashboard, Users, Settings, LogOut, User, Menu, X, BarChart3, FileBarChart, Newspaper } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
 import { ChatPanel } from './ChatPanel'
-import { DevTierSwitcher } from '@/components/dev/DevTierSwitcher'
+// DevTierSwitcher removed — admin controls moved to Settings > Admin tab
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -229,7 +229,6 @@ export function AppLayout() {
 
         {/* AI Assistant — persistent across all pages */}
         <ChatPanel />
-        <DevTierSwitcher />
       </div>
     </TooltipProvider>
   )

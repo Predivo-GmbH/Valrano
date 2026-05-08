@@ -3,8 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import type { Subscription, SubscriptionTier } from '@/types/database'
 
-const DEV_EMAILS = ['roger@mueller.ro', 'dev@benchmarksignal.predivo.ch']
-const DEV_TIER_KEY = 'benchmarksignal-dev-tier'
+export const SUPER_ADMIN_EMAIL = 'roger@mueller.ro'
 
 export function useSubscription() {
   const { user } = useAuth()
@@ -24,12 +23,7 @@ export function useSubscription() {
     enabled: !!user,
   })
 
-  // Dev tier override — for admin users
-  const devOverride = DEV_EMAILS.includes(user?.email ?? '')
-    ? (localStorage.getItem(DEV_TIER_KEY) as SubscriptionTier | null)
-    : null
-
-  const tier = devOverride ?? subscription?.tier ?? 'starter'
+  const tier = subscription?.tier ?? 'starter'
 
   return {
     subscription,
@@ -37,8 +31,6 @@ export function useSubscription() {
     status: subscription?.status ?? 'active',
     isLoading,
     isActive: subscription?.status === 'active' || subscription?.status === 'trialing',
-    isDevOverride: !!devOverride,
+    isSuperAdmin: user?.email === SUPER_ADMIN_EMAIL,
   }
 }
-
-export { DEV_EMAILS, DEV_TIER_KEY }
