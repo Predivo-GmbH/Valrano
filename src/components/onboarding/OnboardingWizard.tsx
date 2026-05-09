@@ -317,7 +317,7 @@ function StepFramework() {
 
     setUploading(true)
     try {
-      // Create a placeholder company if none exists
+      // Ensure my_company exists (useCreateMyCompany also creates a linked companies entry)
       const placeholderName = file.name.replace(/\.pdf$/i, '')
       let company = primaryCompany
       if (!company) {
@@ -333,24 +333,8 @@ function StepFramework() {
         })
       }
 
-      // Resolve or create companies table entry
-      const companyName = company?.name ?? placeholderName
-      const { data: existingCompanies } = await supabase
-        .from('companies')
-        .select('id')
-        .ilike('name', companyName)
-        .limit(1)
-
-      let companyId = existingCompanies?.[0]?.id
-      if (!companyId) {
-        const { data: newCompany } = await supabase
-          .from('companies')
-          .insert({ name: companyName, is_active: false })
-          .select('id')
-          .single()
-        companyId = newCompany?.id
-      }
-
+      // Use the linked company_id from my_companies (created by useCreateMyCompany)
+      const companyId = company?.company_id
       if (!companyId) throw new Error('Could not resolve company')
 
       const result = await uploadMutation.mutateAsync({
