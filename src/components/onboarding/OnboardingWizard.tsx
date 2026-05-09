@@ -334,25 +334,15 @@ function StepFramework() {
         })
       }
 
-      // If my_company exists but has no linked company_id, create one and link it
+      // If my_company exists but has no linked company_id, create a new one
       let companyId = company?.company_id
       if (!companyId && company) {
-        const companyName = company.name || placeholderName
-        const { data: existing } = await supabase
+        const { data: created } = await supabase
           .from('companies')
+          .insert({ name: company.name || placeholderName, is_active: true })
           .select('id')
-          .ilike('name', `%${companyName}%`)
-          .limit(1)
-
-        companyId = existing?.[0]?.id
-        if (!companyId) {
-          const { data: created } = await supabase
-            .from('companies')
-            .insert({ name: companyName, is_active: true })
-            .select('id')
-            .single()
-          companyId = created?.id
-        }
+          .single()
+        companyId = created?.id
 
         if (companyId) {
           await supabase
