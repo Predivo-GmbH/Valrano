@@ -341,7 +341,7 @@ function StepFramework() {
         const { data: existing } = await supabase
           .from('companies')
           .select('id')
-          .ilike('name', companyName)
+          .ilike('name', `%${companyName}%`)
           .limit(1)
 
         companyId = existing?.[0]?.id
