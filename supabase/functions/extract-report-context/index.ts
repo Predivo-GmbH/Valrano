@@ -29,9 +29,11 @@ Deno.serve(async (req) => {
   // Allow both JWT auth and service_role calls (from pipeline-orchestrator)
   const authHeader = req.headers.get('authorization') ?? ''
   const isServiceRole = authHeader.includes(SERVICE_ROLE_KEY)
+  let userId: string | null = null
   if (!isServiceRole) {
-    const user = await authenticateRequest(req)
-    if (!user) return errorResponse('Unauthorized', 401)
+    const authResult = await authenticateRequest(req)
+    if (!authResult) return errorResponse('Unauthorized', 401)
+    userId = authResult.user.id
   }
 
   const { report_id } = await req.json().catch(() => ({ report_id: null }))
@@ -47,6 +49,17 @@ Deno.serve(async (req) => {
   if (!report) return errorResponse('Report not found', 404)
   if (!report.pdf_storage_path) return errorResponse('No PDF uploaded for this report', 400)
 
+  // Data isolation: get user's visible company IDs
+  let visibleIdSet: Set<string> | null = null
+  if (userId) {
+    const { data: visibleIds } = await admin
+      .rpc('visible_company_ids_for_user', { p_user_id: userId })
+    visibleIdSet = new Set((visibleIds ?? []) as string[])
+    if (!visibleIdSet.has(report.company_id)) {
+      return errorResponse('Report belongs to a company not in your peer groups', 403)
+    }
+  }
+
   const { data: company } = await admin
     .from('companies')
     .select('id, name, ticker, sector, country')
@@ -55,11 +68,15 @@ Deno.serve(async (req) => {
 
   if (!company) return errorResponse('Company not found', 404)
 
-  // Load all companies for competitor matching
-  const { data: allCompanies } = await admin
+  // Load companies for competitor matching — scoped to user's peer groups
+  let companyQuery = admin
     .from('companies')
     .select('id, name, ticker')
     .eq('is_active', true)
+  if (visibleIdSet) {
+    companyQuery = companyQuery.in('id', Array.from(visibleIdSet))
+  }
+  const { data: allCompanies } = await companyQuery
 
   const companyNames = (allCompanies ?? []).map(c => ({
     id: c.id,

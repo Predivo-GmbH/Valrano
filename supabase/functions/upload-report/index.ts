@@ -9,7 +9,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { adminClient } = await authenticateRequest(req)
+    const { user, adminClient } = await authenticateRequest(req)
 
     const formData = await req.formData()
     const file = formData.get('file') as File
@@ -49,6 +49,14 @@ serve(async (req: Request) => {
     if (companyError) throw new Error(`Company lookup failed: ${companyError.message}`)
     if (!company) {
       return jsonResponse({ error: `Company not found: ${companyId}` }, 404)
+    }
+
+    // Data isolation: verify company is in user's peer groups
+    const { data: visibleIds } = await adminClient
+      .rpc('visible_company_ids_for_user', { p_user_id: user.id })
+    const visible = new Set((visibleIds ?? []) as string[])
+    if (!visible.has(companyId)) {
+      return jsonResponse({ error: 'Company not in your peer groups' }, 403)
     }
 
     // Upload PDF to Supabase Storage

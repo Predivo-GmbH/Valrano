@@ -8,7 +8,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { adminClient } = await authenticateRequest(req)
+    const { user, adminClient } = await authenticateRequest(req)
 
     const { report_id } = await req.json()
     if (!report_id) {
@@ -24,6 +24,14 @@ serve(async (req: Request) => {
 
     if (reportError) throw new Error(`Report lookup failed: ${reportError.message}`)
     if (!report) return jsonResponse({ error: `Report not found: ${report_id}` }, 404)
+
+    // Data isolation: verify report's company is in user's peer groups
+    const { data: visibleIds } = await adminClient
+      .rpc('visible_company_ids_for_user', { p_user_id: user.id })
+    const visible = new Set((visibleIds ?? []) as string[])
+    if (!visible.has(report.company_id)) {
+      return jsonResponse({ error: 'Report belongs to a company not in your peer groups' }, 403)
+    }
 
     if (!report.source_url) {
       return jsonResponse({ error: 'Report has no source_url' }, 400)

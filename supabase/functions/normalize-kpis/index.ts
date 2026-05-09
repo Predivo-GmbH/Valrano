@@ -60,6 +60,21 @@ serve(async (req: Request) => {
       return jsonResponse({ error: 'Missing required field: report_id' }, 400)
     }
 
+    // Data isolation: verify report's company is in user's peer groups
+    const { data: reportCheck } = await adminClient
+      .from('reports')
+      .select('company_id')
+      .eq('id', reportId)
+      .single()
+    if (reportCheck) {
+      const { data: visibleIds } = await adminClient
+        .rpc('visible_company_ids_for_user', { p_user_id: user.id })
+      const visible = new Set((visibleIds ?? []) as string[])
+      if (!visible.has(reportCheck.company_id)) {
+        return jsonResponse({ error: 'Report belongs to a company not in your peer groups' }, 403)
+      }
+    }
+
     // ------------------------------------------------------------------
     // 0. Load user's accounting profile for accounting-aware normalization
     // ------------------------------------------------------------------
