@@ -547,7 +547,6 @@ function TrendsPanel({
 // Pivot Table Panel
 // ---------------------------------------------------------------------------
 
-const MAX_VISIBLE_KPIS = 6
 
 function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYear: number }) {
   const { data, isLoading } = usePivotData({ companyIds, fiscalYear })
