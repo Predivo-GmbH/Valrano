@@ -25,7 +25,6 @@ import { useCreatePublicationEvent, usePublicationEvents } from '@/hooks/useCale
 import { useSuggestDates, useSuggestIrUrl, useSuggestCompetitors } from '@/hooks/useAiSuggestions'
 import type { CompetitorSuggestion } from '@/hooks/useAiSuggestions'
 import { dismissOnboarding, useOnboarding } from '@/hooks/useOnboarding'
-import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete'
 import type { Company } from '@/types/database'
 
 // ---------------------------------------------------------------------------
@@ -303,30 +302,27 @@ function StepFramework() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedReportId, setSelectedReportId] = useState('')
-  const [companyNameOverride, setCompanyNameOverride] = useState<string | null>(null)
-  const companyName = companyNameOverride ?? primaryCompany?.name ?? ''
-  const setCompanyName = (name: string) => setCompanyNameOverride(name)
   const [uploading, setUploading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
   const ownReports = (reports ?? [])
     .filter((r) => r.pdf_storage_path)
     .sort((a, b) => b.fiscal_year - a.fiscal_year)
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!companyName.trim()) {
-      toast.error('Enter your company name first')
+  const processFile = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Only PDF files are supported')
       return
     }
 
     setUploading(true)
     try {
-      // Ensure my_company exists
+      // Create a placeholder company if none exists
+      const placeholderName = file.name.replace(/\.pdf$/i, '')
       let company = primaryCompany
       if (!company) {
         company = await createCompany.mutateAsync({
-          name: companyName.trim(),
+          name: placeholderName,
           is_primary: true,
           sector: null,
           country: null,
@@ -337,19 +333,19 @@ function StepFramework() {
         })
       }
 
-      // Upload the report — need a company_id in the companies table
-      // For now, use the first available company or create a placeholder
+      // Resolve or create companies table entry
+      const companyName = company?.name ?? placeholderName
       const { data: existingCompanies } = await supabase
         .from('companies')
         .select('id')
-        .ilike('name', companyName.trim())
+        .ilike('name', companyName)
         .limit(1)
 
       let companyId = existingCompanies?.[0]?.id
       if (!companyId) {
         const { data: newCompany } = await supabase
           .from('companies')
-          .insert({ name: companyName.trim(), is_active: false })
+          .insert({ name: companyName, is_active: false })
           .select('id')
           .single()
         companyId = newCompany?.id
@@ -364,11 +360,8 @@ function StepFramework() {
         fiscalYear: new Date().getFullYear() - 1,
       })
 
-      // Auto-analyze
-      await analyzeMutation.mutateAsync({
-        reportId: result.report_id,
-        companyName: companyName.trim(),
-      })
+      // Auto-analyze — AI will extract the real company name
+      await analyzeMutation.mutateAsync({ reportId: result.report_id })
 
       toast.success('Report analyzed! Your accounting framework has been detected.')
     } catch (err) {
@@ -379,9 +372,21 @@ function StepFramework() {
     }
   }
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) processFile(file)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files[0]
+    if (file) processFile(file)
+  }
+
   const handleAnalyzeExisting = () => {
     if (!selectedReportId) return
-    analyzeMutation.mutate({ reportId: selectedReportId, companyName: companyName || undefined })
+    analyzeMutation.mutate({ reportId: selectedReportId })
   }
 
   const isAnalyzing = analyzeMutation.isPending || uploading
@@ -452,42 +457,39 @@ function StepFramework() {
         </p>
       </div>
 
-      {/* Company name */}
-      <div>
-        <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
-          Your company name
-        </label>
-        <div className="max-w-sm">
-          <CompanyAutocomplete
-            value={companyName}
-            onChange={setCompanyName}
-            onSelect={(company: CompanyResult) => setCompanyName(company.name)}
-            placeholder="e.g., Holcim Ltd"
-          />
-        </div>
-      </div>
-
       {/* Upload zone */}
       <div
+        role="button"
+        tabIndex={0}
+        aria-label="Upload PDF file"
+        onClick={() => !isAnalyzing && fileInputRef.current?.click()}
+        onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !isAnalyzing) { e.preventDefault(); fileInputRef.current?.click() } }}
+        onDragOver={(e) => { e.preventDefault(); if (!isAnalyzing) setIsDragging(true) }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => { if (!isAnalyzing) handleDrop(e); else e.preventDefault() }}
         className={cn(
-          'relative rounded-xl border-2 border-dashed border-border/50 bg-card/50 p-8 text-center transition-colors',
-          isAnalyzing && 'opacity-50 pointer-events-none',
+          'relative rounded-xl border-2 border-dashed p-8 text-center transition-all duration-200 cursor-pointer',
+          isAnalyzing
+            ? 'opacity-50 pointer-events-none border-border/50 bg-card/50'
+            : isDragging
+            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
+            : 'border-border/50 bg-card/50 hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-bg-tertiary)]',
         )}
       >
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf"
+          accept=".pdf,application/pdf"
           onChange={handleFileUpload}
-          className="absolute inset-0 cursor-pointer opacity-0"
-          disabled={isAnalyzing || !companyName.trim()}
+          className="hidden"
+          disabled={isAnalyzing}
         />
         <Upload className="mx-auto h-8 w-8 text-muted-foreground/40 mb-3" />
         <p className="text-[13px] font-medium text-foreground">
-          {isAnalyzing ? 'Analyzing your report...' : 'Drop your annual report here'}
+          {isAnalyzing ? 'Analyzing your report...' : 'Drop your annual report here or click to browse'}
         </p>
         <p className="text-[11px] text-muted-foreground mt-1">
-          PDF format · The AI will extract your accounting framework automatically
+          PDF format · The AI will extract your company name and accounting framework automatically
         </p>
         {isAnalyzing && <Loader2 className="mx-auto mt-3 h-5 w-5 animate-spin text-[var(--color-accent)]" />}
       </div>
