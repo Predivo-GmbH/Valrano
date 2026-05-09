@@ -97,7 +97,11 @@ serve(async (req: Request) => {
     if (kpiError) throw new Error(`KPI load failed: ${kpiError.message}`)
 
     if (!kpiValues || kpiValues.length === 0) {
-      return jsonResponse({ insights: [], message: 'No KPI data available for analysis' })
+      const yearLabel = yearsBack === 1 ? `FY${currentYear}` : `FY${startYear}–${currentYear}`
+      return jsonResponse({
+        insights: [],
+        message: `No KPI data found for ${yearLabel}. Upload reports (annual, quarterly, or sustainability) for ${myCompanyName} and your ${(visibleIds as string[]).length} peer companies to generate insights.`,
+      })
     }
 
     // ------------------------------------------------------------------
@@ -110,7 +114,13 @@ serve(async (req: Request) => {
     })
 
     if (filtered.length === 0) {
-      return jsonResponse({ insights: [], message: 'No data matches the selected filters' })
+      const yearLabel = yearsBack === 1 ? `FY${currentYear}` : `FY${startYear}–${currentYear}`
+      const focusMsg = focus !== 'all' ? ` for "${focus}" KPIs` : ''
+      const reportMsg = report_type !== 'all' ? ` in "${report_type}" reports` : ''
+      return jsonResponse({
+        insights: [],
+        message: `No KPI data matches your filters${focusMsg}${reportMsg} in ${yearLabel}. Try broadening your filters or upload more reports.`,
+      })
     }
 
     // ------------------------------------------------------------------

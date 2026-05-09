@@ -20,6 +20,7 @@ export interface GenerateInsightsParams {
 export interface GenerateInsightsResult {
   insights: AiInsight[]
   count: number
+  message?: string
   batch_id?: string
   delta_summary?: {
     new: number

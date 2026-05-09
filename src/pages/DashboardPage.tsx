@@ -377,7 +377,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
               : 'Add competitors and peers via the Peers page. AI will compare their KPIs against yours.'}
           </p>
           <Link
-            to={!hasCompany ? '/settings' : '/peers'}
+            to={!hasCompany ? '/settings?tab=company' : '/peers'}
             className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3.5 py-1.5 text-[11px] font-medium text-white transition-all hover:opacity-90 cursor-pointer"
           >
             {!hasCompany ? 'Go to Settings' : 'Add Peers'}
@@ -569,9 +569,12 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
           <div className="mb-3 rounded-full bg-[var(--color-bg-tertiary)] p-3">
             <Sparkles className="h-5 w-5 text-muted-foreground/50" />
           </div>
-          <p className="text-[13px] font-medium text-muted-foreground">No insights yet</p>
+          <p className="text-[13px] font-medium text-muted-foreground">
+            {generateInsights.data?.message ? 'No insights available' : 'No insights yet'}
+          </p>
           <p className="text-[11px] text-muted-foreground/70 mt-1 max-w-sm">
-            Select your focus area and click "Generate Insights" to analyze your benchmark data.
+            {generateInsights.data?.message
+              ?? 'Select your focus area and click "Generate Insights" to analyze your benchmark data.'}
           </p>
         </div>
       ) : (
