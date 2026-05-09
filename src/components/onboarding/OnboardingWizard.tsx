@@ -24,6 +24,7 @@ import { useCreatePublicationEvent, usePublicationEvents } from '@/hooks/useCale
 import { useSuggestDates, useSuggestIrUrl, useSuggestCompetitors } from '@/hooks/useAiSuggestions'
 import type { CompetitorSuggestion } from '@/hooks/useAiSuggestions'
 import { dismissOnboarding, useOnboarding } from '@/hooks/useOnboarding'
+import { CompanyAutocomplete } from '@/components/company-autocomplete'
 import type { Company } from '@/types/database'
 
 // ---------------------------------------------------------------------------
@@ -720,7 +721,7 @@ function StepCompetitors({
           <CompanyAutocomplete
             value={search}
             onChange={setSearch}
-            onSelect={async (result) => {
+            onSelect={(result) => void (async () => {
               const existing = (companies ?? []).find(
                 (c) => c.name.toLowerCase() === result.name.toLowerCase()
               )
@@ -749,7 +750,7 @@ function StepCompetitors({
                 }
               }
               setSearch('')
-            }}
+            })()}
             placeholder="Type 3+ letters to search company registers..."
           />
           <p className="mt-1 text-[10px] text-muted-foreground">
