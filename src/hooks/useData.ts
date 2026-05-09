@@ -14,9 +14,17 @@ export function useCompanies() {
     queryKey: ['companies'],
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
+      // Only return companies in user's peer groups
+      const { data: visibleIds, error: visErr } = await supabase
+        .rpc('visible_company_ids')
+      if (visErr) throw visErr
+
+      if (!visibleIds || visibleIds.length === 0) return [] as Company[]
+
       const { data, error } = await supabase
         .from('companies')
         .select('*')
+        .in('id', visibleIds as string[])
         .eq('is_active', true)
         .order('name')
       if (error) throw error

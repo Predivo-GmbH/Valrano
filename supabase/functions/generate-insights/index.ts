@@ -55,8 +55,29 @@ serve(async (req: Request) => {
       ?? (primaryCompany as unknown as { companies: { name: string } })?.companies?.name
       ?? null
 
+    // Guard: require a company to be set
+    if (!myCompanyName) {
+      return jsonResponse({
+        insights: [],
+        message: 'Set your company first in Settings to generate personalized insights.',
+      })
+    }
+
     // ------------------------------------------------------------------
-    // 3. Load KPI data with report type + category filtering
+    // 3. Scope to user's peer group companies only
+    // ------------------------------------------------------------------
+    const { data: visibleIds } = await adminClient
+      .rpc('visible_company_ids_for_user', { p_user_id: user.id })
+
+    if (!visibleIds || visibleIds.length === 0) {
+      return jsonResponse({
+        insights: [],
+        message: 'Add peer companies first to generate competitive insights.',
+      })
+    }
+
+    // ------------------------------------------------------------------
+    // 4. Load KPI data with report type + category filtering
     // ------------------------------------------------------------------
     const kpiQuery = adminClient
       .from('kpi_values')
@@ -66,6 +87,7 @@ serve(async (req: Request) => {
         companies(id, name),
         reports:report_id(report_type)
       `)
+      .in('company_id', visibleIds as string[])
       .not('normalized_value', 'is', null)
       .gte('fiscal_year', startYear)
       .lte('fiscal_year', currentYear)
