@@ -334,8 +334,34 @@ function StepFramework() {
         })
       }
 
-      // Use the linked company_id from my_companies (created by useCreateMyCompany)
-      const companyId = company?.company_id
+      // If my_company exists but has no linked company_id, create one and link it
+      let companyId = company?.company_id
+      if (!companyId && company) {
+        const companyName = company.name || placeholderName
+        const { data: existing } = await supabase
+          .from('companies')
+          .select('id')
+          .ilike('name', companyName)
+          .limit(1)
+
+        companyId = existing?.[0]?.id
+        if (!companyId) {
+          const { data: created } = await supabase
+            .from('companies')
+            .insert({ name: companyName, is_active: true })
+            .select('id')
+            .single()
+          companyId = created?.id
+        }
+
+        if (companyId) {
+          await supabase
+            .from('my_companies')
+            .update({ company_id: companyId })
+            .eq('id', company.id)
+        }
+      }
+
       if (!companyId) throw new Error('Could not resolve company')
 
       const result = await uploadMutation.mutateAsync({
