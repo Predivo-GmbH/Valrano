@@ -307,6 +307,10 @@ function StepFramework() {
   const [selectedReportId, setSelectedReportId] = useState('')
   const [uploading, setUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [uploadStep, setUploadStep] = useState<'idle' | 'creating' | 'uploading' | 'analyzing' | 'extracting' | 'done'>('idle')
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const progressInterval = useRef<ReturnType<typeof setInterval>>(null)
+  const progressRef = useRef(0)
 
   const ownReports = (reports ?? [])
     .filter((r) => r.pdf_storage_path)
@@ -319,8 +323,29 @@ function StepFramework() {
     }
 
     setUploading(true)
+    setUploadStep('creating')
+    setUploadProgress(0)
+    progressRef.current = 0
+
+    // Animate progress smoothly within each step
+    const animateTo = (target: number, durationMs: number) => {
+      if (progressInterval.current) clearInterval(progressInterval.current)
+      const startProgress = progressRef.current
+      const startTime = Date.now()
+      progressInterval.current = setInterval(() => {
+        const elapsed = Date.now() - startTime
+        const fraction = Math.min(elapsed / durationMs, 1)
+        const eased = 1 - Math.pow(1 - fraction, 3)
+        const val = Math.round(startProgress + (target - startProgress) * eased)
+        progressRef.current = val
+        setUploadProgress(val)
+        if (fraction >= 1 && progressInterval.current) clearInterval(progressInterval.current)
+      }, 50)
+    }
+
     try {
-      // Ensure my_company exists (useCreateMyCompany also creates a linked companies entry)
+      // Step 1: Create company profile
+      animateTo(15, 2000)
       const placeholderName = file.name.replace(/\.pdf$/i, '')
       let company = primaryCompany
       if (!company) {
@@ -336,7 +361,6 @@ function StepFramework() {
         })
       }
 
-      // If my_company exists but has no linked company_id, create a new one
       let companyId = company?.company_id
       if (!companyId && company) {
         const { data: created } = await supabase
@@ -356,6 +380,9 @@ function StepFramework() {
 
       if (!companyId) throw new Error('Could not resolve company')
 
+      // Step 2: Upload PDF
+      setUploadStep('uploading')
+      animateTo(40, 3000)
       const result = await uploadMutation.mutateAsync({
         file,
         companyId,
@@ -363,11 +390,28 @@ function StepFramework() {
         fiscalYear: new Date().getFullYear() - 1,
       })
 
-      // Auto-analyze — AI will extract the real company name
-      await analyzeMutation.mutateAsync({ reportId: result.report_id })
+      // Step 3: AI analyzing
+      setUploadStep('analyzing')
+      animateTo(70, 8000)
 
+      // Step 4: Extracting policies (shown after a delay while analysis runs)
+      const extractTimer = setTimeout(() => {
+        setUploadStep('extracting')
+        animateTo(90, 10000)
+      }, 5000)
+
+      await analyzeMutation.mutateAsync({ reportId: result.report_id })
+      clearTimeout(extractTimer)
+
+      // Done
+      if (progressInterval.current) clearInterval(progressInterval.current)
+      setUploadStep('done')
+      setUploadProgress(100)
       toast.success('Report analyzed! Your accounting framework has been detected.')
     } catch (err) {
+      if (progressInterval.current) clearInterval(progressInterval.current)
+      setUploadStep('idle')
+      setUploadProgress(0)
       toast.error(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setUploading(false)
@@ -460,42 +504,110 @@ function StepFramework() {
         </p>
       </div>
 
-      {/* Upload zone */}
-      <div
-        role="button"
-        tabIndex={0}
-        aria-label="Upload PDF file"
-        onClick={() => !isAnalyzing && fileInputRef.current?.click()}
-        onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !isAnalyzing) { e.preventDefault(); fileInputRef.current?.click() } }}
-        onDragOver={(e) => { e.preventDefault(); if (!isAnalyzing) setIsDragging(true) }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={(e) => { if (!isAnalyzing) handleDrop(e); else e.preventDefault() }}
-        className={cn(
-          'relative rounded-xl border-2 border-dashed p-8 text-center transition-all duration-200 cursor-pointer',
-          isAnalyzing
-            ? 'opacity-50 pointer-events-none border-border/50 bg-card/50'
-            : isDragging
-            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
-            : 'border-border/50 bg-card/50 hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-bg-tertiary)]',
-        )}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,application/pdf"
-          onChange={handleFileUpload}
-          className="hidden"
-          disabled={isAnalyzing}
-        />
-        <Upload className="mx-auto h-8 w-8 text-muted-foreground/40 mb-3" />
-        <p className="text-[13px] font-medium text-foreground">
-          {isAnalyzing ? 'Analyzing your report...' : 'Drop your annual report here or click to browse'}
-        </p>
-        <p className="text-[11px] text-muted-foreground mt-1">
-          PDF format · The AI will extract your company name and accounting framework automatically
-        </p>
-        {isAnalyzing && <Loader2 className="mx-auto mt-3 h-5 w-5 animate-spin text-[var(--color-accent)]" />}
-      </div>
+      {/* Upload zone / Progress tracker */}
+      {uploadStep !== 'idle' && uploadStep !== 'done' ? (
+        <div className="rounded-xl border border-border/50 bg-card/50 p-6 space-y-5">
+          {/* Progress bar */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+              <span>Processing your report...</span>
+              <span>{uploadProgress}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300 ease-out"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Step indicators */}
+          <div className="space-y-3">
+            {[
+              { key: 'creating', label: 'Setting up your company profile', estimate: '~2s' },
+              { key: 'uploading', label: 'Uploading PDF to secure storage', estimate: '~3s' },
+              { key: 'analyzing', label: 'AI reading your annual report', estimate: '~15s' },
+              { key: 'extracting', label: 'Extracting accounting policies & KPIs', estimate: '~10s' },
+            ].map((step) => {
+              const stepOrder = ['creating', 'uploading', 'analyzing', 'extracting']
+              const currentIdx = stepOrder.indexOf(uploadStep)
+              const stepIdx = stepOrder.indexOf(step.key)
+              const isActive = step.key === uploadStep
+              const isDone = stepIdx < currentIdx
+
+              return (
+                <div key={step.key} className="flex items-center gap-3">
+                  <div className={cn(
+                    'flex h-6 w-6 items-center justify-center rounded-full flex-shrink-0 transition-all duration-300',
+                    isDone ? 'bg-[var(--color-accent)] text-white' :
+                    isActive ? 'bg-[var(--color-accent)]/20 text-[var(--color-accent)]' :
+                    'bg-[var(--color-bg-tertiary)] text-muted-foreground/40',
+                  )}>
+                    {isDone ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : isActive ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <span className="text-[10px] font-medium">{stepIdx + 1}</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      'text-[12px] font-medium transition-colors',
+                      isDone ? 'text-muted-foreground' :
+                      isActive ? 'text-foreground' :
+                      'text-muted-foreground/40',
+                    )}>
+                      {step.label}
+                    </p>
+                  </div>
+                  <span className={cn(
+                    'text-[10px] flex-shrink-0 transition-colors',
+                    isDone ? 'text-[var(--color-accent)]' :
+                    isActive ? 'text-muted-foreground' :
+                    'text-muted-foreground/30',
+                  )}>
+                    {isDone ? 'Done' : isActive ? step.estimate : ''}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ) : (
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Upload PDF file"
+          onClick={() => !isAnalyzing && fileInputRef.current?.click()}
+          onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !isAnalyzing) { e.preventDefault(); fileInputRef.current?.click() } }}
+          onDragOver={(e) => { e.preventDefault(); if (!isAnalyzing) setIsDragging(true) }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={(e) => { if (!isAnalyzing) handleDrop(e); else e.preventDefault() }}
+          className={cn(
+            'relative rounded-xl border-2 border-dashed p-8 text-center transition-all duration-200 cursor-pointer',
+            isDragging
+              ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
+              : 'border-border/50 bg-card/50 hover:border-[var(--color-accent)]/50 hover:bg-[var(--color-bg-tertiary)]',
+          )}
+        >
+          <Upload className="mx-auto h-8 w-8 text-muted-foreground/40 mb-3" />
+          <p className="text-[13px] font-medium text-foreground">
+            Drop your annual report here or click to browse
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            PDF format · The AI will extract your company name and accounting framework automatically
+          </p>
+        </div>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        onChange={handleFileUpload}
+        className="hidden"
+        disabled={isAnalyzing}
+      />
 
       {/* Or analyze existing report */}
       {ownReports.length > 0 && (
