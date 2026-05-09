@@ -1402,7 +1402,7 @@ export function DashboardPage() {
       {/* ================================================================== */}
       {/* Section 6: AI Insights                                            */}
       {/* ================================================================== */}
-      {onboardingStatus.hasCompetitors && <AiInsightsSection />}
+      {(onboardingStatus.hasCompetitors || hasPeers) && <AiInsightsSection />}
     </div>
     </TooltipProvider>
   )
