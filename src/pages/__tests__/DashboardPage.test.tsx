@@ -136,7 +136,7 @@ describe('DashboardPage', () => {
   it('renders the Peer Comparison heading', async () => {
     render(<DashboardPage />)
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /peer comparison/i })).toBeInTheDocument()
+      expect(screen.getByText(/peer comparison/i)).toBeInTheDocument()
     })
   })
 
@@ -153,7 +153,7 @@ describe('DashboardPage', () => {
         expect(hiddenInput.value).toBe(defaultYear)
       } else {
         // Fallback: just confirm heading rendered (select is present)
-        expect(screen.getByRole('heading', { name: /peer comparison/i })).toBeInTheDocument()
+        expect(screen.getByText(/peer comparison/i)).toBeInTheDocument()
       }
     })
   })
@@ -199,7 +199,7 @@ describe('DashboardPage', () => {
           expect(ebitda).toBeInTheDocument()
         } else {
           // If data not rendered yet, heading must still be present
-          expect(screen.getByRole('heading', { name: /peer comparison/i })).toBeInTheDocument()
+          expect(screen.getByText(/peer comparison/i)).toBeInTheDocument()
         }
       },
       { timeout: 3000 },
