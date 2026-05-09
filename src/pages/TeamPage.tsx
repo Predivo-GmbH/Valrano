@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Crown, Mail, MoreHorizontal, Shield, Eye, Pencil, Trash2, UserPlus, Loader2 } from 'lucide-react'
+import { PremiumSelect } from '@/components/ui/premium-select'
 import type { WorkspaceRole } from '@/types/database'
 
 const ROLE_CONFIG: Record<WorkspaceRole, { label: string; icon: typeof Shield; color: string }> = {
@@ -155,15 +156,16 @@ export function TeamPage() {
             <label className="mb-1.5 block text-[12px] font-medium text-muted-foreground">
               Role
             </label>
-            <select
+            <PremiumSelect
               value={inviteRole}
-              onChange={e => setInviteRole(e.target.value as WorkspaceRole)}
-              className="h-10 rounded-lg border border-border bg-card px-3 text-[13px] text-foreground focus:border-[var(--color-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
-            >
-              <option value="viewer">Viewer</option>
-              <option value="editor">Editor</option>
-              <option value="admin">Admin</option>
-            </select>
+              onChange={(v) => setInviteRole(v as WorkspaceRole)}
+              options={[
+                { value: 'viewer', label: 'Viewer' },
+                { value: 'editor', label: 'Editor' },
+                { value: 'admin', label: 'Admin' },
+              ]}
+              triggerClassName="h-10"
+            />
           </div>
           <button
             type="submit"

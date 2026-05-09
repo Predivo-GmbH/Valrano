@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { PremiumSelect } from '@/components/ui/premium-select'
 import {
   BookOpen,
   ChevronDown,
@@ -444,18 +445,20 @@ export function AccountingProfilePage() {
                   <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                     Select your annual report
                   </label>
-                  <select
-                    value={selectedReportId}
-                    onChange={(e) => setSelectedReportId(e.target.value)}
-                    className="mt-1 block w-full max-w-sm rounded-lg border border-border bg-[var(--color-bg-tertiary)] px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-                  >
-                    <option value="">Choose a report...</option>
-                    {ownReports.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.title ?? `Report FY ${r.fiscal_year}`} ({r.report_type}, FY{r.fiscal_year})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="mt-1 max-w-sm">
+                    <PremiumSelect
+                      value={selectedReportId}
+                      onChange={setSelectedReportId}
+                      options={[
+                        { value: '', label: 'Choose a report...' },
+                        ...ownReports.map((r) => ({
+                          value: r.id,
+                          label: `${r.title ?? `Report FY ${r.fiscal_year}`} (${r.report_type}, FY${r.fiscal_year})`,
+                        })),
+                      ]}
+                      triggerClassName="w-full"
+                    />
+                  </div>
                 </div>
 
                 <button

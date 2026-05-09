@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { Plus, Trash2 } from 'lucide-react'
+import { PremiumSelect } from '@/components/ui/premium-select'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 import { toast } from 'sonner'
 import { useApprovalChains, useCreateApprovalChain } from '@/hooks/useBenchmark'
@@ -158,17 +159,16 @@ function CreateChainDialog({
 
           <div>
             <label htmlFor="chain-rule" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Benchmark Rule (optional)</label>
-            <select
+            <PremiumSelect
               id="chain-rule"
               value={ruleId}
-              onChange={(e) => setRuleId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            >
-              <option value="">All rules</option>
-              {rules.map((r) => (
-                <option key={r.id} value={r.id}>{r.name}</option>
-              ))}
-            </select>
+              onChange={setRuleId}
+              options={[
+                { value: '', label: 'All rules' },
+                ...rules.map((r) => ({ value: r.id, label: r.name })),
+              ]}
+              triggerClassName="w-full"
+            />
           </div>
 
           <div>
@@ -177,19 +177,16 @@ function CreateChainDialog({
               {steps.map((step, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <span className="w-6 text-center text-xs font-medium text-muted-foreground">{step.step_number}</span>
-                  <select
+                  <PremiumSelect
                     value={step.role}
-                    onChange={(e) => {
+                    onChange={(v) => {
                       const newSteps = [...steps]
-                      newSteps[i] = { ...step, role: e.target.value as ApprovalRole }
+                      newSteps[i] = { ...step, role: v as ApprovalRole }
                       setSteps(newSteps)
                     }}
-                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-                  >
-                    {Object.entries(ROLE_LABELS).map(([k, v]) => (
-                      <option key={k} value={k}>{v}</option>
-                    ))}
-                  </select>
+                    options={Object.entries(ROLE_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+                    triggerClassName="flex-1"
+                  />
                   <label className="flex items-center gap-1 text-xs text-muted-foreground">
                     <input
                       type="checkbox"

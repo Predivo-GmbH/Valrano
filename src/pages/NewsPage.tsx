@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { Newspaper, RefreshCw, ExternalLink, TrendingUp, TrendingDown, Minus, Search, Filter } from 'lucide-react'
+import { PremiumSelect } from '@/components/ui/premium-select'
 import { useAllNews, useFetchNews } from '@/hooks/useNews'
 import { useCompanies } from '@/hooks/useData'
 import type { CompanyNews } from '@/types/database'
@@ -159,19 +160,16 @@ export default function NewsPage() {
       {/* Filters */}
       <div className="mt-6 flex flex-wrap gap-3">
         {/* Company filter */}
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-          <select
-            value={selectedCompany}
-            onChange={(e) => setSelectedCompany(e.target.value)}
-            className="h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] pl-9 pr-8 text-sm text-[var(--color-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
-          >
-            <option value="">All Companies</option>
-            {(companies ?? []).map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
+        <PremiumSelect
+          value={selectedCompany}
+          onChange={setSelectedCompany}
+          options={[
+            { value: '', label: 'All Companies' },
+            ...(companies ?? []).map(c => ({ value: c.id, label: c.name })),
+          ]}
+          icon={<Filter className="h-4 w-4 text-muted-foreground" />}
+          triggerClassName="h-10"
+        />
 
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">

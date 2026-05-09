@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { PremiumSelect } from '@/components/ui/premium-select'
 import { supabase } from '@/lib/supabase'
 import { useCompanies, useReports, usePeerGroups } from '@/hooks/useData'
 import { useAccountingProfile, useAnalyzeAccountingProfile } from '@/hooks/useAccountingProfile'
@@ -485,18 +486,18 @@ function StepFramework() {
             Or select an existing report
           </p>
           <div className="flex gap-2">
-            <select
+            <PremiumSelect
               value={selectedReportId}
-              onChange={(e) => setSelectedReportId(e.target.value)}
-              className="flex-1 max-w-sm rounded-lg border border-border bg-[var(--color-bg-tertiary)] px-3 py-2 text-[13px] text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-            >
-              <option value="">Choose a report...</option>
-              {ownReports.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.title ?? `Report FY ${r.fiscal_year}`}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedReportId}
+              options={[
+                { value: '', label: 'Choose a report...' },
+                ...ownReports.map((r) => ({
+                  value: r.id,
+                  label: r.title ?? `Report FY ${r.fiscal_year}`,
+                })),
+              ]}
+              triggerClassName="flex-1 max-w-sm"
+            />
             <button
               onClick={handleAnalyzeExisting}
               disabled={!selectedReportId || isAnalyzing}
@@ -905,15 +906,16 @@ function StepSchedule({
                 <p className="text-[11px] text-muted-foreground">{company.ticker ?? ''}</p>
               </div>
 
-              <select
+              <PremiumSelect
                 value={schedule.reportType}
-                onChange={(e) => updateSchedule(company.id, 'reportType', e.target.value)}
-                className="rounded-lg border border-border bg-[var(--color-bg-tertiary)] px-3 py-2 text-[12px] text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] w-36"
-              >
-                <option value="annual">Annual</option>
-                <option value="half_year">Half-Year</option>
-                <option value="quarterly">Quarterly</option>
-              </select>
+                onChange={(v) => updateSchedule(company.id, 'reportType', v)}
+                options={[
+                  { value: 'annual', label: 'Annual' },
+                  { value: 'half_year', label: 'Half-Year' },
+                  { value: 'quarterly', label: 'Quarterly' },
+                ]}
+                triggerClassName="w-36 text-[12px]"
+              />
 
               <input
                 type="date"
