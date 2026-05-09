@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import AuthLayout from '@/components/auth/AuthLayout'
 import OtpInput from '@/components/auth/OtpInput'
@@ -15,6 +16,7 @@ export default function LoginPage() {
   const [codeStep, setCodeStep] = useState<CodeStep>('email')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const { signInWithPassword, sendLoginOtp, verifyOtp, user, loading: authLoading } = useAuth()
@@ -65,7 +67,11 @@ export default function LoginPage() {
   }
 
   async function handleResend() {
-    await sendLoginOtp(email)
+    try {
+      await sendLoginOtp(email)
+    } catch (err) {
+      setError(friendlyAuthError(err, 'Failed to resend code'))
+    }
   }
 
   function switchTab(t: Tab) {
@@ -128,9 +134,14 @@ export default function LoginPage() {
               <label htmlFor="login-password" className="block text-sm font-medium text-[var(--color-foreground)]">Password</label>
               <Link to="/forgot-password" className="inline-flex min-h-[44px] items-center text-xs font-medium text-[var(--color-accent)] hover:underline">Forgot password?</Link>
             </div>
-            <input id="login-password" type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 sm:text-sm"
-              placeholder="Enter your password" />
+            <div className="relative">
+              <input id="login-password" type={showPassword ? 'text' : 'password'} required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 pr-10 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 sm:text-sm"
+                placeholder="Enter your password" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 mt-0.5 text-muted-foreground hover:text-foreground transition-colors" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           <button type="submit" disabled={loading}
             className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-medium text-white transition-all hover:brightness-110 hover:shadow-lg hover:shadow-[var(--color-accent)]/25 active:scale-[0.98] disabled:opacity-50 cursor-pointer">

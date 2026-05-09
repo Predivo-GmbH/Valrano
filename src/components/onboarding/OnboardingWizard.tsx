@@ -111,8 +111,31 @@ export function OnboardingWizard() {
     }
   }
 
-  const handleNext = () => {
+  const createEvent = useCreatePublicationEvent()
+
+  const handleNext = async () => {
     if (currentStep < STEPS.length - 1) {
+      // Auto-save publication schedules when leaving the schedule step
+      if (currentStep === 2) {
+        let saved = 0
+        for (const [companyId, schedule] of Object.entries(schedules)) {
+          if (!schedule.expectedDate) continue
+          try {
+            await createEvent.mutateAsync({
+              company_id: companyId,
+              report_type: schedule.reportType,
+              fiscal_year: new Date().getFullYear(),
+              expected_date: schedule.expectedDate,
+            })
+            saved++
+          } catch (err) {
+            if (import.meta.env.DEV) console.error(`Failed to create event for ${companyId}:`, err)
+          }
+        }
+        if (saved > 0) {
+          toast.success(`${saved} publication event${saved !== 1 ? 's' : ''} scheduled`)
+        }
+      }
       setCurrentStep((s) => s + 1)
     }
   }

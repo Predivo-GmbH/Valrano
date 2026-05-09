@@ -32,8 +32,8 @@ export default function ForgotPasswordPage() {
 
       {sent ? (
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-primary)]/10">
-            <svg className="h-6 w-6 text-[var(--color-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-accent)]/10">
+            <svg className="h-6 w-6 text-[var(--color-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
@@ -41,9 +41,17 @@ export default function ForgotPasswordPage() {
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
             We sent a password reset link to <span className="font-medium text-[var(--color-foreground)]">{email}</span>
           </p>
-          <Link to="/login" className="mt-6 inline-block text-sm font-medium text-[var(--color-accent)] hover:underline">
-            Back to sign in
-          </Link>
+          <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
+            Check your spam folder if you don't see it within a few minutes.
+          </p>
+          <div className="mt-6 flex flex-col items-center gap-2">
+            <button onClick={() => setSent(false)} className="text-sm font-medium text-[var(--color-accent)] hover:underline">
+              Resend or try a different email
+            </button>
+            <Link to="/login" className="text-sm font-medium text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]">
+              Back to sign in
+            </Link>
+          </div>
         </div>
       ) : (
         <>

@@ -171,7 +171,7 @@ export function AppLayout() {
                     <button
                       role="menuitem"
                       onClick={async () => {
-                        await signOut()
+                        try { await signOut() } catch { /* ignore */ }
                         navigate('/')
                       }}
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
@@ -215,6 +215,20 @@ export function AppLayout() {
                     {item.label}
                   </NavLink>
                 ))}
+                <div className="mt-2 border-t border-border pt-3">
+                  <p className="truncate px-3 text-xs text-muted-foreground">{user?.email}</p>
+                  <button
+                    onClick={async () => {
+                      setMobileNavOpen(false)
+                      try { await signOut() } catch { /* ignore */ }
+                      navigate('/')
+                    }}
+                    className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium text-muted-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)] hover:text-foreground min-h-[44px]"
+                  >
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
+                    Sign out
+                  </button>
+                </div>
               </div>
             </>
           )}

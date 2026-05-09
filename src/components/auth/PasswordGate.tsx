@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 const GATE_PASSWORD_HASH = '3bd8037a8ed38a35825983767f94e6cf3b18c3deee1601daee71faec0d83565f'
@@ -19,6 +20,7 @@ export default function PasswordGate({ children }: { children: ReactNode }) {
     () => SCREENSHOT_MODE || localStorage.getItem(STORAGE_KEY) === 'true'
   )
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState(false)
 
   async function handleSubmit(e: FormEvent) {
@@ -47,21 +49,26 @@ export default function PasswordGate({ children }: { children: ReactNode }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div role="alert" className="rounded-md bg-[var(--color-destructive)]/10 px-4 py-3 text-sm text-[var(--color-destructive)]">
-              Incorrect password
+              Incorrect access code
             </div>
           )}
           <div>
-            <label htmlFor="gate-password" className="sr-only">Access password</label>
-            <input
-              id="gate-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter access password"
-              autoFocus
-              required
-              className="block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 sm:text-sm"
-            />
+            <label htmlFor="gate-password" className="block text-sm font-medium text-[var(--color-foreground)] mb-1">Access code</label>
+            <div className="relative">
+              <input
+                id="gate-password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter access code"
+                autoFocus
+                required
+                className="block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-4 py-3 pr-10 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/20 sm:text-sm"
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           <Button type="submit" className="w-full">
             Enter
