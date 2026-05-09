@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   BookOpen,
   ChevronDown,
@@ -8,6 +9,7 @@ import {
   RefreshCw,
   Sparkles,
   Trash2,
+  Upload,
 } from 'lucide-react'
 import {
   useAccountingProfile,
@@ -281,11 +283,18 @@ export function AccountingProfilePage() {
         </div>
 
         {ownReports.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border/50 bg-card/50 p-4 text-center">
+          <div className="rounded-lg border border-dashed border-border/50 bg-card/50 p-6 text-center">
             <FileText className="mx-auto h-6 w-6 text-muted-foreground/50 mb-2" />
-            <p className="text-[12px] text-muted-foreground">
-              No reports with PDFs found. Upload your company's annual report first in the Peers section.
+            <p className="text-[12px] text-muted-foreground mb-3">
+              No reports with PDFs found. Upload your company's annual report first to analyze your accounting framework.
             </p>
+            <Link
+              to="/peers"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3.5 py-1.5 text-[11px] font-medium text-white transition-all hover:opacity-90"
+            >
+              <Upload className="h-3 w-3" />
+              Upload Report
+            </Link>
           </div>
         )}
       </div>

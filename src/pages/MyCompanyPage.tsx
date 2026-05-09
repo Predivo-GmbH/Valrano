@@ -14,6 +14,7 @@ import {
 import { useKpiDefinitions } from '@/hooks/useData'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
+import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete/CompanyAutocomplete'
 
 const SECTORS = [
   'Construction & Materials',
@@ -275,11 +276,30 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [country, setCountry] = useState('Switzerland')
   const [currency, setCurrency] = useState('CHF')
   const [headcount, setHeadcount] = useState('')
-  const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [submitAttempted, setSubmitAttempted] = useState(false)
   const createMutation = useCreateMyCompany()
 
-  const nameInvalid = !name.trim() && (touched.name || submitAttempted)
+  const nameInvalid = !name.trim() && submitAttempted
+
+  const handleCompanyAutoSelect = (company: CompanyResult) => {
+    setName(company.name)
+    // Auto-fill sector
+    if (company.sector) {
+      const match = SECTORS.find((s) =>
+        company.sector!.toLowerCase().includes(s.toLowerCase()) ||
+        s.toLowerCase().includes(company.sector!.split(' ')[0].toLowerCase()),
+      )
+      if (match) setSector(match)
+    }
+    // Auto-fill country from jurisdiction
+    if (company.jurisdiction) {
+      setCountry(company.jurisdiction)
+    }
+    // Auto-fill currency
+    if (company.currency) {
+      setCurrency(company.currency)
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -315,15 +335,15 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="company-name" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company Name</label>
-            <input
+            <CompanyAutocomplete
               id="company-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, name: true }))}
-              aria-invalid={nameInvalid}
-              placeholder="e.g., Acme Corp"
-              className={`w-full rounded-lg border bg-background px-3 py-2 text-sm text-foreground ${nameInvalid ? 'border-[var(--color-signal-red)]' : 'border-border'}`}
+              onChange={(v) => { setName(v); setSubmitAttempted(false) }}
+              onSelect={handleCompanyAutoSelect}
+              placeholder="Start typing to search..."
+              className={nameInvalid ? 'border-[var(--color-signal-red)]' : ''}
             />
+            <p className="mt-1 text-[10px] text-muted-foreground">Type 3+ letters to search company registers</p>
             {nameInvalid && <p className="mt-1 text-[12px] text-[var(--color-signal-red)]">Company name is required.</p>}
           </div>
 
