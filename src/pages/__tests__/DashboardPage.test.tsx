@@ -16,6 +16,7 @@ vi.mock('@/lib/supabase', () => ({
       if (table === 'companies') {
         return {
           select: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
           order: vi.fn().mockResolvedValue({
             data: [
@@ -118,6 +119,7 @@ vi.mock('@/lib/supabase', () => ({
         order: vi.fn().mockResolvedValue({ data: [], error: null }),
       }
     }),
+    rpc: vi.fn().mockResolvedValue({ data: ['1', '2'], error: null }),
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
       getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
