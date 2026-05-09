@@ -101,14 +101,16 @@ export function OnboardingWizard() {
     }
   }
 
-  const canProceed = (step: number): boolean => {
-    switch (step) {
-      case 0: return true // Framework is optional (can skip)
-      case 1: return stepDone(1)
-      case 2: return stepDone(2)
-      case 3: return true
-      default: return false
+  const canProceed = (step: number): boolean => stepDone(step)
+
+  // A step is reachable in the breadcrumb if all previous steps are done, or it's before the current step
+  const canNavigateTo = (step: number): boolean => {
+    if (step <= currentStep) return true // can always go back
+    // Can jump forward only if all steps before it are done
+    for (let i = 0; i < step; i++) {
+      if (!stepDone(i)) return false
     }
+    return true
   }
 
   const createEvent = useCreatePublicationEvent()
@@ -190,7 +192,7 @@ export function OnboardingWizard() {
           {STEPS.map((step, i) => {
             const done = stepDone(i)
             const active = i === currentStep
-            const clickable = done || i < currentStep
+            const clickable = canNavigateTo(i)
             return (
               <div key={step.id} className="flex flex-1 items-center gap-1">
                 <button
@@ -199,9 +201,9 @@ export function OnboardingWizard() {
                     'flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-medium transition-all',
                     active
                       ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
-                      : done || i < currentStep
+                      : clickable
                       ? 'text-[var(--color-accent)] cursor-pointer hover:bg-[var(--color-accent)]/5'
-                      : 'text-muted-foreground/50',
+                      : 'text-muted-foreground/50 cursor-not-allowed',
                   )}
                 >
                   <div
