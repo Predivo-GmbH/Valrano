@@ -35,7 +35,6 @@ import {
 import type { KpiValueWithJoins, SortConfig, KpiSnapshotCardProps } from '@/components/dashboard'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
-import { useOnboarding } from '@/hooks/useOnboarding'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Upload,
@@ -344,7 +343,7 @@ const DELTA_BADGE: Record<string, { label: string; class: string }> = {
   unchanged: { label: 'UNCHANGED', class: 'bg-[var(--color-bg-tertiary)] text-muted-foreground/50' },
 }
 
-function AiInsightsSection() {
+function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasPeers: boolean }) {
   const { data: insights, isLoading } = useInsights({ dismissed: false })
   const dismissInsight = useDismissInsight()
   const generateInsights = useGenerateInsights()
@@ -354,6 +353,39 @@ function AiInsightsSection() {
   const [timeRange, setTimeRange] = useState<InsightTimeRange>('1y')
   const [reportType, setReportType] = useState<InsightReportType>('all')
   const [showFilters, setShowFilters] = useState(false)
+
+  // Show setup guidance if prerequisites not met
+  if (!hasCompany || !hasPeers) {
+    return (
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="h-4 w-4 text-muted-foreground" />
+          <span className="text-[15px] font-semibold text-foreground">AI Insights</span>
+        </div>
+        <div className="card-gradient-border rounded-xl bg-card/50 p-8 flex flex-col items-center justify-center text-center">
+          <div className="mb-3 rounded-full bg-[var(--color-bg-tertiary)] p-3">
+            <Sparkles className="h-5 w-5 text-muted-foreground/50" />
+          </div>
+          <p className="text-[13px] font-medium text-muted-foreground">
+            {!hasCompany
+              ? 'Set your company first to unlock AI Insights'
+              : 'Add peer companies to generate competitive insights'}
+          </p>
+          <p className="text-[11px] text-muted-foreground/70 mt-1 max-w-sm">
+            {!hasCompany
+              ? 'Go to Settings and set which company you work for. AI Insights will then analyze your position relative to peers.'
+              : 'Add competitors and peers via the Peers page. AI will compare their KPIs against yours.'}
+          </p>
+          <Link
+            to={!hasCompany ? '/settings' : '/peers'}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3.5 py-1.5 text-[11px] font-medium text-white transition-all hover:opacity-90 cursor-pointer"
+          >
+            {!hasCompany ? 'Go to Settings' : 'Add Peers'}
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   const handleExportPdf = () => {
     if (!insights || insights.length === 0) return
@@ -1000,8 +1032,6 @@ export function DashboardPage() {
     ).length
   }, [filteredDefs, companiesWithData, valueMap])
 
-  const { status: onboardingStatus } = useOnboarding()
-
   return (
     <TooltipProvider>
     <div className="section-fade-in mx-auto max-w-[1440px] px-4 py-8 sm:px-6">
@@ -1564,7 +1594,7 @@ export function DashboardPage() {
       {/* ================================================================== */}
       {/* Section 6: AI Insights                                            */}
       {/* ================================================================== */}
-      {(onboardingStatus.hasCompetitors || hasPeers) && <AiInsightsSection />}
+      <AiInsightsSection hasCompany={hasCompany} hasPeers={hasPeers} />
     </div>
     </TooltipProvider>
   )
