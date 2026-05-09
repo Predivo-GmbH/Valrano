@@ -1,6 +1,7 @@
 import { useState, useMemo, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { shortKpiLabel } from '@/lib/kpi-labels'
 import {
   TrendingUp,
   TrendingDown,
@@ -549,7 +550,6 @@ function TrendsPanel({
 const MAX_VISIBLE_KPIS = 6
 
 function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYear: number }) {
-  const [expanded, setExpanded] = useState(false)
   const { data, isLoading } = usePivotData({ companyIds, fiscalYear })
 
   if (isLoading) return <PageSkeleton />
@@ -568,60 +568,41 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
     lookup.get(cell.company_id)!.set(cell.kpi_code, cell.value)
   }
 
-  const visibleKpis = expanded || data.kpis.length <= MAX_VISIBLE_KPIS ? data.kpis : data.kpis.slice(0, MAX_VISIBLE_KPIS)
-  const hiddenCount = data.kpis.length - visibleKpis.length
+  const visibleKpis = data.kpis
 
   return (
     <div className="card-premium rounded-xl border border-border bg-card">
-      <table className="table-premium w-full text-sm">
+      <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }}>
         <thead>
           <tr className="border-b border-border">
-            <th className="sticky left-0 bg-card px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <th className="sticky left-0 bg-card px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground" style={{ width: '160px' }}>
               Company
             </th>
             {visibleKpis.map((kpi) => (
-              <th key={kpi.code} className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                {kpi.name}
+              <th key={kpi.code} className="px-2 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {shortKpiLabel(kpi.name)}
               </th>
             ))}
-            {hiddenCount > 0 && (
-              <th className="px-2 py-2 text-center align-middle">
-                <button
-                  onClick={() => setExpanded(true)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-bg-tertiary)] px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)]/80 hover:text-foreground whitespace-nowrap"
-                >
-                  +{hiddenCount} more
-                </button>
-              </th>
-            )}
           </tr>
         </thead>
         <tbody>
           {data.companies.map((company) => (
             <tr key={company.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
-              <td className="sticky left-0 bg-card px-4 py-3 font-medium text-foreground whitespace-nowrap">
+              <td className="sticky left-0 bg-card px-3 py-3 font-medium text-foreground truncate" style={{ width: '160px' }}>
                 {company.name}
               </td>
               {visibleKpis.map((kpi) => {
                 const val = lookup.get(company.id)?.get(kpi.code)
                 return (
-                  <td key={kpi.code} className="px-4 py-3 text-right tabular-nums text-foreground">
+                  <td key={kpi.code} className="px-2 py-3 text-right tabular-nums text-foreground">
                     {val !== null && val !== undefined ? val.toLocaleString() : '\u2014'}
                   </td>
                 )
               })}
-              {hiddenCount > 0 && <td />}
             </tr>
           ))}
         </tbody>
       </table>
-      {expanded && data.kpis.length > MAX_VISIBLE_KPIS && (
-        <div className="border-t border-border px-4 py-2 text-center">
-          <button onClick={() => setExpanded(false)} className="text-[10px] font-medium text-[var(--color-accent)] hover:underline">
-            Show less
-          </button>
-        </div>
-      )}
     </div>
   )
 }
@@ -733,7 +714,6 @@ function ScatterPanel({
 // ---------------------------------------------------------------------------
 
 function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYear: number }) {
-  const [expanded, setExpanded] = useState(false)
   const { data, isLoading } = useHeatmapData({ companyIds, fiscalYear })
 
   if (isLoading) return <PageSkeleton />
@@ -752,50 +732,39 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
     lookup.get(cell.company_id)!.set(cell.kpi_code, { value: cell.value, percentile: cell.percentile })
   }
 
-  const visibleKpis = expanded || data.kpis.length <= MAX_VISIBLE_KPIS ? data.kpis : data.kpis.slice(0, MAX_VISIBLE_KPIS)
-  const hiddenCount = data.kpis.length - visibleKpis.length
+  const visibleKpis = data.kpis
 
   return (
     <div className="space-y-4">
       <div className="card-premium rounded-xl border border-border bg-card">
-        <table className="table-premium w-full text-sm">
+        <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr className="border-b border-border">
-              <th className="sticky left-0 bg-card px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <th className="sticky left-0 bg-card px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground" style={{ width: '160px' }}>
                 Company
               </th>
               {visibleKpis.map((kpi) => (
-                <th key={kpi.code} className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  {kpi.name}
+                <th key={kpi.code} className="px-1 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {shortKpiLabel(kpi.name)}
                 </th>
               ))}
-              {hiddenCount > 0 && (
-                <th className="px-2 py-2 text-center align-middle">
-                  <button
-                    onClick={() => setExpanded(true)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-bg-tertiary)] px-2.5 py-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)]/80 hover:text-foreground whitespace-nowrap"
-                  >
-                    +{hiddenCount} more
-                  </button>
-                </th>
-              )}
             </tr>
           </thead>
           <tbody>
             {data.companies.map((company) => (
               <tr key={company.id} className="border-b border-border/50 last:border-0">
-                <td className="sticky left-0 bg-card px-4 py-3 font-medium text-foreground whitespace-nowrap">
+                <td className="sticky left-0 bg-card px-3 py-3 font-medium text-foreground truncate" style={{ width: '160px' }}>
                   {company.name}
                 </td>
                 {visibleKpis.map((kpi) => {
                   const cell = lookup.get(company.id)?.get(kpi.code)
                   if (!cell || cell.value === null) {
-                    return <td key={kpi.code} className="px-4 py-3 text-center text-muted-foreground">{'\u2014'}</td>
+                    return <td key={kpi.code} className="px-1 py-2 text-center text-muted-foreground">{'\u2014'}</td>
                   }
                   return (
-                    <td key={kpi.code} className="px-2 py-2 text-center">
+                    <td key={kpi.code} className="px-1 py-2 text-center">
                       <div
-                        className="mx-auto flex h-10 w-full max-w-[80px] items-center justify-center rounded-md text-xs font-medium"
+                        className="mx-auto flex h-9 items-center justify-center rounded-md text-[11px] font-medium tabular-nums"
                         style={{
                           backgroundColor: getHeatColor(cell.percentile),
                           color: 'var(--color-foreground)',
@@ -807,18 +776,10 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
                     </td>
                   )
                 })}
-                {hiddenCount > 0 && <td />}
               </tr>
             ))}
           </tbody>
         </table>
-        {expanded && data.kpis.length > MAX_VISIBLE_KPIS && (
-          <div className="border-t border-border px-4 py-2 text-center">
-            <button onClick={() => setExpanded(false)} className="text-[10px] font-medium text-[var(--color-accent)] hover:underline">
-              Show less
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Legend */}
