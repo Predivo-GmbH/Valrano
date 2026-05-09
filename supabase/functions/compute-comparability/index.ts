@@ -41,9 +41,11 @@ Deno.serve(async (req) => {
   // Allow both JWT and service_role
   const authHeader = req.headers.get('authorization') ?? ''
   const isServiceRole = authHeader.includes(SERVICE_ROLE_KEY)
+  let userId: string | null = null
   if (!isServiceRole) {
-    const user = await authenticateRequest(req)
-    if (!user) return errorResponse('Unauthorized', 401)
+    const authResult = await authenticateRequest(req)
+    if (!authResult) return errorResponse('Unauthorized', 401)
+    userId = authResult.user.id
   }
 
   const body = await req.json().catch(() => ({}))
@@ -51,6 +53,16 @@ Deno.serve(async (req) => {
 
   if (!adjusted_company_id || !reference_company_id || !fiscal_year) {
     return errorResponse('adjusted_company_id, reference_company_id, fiscal_year required', 400)
+  }
+
+  // Data isolation: verify both companies are in user's peer groups
+  if (userId) {
+    const { data: visibleIds } = await admin
+      .rpc('visible_company_ids_for_user', { p_user_id: userId })
+    const visible = new Set((visibleIds ?? []) as string[])
+    if (!visible.has(adjusted_company_id) || !visible.has(reference_company_id)) {
+      return errorResponse('One or both companies are not in your peer groups', 403)
+    }
   }
 
   // Load companies

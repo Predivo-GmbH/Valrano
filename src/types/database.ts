@@ -471,6 +471,7 @@ export type NotificationUpdate = Partial<NotificationInsert>;
 export interface MyCompany {
   id: string;
   user_id: string;
+  company_id: string | null;
   name: string;
   sector: string | null;
   country: string | null;

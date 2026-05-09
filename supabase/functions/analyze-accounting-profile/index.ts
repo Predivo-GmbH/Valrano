@@ -58,6 +58,14 @@ serve(async (req: Request) => {
       return jsonResponse({ error: 'Report has no PDF attached' }, 422)
     }
 
+    // Data isolation: verify report's company is in user's peer groups
+    const { data: visibleIds } = await adminClient
+      .rpc('visible_company_ids_for_user', { p_user_id: user.id })
+    const visible = new Set((visibleIds ?? []) as string[])
+    if (!visible.has(report.company_id)) {
+      return jsonResponse({ error: 'Report belongs to a company not in your peer groups' }, 403)
+    }
+
     const company = report.companies as { id: string; name: string; ticker: string | null }
     const companyName = overrideName ?? company.name
 

@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Plus, Pencil } from 'lucide-react'
+import { Building2, Plus, Pencil, Upload, FileText, Loader2 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 import {
   useMyCompanies,
   useCreateMyCompany,
@@ -12,9 +15,18 @@ import {
   useUpsertMyCompanyKpis,
 } from '@/hooks/useMyCompany'
 import { useKpiDefinitions } from '@/hooks/useData'
+import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete/CompanyAutocomplete'
+
+type ReportType = 'annual' | 'quarterly' | 'half_year' | 'sustainability'
+const REPORT_TYPE_LABELS: Record<ReportType, string> = {
+  annual: 'Annual Report',
+  quarterly: 'Quarterly Report',
+  half_year: 'Half-Year Report',
+  sustainability: 'Sustainability Report',
+}
 
 const SECTORS = [
   'Construction & Materials',

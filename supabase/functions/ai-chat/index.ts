@@ -96,39 +96,46 @@ serve(async (req: Request) => {
       }
     }
 
-    // Load companies + latest KPI data
-    const { data: companies } = await adminClient
-      .from('companies')
-      .select('id, name, ticker, sector')
-      .eq('is_active', true)
+    // Load ONLY the user's peer group companies (data isolation)
+    const { data: visibleIds } = await adminClient
+      .rpc('visible_company_ids_for_user', { p_user_id: user.id })
 
-    if (companies && companies.length > 0) {
-      contextData += `\nPeer Companies (${companies.length}):\n`
-      for (const c of companies) {
-        contextData += `- ${c.name} (${c.ticker ?? 'N/A'}) — ${c.sector ?? 'N/A'}\n`
+    if (visibleIds && visibleIds.length > 0) {
+      const { data: companies } = await adminClient
+        .from('companies')
+        .select('id, name, ticker, sector')
+        .in('id', visibleIds as string[])
+        .eq('is_active', true)
+
+      if (companies && companies.length > 0) {
+        contextData += `\nPeer Companies (${companies.length}):\n`
+        for (const c of companies) {
+          contextData += `- ${c.name} (${c.ticker ?? 'N/A'}) — ${c.sector ?? 'N/A'}\n`
+        }
       }
-    }
 
-    // Load KPI data for latest fiscal year
-    const { data: latestKpis } = await adminClient
-      .from('kpi_values')
-      .select('company_id, normalized_value, confidence, kpi_definitions(code, name, unit_type), companies(name)')
-      .not('normalized_value', 'is', null)
-      .order('fiscal_year', { ascending: false })
-      .limit(200)
+      // Load KPI data ONLY for user's peer group companies
+      const { data: latestKpis } = await adminClient
+        .from('kpi_values')
+        .select('company_id, normalized_value, confidence, kpi_definitions(code, name, unit_type), companies(name)')
+        .in('company_id', visibleIds as string[])
+        .not('normalized_value', 'is', null)
+        .order('fiscal_year', { ascending: false })
+        .limit(200)
 
-    if (latestKpis && latestKpis.length > 0) {
-      contextData += `\nLatest KPI Data:\n`
-      const byCompany = new Map<string, string[]>()
-      for (const kpi of latestKpis as any[]) {
-        const companyName = kpi.companies?.name ?? 'Unknown'
-        const kpiCode = kpi.kpi_definitions?.code ?? 'Unknown'
-        const line = `  ${kpiCode}: ${kpi.normalized_value} CHF (confidence: ${kpi.confidence ?? 'N/A'})`
-        if (!byCompany.has(companyName)) byCompany.set(companyName, [])
-        byCompany.get(companyName)!.push(line)
-      }
-      for (const [company, lines] of byCompany) {
-        contextData += `${company}:\n${lines.join('\n')}\n`
+      if (latestKpis && latestKpis.length > 0) {
+        contextData += `\nLatest KPI Data:\n`
+        const byCompany = new Map<string, string[]>()
+        for (const kpi of latestKpis as any[]) {
+          const companyName = kpi.companies?.name ?? 'Unknown'
+          const kpiCode = kpi.kpi_definitions?.code ?? 'Unknown'
+          const line = `  ${kpiCode}: ${kpi.normalized_value} CHF (confidence: ${kpi.confidence ?? 'N/A'})`
+          if (!byCompany.has(companyName)) byCompany.set(companyName, [])
+          byCompany.get(companyName)!.push(line)
+        }
+        for (const [company, lines] of byCompany) {
+          contextData += `${company}:\n${lines.join('\n')}\n`
+        }
       }
     }
 

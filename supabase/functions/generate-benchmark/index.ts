@@ -322,13 +322,22 @@ ${formatSegments(triggerSegments, triggerCompany.name)}${formatSegments(customer
     }
 
     // ------------------------------------------------------------------
-    // 4. Load all normalized KPI values for the fiscal year
+    // 4. Load normalized KPI values scoped to user's peer group
     // ------------------------------------------------------------------
-    const { data: allKpiValues, error: kpiError } = await adminClient
+    const { data: visibleIds } = await adminClient
+      .rpc('visible_company_ids_for_user', { p_user_id: user.id })
+
+    let kpiQuery = adminClient
       .from('kpi_values')
       .select('*, kpi_definitions(id, code, name, category, unit_type), companies(id, name)')
       .eq('fiscal_year', report.fiscal_year)
       .not('normalized_value', 'is', null)
+
+    if (visibleIds && visibleIds.length > 0) {
+      kpiQuery = kpiQuery.in('company_id', visibleIds as string[])
+    }
+
+    const { data: allKpiValues, error: kpiError } = await kpiQuery
 
     if (kpiError) throw new Error(`KPI values lookup failed: ${kpiError.message}`)
 

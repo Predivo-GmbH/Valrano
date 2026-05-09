@@ -121,12 +121,26 @@ export function useLatestSelfBenchmark(myCompanyId: string | undefined) {
 export function useCreateMyCompany() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (params: Omit<MyCompanyInsert, 'user_id'>) => {
+    mutationFn: async (params: Omit<MyCompanyInsert, 'user_id' | 'company_id'>) => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
+
+      // Also create in companies table so the full pipeline works (reports, extraction, insights)
+      const { data: company, error: companyErr } = await supabase
+        .from('companies')
+        .insert({
+          name: params.name,
+          sector: params.sector ?? null,
+          country: params.country ?? null,
+          is_active: true,
+        })
+        .select()
+        .single()
+      if (companyErr) throw companyErr
+
       const { data, error } = await supabase
         .from('my_companies')
-        .insert({ ...params, user_id: user.id })
+        .insert({ ...params, user_id: user.id, company_id: company.id })
         .select()
         .single()
       if (error) throw error
@@ -134,6 +148,7 @@ export function useCreateMyCompany() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-companies'] })
+      queryClient.invalidateQueries({ queryKey: ['companies'] })
     },
   })
 }
