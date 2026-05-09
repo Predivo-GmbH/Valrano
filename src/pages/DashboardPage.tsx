@@ -337,6 +337,13 @@ const INSIGHT_TYPE_LABELS: Record<string, string> = {
   opportunity: 'Opportunity',
 }
 
+const DELTA_BADGE: Record<string, { label: string; class: string }> = {
+  new: { label: 'NEW', class: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]' },
+  worsened: { label: 'WORSENED', class: 'bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)]' },
+  improved: { label: 'IMPROVED', class: 'bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)]' },
+  unchanged: { label: 'UNCHANGED', class: 'bg-[var(--color-bg-tertiary)] text-muted-foreground/50' },
+}
+
 function AiInsightsSection() {
   const { data: insights, isLoading } = useInsights({ dismissed: false })
   const dismissInsight = useDismissInsight()
@@ -495,6 +502,26 @@ function AiInsightsSection() {
           <span className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5">{generateInsights.data.meta.companies_analyzed} companies</span>
           <span className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5">{generateInsights.data.meta.kpis_analyzed} KPIs</span>
           <span className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5">{generateInsights.data.meta.data_points} data points</span>
+          {generateInsights.data.delta_summary && (generateInsights.data.delta_summary.new > 0 || generateInsights.data.delta_summary.worsened > 0 || generateInsights.data.delta_summary.improved > 0) && (
+            <>
+              <span className="text-muted-foreground/30">|</span>
+              {generateInsights.data.delta_summary.new > 0 && (
+                <span className="rounded bg-[var(--color-accent)]/10 text-[var(--color-accent)] px-1.5 py-0.5 font-medium">{generateInsights.data.delta_summary.new} new</span>
+              )}
+              {generateInsights.data.delta_summary.worsened > 0 && (
+                <span className="rounded bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)] px-1.5 py-0.5 font-medium">{generateInsights.data.delta_summary.worsened} worsened</span>
+              )}
+              {generateInsights.data.delta_summary.improved > 0 && (
+                <span className="rounded bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)] px-1.5 py-0.5 font-medium">{generateInsights.data.delta_summary.improved} improved</span>
+              )}
+            </>
+          )}
+          {generateInsights.data.risk_notifications_sent != null && generateInsights.data.risk_notifications_sent > 0 && (
+            <>
+              <span className="text-muted-foreground/30">|</span>
+              <span className="rounded bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)] px-1.5 py-0.5 font-medium">{generateInsights.data.risk_notifications_sent} risk alert{generateInsights.data.risk_notifications_sent > 1 ? 's' : ''} sent</span>
+            </>
+          )}
         </div>
       )}
 
@@ -556,6 +583,11 @@ function AiInsightsSection() {
                       <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${iconColor} bg-current/5`}>
                         {typeLabel}
                       </span>
+                      {insight.delta_label && insight.delta_label !== 'unchanged' && DELTA_BADGE[insight.delta_label] && (
+                        <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${DELTA_BADGE[insight.delta_label].class}`}>
+                          {DELTA_BADGE[insight.delta_label].label}
+                        </span>
+                      )}
                       <h3 className="text-[13px] font-medium text-foreground truncate flex-1">
                         {insight.title}
                       </h3>
@@ -607,6 +639,9 @@ function AiInsightsSection() {
                       )}
                       {insight.fiscal_year && (
                         <span>FY {insight.fiscal_year}</span>
+                      )}
+                      {insight.auto_generated && (
+                        <span className="text-[var(--color-accent)]/60">auto</span>
                       )}
                       {insight.created_at && (
                         <span>Generated {getRelativeTime(insight.created_at)}</span>

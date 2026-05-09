@@ -1,0 +1,31 @@
+name: Monthly Insights Digest
+
+on:
+  schedule:
+    # 1st of each month at 08:00 UTC
+    - cron: '0 8 1 * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger insights-digest edge function
+        run: |
+          response=$(curl -s -w "\n%{http_code}" \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/insights-digest")
+
+          http_code=$(echo "$response" | tail -1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Response ($http_code): $body"
+
+          if [ "$http_code" -ge 400 ]; then
+            echo "::error::Digest function returned $http_code"
+            exit 1
+          fi
+
+          echo "$body" | jq '.' 2>/dev/null || true

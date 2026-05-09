@@ -9,6 +9,7 @@ interface InsightInput {
   related_company?: string
   related_kpi_code?: string
   priority: string
+  data_confidence?: string
 }
 
 serve(async (req: Request) => {
@@ -23,6 +24,8 @@ serve(async (req: Request) => {
       focus = 'all',
       time_range = '1y',
       report_type = 'all',
+      auto_generated = false,
+      triggered_by = 'manual',
     } = await req.json().catch(() => ({}))
 
     // ------------------------------------------------------------------
@@ -55,7 +58,7 @@ serve(async (req: Request) => {
     // ------------------------------------------------------------------
     // 3. Load KPI data with report type + category filtering
     // ------------------------------------------------------------------
-    let kpiQuery = adminClient
+    const kpiQuery = adminClient
       .from('kpi_values')
       .select(`
         company_id, fiscal_year, normalized_value, confidence,
@@ -151,7 +154,26 @@ serve(async (req: Request) => {
     const timeLabel = yearsBack === 1 ? `FY${currentYear}` : `FY${startYear}–${currentYear} (${yearsBack}-year trend)`
 
     // ------------------------------------------------------------------
-    // 7. Call Claude with company-anchored prompt
+    // 7. Load PREVIOUS insights for delta detection
+    // ------------------------------------------------------------------
+    const { data: previousInsights } = await adminClient
+      .from('ai_insights')
+      .select('insight_type, title, body, related_company_id, related_kpi_code, priority')
+      .eq('user_id', user.id)
+      .eq('is_dismissed', false)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    const previousFingerprints = new Map<string, { priority: string }>()
+    if (previousInsights) {
+      for (const pi of previousInsights) {
+        const key = `${pi.insight_type}|${pi.related_kpi_code ?? ''}|${pi.related_company_id ?? ''}`
+        previousFingerprints.set(key, { priority: pi.priority ?? 'low' })
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // 8. Call Claude with company-anchored prompt
     // ------------------------------------------------------------------
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is not set')
@@ -246,42 +268,66 @@ Generate 3-8 insights based on data availability. Prioritize:
       throw new Error('Claude did not return a tool_use block')
     }
 
-    const { insights } = toolUseBlock.input as {
-      insights: (InsightInput & { data_confidence?: string })[]
-    }
+    const { insights } = toolUseBlock.input as { insights: InsightInput[] }
 
     // ------------------------------------------------------------------
-    // 8. Resolve company names to IDs and insert insights
+    // 9. Resolve company names to IDs
     // ------------------------------------------------------------------
     const { data: allCompanies } = await adminClient.from('companies').select('id, name')
     const companyNameMap = new Map(
       (allCompanies ?? []).map((c: { id: string; name: string }) => [c.name.toLowerCase(), c.id])
     )
 
-    // Delete old non-dismissed insights for this user + fiscal year + focus to avoid duplicates
-    let deleteQuery = adminClient
+    // ------------------------------------------------------------------
+    // 10. Delta detection — compare new vs previous insights
+    // ------------------------------------------------------------------
+    const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    const priorityRank: Record<string, number> = { low: 1, medium: 2, high: 3 }
+
+    const insightRows = insights.map((i) => {
+      const companyId = i.related_company
+        ? companyNameMap.get(i.related_company.toLowerCase()) ?? null
+        : null
+      const fingerprint = `${i.insight_type}|${i.related_kpi_code ?? ''}|${companyId ?? ''}`
+      const prev = previousFingerprints.get(fingerprint)
+
+      let deltaLabel: string | null = null
+      if (previousInsights && previousInsights.length > 0) {
+        if (!prev) {
+          deltaLabel = 'new'
+        } else {
+          const prevRank = priorityRank[prev.priority] ?? 1
+          const newRank = priorityRank[i.priority] ?? 1
+          deltaLabel = newRank > prevRank ? 'worsened' : newRank < prevRank ? 'improved' : 'unchanged'
+          previousFingerprints.delete(fingerprint)
+        }
+      }
+
+      return {
+        user_id: user.id,
+        insight_type: i.insight_type,
+        title: i.title,
+        body: i.body,
+        related_company_id: companyId,
+        related_kpi_code: i.related_kpi_code ?? null,
+        fiscal_year: currentYear,
+        priority: i.priority,
+        data_confidence: i.data_confidence ?? null,
+        is_dismissed: false,
+        delta_label: deltaLabel,
+        generation_batch_id: batchId,
+        auto_generated: auto_generated,
+      }
+    })
+
+    // Delete old non-dismissed, non-bookmarked insights
+    await adminClient
       .from('ai_insights')
       .delete()
       .eq('user_id', user.id)
       .eq('fiscal_year', currentYear)
       .eq('is_dismissed', false)
-
-    await deleteQuery
-
-    const insightRows = insights.map((i) => ({
-      user_id: user.id,
-      insight_type: i.insight_type,
-      title: i.title,
-      body: i.body,
-      related_company_id: i.related_company
-        ? companyNameMap.get(i.related_company.toLowerCase()) ?? null
-        : null,
-      related_kpi_code: i.related_kpi_code ?? null,
-      fiscal_year: currentYear,
-      priority: i.priority,
-      data_confidence: i.data_confidence ?? null,
-      is_dismissed: false,
-    }))
+      .eq('is_bookmarked', false)
 
     const { data: inserted, error: insertError } = await adminClient
       .from('ai_insights')
@@ -290,9 +336,49 @@ Generate 3-8 insights based on data availability. Prioritize:
 
     if (insertError) throw new Error(`Insight insert failed: ${insertError.message}`)
 
+    // ------------------------------------------------------------------
+    // 11. Create notifications for HIGH-priority risk flags
+    // ------------------------------------------------------------------
+    const riskFlags = (inserted ?? []).filter(
+      (i: any) => i.insight_type === 'risk_flag' && i.priority === 'high'
+    )
+
+    if (riskFlags.length > 0) {
+      await adminClient.from('notifications').insert(
+        riskFlags.map((rf: any) => ({
+          user_id: user.id,
+          type: 'insight_risk_flag',
+          title: `Risk Alert: ${rf.title}`,
+          body: rf.body.length > 200 ? rf.body.slice(0, 200) + '...' : rf.body,
+          link: '/dashboard',
+          is_read: false,
+        }))
+      )
+    }
+
+    // ------------------------------------------------------------------
+    // 12. Log generation for rate-limiting auto-triggers
+    // ------------------------------------------------------------------
+    await adminClient.from('ai_insight_auto_gen_log').insert({
+      user_id: user.id,
+      triggered_by,
+      batch_id: batchId,
+      insights_count: inserted?.length ?? 0,
+    })
+
+    const deltaSummary = {
+      new: insightRows.filter((r) => r.delta_label === 'new').length,
+      worsened: insightRows.filter((r) => r.delta_label === 'worsened').length,
+      improved: insightRows.filter((r) => r.delta_label === 'improved').length,
+      unchanged: insightRows.filter((r) => r.delta_label === 'unchanged').length,
+    }
+
     return jsonResponse({
       insights: inserted,
       count: inserted?.length ?? 0,
+      batch_id: batchId,
+      delta_summary: deltaSummary,
+      risk_notifications_sent: riskFlags.length,
       meta: {
         focus,
         time_range,
@@ -301,6 +387,8 @@ Generate 3-8 insights based on data availability. Prioritize:
         companies_analyzed: dataMap.size,
         kpis_analyzed: allKpiCodes.size,
         data_points: filtered.length,
+        auto_generated,
+        triggered_by,
       },
     })
   } catch (err) {

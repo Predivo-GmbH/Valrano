@@ -20,6 +20,14 @@ export interface GenerateInsightsParams {
 export interface GenerateInsightsResult {
   insights: AiInsight[]
   count: number
+  batch_id?: string
+  delta_summary?: {
+    new: number
+    worsened: number
+    improved: number
+    unchanged: number
+  }
+  risk_notifications_sent?: number
   meta?: {
     focus: string
     time_range: string
@@ -28,6 +36,8 @@ export interface GenerateInsightsResult {
     companies_analyzed: number
     kpis_analyzed: number
     data_points: number
+    auto_generated?: boolean
+    triggered_by?: string
   }
 }
 

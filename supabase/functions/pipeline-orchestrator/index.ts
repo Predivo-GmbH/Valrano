@@ -98,7 +98,36 @@ serve(async (req: Request) => {
       .update({ status: 'reviewed' })
       .eq('id', report_id)
 
-    // 5. Update linked publication event if exists
+    // 6b. Auto-generate AI Insights after new KPI data is available
+    {
+      const start = Date.now()
+      try {
+        // Check if user had a recent auto-gen (within last hour) to avoid spam
+        const { data: recentGen } = await adminClient
+          .from('ai_insight_auto_gen_log')
+          .select('id')
+          .eq('user_id', (await adminClient.auth.getUser()).data.user?.id ?? '')
+          .eq('triggered_by', 'upload')
+          .gte('created_at', new Date(Date.now() - 60 * 60 * 1000).toISOString())
+          .limit(1)
+
+        if (!recentGen || recentGen.length === 0) {
+          await callEdgeFunction('generate-insights', {
+            auto_generated: true,
+            triggered_by: 'upload',
+          })
+          steps.push({ step: 'generate-insights', status: 'completed', duration_ms: Date.now() - start })
+        } else {
+          steps.push({ step: 'generate-insights', status: 'skipped' })
+        }
+      } catch (err) {
+        // Non-fatal — insights are supplementary
+        console.error('generate-insights auto-trigger failed (non-fatal):', (err as Error).message)
+        steps.push({ step: 'generate-insights', status: 'failed', duration_ms: Date.now() - start })
+      }
+    }
+
+    // 7. Update linked publication event if exists
     const { data: events } = await adminClient
       .from('publication_events')
       .select('id')

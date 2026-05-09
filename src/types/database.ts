@@ -647,6 +647,8 @@ export interface ChatCitation {
 
 export type DataConfidence = 'high' | 'medium' | 'low';
 
+export type DeltaLabel = 'new' | 'worsened' | 'improved' | 'unchanged';
+
 export interface AiInsight {
   id: string;
   user_id: string;
@@ -658,6 +660,9 @@ export interface AiInsight {
   fiscal_year: number | null;
   priority: InsightPriority | null;
   data_confidence: DataConfidence | null;
+  delta_label: DeltaLabel | null;
+  generation_batch_id: string | null;
+  auto_generated: boolean;
   is_dismissed: boolean;
   is_bookmarked: boolean;
   is_acted_upon: boolean;
