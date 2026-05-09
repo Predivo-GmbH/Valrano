@@ -8,7 +8,7 @@ describe('PasswordGate', () => {
 
   it('shows password input when locked', () => {
     render(<PasswordGate><div>Protected</div></PasswordGate>)
-    expect(screen.getByPlaceholderText('Enter access password')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Enter access code')).toBeInTheDocument()
     expect(screen.queryByText('Protected')).not.toBeInTheDocument()
   })
 
@@ -20,7 +20,7 @@ describe('PasswordGate', () => {
 
   it('unlocks with correct password', async () => {
     render(<PasswordGate><div>Protected</div></PasswordGate>)
-    const input = screen.getByPlaceholderText('Enter access password')
+    const input = screen.getByPlaceholderText('Enter access code')
     fireEvent.change(input, { target: { value: 'predivo2026' } })
     fireEvent.submit(input.closest('form')!)
 
@@ -31,12 +31,12 @@ describe('PasswordGate', () => {
 
   it('shows error for wrong password', async () => {
     render(<PasswordGate><div>Protected</div></PasswordGate>)
-    const input = screen.getByPlaceholderText('Enter access password')
+    const input = screen.getByPlaceholderText('Enter access code')
     fireEvent.change(input, { target: { value: 'wrong' } })
     fireEvent.submit(input.closest('form')!)
 
     await waitFor(() => {
-      expect(screen.getByText('Incorrect password')).toBeInTheDocument()
+      expect(screen.getByText('Incorrect access code')).toBeInTheDocument()
     })
   })
 })

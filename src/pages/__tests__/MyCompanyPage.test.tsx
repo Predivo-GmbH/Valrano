@@ -75,6 +75,6 @@ describe('MyCompanyPage', () => {
     await waitFor(() => {
       fireEvent.click(screen.getByText('Add Company'))
     })
-    expect(screen.getByPlaceholderText('e.g., Acme Corp')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Start typing to search...')).toBeInTheDocument()
   })
 })
