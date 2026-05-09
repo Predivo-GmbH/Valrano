@@ -25,6 +25,8 @@ import {
 } from '@/components/dashboard'
 import type { KpiValueWithJoins, SortConfig, KpiSnapshotCardProps } from '@/components/dashboard'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import { useOnboarding } from '@/hooks/useOnboarding'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Upload,
@@ -301,10 +303,13 @@ function AiInsightsSection() {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[15px] font-semibold text-foreground flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-muted-foreground" />
-          AI Insights
-        </h2>
+        <Tooltip>
+          <TooltipTrigger className="text-[15px] font-semibold text-foreground flex items-center gap-2 cursor-default bg-transparent border-none p-0">
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
+            AI Insights
+          </TooltipTrigger>
+          <TooltipContent>AI-generated findings from your peer benchmark data — trends, outliers, and risk flags.</TooltipContent>
+        </Tooltip>
         <button
           onClick={() => generateInsights.mutate()}
           disabled={generateInsights.isPending}
@@ -727,7 +732,10 @@ export function DashboardPage() {
     ).length
   }, [filteredDefs, companiesWithData, valueMap])
 
+  const { status: onboardingStatus } = useOnboarding()
+
   return (
+    <TooltipProvider>
     <div className="section-fade-in mx-auto max-w-[1440px] px-4 py-8 sm:px-6">
 
       {/* Setup progress banner (shows when wizard dismissed but steps incomplete) */}
@@ -838,10 +846,13 @@ export function DashboardPage() {
         return (
           <div className="card-premium mb-8 rounded-xl border border-border bg-card p-5">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-[13px] font-semibold uppercase tracking-[0.05em] text-muted-foreground flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Pipeline Status
-              </h2>
+              <Tooltip>
+                <TooltipTrigger className="text-[13px] font-semibold uppercase tracking-[0.05em] text-muted-foreground flex items-center gap-2 cursor-default bg-transparent border-none p-0">
+                  <Activity className="h-4 w-4" />
+                  Pipeline Status
+                </TooltipTrigger>
+                <TooltipContent>Track how peer reports move through detection, ingestion, and benchmarking.</TooltipContent>
+              </Tooltip>
               <Link
                 to="/peers?tab=calendar"
                 className="text-[11px] font-medium text-[var(--color-accent)] hover:underline"
@@ -875,10 +886,13 @@ export function DashboardPage() {
       {upcomingEvents.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[15px] font-semibold text-foreground flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              Upcoming Publications
-            </h2>
+            <Tooltip>
+              <TooltipTrigger className="text-[15px] font-semibold text-foreground flex items-center gap-2 cursor-default bg-transparent border-none p-0">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                Upcoming Publications
+              </TooltipTrigger>
+              <TooltipContent>Scheduled peer report releases based on historical patterns and announcements.</TooltipContent>
+            </Tooltip>
             <Link
               to="/peers?tab=calendar"
               className="text-[11px] font-medium text-[var(--color-accent)] hover:underline flex items-center gap-1"
@@ -930,7 +944,12 @@ export function DashboardPage() {
       {/* ================================================================== */}
       {performanceKpis.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-[15px] font-semibold text-foreground mb-3">Performance Snapshot</h2>
+          <Tooltip>
+            <TooltipTrigger className="text-[15px] font-semibold text-foreground mb-3 cursor-default bg-transparent border-none p-0 w-fit">
+              Performance Snapshot
+            </TooltipTrigger>
+            <TooltipContent>Your company's key KPIs and where they rank among peers.</TooltipContent>
+          </Tooltip>
           <div className="flex gap-3 overflow-x-auto pb-2">
             {performanceKpis.map((kpi) => (
               <KpiSnapshotCard
@@ -954,7 +973,12 @@ export function DashboardPage() {
             {/* Card header: title + category tabs */}
             <div className="flex flex-col gap-3 px-4 py-3 border-b border-border sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <h2 className="text-[13px] font-semibold text-foreground">Peer Comparison</h2>
+                <Tooltip>
+                  <TooltipTrigger className="text-[13px] font-semibold text-foreground cursor-default bg-transparent border-none p-0">
+                    Peer Comparison
+                  </TooltipTrigger>
+                  <TooltipContent>Side-by-side KPI comparison across all peers, normalized to CHF.</TooltipContent>
+                </Tooltip>
                 <p className="text-[10px] text-muted-foreground">
                   {companiesWithData.length}/{companies?.length ?? 0} peers · {dataKpiCount} KPIs · Normalized to CHF
                 </p>
@@ -1180,10 +1204,13 @@ export function DashboardPage() {
         {/* Recent Documents */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[15px] font-semibold text-foreground flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              Recent Documents
-            </h2>
+            <Tooltip>
+              <TooltipTrigger className="text-[15px] font-semibold text-foreground flex items-center gap-2 cursor-default bg-transparent border-none p-0">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Recent Documents
+              </TooltipTrigger>
+              <TooltipContent>AI-generated benchmark reports and briefings ready for review.</TooltipContent>
+            </Tooltip>
             <Link
               to="/documents"
               className="text-[11px] font-medium text-[var(--color-accent)] hover:underline flex items-center gap-1"
@@ -1235,10 +1262,13 @@ export function DashboardPage() {
 
         {/* Recent Activity */}
         <div>
-          <h2 className="text-[15px] font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Activity className="h-4 w-4 text-muted-foreground" />
-            Recent Activity
-          </h2>
+          <Tooltip>
+            <TooltipTrigger className="text-[15px] font-semibold text-foreground mb-3 flex items-center gap-2 cursor-default bg-transparent border-none p-0">
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              Recent Activity
+            </TooltipTrigger>
+            <TooltipContent>Latest report uploads, status changes, and pipeline events.</TooltipContent>
+          </Tooltip>
           <div className="card-premium rounded-xl border border-border bg-card px-5 py-2">
             {activityItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
@@ -1262,7 +1292,8 @@ export function DashboardPage() {
       {/* ================================================================== */}
       {/* Section 6: AI Insights                                            */}
       {/* ================================================================== */}
-      <AiInsightsSection />
+      {onboardingStatus.hasCompetitors && <AiInsightsSection />}
     </div>
+    </TooltipProvider>
   )
 }
