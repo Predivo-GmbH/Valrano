@@ -10,7 +10,6 @@ import {
   Globe,
   Loader2,
   Rocket,
-  Search,
   Sparkles,
   Upload,
 } from 'lucide-react'
@@ -717,15 +716,45 @@ function StepCompetitors({
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           {aiSuggestions.length > 0 ? 'Or search manually' : 'Search companies'}
         </p>
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
+        <div className="max-w-md">
+          <CompanyAutocomplete
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search companies..."
-            className="block w-full rounded-lg border border-border bg-[var(--color-bg-tertiary)] pl-10 pr-3 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+            onChange={setSearch}
+            onSelect={async (result) => {
+              const existing = (companies ?? []).find(
+                (c) => c.name.toLowerCase() === result.name.toLowerCase()
+              )
+              if (existing) {
+                if (!selectedIds.includes(existing.id)) {
+                  onSelectedIdsChange([...selectedIds, existing.id])
+                }
+                toast.success(`${result.name} selected`)
+              } else {
+                const { data: inserted, error } = await supabase
+                  .from('companies')
+                  .insert({
+                    name: result.name,
+                    ticker: result.ticker ?? null,
+                    sector: result.sector ?? null,
+                    country: result.country_code ?? null,
+                    reporting_currency: result.currency ?? 'CHF',
+                  })
+                  .select('id')
+                  .single()
+                if (error) {
+                  toast.error('Failed to add company')
+                } else {
+                  onSelectedIdsChange([...selectedIds, inserted.id])
+                  toast.success(`${result.name} added and selected`)
+                }
+              }
+              setSearch('')
+            }}
+            placeholder="Type 3+ letters to search company registers..."
           />
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Searches Swiss (Zefix) and international company registers
+          </p>
         </div>
       </div>
 
