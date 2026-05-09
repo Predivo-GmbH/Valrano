@@ -437,7 +437,7 @@ function CreateEventDialog({
             <label htmlFor="event-company" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company</label>
             <Select value={companyId} onValueChange={(v) => { if (v) { handleCompanyChange(v); setTouched((t) => ({ ...t, company: true })) } }}>
               <SelectTrigger id="event-company" className={`w-full ${companyInvalid ? 'border-[var(--color-signal-red)]' : ''}`} aria-invalid={companyInvalid}>
-                <SelectValue placeholder="Select company" />
+                <span className="truncate">{selectedCompanyName || 'Select company'}</span>
               </SelectTrigger>
               <SelectContent>
                 {companies.map((c) => (
@@ -493,25 +493,19 @@ function CreateEventDialog({
           )}
 
           {/* AI Suggest Button */}
-          <div className="rounded-lg border border-dashed border-blue-500/30 bg-blue-500/5 p-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleSuggestDates}
-              disabled={suggestDatesMutation.isPending || !companyId}
-              className="w-full"
-            >
-              {suggestDatesMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              {suggestDatesMutation.isPending ? 'Predicting...' : 'Suggest Date & Time with AI'}
-            </Button>
-            <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-              Uses 1 AI credit · Based on historical patterns and industry data
-            </p>
-          </div>
+          <Button
+            type="button"
+            onClick={handleSuggestDates}
+            disabled={suggestDatesMutation.isPending || !companyId}
+            className="w-full bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent)]/90 font-semibold py-5 text-sm shadow-sm"
+          >
+            {suggestDatesMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            {suggestDatesMutation.isPending ? 'Predicting...' : 'Suggest Date & Time with AI'}
+          </Button>
 
           {/* AI Reasoning (if suggestion was made) */}
           {aiReasoning && (
