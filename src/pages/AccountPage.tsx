@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useTheme } from 'next-themes'
-import { User, Shield, Bell, CreditCard, SlidersHorizontal, Sun, Moon, Trash2, Eye, EyeOff, Check, KeyRound, Loader2 } from 'lucide-react'
+import { User, Shield, CreditCard, SlidersHorizontal, Sun, Moon, Trash2, Eye, EyeOff, Check, KeyRound, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PremiumSelect } from '@/components/ui/premium-select'
 import { useAuth } from '@/hooks/useAuth'
@@ -41,18 +41,6 @@ export function AccountPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  // Notification preferences (localStorage)
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem('bs_notification_prefs')
-    if (saved) return JSON.parse(saved)
-    return {
-      newReport: true,
-      extractionComplete: true,
-      documentReady: true,
-      weeklySummary: false,
-    }
-  })
-
   // Fiscal year preference (localStorage)
   const [fiscalYear, setFiscalYear] = useState(() => {
     return localStorage.getItem('bs_fiscal_year') || 'calendar'
@@ -61,16 +49,8 @@ export function AccountPage() {
   const fiscalOptions = FISCAL_OPTIONS.map(o => ({ value: o.value, label: o.label }))
 
   useEffect(() => {
-    localStorage.setItem('bs_notification_prefs', JSON.stringify(notifications))
-  }, [notifications])
-
-  useEffect(() => {
     localStorage.setItem('bs_fiscal_year', fiscalYear)
   }, [fiscalYear])
-
-  function toggleNotification(key: keyof typeof notifications) {
-    setNotifications((prev: typeof notifications) => ({ ...prev, [key]: !prev[key] }))
-  }
 
   async function handleChangePassword(e: FormEvent) {
     e.preventDefault()
@@ -260,24 +240,7 @@ export function AccountPage() {
             )}
           </section>
 
-          {/* 3. Notifications */}
-          <section className="card-premium rounded-xl border border-border bg-card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Bell className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-[15px] font-semibold text-foreground">Notifications</h2>
-            </div>
-            <div className="space-y-3">
-              <ToggleRow label="New report detected" checked={notifications.newReport} onChange={() => toggleNotification('newReport')} />
-              <ToggleRow label="KPI extraction complete" checked={notifications.extractionComplete} onChange={() => toggleNotification('extractionComplete')} />
-              <ToggleRow label="Benchmark document ready" checked={notifications.documentReady} onChange={() => toggleNotification('documentReady')} />
-              <ToggleRow label="Weekly summary email" checked={notifications.weeklySummary} onChange={() => toggleNotification('weeklySummary')} />
-            </div>
-            <p className="mt-3 text-[11px] text-muted-foreground">
-              These preferences control in-app notification display. They are stored locally in your browser.
-            </p>
-          </section>
-
-          {/* 4. Subscription */}
+          {/* 3. Subscription */}
           <section className="card-premium rounded-xl border border-border bg-card p-6">
             <div className="flex items-center gap-2 mb-4">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -413,20 +376,3 @@ export function AccountPage() {
   )
 }
 
-function ToggleRow({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
-  return (
-    <label className="flex items-center justify-between cursor-pointer group">
-      <span className="text-[13px] text-foreground">{label}</span>
-      <div className="relative">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={onChange}
-          className="sr-only peer"
-        />
-        <div className="h-6 w-11 rounded-full border border-border bg-[var(--color-bg-tertiary)] transition-colors peer-checked:border-[var(--color-accent)] peer-checked:bg-[var(--color-accent)] peer-focus-visible:ring-2 peer-focus-visible:ring-[var(--color-accent)]/30" />
-        <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5" />
-      </div>
-    </label>
-  )
-}
