@@ -279,6 +279,7 @@ Generate 3-8 insights based on data availability. Prioritize:
       related_kpi_code: i.related_kpi_code ?? null,
       fiscal_year: currentYear,
       priority: i.priority,
+      data_confidence: i.data_confidence ?? null,
       is_dismissed: false,
     }))
 

@@ -95,3 +95,39 @@ export function useGenerateInsights() {
     },
   })
 }
+
+export function useBookmarkInsight() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, bookmarked }: { id: string; bookmarked: boolean }) => {
+      const { error } = await supabase
+        .from('ai_insights')
+        .update({ is_bookmarked: bookmarked })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-insights'] })
+    },
+  })
+}
+
+export function useMarkInsightActed() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, note }: { id: string; note?: string }) => {
+      const { error } = await supabase
+        .from('ai_insights')
+        .update({
+          is_acted_upon: true,
+          acted_at: new Date().toISOString(),
+          action_note: note ?? null,
+        })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-insights'] })
+    },
+  })
+}

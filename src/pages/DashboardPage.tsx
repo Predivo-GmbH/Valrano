@@ -8,6 +8,8 @@ import {
   useInsights,
   useDismissInsight,
   useGenerateInsights,
+  useBookmarkInsight,
+  useMarkInsightActed,
   type InsightFocus,
   type InsightTimeRange,
   type InsightReportType,
@@ -60,6 +62,10 @@ import {
   Lightbulb,
   Target,
   SlidersHorizontal,
+  Bookmark,
+  CheckCircle2,
+  Shield,
+  Download,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -335,10 +341,53 @@ function AiInsightsSection() {
   const { data: insights, isLoading } = useInsights({ dismissed: false })
   const dismissInsight = useDismissInsight()
   const generateInsights = useGenerateInsights()
+  const bookmarkInsight = useBookmarkInsight()
+  const markActed = useMarkInsightActed()
   const [focus, setFocus] = useState<InsightFocus>('all')
   const [timeRange, setTimeRange] = useState<InsightTimeRange>('1y')
   const [reportType, setReportType] = useState<InsightReportType>('all')
   const [showFilters, setShowFilters] = useState(false)
+
+  const handleExportPdf = () => {
+    if (!insights || insights.length === 0) return
+    const now = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+    const lines = [
+      'COMPETITIVE INTELLIGENCE BRIEF',
+      `Generated: ${now}`,
+      `Focus: ${focus === 'all' ? 'All KPIs' : focus} | Time Range: ${timeRange} | Report Type: ${reportType === 'all' ? 'All' : reportType}`,
+      `Insights: ${insights.length}`,
+      '',
+      '═'.repeat(80),
+      '',
+    ]
+    for (const insight of insights) {
+      const typeTag = `[${(insight.insight_type ?? '').toUpperCase()}]`
+      const priorityTag = `[${(insight.priority ?? '').toUpperCase()}]`
+      const confidenceTag = insight.data_confidence ? ` | Confidence: ${insight.data_confidence}` : ''
+      lines.push(`${typeTag} ${priorityTag}${confidenceTag}`)
+      lines.push(insight.title)
+      lines.push('')
+      lines.push(insight.body)
+      if (insight.companies) {
+        lines.push(`Company: ${insight.companies.name}${insight.companies.ticker ? ` (${insight.companies.ticker})` : ''}`)
+      }
+      if (insight.related_kpi_code) lines.push(`KPI: ${insight.related_kpi_code}`)
+      if (insight.fiscal_year) lines.push(`Fiscal Year: ${insight.fiscal_year}`)
+      if (insight.is_acted_upon) lines.push(`Status: Acted upon${insight.action_note ? ` — ${insight.action_note}` : ''}`)
+      if (insight.is_bookmarked) lines.push('Status: Bookmarked')
+      lines.push('')
+      lines.push('─'.repeat(80))
+      lines.push('')
+    }
+    lines.push('', 'BenchmarkSignal — AI-Powered Competitive Intelligence', 'https://benchmarksignal.predivo.ch')
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `competitive-intelligence-brief-${new Date().toISOString().slice(0, 10)}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const handleGenerate = () => {
     generateInsights.mutate({ focus, time_range: timeRange, report_type: reportType })
@@ -366,6 +415,20 @@ function AiInsightsSection() {
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
             )}
           </button>
+          {insights && insights.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger>
+                <button
+                  onClick={handleExportPdf}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground cursor-pointer"
+                  aria-label="Export insights as brief"
+                >
+                  <Download className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Export as competitive intelligence brief</TooltipContent>
+            </Tooltip>
+          )}
           <button
             onClick={handleGenerate}
             disabled={generateInsights.isPending}
@@ -465,10 +528,24 @@ function AiInsightsSection() {
             const mainBody = considerIdx > 0 ? insight.body.slice(0, considerIdx).trim() : insight.body
             const recommendation = considerIdx > 0 ? insight.body.slice(considerIdx).trim() : null
 
+            const confidenceColor = insight.data_confidence === 'high'
+              ? 'text-[var(--color-signal-green)]'
+              : insight.data_confidence === 'medium'
+              ? 'text-[var(--color-signal-amber)]'
+              : insight.data_confidence === 'low'
+              ? 'text-[var(--color-signal-red)]'
+              : 'text-muted-foreground'
+
             return (
               <div
                 key={insight.id}
-                className="group relative card-premium rounded-lg border border-border bg-card p-4"
+                className={`group relative card-premium rounded-lg border bg-card p-4 ${
+                  insight.is_acted_upon
+                    ? 'border-[var(--color-signal-green)]/30 bg-[var(--color-signal-green)]/[0.02]'
+                    : insight.is_bookmarked
+                    ? 'border-[var(--color-accent)]/30'
+                    : 'border-border'
+                }`}
               >
                 <div className="flex items-start gap-3">
                   <div className={`mt-0.5 flex-shrink-0 rounded-md p-1.5 bg-current/5 ${iconColor}`}>
@@ -482,6 +559,14 @@ function AiInsightsSection() {
                       <h3 className="text-[13px] font-medium text-foreground truncate flex-1">
                         {insight.title}
                       </h3>
+                      {insight.data_confidence && (
+                        <Tooltip>
+                          <TooltipTrigger className="cursor-default bg-transparent border-none p-0">
+                            <Shield className={`h-3 w-3 ${confidenceColor}`} />
+                          </TooltipTrigger>
+                          <TooltipContent>Data confidence: {insight.data_confidence} — based on completeness of underlying KPI data</TooltipContent>
+                        </Tooltip>
+                      )}
                       <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider flex-shrink-0 ${priorityClass}`}>
                         {insight.priority}
                       </span>
@@ -493,6 +578,15 @@ function AiInsightsSection() {
                       <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--color-accent)] bg-[var(--color-accent)]/5 rounded px-2 py-1.5 border-l-2 border-[var(--color-accent)]">
                         {recommendation}
                       </p>
+                    )}
+                    {insight.is_acted_upon && (
+                      <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-[var(--color-signal-green)]">
+                        <CheckCircle2 className="h-3 w-3" />
+                        <span>Acted upon{insight.acted_at ? ` · ${getRelativeTime(insight.acted_at)}` : ''}</span>
+                        {insight.action_note && (
+                          <span className="text-muted-foreground ml-1">— {insight.action_note}</span>
+                        )}
+                      </div>
                     )}
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground/70">
                       {insight.companies && (
@@ -519,13 +613,46 @@ function AiInsightsSection() {
                       )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => dismissInsight.mutate(insight.id)}
-                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground cursor-pointer"
-                    aria-label="Dismiss insight"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                  {/* Action buttons — visible on hover */}
+                  <div className="flex flex-col gap-1 flex-shrink-0">
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <button
+                          onClick={() => bookmarkInsight.mutate({ id: insight.id, bookmarked: !insight.is_bookmarked })}
+                          className={`transition-all cursor-pointer ${
+                            insight.is_bookmarked
+                              ? 'text-[var(--color-accent)] opacity-100'
+                              : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground'
+                          }`}
+                          aria-label={insight.is_bookmarked ? 'Remove bookmark' : 'Bookmark insight'}
+                        >
+                          <Bookmark className={`h-3.5 w-3.5 ${insight.is_bookmarked ? 'fill-current' : ''}`} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>{insight.is_bookmarked ? 'Remove bookmark' : 'Bookmark'}</TooltipContent>
+                    </Tooltip>
+                    {!insight.is_acted_upon && (
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <button
+                            onClick={() => markActed.mutate({ id: insight.id })}
+                            className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all hover:text-[var(--color-signal-green)] cursor-pointer"
+                            aria-label="Mark as acted upon"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Mark as acted upon</TooltipContent>
+                      </Tooltip>
+                    )}
+                    <button
+                      onClick={() => dismissInsight.mutate(insight.id)}
+                      className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground cursor-pointer"
+                      aria-label="Dismiss insight"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )

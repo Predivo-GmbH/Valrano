@@ -645,6 +645,8 @@ export interface ChatCitation {
   text?: string;
 }
 
+export type DataConfidence = 'high' | 'medium' | 'low';
+
 export interface AiInsight {
   id: string;
   user_id: string;
@@ -655,7 +657,12 @@ export interface AiInsight {
   related_kpi_code: string | null;
   fiscal_year: number | null;
   priority: InsightPriority | null;
+  data_confidence: DataConfidence | null;
   is_dismissed: boolean;
+  is_bookmarked: boolean;
+  is_acted_upon: boolean;
+  acted_at: string | null;
+  action_note: string | null;
   created_at: string;
 }
 
