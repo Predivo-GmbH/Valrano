@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Plus, Pencil } from 'lucide-react'
+import { Building2, Plus, Pencil, Upload, FileText, Loader2 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -12,9 +12,15 @@ import {
   useUpsertMyCompanyKpis,
 } from '@/hooks/useMyCompany'
 import { useKpiDefinitions } from '@/hooks/useData'
+import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete/CompanyAutocomplete'
+import { REPORT_TYPE_LABELS } from '@/lib/constants'
+import { cn } from '@/lib/utils'
+import type { ReportType } from '@/types/database'
 
 
 const SECTORS = [
@@ -36,6 +42,7 @@ export function MyCompanyPage() {
   const { data: companies, isLoading } = useMyCompanies()
   const [showCreate, setShowCreate] = useState(false)
   const [editingKpis, setEditingKpis] = useState<string | null>(null)
+  const [uploadCompanyId, setUploadCompanyId] = useState<string | null>(null)
 
   const primaryCompany = companies?.find((c) => c.is_primary) ?? companies?.[0]
 
@@ -78,6 +85,7 @@ export function MyCompanyPage() {
                 company={company}
                 isEditingKpis={editingKpis === company.id}
                 onEditKpis={() => setEditingKpis(editingKpis === company.id ? null : company.id)}
+                onUpload={() => setUploadCompanyId(company.company_id)}
               />
             ))}
 
@@ -94,6 +102,13 @@ export function MyCompanyPage() {
         )}
 
         <CreateCompanyDialog open={showCreate} onClose={() => setShowCreate(false)} />
+        {uploadCompanyId && (
+          <UploadReportDialog
+            open
+            onClose={() => setUploadCompanyId(null)}
+            companyId={uploadCompanyId}
+          />
+        )}
       </div>
     </>
   )
@@ -107,10 +122,12 @@ function CompanyCard({
   company,
   isEditingKpis,
   onEditKpis,
+  onUpload,
 }: {
-  company: { id: string; name: string; sector: string | null; country: string | null; reporting_currency: string | null; headcount: number | null; is_primary: boolean }
+  company: { id: string; company_id: string | null; name: string; sector: string | null; country: string | null; reporting_currency: string | null; headcount: number | null; is_primary: boolean }
   isEditingKpis: boolean
   onEditKpis: () => void
+  onUpload: () => void
 }) {
   return (
     <div className="rounded-xl border border-border bg-card p-5">
@@ -132,10 +149,18 @@ function CompanyCard({
             </div>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={onEditKpis}>
-          <Pencil className="h-3.5 w-3.5" />
-          {isEditingKpis ? 'Close' : 'Edit KPIs'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {company.company_id && (
+            <Button variant="outline" size="sm" onClick={onUpload}>
+              <Upload className="h-3.5 w-3.5" />
+              Upload Report
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={onEditKpis}>
+            <Pencil className="h-3.5 w-3.5" />
+            {isEditingKpis ? 'Close' : 'Edit KPIs'}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -328,7 +353,7 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+    <Dialog open={open} onOpenChange={(o: boolean) => { if (!o) onClose() }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add Your Company</DialogTitle>
@@ -407,6 +432,211 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Upload Report Dialog
+// ---------------------------------------------------------------------------
+
+function UploadReportDialog({
+  open,
+  onClose,
+  companyId,
+}: {
+  open: boolean
+  onClose: () => void
+  companyId: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [reportType, setReportType] = useState<ReportType>('annual')
+  const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear() - 1)
+  const [fiscalQuarter, setFiscalQuarter] = useState(1)
+  const [file, setFile] = useState<File | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  const uploadMutation = useUploadReport()
+  const extractMutation = useExtractKpis()
+
+  const handleOpenChange = useCallback(
+    (o: boolean) => {
+      if (!o) {
+        onClose()
+        setFile(null)
+      }
+    },
+    [onClose],
+  )
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const dropped = e.dataTransfer.files[0]
+    if (dropped?.type === 'application/pdf') setFile(dropped)
+    else toast.error('Only PDF files are supported')
+  }, [])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0]
+    if (selected) setFile(selected)
+  }
+
+  const handleUpload = async () => {
+    if (!file) { toast.error('Select a PDF file'); return }
+
+    try {
+      const result = await uploadMutation.mutateAsync({
+        file,
+        companyId,
+        reportType,
+        fiscalYear,
+        fiscalQuarter: reportType === 'quarterly' ? fiscalQuarter : undefined,
+      })
+      toast.success('Report uploaded — extracting KPIs...')
+
+      try {
+        const extraction = await extractMutation.mutateAsync(result.report_id)
+        toast.success(`Extracted ${extraction.total_kpis_extracted} KPIs`)
+      } catch {
+        toast.error('Upload succeeded but extraction failed — try again later')
+      }
+
+      onClose()
+      setFile(null)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed')
+    }
+  }
+
+  const isUploading = uploadMutation.isPending || extractMutation.isPending
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Upload Report</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Report Type */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Report Type
+            </Label>
+            <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)}>
+              <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-lg border-border bg-card text-[13px]">
+                {(Object.entries(REPORT_TYPE_LABELS) as [ReportType, string][]).map(([k, label]) => (
+                  <SelectItem key={k} value={k} className="text-[13px]">{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Fiscal Year + Quarter */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                Fiscal Year
+              </Label>
+              <Input
+                type="number"
+                min={2000}
+                max={new Date().getFullYear()}
+                value={fiscalYear}
+                onChange={(e) => setFiscalYear(Number(e.target.value))}
+                className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
+              />
+            </div>
+            {reportType === 'quarterly' && (
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                  Quarter
+                </Label>
+                <Select value={String(fiscalQuarter)} onValueChange={(v) => setFiscalQuarter(Number(v))}>
+                  <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg border-border bg-card text-[13px]">
+                    {[1, 2, 3, 4].map((q) => (
+                      <SelectItem key={q} value={String(q)} className="text-[13px]">Q{q}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {/* Drop Zone */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              PDF File
+            </Label>
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Upload PDF file"
+              onClick={() => inputRef.current?.click()}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click() } }}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              className={cn(
+                'group flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-all duration-200',
+                isDragging
+                  ? 'border-accent bg-accent/5'
+                  : file
+                  ? 'border-[var(--color-signal-green)]/50 bg-[var(--color-signal-green)]/5'
+                  : 'border-border hover:border-accent/50 hover:bg-[var(--color-bg-tertiary)]',
+              )}
+            >
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              {file ? (
+                <>
+                  <FileText className="h-5 w-5 text-[var(--color-signal-green)]" />
+                  <p className="text-[13px] font-medium text-foreground">{file.name}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <p className="text-[13px] font-medium text-foreground">Drop PDF here or click to browse</p>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Upload Button */}
+          <Button
+            onClick={handleUpload}
+            disabled={isUploading || !file}
+            className="w-full"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {extractMutation.isPending ? 'Extracting KPIs...' : 'Uploading...'}
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4" />
+                Upload & Extract
+              </>
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )
