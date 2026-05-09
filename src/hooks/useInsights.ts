@@ -3,6 +3,39 @@ import { supabase } from '@/lib/supabase'
 import type { AiInsight } from '@/types/database'
 
 // ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type InsightFocus = 'all' | 'financial' | 'esg' | 'operational'
+export type InsightTimeRange = '1y' | '3y' | '5y'
+export type InsightReportType = 'all' | 'annual' | 'quarterly' | 'half_year' | 'sustainability'
+
+export interface GenerateInsightsParams {
+  fiscal_year?: number
+  focus?: InsightFocus
+  time_range?: InsightTimeRange
+  report_type?: InsightReportType
+}
+
+export interface GenerateInsightsResult {
+  insights: AiInsight[]
+  count: number
+  meta?: {
+    focus: string
+    time_range: string
+    report_type: string
+    fiscal_year: number
+    companies_analyzed: number
+    kpis_analyzed: number
+    data_points: number
+  }
+}
+
+export type InsightWithCompany = AiInsight & {
+  companies: { id: string; name: string; ticker: string | null } | null
+}
+
+// ---------------------------------------------------------------------------
 // Queries
 // ---------------------------------------------------------------------------
 
@@ -22,9 +55,7 @@ export function useInsights(params?: { dismissed?: boolean }) {
 
       const { data, error } = await query
       if (error) throw error
-      return data as (AiInsight & {
-        companies: { id: string; name: string; ticker: string | null } | null
-      })[]
+      return data as InsightWithCompany[]
     },
   })
 }
@@ -52,12 +83,12 @@ export function useDismissInsight() {
 export function useGenerateInsights() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (params: { fiscal_year?: number } | void) => {
+    mutationFn: async (params?: GenerateInsightsParams) => {
       const { data, error } = await supabase.functions.invoke('generate-insights', {
         body: params ?? {},
       })
       if (error) throw error
-      return data as { insights: AiInsight[]; count: number }
+      return data as GenerateInsightsResult
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-insights'] })

@@ -229,4 +229,37 @@ Fixes applied in commit `60f7167` (2026-05-07), 19 files changed. See `docs/UX-A
 
 ---
 
+## 12. Premium CSS Utilities (Established 2026-05-08)
+
+All utilities are CSS-only (no framer-motion), defined in `src/index.css`. They respect `prefers-reduced-motion: reduce`.
+
+| Utility | Purpose | Usage |
+|---------|---------|-------|
+| `card-premium` | Hover lift (-2px) + expanded shadow + accent border | Feature cards, rule cards |
+| `status-pulse` | Pulsing ring animation on status dots | Overdue/due_today indicators |
+| `section-fade-in` | Fade-in + slide-up on mount (0.4s) | Page-level wrappers |
+| `stagger-child` | Staggered fade-in via `--stagger` CSS var (60ms per step) | Metric card grids |
+| `stat-card-accent` | Accent-colored top border on stat cards | Dashboard metrics |
+| `text-gradient-accent` | Blue-to-purple gradient text | Hero headings |
+| `nav-glow` | Subtle border glow on navigation | AppLayout nav bar |
+| `skeleton-shimmer` | Translating gradient loading skeleton | Replaces `animate-pulse` everywhere |
+| `card-gradient-border` | Gradient pseudo-element border (::before) | AI insights, featured cards |
+| `bg-dot-pattern` | Radial dot grid background | Hero sections |
+| `table-premium` | Sticky blur header + hover row highlight | All data tables |
+| `row-accent` | Left border accent on hover | Event/document/activity rows |
+| `card-accent-top` | Colored top border (+ green/amber/red variants) | Trend charts, pipeline stages |
+| `collapse-smooth` | CSS grid height transition | Expandable sections |
+| `tab-underline` | Animated underline for active tabs | Tab navigation |
+| `avatar-ring` | Gradient ring around avatars | User avatars |
+| `card-danger` | Destructive-colored border with hover | Danger zone sections |
+
+### Supporting Components & Hooks
+- **`src/components/ui/empty-state.tsx`** — Reusable empty state (icon, title, description, optional CTA)
+- **`src/hooks/useCountUp.ts`** — IntersectionObserver-triggered count-up animation with easeOutCubic
+
+### Commit Reference
+Applied in commits `40f67c2` (code quality) and `d66b757` (premium UI). 12+ pages upgraded.
+
+---
+
 *This design brief serves as the brand direction input for Stitch mockup generation and all subsequent frontend implementation. All design decisions trace back to this document.*

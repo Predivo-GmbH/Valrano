@@ -4,7 +4,14 @@ import { useCompanies, useKpiDefinitions, useKpiValues, useReports } from '@/hoo
 import { usePrimaryCompany, useMyCompanyKpis } from '@/hooks/useMyCompany'
 import { usePublicationEvents } from '@/hooks/useCalendar'
 import { useBenchmarkDocuments } from '@/hooks/useBenchmark'
-import { useInsights, useDismissInsight, useGenerateInsights } from '@/hooks/useInsights'
+import {
+  useInsights,
+  useDismissInsight,
+  useGenerateInsights,
+  type InsightFocus,
+  type InsightTimeRange,
+  type InsightReportType,
+} from '@/hooks/useInsights'
 import { useSmartYear } from '@/hooks/useSmartYear'
 import { SetupProgressBanner } from '@/components/onboarding'
 import type { Company, KpiCategory } from '@/types/database'
@@ -52,6 +59,7 @@ import {
   AlertTriangle,
   Lightbulb,
   Target,
+  SlidersHorizontal,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -295,39 +303,143 @@ const PRIORITY_BADGE: Record<string, string> = {
   low: 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
 }
 
+const FOCUS_OPTIONS: { value: InsightFocus; label: string }[] = [
+  { value: 'all', label: 'All KPIs' },
+  { value: 'financial', label: 'Financial' },
+  { value: 'esg', label: 'ESG' },
+  { value: 'operational', label: 'Operational' },
+]
+
+const TIME_RANGE_OPTIONS: { value: InsightTimeRange; label: string }[] = [
+  { value: '1y', label: '1 Year' },
+  { value: '3y', label: '3 Years' },
+  { value: '5y', label: '5 Years' },
+]
+
+const REPORT_TYPE_OPTIONS: { value: InsightReportType; label: string }[] = [
+  { value: 'all', label: 'All Reports' },
+  { value: 'annual', label: 'Annual' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'half_year', label: 'Half Year' },
+  { value: 'sustainability', label: 'Sustainability' },
+]
+
+const INSIGHT_TYPE_LABELS: Record<string, string> = {
+  trend_reversal: 'Trend',
+  outlier: 'Outlier',
+  risk_flag: 'Risk',
+  opportunity: 'Opportunity',
+}
+
 function AiInsightsSection() {
   const { data: insights, isLoading } = useInsights({ dismissed: false })
   const dismissInsight = useDismissInsight()
   const generateInsights = useGenerateInsights()
+  const [focus, setFocus] = useState<InsightFocus>('all')
+  const [timeRange, setTimeRange] = useState<InsightTimeRange>('1y')
+  const [reportType, setReportType] = useState<InsightReportType>('all')
+  const [showFilters, setShowFilters] = useState(false)
+
+  const handleGenerate = () => {
+    generateInsights.mutate({ focus, time_range: timeRange, report_type: reportType })
+  }
 
   return (
     <div className="mb-8">
+      {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <Tooltip>
           <TooltipTrigger className="text-[15px] font-semibold text-foreground flex items-center gap-2 cursor-default bg-transparent border-none p-0">
             <Sparkles className="h-4 w-4 text-muted-foreground" />
             AI Insights
           </TooltipTrigger>
-          <TooltipContent>AI-generated findings from your peer benchmark data — trends, outliers, and risk flags.</TooltipContent>
+          <TooltipContent>Company-anchored competitive intelligence — trends, risks, and opportunities relative to your position.</TooltipContent>
         </Tooltip>
-        <button
-          onClick={() => generateInsights.mutate()}
-          disabled={generateInsights.isPending}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground disabled:opacity-40"
-        >
-          {generateInsights.isPending ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Sparkles className="h-3 w-3" />
-          )}
-          {generateInsights.isPending ? 'Generating...' : 'Generate'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground cursor-pointer"
+          >
+            <SlidersHorizontal className="h-3 w-3" />
+            Filters
+            {(focus !== 'all' || timeRange !== '1y' || reportType !== 'all') && (
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+            )}
+          </button>
+          <button
+            onClick={handleGenerate}
+            disabled={generateInsights.isPending}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3.5 py-1.5 text-[11px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-40 cursor-pointer"
+          >
+            {generateInsights.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Sparkles className="h-3 w-3" />
+            )}
+            {generateInsights.isPending ? 'Analyzing...' : 'Generate Insights'}
+          </button>
+        </div>
       </div>
 
+      {/* Filter bar */}
+      {showFilters && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Focus</span>
+            <Select value={focus} onValueChange={(v) => setFocus(v as InsightFocus)}>
+              <SelectTrigger className="h-7 w-[120px] rounded-md border-border bg-[var(--color-bg-tertiary)] text-[11px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-lg border-border bg-card text-[11px]">
+                {FOCUS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value} className="text-[11px]">{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Time Range</span>
+            <Select value={timeRange} onValueChange={(v) => setTimeRange(v as InsightTimeRange)}>
+              <SelectTrigger className="h-7 w-[100px] rounded-md border-border bg-[var(--color-bg-tertiary)] text-[11px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-lg border-border bg-card text-[11px]">
+                {TIME_RANGE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value} className="text-[11px]">{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Report Type</span>
+            <Select value={reportType} onValueChange={(v) => setReportType(v as InsightReportType)}>
+              <SelectTrigger className="h-7 w-[130px] rounded-md border-border bg-[var(--color-bg-tertiary)] text-[11px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-lg border-border bg-card text-[11px]">
+                {REPORT_TYPE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value} className="text-[11px]">{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
+      {/* Generation result meta */}
+      {generateInsights.data?.meta && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+          <span className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5">{generateInsights.data.meta.companies_analyzed} companies</span>
+          <span className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5">{generateInsights.data.meta.kpis_analyzed} KPIs</span>
+          <span className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5">{generateInsights.data.meta.data_points} data points</span>
+        </div>
+      )}
+
+      {/* Insight cards */}
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 skeleton-shimmer rounded-lg" />
+            <div key={i} className="h-24 skeleton-shimmer rounded-lg" />
           ))}
         </div>
       ) : !insights || insights.length === 0 ? (
@@ -337,7 +449,7 @@ function AiInsightsSection() {
           </div>
           <p className="text-[13px] font-medium text-muted-foreground">No insights yet</p>
           <p className="text-[11px] text-muted-foreground/70 mt-1 max-w-sm">
-            Click "Generate" to analyze your benchmark data and surface key findings.
+            Select your focus area and click "Generate Insights" to analyze your benchmark data.
           </p>
         </div>
       ) : (
@@ -346,6 +458,12 @@ function AiInsightsSection() {
             const Icon = INSIGHT_ICONS[insight.insight_type] ?? Sparkles
             const iconColor = INSIGHT_COLORS[insight.insight_type] ?? 'text-muted-foreground'
             const priorityClass = PRIORITY_BADGE[insight.priority ?? 'low'] ?? PRIORITY_BADGE.low
+            const typeLabel = INSIGHT_TYPE_LABELS[insight.insight_type] ?? insight.insight_type
+
+            // Split body into main text and recommendation (if "Consider..." exists)
+            const considerIdx = insight.body.indexOf('Consider')
+            const mainBody = considerIdx > 0 ? insight.body.slice(0, considerIdx).trim() : insight.body
+            const recommendation = considerIdx > 0 ? insight.body.slice(considerIdx).trim() : null
 
             return (
               <div
@@ -353,26 +471,34 @@ function AiInsightsSection() {
                 className="group relative card-premium rounded-lg border border-border bg-card p-4"
               >
                 <div className="flex items-start gap-3">
-                  <div className={`mt-0.5 flex-shrink-0 ${iconColor}`}>
+                  <div className={`mt-0.5 flex-shrink-0 rounded-md p-1.5 bg-current/5 ${iconColor}`}>
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-[13px] font-medium text-foreground truncate">
+                      <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${iconColor} bg-current/5`}>
+                        {typeLabel}
+                      </span>
+                      <h3 className="text-[13px] font-medium text-foreground truncate flex-1">
                         {insight.title}
                       </h3>
-                      <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${priorityClass}`}>
+                      <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider flex-shrink-0 ${priorityClass}`}>
                         {insight.priority}
                       </span>
                     </div>
                     <p className="text-[12px] leading-relaxed text-muted-foreground">
-                      {insight.body}
+                      {mainBody}
                     </p>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground/70">
+                    {recommendation && (
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--color-accent)] bg-[var(--color-accent)]/5 rounded px-2 py-1.5 border-l-2 border-[var(--color-accent)]">
+                        {recommendation}
+                      </p>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground/70">
                       {insight.companies && (
                         <Link
                           to={`/companies/${insight.companies.id}`}
-                          className="hover:text-[var(--color-accent)] hover:underline transition-colors"
+                          className="hover:text-[var(--color-accent)] hover:underline transition-colors cursor-pointer"
                         >
                           {insight.companies.name}{insight.companies.ticker ? ` (${insight.companies.ticker})` : ''}
                         </Link>
@@ -380,7 +506,7 @@ function AiInsightsSection() {
                       {insight.related_kpi_code && (
                         <Link
                           to={`/analytics?kpi=${encodeURIComponent(insight.related_kpi_code)}`}
-                          className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 text-[9px] font-medium hover:text-[var(--color-accent)] hover:underline transition-colors"
+                          className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 text-[9px] font-medium hover:text-[var(--color-accent)] hover:underline transition-colors cursor-pointer"
                         >
                           {insight.related_kpi_code}
                         </Link>
@@ -391,31 +517,11 @@ function AiInsightsSection() {
                       {insight.created_at && (
                         <span>Generated {getRelativeTime(insight.created_at)}</span>
                       )}
-                      <span className="text-[10px]">
-                        Sources:{' '}
-                        <Link to="/peers" className="text-[var(--color-accent)] hover:underline">Uploaded Reports</Link>
-                        {insight.companies && (
-                          <>
-                            {' · '}
-                            <Link to={`/companies/${insight.companies.id}`} className="text-[var(--color-accent)] hover:underline">
-                              {insight.companies.name} Profile
-                            </Link>
-                          </>
-                        )}
-                        {insight.related_kpi_code && (
-                          <>
-                            {' · '}
-                            <Link to={`/analytics?kpi=${encodeURIComponent(insight.related_kpi_code)}`} className="text-[var(--color-accent)] hover:underline">
-                              {insight.related_kpi_code} Analytics
-                            </Link>
-                          </>
-                        )}
-                      </span>
                     </div>
                   </div>
                   <button
                     onClick={() => dismissInsight.mutate(insight.id)}
-                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground cursor-pointer"
                     aria-label="Dismiss insight"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -793,6 +899,7 @@ export function DashboardPage() {
                 value={String(pipelineActive + activeMonitored)}
                 subtitle={`${activeMonitored} monitored · ${pipelineActive} processing`}
                 accentColor="bg-[var(--color-accent)]/10"
+                tooltip="Reports currently being monitored or processed through the ingestion pipeline."
               />
             </div>
             <div className="stagger-child" style={{ '--stagger': 1 } as React.CSSProperties}>
@@ -802,6 +909,7 @@ export function DashboardPage() {
                 value={nextReport?.countdown ?? '\u2014'}
                 subtitle={nextReport ? nextReport.company : 'No upcoming reports'}
                 accentColor="bg-[var(--color-primary)]/10"
+                tooltip="Countdown to the next expected peer report publication."
               />
             </div>
             <div className="stagger-child" style={{ '--stagger': 2 } as React.CSSProperties}>
@@ -811,6 +919,7 @@ export function DashboardPage() {
                 value={String(documentsReady)}
                 subtitle={`${benchmarkDocs?.length ?? 0} total generated`}
                 accentColor="bg-[var(--color-signal-green)]/10"
+                tooltip="AI-generated benchmark reports approved or delivered to clients."
               />
             </div>
             <div className="stagger-child" style={{ '--stagger': 3 } as React.CSSProperties}>
@@ -820,6 +929,7 @@ export function DashboardPage() {
                 value={String(pendingReviews)}
                 subtitle="KPIs need attention"
                 accentColor="bg-[var(--color-signal-amber)]/10"
+                tooltip="Extracted KPI values flagged for manual review due to low confidence."
               />
             </div>
           </>
