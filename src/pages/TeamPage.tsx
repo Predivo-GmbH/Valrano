@@ -195,7 +195,7 @@ export function TeamPage() {
                 </div>
                 <div>
                   <p className="text-[13px] font-medium text-foreground">
-                    {member.user_id.slice(0, 8)}...
+                    {('display_name' in member && member.display_name) || (member.user_id.slice(0, 8) + '...')}
                     {isSelf && <span className="ml-2 text-[11px] text-muted-foreground">(you)</span>}
                     {isOwnerMember && <span className="ml-2 text-[11px] text-amber-500">Owner</span>}
                   </p>

@@ -26,14 +26,33 @@ export function useCurrentWorkspace() {
     queryKey: ['workspace-current', user?.id],
     queryFn: async () => {
       if (!user) return null
-      const { data, error } = await supabase
+      // First try owned workspace
+      const { data: owned, error: ownedErr } = await supabase
         .from('workspaces')
         .select('*')
         .eq('owner_id', user.id)
         .limit(1)
         .maybeSingle()
-      if (error) throw error
-      return data as Workspace | null
+      if (ownedErr) throw ownedErr
+      if (owned) return owned as Workspace
+
+      // Fall back to workspace where user is a member
+      const { data: membership, error: memErr } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle()
+      if (memErr) throw memErr
+      if (!membership) return null
+
+      const { data: ws, error: wsErr } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('id', membership.workspace_id)
+        .single()
+      if (wsErr) throw wsErr
+      return ws as Workspace
     },
     enabled: !!user,
   })
@@ -46,11 +65,14 @@ export function useWorkspaceMembers(workspaceId: string | undefined) {
       if (!workspaceId) return []
       const { data, error } = await supabase
         .from('workspace_members')
-        .select('*')
+        .select('*, user_profiles:user_id(full_name)')
         .eq('workspace_id', workspaceId)
         .order('created_at')
       if (error) throw error
-      return data as WorkspaceMember[]
+      return (data ?? []).map((m) => ({
+        ...m,
+        display_name: (m.user_profiles as { full_name: string | null } | null)?.full_name ?? null,
+      })) as (WorkspaceMember & { display_name: string | null })[]
     },
     enabled: !!workspaceId,
   })

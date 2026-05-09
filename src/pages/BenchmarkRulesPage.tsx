@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useBenchmarkRules, useCreateBenchmarkRule, useDeleteBenchmarkRule } from '@/hooks/useBenchmark'
 import { useCompanies, useKpiDefinitions } from '@/hooks/useData'
 import { useMyCompanies } from '@/hooks/useMyCompany'
@@ -61,10 +62,12 @@ interface CreateRuleDialogProps {
 }
 
 function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
+  const navigate = useNavigate()
   const { data: companies } = useCompanies()
   const { data: myCompanies } = useMyCompanies()
   const { data: kpiDefs } = useKpiDefinitions()
   const createMutation = useCreateBenchmarkRule()
+  const hasCompany = (myCompanies ?? []).length > 0
 
   // Derive default customer company from my_companies primary record
   const defaultCustomerCompanyId = (() => {
@@ -141,6 +144,19 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
+        {!hasCompany ? (
+          <div className="py-6 text-center">
+            <Settings className="mx-auto h-10 w-10 text-muted-foreground/50" />
+            <h3 className="mt-3 text-[14px] font-semibold text-foreground">Add your company first</h3>
+            <p className="mt-1 text-[13px] text-muted-foreground max-w-xs mx-auto">
+              Before creating benchmark rules, set up your company in Settings so we know which entity to benchmark.
+            </p>
+            <Button onClick={() => { onOpenChange(false); navigate('/settings/my-company') }} className="mt-4">
+              Go to My Company
+            </Button>
+          </div>
+        ) : (
+        <>
         <div className="space-y-4 py-2">
           {/* Name */}
           <div className="space-y-1.5">
@@ -267,6 +283,8 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
             )}
           </Button>
         </DialogFooter>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   )
