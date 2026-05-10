@@ -676,7 +676,9 @@ function StepCompetitors({
   myCompanyName: string
 }) {
   const { data: companies, isLoading } = useCompanies()
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
+  const [addingIdx, setAddingIdx] = useState<number | null>(null)
   const suggestIrUrl = useSuggestIrUrl()
   const suggestCompetitors = useSuggestCompetitors()
   const [aiSuggestions, setAiSuggestions] = useState<CompetitorSuggestion[]>([])
@@ -709,6 +711,38 @@ function StepCompetitors({
         onError: (err) => toast.error(err.message),
       },
     )
+  }
+
+  const handleAddSuggestion = async (suggestion: CompetitorSuggestion, idx: number) => {
+    setAddingIdx(idx)
+    try {
+      const { data: inserted, error } = await supabase
+        .from('companies')
+        .insert({
+          name: suggestion.name,
+          ticker: suggestion.ticker ?? null,
+          sector: suggestion.sector ?? null,
+        })
+        .select('id')
+        .single()
+      if (error) {
+        toast.error(`Failed to add ${suggestion.name}`)
+        return
+      }
+      // Update suggestion to reflect it's now in DB
+      setAiSuggestions((prev) =>
+        prev.map((s, i) =>
+          i === idx ? { ...s, existing_id: inserted.id, in_database: true } : s,
+        ),
+      )
+      onSelectedIdsChange([...selectedIds, inserted.id])
+      await queryClient.invalidateQueries({ queryKey: ['companies'] })
+      toast.success(`${suggestion.name} added and selected`)
+    } catch {
+      toast.error(`Failed to add ${suggestion.name}`)
+    } finally {
+      setAddingIdx(null)
+    }
   }
 
   const handleAiSuggest = () => {
@@ -789,18 +823,18 @@ function StepCompetitors({
             {aiSuggestions.map((s, i) => {
               const isInDb = s.in_database && s.existing_id
               const isSelected = isInDb ? selectedIds.includes(s.existing_id!) : false
+              const isAdding = addingIdx === i
               return (
                 <button
                   key={`ai-${i}`}
-                  onClick={() => isInDb ? toggleCompany(s.existing_id!) : undefined}
-                  disabled={!isInDb}
+                  onClick={() => isInDb ? toggleCompany(s.existing_id!) : handleAddSuggestion(s, i)}
+                  disabled={isAdding}
                   className={cn(
                     'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
                     isSelected
                       ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
-                      : isInDb
-                      ? 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50'
-                      : 'border-border/50 opacity-60 cursor-not-allowed',
+                      : 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50',
+                    isAdding && 'opacity-60',
                   )}
                 >
                   <div
@@ -811,7 +845,7 @@ function StepCompetitors({
                         : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
                     )}
                   >
-                    {isSelected ? <Check className="h-4 w-4" /> : s.name.slice(0, 2).toUpperCase()}
+                    {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : isSelected ? <Check className="h-4 w-4" /> : s.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-medium text-foreground truncate">{s.name}</p>
@@ -824,9 +858,9 @@ function StepCompetitors({
                       </p>
                     )}
                   </div>
-                  {!isInDb && (
-                    <span className="flex-shrink-0 text-[9px] text-muted-foreground font-medium">
-                      Not in DB
+                  {!isInDb && !isAdding && (
+                    <span className="flex-shrink-0 text-[9px] text-[var(--color-accent)] font-medium">
+                      + Add
                     </span>
                   )}
                 </button>
@@ -919,7 +953,7 @@ function StepCompetitors({
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
                   <p className="text-[11px] text-muted-foreground">
-                    {company.ticker ?? 'No ticker'} · {company.sector ?? 'N/A'}
+                    {[company.ticker, company.sector].filter(Boolean).join(' · ') || company.country || ''}
                   </p>
                 </div>
                 {isSelected && !company.ir_page_url && (
