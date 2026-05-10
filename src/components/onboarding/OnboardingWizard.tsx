@@ -241,7 +241,7 @@ export function OnboardingWizard() {
             selectedIds={selectedCompanyIds}
             onSelectedIdsChange={setSelectedCompanyIds}
             myCompanyName={primaryCompany?.name ?? ''}
-            myCompanyId={primaryCompany?.id ?? null}
+            myCompanyId={primaryCompany?.company_id ?? null}
             aiSuggestions={aiSuggestions}
             onAiSuggestionsChange={setAiSuggestions}
           />
@@ -695,6 +695,7 @@ function StepCompetitors({
   const filtered = (companies ?? []).filter(
     (c) =>
       c.id !== myCompanyId &&
+      c.name.toLowerCase() !== myCompanyName.toLowerCase() &&
       (c.name.toLowerCase().includes(search.toLowerCase()) ||
       (c.ticker ?? '').toLowerCase().includes(search.toLowerCase())),
   )
