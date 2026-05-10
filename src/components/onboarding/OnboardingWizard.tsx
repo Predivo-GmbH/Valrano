@@ -69,6 +69,17 @@ export function OnboardingWizard() {
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
   const [aiSuggestions, setAiSuggestions] = useState<CompetitorSuggestion[]>([])
   const [reportCompetitors, setReportCompetitors] = useState<Array<{ name: string; ticker?: string; context?: string }>>([])
+
+  // Seed report competitors from accounting profile (persists across step navigation)
+  const { data: accountingProfile } = useAccountingProfile()
+  const didSeedReportCompetitors = useRef(false)
+  useEffect(() => {
+    if (accountingProfile?.mentioned_competitors?.length && !didSeedReportCompetitors.current) {
+      didSeedReportCompetitors.current = true
+      setReportCompetitors(accountingProfile.mentioned_competitors)
+    }
+  }, [accountingProfile])
+
   const [schedules, setSchedules] = useState<
     Record<string, { reportType: string; expectedDate: string }>
   >({})
