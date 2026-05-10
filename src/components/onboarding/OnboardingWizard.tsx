@@ -67,6 +67,7 @@ export function OnboardingWizard() {
 
   // Shared state across steps — seeded from existing data
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
+  const [aiSuggestions, setAiSuggestions] = useState<CompetitorSuggestion[]>([])
   const [schedules, setSchedules] = useState<
     Record<string, { reportType: string; expectedDate: string }>
   >({})
@@ -240,6 +241,9 @@ export function OnboardingWizard() {
             selectedIds={selectedCompanyIds}
             onSelectedIdsChange={setSelectedCompanyIds}
             myCompanyName={primaryCompany?.name ?? ''}
+            myCompanyId={primaryCompany?.id ?? null}
+            aiSuggestions={aiSuggestions}
+            onAiSuggestionsChange={setAiSuggestions}
           />
         )}
         {currentStep === 2 && (
@@ -670,10 +674,16 @@ function StepCompetitors({
   selectedIds,
   onSelectedIdsChange,
   myCompanyName,
+  myCompanyId,
+  aiSuggestions,
+  onAiSuggestionsChange,
 }: {
   selectedIds: string[]
   onSelectedIdsChange: (ids: string[]) => void
   myCompanyName: string
+  myCompanyId: string | null
+  aiSuggestions: CompetitorSuggestion[]
+  onAiSuggestionsChange: (suggestions: CompetitorSuggestion[]) => void
 }) {
   const { data: companies, isLoading } = useCompanies()
   const queryClient = useQueryClient()
@@ -681,12 +691,12 @@ function StepCompetitors({
   const [addingIdx, setAddingIdx] = useState<number | null>(null)
   const suggestIrUrl = useSuggestIrUrl()
   const suggestCompetitors = useSuggestCompetitors()
-  const [aiSuggestions, setAiSuggestions] = useState<CompetitorSuggestion[]>([])
 
   const filtered = (companies ?? []).filter(
     (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      (c.ticker ?? '').toLowerCase().includes(search.toLowerCase()),
+      c.id !== myCompanyId &&
+      (c.name.toLowerCase().includes(search.toLowerCase()) ||
+      (c.ticker ?? '').toLowerCase().includes(search.toLowerCase())),
   )
 
   const toggleCompany = (id: string) => {
@@ -730,8 +740,8 @@ function StepCompetitors({
         return
       }
       // Update suggestion to reflect it's now in DB
-      setAiSuggestions((prev) =>
-        prev.map((s, i) =>
+      onAiSuggestionsChange(
+        aiSuggestions.map((s, i) =>
           i === idx ? { ...s, existing_id: inserted.id, in_database: true } : s,
         ),
       )
@@ -754,7 +764,7 @@ function StepCompetitors({
       { company_name: myCompanyName },
       {
         onSuccess: (data) => {
-          setAiSuggestions(data.suggestions)
+          onAiSuggestionsChange(data.suggestions)
           // Auto-select suggestions that exist in DB
           const newIds = data.suggestions
             .filter((s) => s.existing_id && !selectedIds.includes(s.existing_id))
