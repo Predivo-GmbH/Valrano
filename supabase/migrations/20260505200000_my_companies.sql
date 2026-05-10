@@ -2,6 +2,7 @@
 -- Migration: my_companies — Self-Benchmarking (Sprint 7, Block A)
 -- Users can add their own company data and benchmark against peers.
 -- =============================================================================
+CREATE EXTENSION IF NOT EXISTS moddatetime WITH SCHEMA extensions;
 
 -- ---------------------------------------------------------------------------
 -- Table: my_companies — user's own company profiles with KPI data

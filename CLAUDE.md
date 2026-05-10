@@ -119,9 +119,9 @@ supabase functions deploy <function-name> --no-verify-jwt
 
 ## Supabase Project
 
-- **URL:** https://iplfnausgpexckrrrhov.supabase.co
-- **Anon Key:** eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwbGZuYXVzZ3BleGNrcnJyaG92Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4OTQxODEsImV4cCI6MjA5MzQ3MDE4MX0.ZtolZ--nwTKhZJeutMDrthrayQXzFb75k4ypnIW0m4Y
-- **CSP connect-src:** iplfnausgpexckrrrhov.supabase.co
+- **URL:** https://mkdeftmubrkseyrrbzvp.supabase.co
+- **Anon Key:** eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rZGVmdG11YnJrc2V5cnJienZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MTIzODIsImV4cCI6MjA5Mzk4ODM4Mn0.lnNUslHt--2_GzOZFB_UH1mVd0bfGfWTnHIU3e7Umwc
+- **CSP connect-src:** mkdeftmubrkseyrrbzvp.supabase.co
 
 ---
 

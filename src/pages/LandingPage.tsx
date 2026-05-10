@@ -470,7 +470,7 @@ export default function LandingPage() {
         <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
         <link rel="canonical" href="https://benchmarksignal.predivo.ch" />
-        <link rel="preconnect" href="https://iplfnausgpexckrrrhov.supabase.co" />
+        <link rel="preconnect" href="https://mkdeftmubrkseyrrbzvp.supabase.co" />
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
 
