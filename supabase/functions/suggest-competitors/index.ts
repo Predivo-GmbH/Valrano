@@ -24,7 +24,7 @@ serve(async (req: Request) => {
   try {
     const { user, adminClient } = await authenticateRequest(req)
 
-    const { company_name, sector, country } = await req.json()
+    const { company_name, sector, country, exclude_names } = await req.json()
     if (!company_name) {
       return jsonResponse({ error: 'Missing required field: company_name' }, 400)
     }
@@ -69,6 +69,13 @@ serve(async (req: Request) => {
     const sectorHint = sector ? ` in the ${sector} sector` : ''
     const countryHint = country ? ` based in ${country}` : ''
 
+    // Get names to exclude (report-mentioned competitors + the company itself)
+    const excludeNames: string[] = exclude_names ?? []
+
+    const excludeBlock = excludeNames.length > 0
+      ? `\n\nIMPORTANT — Do NOT include any of these companies (they are already listed separately):\n${excludeNames.map((n: string) => `- ${n}`).join('\n')}`
+      : ''
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -84,6 +91,10 @@ serve(async (req: Request) => {
           {
             role: 'user',
             content: `You are a financial analyst. Given the company "${company_name}"${sectorHint}${countryHint}, list 8-12 of its most relevant public competitors for benchmarking purposes.
+
+CRITICAL RULES:
+- NEVER include "${company_name}" itself or any of its former names, parent companies, or subsidiaries (e.g. if the company is "Holcim", do NOT suggest "LafargeHolcim" or "Holcim Ltd").
+- Only suggest genuinely different competing companies.${excludeBlock}
 
 For each competitor, provide:
 - name: The official company name (as it would appear in financial databases)

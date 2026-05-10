@@ -783,11 +783,17 @@ function StepCompetitors({
       toast.error('Set up your company name in Step 1 first')
       return
     }
+    const reportNames = reportCompetitors.map((rc) => rc.name)
     suggestCompetitors.mutate(
-      { company_name: myCompanyName },
+      { company_name: myCompanyName, exclude_names: reportNames },
       {
         onSuccess: (data) => {
-          onAiSuggestionsChange(data.suggestions)
+          // Filter out any suggestions that duplicate report-found competitors
+          const reportNamesLower = new Set(reportNames.map((n) => n.toLowerCase()))
+          const filtered = data.suggestions.filter(
+            (s) => !reportNamesLower.has(s.name.toLowerCase()),
+          )
+          onAiSuggestionsChange(filtered)
           // Auto-select suggestions that exist in DB
           const newIds = data.suggestions
             .filter((s) => s.existing_id && !selectedIds.includes(s.existing_id))

@@ -75,6 +75,7 @@ export function useSuggestCompetitors() {
     company_name: string
     sector?: string
     country?: string
+    exclude_names?: string[]
   }>({
     mutationFn: async (params) => {
       const { data, error } = await supabase.functions.invoke('suggest-competitors', {
