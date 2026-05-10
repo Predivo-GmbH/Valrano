@@ -260,7 +260,6 @@ serve(async (req: Request) => {
                     required: ['formula'],
                   },
                 },
-              },
                 mentioned_competitors: {
                   type: 'array',
                   description: 'Companies explicitly mentioned as competitors, peers, or used for benchmarking in the report. Only include companies clearly identified as industry peers or competitors — not suppliers, customers, or partners.',
@@ -274,6 +273,7 @@ serve(async (req: Request) => {
                     required: ['name'],
                   },
                 },
+              },
               required: ['company_name', 'accounting_standard', 'accounting_standard_confidence', 'policies', 'kpi_mappings', 'mentioned_competitors'],
             },
           },
@@ -319,6 +319,8 @@ KPI codes to map: ${KPI_CODES.join(', ')}
 
 ALWAYS include the source_page number for each finding. This is essential for auditability.
 If you cannot find information about a specific policy, skip it rather than guessing.
+
+For MENTIONED COMPETITORS: Look for any companies explicitly named as competitors, peers, or used in benchmarking comparisons anywhere in the report. Check peer group tables, market share sections, competitive landscape discussions, and industry comparisons. Include the context of where/how they were mentioned. If no competitors are explicitly mentioned, return an empty array.
 
 COMPETITOR EXTRACTION: Also identify any companies explicitly mentioned as competitors, peers, or used in benchmarking comparisons anywhere in the report. Look in sections like competitive landscape, market overview, peer comparison tables, market share analysis, and industry benchmarks. Include their stock ticker if mentioned. Return an empty array if no competitors are mentioned.`,
               },
@@ -453,6 +455,8 @@ COMPETITOR EXTRACTION: Also identify any companies explicitly mentioned as compe
       },
     })
   } catch (err) {
+    console.error('[analyze-accounting-profile] Error:', err instanceof Error ? err.message : String(err))
+    console.error('[analyze-accounting-profile] Stack:', err instanceof Error ? err.stack : 'no stack')
     return errorResponse(err)
   }
 })
