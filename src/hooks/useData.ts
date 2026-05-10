@@ -33,6 +33,23 @@ export function useCompanies() {
   })
 }
 
+/** Fetch ALL active companies (not filtered by peer groups). Used during onboarding. */
+export function useAllCompanies() {
+  return useQuery({
+    queryKey: ['companies-all'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('is_active', true)
+        .order('name')
+      if (error) throw error
+      return data as Company[]
+    },
+  })
+}
+
 export function useKpiDefinitions() {
   return useQuery({
     queryKey: ['kpi-definitions'],

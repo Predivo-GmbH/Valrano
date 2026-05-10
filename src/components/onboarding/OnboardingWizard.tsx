@@ -7,7 +7,6 @@ import {
   Calendar,
   Check,
   ChevronRight,
-  Globe,
   Loader2,
   Rocket,
   Sparkles,
@@ -17,12 +16,12 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { PremiumSelect } from '@/components/ui/premium-select'
 import { supabase } from '@/lib/supabase'
-import { useCompanies, useReports, usePeerGroups } from '@/hooks/useData'
+import { useReports, usePeerGroups, useAllCompanies } from '@/hooks/useData'
 import { useAccountingProfile, useAnalyzeAccountingProfile } from '@/hooks/useAccountingProfile'
 import { useCreateMyCompany, usePrimaryCompany } from '@/hooks/useMyCompany'
 import { useUploadReport } from '@/hooks/useExtraction'
 import { useCreatePublicationEvent, usePublicationEvents } from '@/hooks/useCalendar'
-import { useSuggestDates, useSuggestIrUrl, useSuggestCompetitors } from '@/hooks/useAiSuggestions'
+import { useSuggestDates, useSuggestCompetitors } from '@/hooks/useAiSuggestions'
 import type { CompetitorSuggestion } from '@/hooks/useAiSuggestions'
 import { dismissOnboarding, useOnboarding } from '@/hooks/useOnboarding'
 import { CompanyAutocomplete } from '@/components/company-autocomplete'
@@ -272,7 +271,7 @@ export function OnboardingWizard() {
               }
               if (newIds.length > selectedCompanyIds.length) {
                 setSelectedCompanyIds(newIds)
-                queryClient.invalidateQueries({ queryKey: ['companies'] })
+                queryClient.invalidateQueries({ queryKey: ['companies-all'] })
               }
             })()
           }
@@ -734,7 +733,7 @@ function StepCompetitors({
   selectedIds,
   onSelectedIdsChange,
   myCompanyName,
-  myCompanyId,
+  myCompanyId: _,
   aiSuggestions,
   onAiSuggestionsChange,
   reportCompetitors,
@@ -747,21 +746,11 @@ function StepCompetitors({
   onAiSuggestionsChange: (suggestions: CompetitorSuggestion[]) => void
   reportCompetitors: Array<{ name: string; ticker?: string; context?: string }>
 }) {
-  const { data: companies, isLoading } = useCompanies()
+  const { data: companies, isLoading } = useAllCompanies()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [addingIdx, setAddingIdx] = useState<number | null>(null)
-  const suggestIrUrl = useSuggestIrUrl()
   const suggestCompetitors = useSuggestCompetitors()
-
-
-  const filtered = (companies ?? []).filter(
-    (c) =>
-      c.id !== myCompanyId &&
-      c.name.toLowerCase() !== myCompanyName.toLowerCase() &&
-      (c.name.toLowerCase().includes(search.toLowerCase()) ||
-      (c.ticker ?? '').toLowerCase().includes(search.toLowerCase())),
-  )
 
   const toggleCompany = (id: string) => {
     if (selectedIds.includes(id)) {
@@ -769,22 +758,6 @@ function StepCompetitors({
     } else {
       onSelectedIdsChange([...selectedIds, id])
     }
-  }
-
-  const handleSuggestIrUrl = (company: Company) => {
-    suggestIrUrl.mutate(
-      { company_id: company.id, company_name: company.name },
-      {
-        onSuccess: (data) => {
-          if (data.ir_page_url) {
-            toast.success(`IR page found for ${company.name}`)
-          } else {
-            toast.info(`No IR page found for ${company.name}`)
-          }
-        },
-        onError: (err) => toast.error(err.message),
-      },
-    )
   }
 
   const handleAddSuggestion = async (suggestion: CompetitorSuggestion, idx: number) => {
@@ -810,7 +783,7 @@ function StepCompetitors({
         ),
       )
       onSelectedIdsChange([...selectedIds, inserted.id])
-      await queryClient.invalidateQueries({ queryKey: ['companies'] })
+      await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
       toast.success(`${suggestion.name} added and selected`)
     } catch {
       toast.error(`Failed to add ${suggestion.name}`)
@@ -841,23 +814,6 @@ function StepCompetitors({
       },
     )
   }
-
-  // Auto-trigger AI suggestions on mount when the page is empty
-  const didAutoSuggest = useRef(false)
-  useEffect(() => {
-    if (
-      !didAutoSuggest.current &&
-      myCompanyName &&
-      !isLoading &&
-      aiSuggestions.length === 0 &&
-      reportCompetitors.length === 0 &&
-      selectedIds.length === 0
-    ) {
-      didAutoSuggest.current = true
-      const t = setTimeout(() => handleAiSuggest(), 300)
-      return () => clearTimeout(t)
-    }
-  }, [myCompanyName, isLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (isLoading) {
     return (
@@ -980,7 +936,7 @@ function StepCompetitors({
                         .single()
                       if (error) { toast.error(`Failed to add ${item.name}`); return }
                       onSelectedIdsChange([...selectedIds, inserted.id])
-                      await queryClient.invalidateQueries({ queryKey: ['companies'] })
+                      await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
                       toast.success(`${item.name} added and selected`)
                     } catch { toast.error(`Failed to add ${item.name}`) }
                     finally { setAddingIdx(null) }
@@ -1101,71 +1057,37 @@ function StepCompetitors({
         </div>
       </div>
 
-      {/* Selected count */}
-      {selectedIds.length > 0 && (
-        <p className="text-[12px] text-[var(--color-accent)] font-medium">
-          {selectedIds.length} competitor{selectedIds.length !== 1 ? 's' : ''} selected
-        </p>
-      )}
-
-      {/* Company grid */}
-      {(search || !aiSuggestions.length) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {filtered.map((company) => {
-            const isSelected = selectedIds.includes(company.id)
-            return (
-              <button
-                key={company.id}
-                onClick={() => toggleCompany(company.id)}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
-                  isSelected
-                    ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
-                    : 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50',
-                )}
-              >
-                <div
-                  className={cn(
-                    'flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0',
-                    isSelected
-                      ? 'bg-[var(--color-accent)] text-white'
-                      : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
-                  )}
+      {/* Selected competitors */}
+      {selectedIds.length > 0 && (() => {
+        const selectedCompanies = (companies ?? []).filter((c) => selectedIds.includes(c.id))
+        return (
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Your competitors ({selectedCompanies.length})
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {selectedCompanies.map((company) => (
+                <button
+                  key={company.id}
+                  onClick={() => toggleCompany(company.id)}
+                  className="flex items-center gap-3 rounded-lg border border-[var(--color-accent)] bg-[var(--color-accent)]/5 p-3 text-left transition-all"
                 >
-                  {isSelected ? <Check className="h-4 w-4" /> : company.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {[company.ticker, company.sector].filter(Boolean).join(' · ') || company.country || ''}
-                  </p>
-                </div>
-                {isSelected && !company.ir_page_url && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleSuggestIrUrl(company)
-                    }}
-                    className="flex-shrink-0 rounded-md bg-[var(--color-bg-tertiary)] px-2 py-1 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-                    title="Find IR page"
-                  >
-                    <Globe className="h-3 w-3" />
-                  </button>
-                )}
-                {company.ir_page_url && (
-                  <span className="flex-shrink-0 text-[9px] text-[var(--color-signal-green)] font-medium">IR</span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      {search && filtered.length === 0 && (
-        <p className="text-[12px] text-muted-foreground text-center py-8">
-          No companies found matching &ldquo;{search}&rdquo;
-        </p>
-      )}
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent)] text-white text-[11px] font-bold flex-shrink-0">
+                    <Check className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {[company.ticker, company.sector].filter(Boolean).join(' · ') || company.country || ''}
+                    </p>
+                  </div>
+                  <span className="flex-shrink-0 text-[9px] text-muted-foreground">✕ remove</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
@@ -1183,7 +1105,7 @@ function StepSchedule({
   schedules: Record<string, { reportType: string; expectedDate: string }>
   onSchedulesChange: (s: Record<string, { reportType: string; expectedDate: string }>) => void
 }) {
-  const { data: companies } = useCompanies()
+  const { data: companies } = useAllCompanies()
   const createEvent = useCreatePublicationEvent()
   const suggestDates = useSuggestDates()
 
