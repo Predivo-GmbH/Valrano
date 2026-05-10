@@ -754,23 +754,6 @@ function StepCompetitors({
   const suggestIrUrl = useSuggestIrUrl()
   const suggestCompetitors = useSuggestCompetitors()
 
-  // Auto-trigger AI suggestions on mount when the page is empty
-  const didAutoSuggest = useRef(false)
-  useEffect(() => {
-    if (
-      !didAutoSuggest.current &&
-      myCompanyName &&
-      !isLoading &&
-      aiSuggestions.length === 0 &&
-      reportCompetitors.length === 0 &&
-      selectedIds.length === 0
-    ) {
-      didAutoSuggest.current = true
-      // Small delay so the UI renders first
-      const t = setTimeout(() => handleAiSuggest(), 300)
-      return () => clearTimeout(t)
-    }
-  }, [myCompanyName, isLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = (companies ?? []).filter(
     (c) =>
@@ -858,6 +841,23 @@ function StepCompetitors({
       },
     )
   }
+
+  // Auto-trigger AI suggestions on mount when the page is empty
+  const didAutoSuggest = useRef(false)
+  useEffect(() => {
+    if (
+      !didAutoSuggest.current &&
+      myCompanyName &&
+      !isLoading &&
+      aiSuggestions.length === 0 &&
+      reportCompetitors.length === 0 &&
+      selectedIds.length === 0
+    ) {
+      didAutoSuggest.current = true
+      const t = setTimeout(() => handleAiSuggest(), 300)
+      return () => clearTimeout(t)
+    }
+  }, [myCompanyName, isLoading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (isLoading) {
     return (
