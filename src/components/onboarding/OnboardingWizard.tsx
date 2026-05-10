@@ -794,13 +794,6 @@ function StepCompetitors({
             (s) => !reportNamesLower.has(s.name.toLowerCase()),
           )
           onAiSuggestionsChange(filtered)
-          // Auto-select suggestions that exist in DB
-          const newIds = data.suggestions
-            .filter((s) => s.existing_id && !selectedIds.includes(s.existing_id))
-            .map((s) => s.existing_id!)
-          if (newIds.length > 0) {
-            onSelectedIdsChange([...selectedIds, ...newIds])
-          }
           toast.success(`Found ${data.suggestions.length} competitor suggestions`)
         },
         onError: (err) => toast.error(err.message),
