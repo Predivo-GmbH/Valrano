@@ -302,7 +302,7 @@ Important: Values are typically in millions unless stated otherwise. Convert all
         extraction_id: extraction.id,
         report_id: reportId,
         company_id: company.id,
-        kpi_definition_id: kpiDefMap.get(kpi.kpi_code)!,
+        kpi_definition_id: kpiDefMap.get(kpi.kpi_code) as string,
         fiscal_year: kpi.fiscal_year,
         fiscal_quarter: kpi.fiscal_quarter ?? null,
         raw_value: kpi.raw_value,

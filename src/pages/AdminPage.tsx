@@ -108,8 +108,8 @@ function AdminPanel({
         Manage subscription tiers and news gathering for all registered accounts.
       </p>
 
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded-xl border border-border bg-card overflow-x-auto">
+        <table className="w-full min-w-[500px] text-sm">
           <thead>
             <tr className="border-b border-border bg-[var(--color-bg-tertiary)]/30">
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">User</th>
