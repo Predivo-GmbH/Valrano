@@ -261,7 +261,20 @@ serve(async (req: Request) => {
                   },
                 },
               },
-              required: ['company_name', 'accounting_standard', 'accounting_standard_confidence', 'policies', 'kpi_mappings'],
+                mentioned_competitors: {
+                  type: 'array',
+                  description: 'Companies explicitly mentioned as competitors, peers, or used for benchmarking in the report. Only include companies clearly identified as industry peers or competitors — not suppliers, customers, or partners.',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', description: 'Official company name' },
+                      ticker: { type: 'string', description: 'Stock ticker if mentioned' },
+                      context: { type: 'string', description: 'Brief context of how/where the company is mentioned (e.g., "peer comparison table", "market share analysis")' },
+                    },
+                    required: ['name'],
+                  },
+                },
+              required: ['company_name', 'accounting_standard', 'accounting_standard_confidence', 'policies', 'kpi_mappings', 'mentioned_competitors'],
             },
           },
         ],
@@ -305,7 +318,9 @@ For KPI MAPPINGS, find how this company calculates each of these KPIs and record
 KPI codes to map: ${KPI_CODES.join(', ')}
 
 ALWAYS include the source_page number for each finding. This is essential for auditability.
-If you cannot find information about a specific policy, skip it rather than guessing.`,
+If you cannot find information about a specific policy, skip it rather than guessing.
+
+COMPETITOR EXTRACTION: Also identify any companies explicitly mentioned as competitors, peers, or used in benchmarking comparisons anywhere in the report. Look in sections like competitive landscape, market overview, peer comparison tables, market share analysis, and industry benchmarks. Include their stock ticker if mentioned. Return an empty array if no competitors are mentioned.`,
               },
             ],
           },
@@ -349,6 +364,7 @@ If you cannot find information about a specific policy, skip it rather than gues
       accounting_standard_confidence: number
       policies: Record<string, unknown>
       kpi_mappings: Record<string, unknown>
+      mentioned_competitors: Array<{ name: string; ticker?: string; context?: string }>
     }
 
     // ------------------------------------------------------------------
@@ -427,6 +443,7 @@ If you cannot find information about a specific policy, skip it rather than gues
       kpi_mappings_extracted: kpiMappingCount,
       policies: result.policies,
       kpi_mappings: result.kpi_mappings,
+      mentioned_competitors: result.mentioned_competitors ?? [],
       usage: {
         input_tokens: inputTokens,
         output_tokens: outputTokens,

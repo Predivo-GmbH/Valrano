@@ -68,6 +68,7 @@ export function OnboardingWizard() {
   // Shared state across steps — seeded from existing data
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
   const [aiSuggestions, setAiSuggestions] = useState<CompetitorSuggestion[]>([])
+  const [reportCompetitors, setReportCompetitors] = useState<Array<{ name: string; ticker?: string; context?: string }>>([])
   const [schedules, setSchedules] = useState<
     Record<string, { reportType: string; expectedDate: string }>
   >({})
@@ -235,7 +236,7 @@ export function OnboardingWizard() {
 
       {/* Step content */}
       <div className="mx-auto w-full max-w-[900px] flex-1 px-4 py-8 sm:px-6">
-        {currentStep === 0 && <StepFramework />}
+        {currentStep === 0 && <StepFramework onReportCompetitorsFound={setReportCompetitors} />}
         {currentStep === 1 && (
           <StepCompetitors
             selectedIds={selectedCompanyIds}
@@ -244,6 +245,7 @@ export function OnboardingWizard() {
             myCompanyId={primaryCompany?.company_id ?? null}
             aiSuggestions={aiSuggestions}
             onAiSuggestionsChange={setAiSuggestions}
+            reportCompetitors={reportCompetitors}
           />
         )}
         {currentStep === 2 && (
@@ -299,7 +301,7 @@ export function OnboardingWizard() {
 // Step 1: Accounting Framework
 // ---------------------------------------------------------------------------
 
-function StepFramework() {
+function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound: (competitors: Array<{ name: string; ticker?: string; context?: string }>) => void }) {
   const { data: profile, isLoading: profileLoading } = useAccountingProfile()
   const { data: reports, isLoading: reportsLoading } = useReports()
   const analyzeMutation = useAnalyzeAccountingProfile()
@@ -408,12 +410,18 @@ function StepFramework() {
       setUploadStep('creating')
       animateTo(95, 1500)
 
-      const extractedName = (analysisResult as { company_name?: string })?.company_name
+      const analysisData = analysisResult as { company_name?: string; mentioned_competitors?: Array<{ name: string; ticker?: string; context?: string }> }
+      const extractedName = analysisData?.company_name
       if (extractedName && company) {
         await supabase
           .from('my_companies')
           .update({ name: extractedName })
           .eq('id', company.id)
+      }
+
+      // Capture competitors mentioned in the report for Step 2
+      if (analysisData?.mentioned_competitors?.length) {
+        onReportCompetitorsFound(analysisData.mentioned_competitors)
       }
 
       // Done
@@ -677,6 +685,7 @@ function StepCompetitors({
   myCompanyId,
   aiSuggestions,
   onAiSuggestionsChange,
+  reportCompetitors,
 }: {
   selectedIds: string[]
   onSelectedIdsChange: (ids: string[]) => void
@@ -684,6 +693,7 @@ function StepCompetitors({
   myCompanyId: string | null
   aiSuggestions: CompetitorSuggestion[]
   onAiSuggestionsChange: (suggestions: CompetitorSuggestion[]) => void
+  reportCompetitors: Array<{ name: string; ticker?: string; context?: string }>
 }) {
   const { data: companies, isLoading } = useCompanies()
   const queryClient = useQueryClient()
@@ -823,6 +833,93 @@ function StepCompetitors({
           </span>
         )}
       </div>
+
+      {/* Competitors found in the uploaded report */}
+      {reportCompetitors.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+            Found in your report
+          </p>
+          <p className="text-[12px] text-muted-foreground">
+            These companies were mentioned as competitors or peers in your annual report. Click to add them.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {reportCompetitors.map((rc, i) => {
+              const existing = (companies ?? []).find(
+                (c) => c.name.toLowerCase() === rc.name.toLowerCase() ||
+                  (rc.ticker && c.ticker && c.ticker.toLowerCase() === rc.ticker.toLowerCase()),
+              )
+              const isSelected = existing ? selectedIds.includes(existing.id) : false
+              const isAdding = addingIdx === -(i + 1)
+              return (
+                <button
+                  key={`report-${i}`}
+                  onClick={() => {
+                    if (existing) {
+                      toggleCompany(existing.id)
+                    } else {
+                      void (async () => {
+                        setAddingIdx(-(i + 1))
+                        try {
+                          const { data: inserted, error } = await supabase
+                            .from('companies')
+                            .insert({
+                              name: rc.name,
+                              ticker: rc.ticker ?? null,
+                            })
+                            .select('id')
+                            .single()
+                          if (error) {
+                            toast.error(`Failed to add ${rc.name}`)
+                            return
+                          }
+                          onSelectedIdsChange([...selectedIds, inserted.id])
+                          await queryClient.invalidateQueries({ queryKey: ['companies'] })
+                          toast.success(`${rc.name} added and selected`)
+                        } catch {
+                          toast.error(`Failed to add ${rc.name}`)
+                        } finally {
+                          setAddingIdx(null)
+                        }
+                      })()
+                    }
+                  }}
+                  disabled={isAdding}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
+                    isSelected
+                      ? 'border-emerald-500 bg-emerald-500/5'
+                      : 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50',
+                    isAdding && 'opacity-60',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0',
+                      isSelected
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
+                    )}
+                  >
+                    {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : isSelected ? <Check className="h-4 w-4" /> : rc.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-medium text-foreground truncate">{rc.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {[rc.ticker, rc.context].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  {!existing && !isAdding && (
+                    <span className="flex-shrink-0 text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      + Add
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* AI Suggestions */}
       {aiSuggestions.length > 0 && (
