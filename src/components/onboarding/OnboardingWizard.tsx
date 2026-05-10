@@ -878,13 +878,17 @@ function StepCompetitors({
               )
             })}
           </div>
+          <p className="mt-3 text-[12px] text-muted-foreground leading-relaxed">
+            These suggestions are based on AI analysis and may not cover all relevant peers.
+            Use the search below to add any competitors that are missing.
+          </p>
         </div>
       )}
 
       {/* Search + Manual selection */}
       <div className="space-y-3">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {aiSuggestions.length > 0 ? 'Or search manually' : 'Search companies'}
+          {aiSuggestions.length > 0 ? 'Add more competitors' : 'Search companies'}
         </p>
         <div className="max-w-md">
           <CompanyAutocomplete
