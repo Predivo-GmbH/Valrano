@@ -380,6 +380,7 @@ COMPETITOR EXTRACTION: Also identify any companies explicitly mentioned as compe
       accounting_standard_confidence: result.accounting_standard_confidence,
       policies: result.policies,
       kpi_mappings: result.kpi_mappings,
+      mentioned_competitors: result.mentioned_competitors ?? [],
       source_report_id: reportId,
       source_report_title: report.title ?? `${companyName} Annual Report`,
       ai_model: 'claude-sonnet-4-6',

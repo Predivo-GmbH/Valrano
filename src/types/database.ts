@@ -605,6 +605,7 @@ export interface AccountingProfile {
   ai_model: string | null;
   extracted_at: string | null;
   manually_edited: boolean;
+  mentioned_competitors: Array<{ name: string; ticker?: string; context?: string }>;
   last_edited_at: string | null;
   created_at: string;
   updated_at: string;

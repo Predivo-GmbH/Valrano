@@ -309,6 +309,18 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
   const createCompany = useCreateMyCompany()
   const { data: primaryCompany } = usePrimaryCompany()
 
+  // Seed report competitors from existing profile on mount
+  const seededRef = useRef(false)
+  useEffect(() => {
+    if (profile && !seededRef.current) {
+      const mc = profile.mentioned_competitors
+      if (mc && mc.length > 0) {
+        onReportCompetitorsFound(mc)
+        seededRef.current = true
+      }
+    }
+  }, [profile, onReportCompetitorsFound])
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedReportId, setSelectedReportId] = useState('')
   const [uploading, setUploading] = useState(false)
