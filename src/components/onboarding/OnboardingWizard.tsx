@@ -236,7 +236,36 @@ export function OnboardingWizard() {
 
       {/* Step content */}
       <div className="mx-auto w-full max-w-[900px] flex-1 px-4 py-8 sm:px-6">
-        {currentStep === 0 && <StepFramework onReportCompetitorsFound={setReportCompetitors} />}
+        {currentStep === 0 && <StepFramework onReportCompetitorsFound={(competitors, autoSelect) => {
+          setReportCompetitors(competitors)
+          // Auto-select report competitors by inserting them into the DB if needed
+          if (autoSelect && competitors.length > 0) {
+            void (async () => {
+              const { data: existingCompanies } = await supabase.from('companies').select('id, name, ticker')
+              const newIds: string[] = [...selectedCompanyIds]
+              for (const rc of competitors) {
+                const match = (existingCompanies ?? []).find(
+                  (c) => c.name.toLowerCase() === rc.name.toLowerCase() ||
+                    (rc.ticker && c.ticker && c.ticker.toLowerCase() === rc.ticker.toLowerCase()),
+                )
+                if (match) {
+                  if (!newIds.includes(match.id)) newIds.push(match.id)
+                } else {
+                  const { data: inserted } = await supabase
+                    .from('companies')
+                    .insert({ name: rc.name, ticker: rc.ticker ?? null })
+                    .select('id')
+                    .single()
+                  if (inserted) newIds.push(inserted.id)
+                }
+              }
+              if (newIds.length > selectedCompanyIds.length) {
+                setSelectedCompanyIds(newIds)
+                queryClient.invalidateQueries({ queryKey: ['companies'] })
+              }
+            })()
+          }
+        }} />}
         {currentStep === 1 && (
           <StepCompetitors
             selectedIds={selectedCompanyIds}
@@ -301,7 +330,7 @@ export function OnboardingWizard() {
 // Step 1: Accounting Framework
 // ---------------------------------------------------------------------------
 
-function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound: (competitors: Array<{ name: string; ticker?: string; context?: string }>) => void }) {
+function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound: (competitors: Array<{ name: string; ticker?: string; context?: string }>, autoSelect: boolean) => void }) {
   const { data: profile, isLoading: profileLoading } = useAccountingProfile()
   const { data: reports, isLoading: reportsLoading } = useReports()
   const analyzeMutation = useAnalyzeAccountingProfile()
@@ -315,7 +344,7 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
     if (profile && !seededRef.current) {
       const mc = profile.mentioned_competitors
       if (mc && mc.length > 0) {
-        onReportCompetitorsFound(mc)
+        onReportCompetitorsFound(mc, true)
         seededRef.current = true
       }
     }
@@ -431,9 +460,9 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
           .eq('id', company.id)
       }
 
-      // Capture competitors mentioned in the report for Step 2
+      // Capture competitors mentioned in the report for Step 2 (auto-select them)
       if (analysisData?.mentioned_competitors?.length) {
-        onReportCompetitorsFound(analysisData.mentioned_competitors)
+        onReportCompetitorsFound(analysisData.mentioned_competitors, true)
       }
 
       // Done
@@ -809,6 +838,46 @@ function StepCompetitors({
     )
   }
 
+  // Build unified suggestion list: report competitors first, then AI suggestions
+  const unifiedSuggestions: Array<{
+    name: string
+    ticker?: string
+    sector?: string
+    context?: string
+    reasoning?: string
+    source: 'report' | 'ai'
+    existing_id?: string | null
+    in_database?: boolean
+    originalIdx: number
+  }> = []
+
+  for (let i = 0; i < reportCompetitors.length; i++) {
+    const rc = reportCompetitors[i]
+    unifiedSuggestions.push({
+      name: rc.name,
+      ticker: rc.ticker,
+      context: rc.context,
+      source: 'report',
+      originalIdx: -(i + 1), // negative index for report competitors
+    })
+  }
+
+  for (let i = 0; i < aiSuggestions.length; i++) {
+    const s = aiSuggestions[i]
+    unifiedSuggestions.push({
+      name: s.name,
+      ticker: s.ticker ?? undefined,
+      sector: s.sector ?? undefined,
+      reasoning: s.reasoning ?? undefined,
+      source: 'ai',
+      existing_id: s.existing_id,
+      in_database: s.in_database,
+      originalIdx: i,
+    })
+  }
+
+  const hasAnySuggestions = unifiedSuggestions.length > 0
+
   return (
     <div className="space-y-6">
       <div>
@@ -831,7 +900,11 @@ function StepCompetitors({
           ) : (
             <Sparkles className="h-4 w-4" />
           )}
-          {suggestCompetitors.isPending ? 'Finding competitors...' : 'AI Suggest Competitors'}
+          {suggestCompetitors.isPending
+            ? 'Finding competitors...'
+            : reportCompetitors.length > 0
+            ? 'Find More Competitors'
+            : 'AI Suggest Competitors'}
         </button>
         {myCompanyName && (
           <span className="text-[12px] text-muted-foreground">
@@ -845,116 +918,54 @@ function StepCompetitors({
         )}
       </div>
 
-      {/* Competitors found in the uploaded report */}
-      {reportCompetitors.length > 0 && (
+      {/* Unified suggestion list */}
+      {hasAnySuggestions && (
         <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-            Found in your report
-          </p>
-          <p className="text-[12px] text-muted-foreground">
-            These companies were mentioned as competitors or peers in your annual report. Click to add them.
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Suggested competitors
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {reportCompetitors.map((rc, i) => {
-              const existing = (companies ?? []).find(
-                (c) => c.name.toLowerCase() === rc.name.toLowerCase() ||
-                  (rc.ticker && c.ticker && c.ticker.toLowerCase() === rc.ticker.toLowerCase()),
-              )
-              const isSelected = existing ? selectedIds.includes(existing.id) : false
-              const isAdding = addingIdx === -(i + 1)
-              return (
-                <button
-                  key={`report-${i}`}
-                  onClick={() => {
-                    if (existing) {
-                      toggleCompany(existing.id)
-                    } else {
-                      void (async () => {
-                        setAddingIdx(-(i + 1))
-                        try {
-                          const { data: inserted, error } = await supabase
-                            .from('companies')
-                            .insert({
-                              name: rc.name,
-                              ticker: rc.ticker ?? null,
-                            })
-                            .select('id')
-                            .single()
-                          if (error) {
-                            toast.error(`Failed to add ${rc.name}`)
-                            return
-                          }
-                          onSelectedIdsChange([...selectedIds, inserted.id])
-                          await queryClient.invalidateQueries({ queryKey: ['companies'] })
-                          toast.success(`${rc.name} added and selected`)
-                        } catch {
-                          toast.error(`Failed to add ${rc.name}`)
-                        } finally {
-                          setAddingIdx(null)
-                        }
-                      })()
-                    }
-                  }}
-                  disabled={isAdding}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
-                    isSelected
-                      ? 'border-emerald-500 bg-emerald-500/5'
-                      : 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50',
-                    isAdding && 'opacity-60',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0',
-                      isSelected
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
-                    )}
-                  >
-                    {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : isSelected ? <Check className="h-4 w-4" /> : rc.name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium text-foreground truncate">{rc.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {[rc.ticker, rc.context].filter(Boolean).join(' · ')}
-                    </p>
-                  </div>
-                  {!isSelected && !isAdding && (
-                    <span className="flex-shrink-0 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                      + Add
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
+            {unifiedSuggestions.map((item, idx) => {
+              const isReport = item.source === 'report'
+              const existing = isReport
+                ? (companies ?? []).find(
+                    (c) => c.name.toLowerCase() === item.name.toLowerCase() ||
+                      (item.ticker && c.ticker && c.ticker.toLowerCase() === item.ticker.toLowerCase()),
+                  )
+                : undefined
+              const dbId = isReport ? existing?.id : (item.in_database ? item.existing_id : undefined)
+              const isSelected = dbId ? selectedIds.includes(dbId) : false
+              const isAdding = addingIdx === item.originalIdx
 
-      {/* AI Suggestions */}
-      {aiSuggestions.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-accent)]">
-            AI Suggestions
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {aiSuggestions.map((s, i) => {
-              const isInDb = s.in_database && s.existing_id
-              const isSelected = isInDb ? selectedIds.includes(s.existing_id!) : false
-              const isAdding = addingIdx === i
+              const handleClick = () => {
+                if (dbId) {
+                  toggleCompany(dbId)
+                } else if (isReport) {
+                  void (async () => {
+                    setAddingIdx(item.originalIdx)
+                    try {
+                      const { data: inserted, error } = await supabase
+                        .from('companies')
+                        .insert({ name: item.name, ticker: item.ticker ?? null })
+                        .select('id')
+                        .single()
+                      if (error) { toast.error(`Failed to add ${item.name}`); return }
+                      onSelectedIdsChange([...selectedIds, inserted.id])
+                      await queryClient.invalidateQueries({ queryKey: ['companies'] })
+                      toast.success(`${item.name} added and selected`)
+                    } catch { toast.error(`Failed to add ${item.name}`) }
+                    finally { setAddingIdx(null) }
+                  })()
+                } else {
+                  // AI suggestion not yet in DB
+                  handleAddSuggestion(aiSuggestions[item.originalIdx], item.originalIdx)
+                }
+              }
+
               return (
                 <button
-                  key={`ai-${i}`}
-                  onClick={() => {
-                    if (isSelected && isInDb) {
-                      toggleCompany(s.existing_id!)
-                    } else if (!isInDb) {
-                      handleAddSuggestion(s, i)
-                    } else if (isInDb) {
-                      toggleCompany(s.existing_id!)
-                    }
-                  }}
+                  key={`${item.source}-${idx}`}
+                  onClick={handleClick}
                   disabled={isAdding}
                   className={cn(
                     'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
@@ -972,32 +983,45 @@ function StepCompetitors({
                         : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
                     )}
                   >
-                    {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : isSelected ? <Check className="h-4 w-4" /> : s.name.slice(0, 2).toUpperCase()}
+                    {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : isSelected ? <Check className="h-4 w-4" /> : item.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium text-foreground truncate">{s.name}</p>
+                    <p className="text-[13px] font-medium text-foreground truncate">{item.name}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {s.ticker ?? ''}{s.ticker && s.sector ? ' · ' : ''}{s.sector ?? ''}
+                      {isReport
+                        ? [item.ticker, item.context].filter(Boolean).join(' · ')
+                        : [item.ticker, item.sector].filter(Boolean).join(' · ')}
                     </p>
-                    {s.reasoning && (
+                    {item.reasoning && (
                       <p className="text-[10px] text-muted-foreground/70 mt-0.5 line-clamp-1">
-                        {s.reasoning}
+                        {item.reasoning}
                       </p>
                     )}
                   </div>
-                  {!isSelected && !isAdding && (
-                    <span className="flex-shrink-0 text-[11px] text-[var(--color-accent)] font-medium">
-                      + Add
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className={cn(
+                      'rounded-full px-1.5 py-0.5 text-[9px] font-medium',
+                      isReport
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]',
+                    )}>
+                      {isReport ? 'report' : 'AI'}
                     </span>
-                  )}
+                    {!isSelected && !isAdding && (
+                      <span className="text-[9px] text-[var(--color-accent)] font-medium">
+                        + Add
+                      </span>
+                    )}
+                  </div>
                 </button>
               )
             })}
           </div>
-          <p className="mt-3 text-[12px] text-muted-foreground leading-relaxed">
-            These suggestions are based on AI analysis and may not cover all relevant peers.
-            Use the search below to add any competitors that are missing.
-          </p>
+          {aiSuggestions.length > 0 && (
+            <p className="mt-3 text-[12px] text-muted-foreground leading-relaxed">
+              Use the search below to add any competitors that are missing.
+            </p>
+          )}
         </div>
       )}
 
