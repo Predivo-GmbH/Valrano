@@ -67,7 +67,8 @@ serve(async (req: Request) => {
     }
 
     const company = report.companies as { id: string; name: string; ticker: string | null }
-    const companyName = overrideName ?? company.name
+    // companyName will be overridden by AI-extracted name after analysis
+    const companyNameHint = overrideName ?? company.name
 
     // ------------------------------------------------------------------
     // 2. Download PDF → base64
@@ -111,6 +112,10 @@ serve(async (req: Request) => {
             input_schema: {
               type: 'object',
               properties: {
+                company_name: {
+                  type: 'string',
+                  description: 'The official company name as stated in the annual report (e.g., "Holcim Ltd", "LafargeHolcim")',
+                },
                 accounting_standard: {
                   type: 'string',
                   enum: ['IFRS', 'US_GAAP', 'Swiss_GAAP_FER', 'HGB', 'other'],
@@ -259,7 +264,7 @@ serve(async (req: Request) => {
                   },
                 },
               },
-              required: ['accounting_standard', 'accounting_standard_confidence', 'policies', 'kpi_mappings'],
+              required: ['company_name', 'accounting_standard', 'accounting_standard_confidence', 'policies', 'kpi_mappings'],
             },
           },
         ],
@@ -278,7 +283,7 @@ serve(async (req: Request) => {
               },
               {
                 type: 'text',
-                text: `You are an expert financial reporting analyst. Analyze this annual report for "${companyName}" and extract their complete accounting framework.
+                text: `You are an expert financial reporting analyst. Analyze this annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''} and extract their complete accounting framework. First, identify the official company name as stated in the report.
 
 FOCUS ON THE ACCOUNTING POLICIES SECTION (typically in the Notes to the Financial Statements).
 
@@ -330,6 +335,7 @@ If you cannot find information about a specific policy, skip it rather than gues
     }
 
     const result = toolUseBlock.input as {
+      company_name: string
       accounting_standard: string
       accounting_standard_confidence: number
       policies: Record<string, unknown>
@@ -339,6 +345,9 @@ If you cannot find information about a specific policy, skip it rather than gues
     // ------------------------------------------------------------------
     // 5. Upsert accounting_profiles row
     // ------------------------------------------------------------------
+    // Use AI-extracted company name, fall back to hint
+    const companyName = result.company_name || companyNameHint
+
     const profileData = {
       user_id: user.id,
       company_name: companyName,
@@ -389,8 +398,17 @@ If you cannot find information about a specific policy, skip it rather than gues
     const policyCount = Object.keys(result.policies).length
     const kpiMappingCount = Object.keys(result.kpi_mappings).length
 
+    // Update the company name in the companies table with AI-extracted name
+    if (result.company_name && report.company_id) {
+      await adminClient
+        .from('companies')
+        .update({ name: result.company_name })
+        .eq('id', report.company_id)
+    }
+
     return jsonResponse({
       profile_id: profileId,
+      company_name: companyName,
       accounting_standard: result.accounting_standard,
       confidence: result.accounting_standard_confidence,
       policies_extracted: policyCount,

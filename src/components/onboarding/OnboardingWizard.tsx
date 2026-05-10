@@ -323,7 +323,7 @@ function StepFramework() {
     }
 
     setUploading(true)
-    setUploadStep('creating')
+    setUploadStep('uploading')
     setUploadProgress(0)
     progressRef.current = 0
 
@@ -344,9 +344,9 @@ function StepFramework() {
     }
 
     try {
-      // Step 1: Create company profile
-      animateTo(15, 2000)
-      const placeholderName = file.name.replace(/\.pdf$/i, '')
+      // Step 1: Upload PDF — create a placeholder company silently (required by storage path)
+      animateTo(25, 3000)
+      const placeholderName = 'Pending Analysis'
       let company = primaryCompany
       if (!company) {
         company = await createCompany.mutateAsync({
@@ -365,7 +365,7 @@ function StepFramework() {
       if (!companyId && company) {
         const { data: created } = await supabase
           .from('companies')
-          .insert({ name: company.name || placeholderName, is_active: true })
+          .insert({ name: placeholderName, is_active: true })
           .select('id')
           .single()
         companyId = created?.id
@@ -380,9 +380,6 @@ function StepFramework() {
 
       if (!companyId) throw new Error('Could not resolve company')
 
-      // Step 2: Upload PDF
-      setUploadStep('uploading')
-      animateTo(40, 3000)
       const result = await uploadMutation.mutateAsync({
         file,
         companyId,
@@ -390,18 +387,30 @@ function StepFramework() {
         fiscalYear: new Date().getFullYear() - 1,
       })
 
-      // Step 3: AI analyzing
+      // Step 2: AI analyzing the document
       setUploadStep('analyzing')
-      animateTo(70, 8000)
+      animateTo(55, 8000)
 
-      // Step 4: Extracting policies (shown after a delay while analysis runs)
+      // Step 3: Extracting policies (shown after a delay while analysis runs)
       const extractTimer = setTimeout(() => {
         setUploadStep('extracting')
-        animateTo(90, 10000)
+        animateTo(80, 10000)
       }, 5000)
 
-      await analyzeMutation.mutateAsync({ reportId: result.report_id })
+      const analysisResult = await analyzeMutation.mutateAsync({ reportId: result.report_id })
       clearTimeout(extractTimer)
+
+      // Step 4: Setting up company profile with AI-extracted name
+      setUploadStep('creating')
+      animateTo(95, 1500)
+
+      const extractedName = (analysisResult as { company_name?: string })?.company_name
+      if (extractedName && company) {
+        await supabase
+          .from('my_companies')
+          .update({ name: extractedName })
+          .eq('id', company.id)
+      }
 
       // Done
       if (progressInterval.current) clearInterval(progressInterval.current)
@@ -524,12 +533,12 @@ function StepFramework() {
           {/* Step indicators */}
           <div className="space-y-3">
             {[
+              { key: 'uploading', label: 'Uploading PDF to secure storage', estimate: '~5s' },
+              { key: 'analyzing', label: 'AI reading your annual report', estimate: '~30s' },
+              { key: 'extracting', label: 'Extracting accounting policies & KPIs', estimate: '~20s' },
               { key: 'creating', label: 'Setting up your company profile', estimate: '~2s' },
-              { key: 'uploading', label: 'Uploading PDF to secure storage', estimate: '~3s' },
-              { key: 'analyzing', label: 'AI reading your annual report', estimate: '~15s' },
-              { key: 'extracting', label: 'Extracting accounting policies & KPIs', estimate: '~10s' },
             ].map((step) => {
-              const stepOrder = ['creating', 'uploading', 'analyzing', 'extracting']
+              const stepOrder = ['uploading', 'analyzing', 'extracting', 'creating']
               const currentIdx = stepOrder.indexOf(uploadStep)
               const stepIdx = stepOrder.indexOf(step.key)
               const isActive = step.key === uploadStep
