@@ -920,8 +920,8 @@ function StepCompetitors({
                       {[rc.ticker, rc.context].filter(Boolean).join(' · ')}
                     </p>
                   </div>
-                  {!existing && !isAdding && (
-                    <span className="flex-shrink-0 text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  {!isSelected && !isAdding && (
+                    <span className="flex-shrink-0 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
                       + Add
                     </span>
                   )}
@@ -946,7 +946,15 @@ function StepCompetitors({
               return (
                 <button
                   key={`ai-${i}`}
-                  onClick={() => isInDb ? toggleCompany(s.existing_id!) : handleAddSuggestion(s, i)}
+                  onClick={() => {
+                    if (isSelected && isInDb) {
+                      toggleCompany(s.existing_id!)
+                    } else if (!isInDb) {
+                      handleAddSuggestion(s, i)
+                    } else if (isInDb) {
+                      toggleCompany(s.existing_id!)
+                    }
+                  }}
                   disabled={isAdding}
                   className={cn(
                     'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
@@ -977,8 +985,8 @@ function StepCompetitors({
                       </p>
                     )}
                   </div>
-                  {!isInDb && !isAdding && (
-                    <span className="flex-shrink-0 text-[9px] text-[var(--color-accent)] font-medium">
+                  {!isSelected && !isAdding && (
+                    <span className="flex-shrink-0 text-[11px] text-[var(--color-accent)] font-medium">
                       + Add
                     </span>
                   )}
