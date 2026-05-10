@@ -281,7 +281,6 @@ export function OnboardingWizard() {
             selectedIds={selectedCompanyIds}
             onSelectedIdsChange={setSelectedCompanyIds}
             myCompanyName={primaryCompany?.name ?? ''}
-            myCompanyId={primaryCompany?.company_id ?? null}
             aiSuggestions={aiSuggestions}
             onAiSuggestionsChange={setAiSuggestions}
             reportCompetitors={reportCompetitors}
@@ -733,7 +732,6 @@ function StepCompetitors({
   selectedIds,
   onSelectedIdsChange,
   myCompanyName,
-  myCompanyId: _,
   aiSuggestions,
   onAiSuggestionsChange,
   reportCompetitors,
@@ -741,7 +739,6 @@ function StepCompetitors({
   selectedIds: string[]
   onSelectedIdsChange: (ids: string[]) => void
   myCompanyName: string
-  myCompanyId: string | null
   aiSuggestions: CompetitorSuggestion[]
   onAiSuggestionsChange: (suggestions: CompetitorSuggestion[]) => void
   reportCompetitors: Array<{ name: string; ticker?: string; context?: string }>
