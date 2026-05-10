@@ -176,10 +176,10 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                       return (
                         <div
                           key={ev.id}
-                          className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-[var(--color-bg-tertiary)]"
+                          className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-[var(--color-bg-tertiary)]"
                         >
                           {/* Date + Time */}
-                          <div className="w-28 shrink-0">
+                          <div className="sm:w-28 shrink-0">
                             <div className="text-sm font-medium text-foreground">{dateStr}</div>
                             {timeStr && <div className="text-[11px] text-muted-foreground">{timeStr} CET</div>}
                           </div>

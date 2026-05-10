@@ -179,6 +179,7 @@ export default function NewsPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search news..."
+            aria-label="Search news"
             className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] pl-9 pr-4 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
           />
         </div>
@@ -190,7 +191,7 @@ export default function NewsPage() {
           <button
             key={topic}
             onClick={() => setSelectedTopic(selectedTopic === topic ? '' : topic)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
+            className={`rounded-full px-3 py-1.5 min-h-[44px] flex items-center text-xs font-medium transition-all cursor-pointer ${
               selectedTopic === topic
                 ? 'bg-[var(--color-accent)] text-white'
                 : TOPIC_COLOR[topic] ?? 'bg-[var(--color-muted)] text-[var(--color-muted-foreground)]'

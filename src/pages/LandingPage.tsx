@@ -529,7 +529,7 @@ export default function LandingPage() {
               <span className="landing-gradient-badge inline-block rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-white">AI-Powered Competitive Intelligence</span>
             </div>
             <h1 className="landing-animate-in landing-delay-2 mt-8 text-[clamp(2.75rem,7vw,5.5rem)] font-bold leading-[1.02] tracking-[-0.035em] text-[var(--color-foreground)]">
-              Board-ready peer benchmarking<br />
+              Board-ready peer benchmarking<br className="hidden sm:inline" />
               <span className="bg-gradient-to-r from-[var(--color-accent)] via-[#8B5CF6] to-[#EC4899] bg-clip-text text-transparent">in 60 minutes</span>
             </h1>
             <p className="landing-animate-in landing-delay-3 mx-auto mt-8 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg md:text-xl">

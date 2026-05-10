@@ -88,6 +88,16 @@ export function ChatPanel() {
     }
   }, [isOpen])
 
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false)
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen])
+
   const handleSend = useCallback(async (text?: string) => {
     const messageText = text ?? input.trim()
     if (!messageText || isStreaming) return
@@ -146,7 +156,7 @@ export function ChatPanel() {
       {/* Panel */}
       <div
         className={cn(
-          'fixed bottom-0 right-0 top-16 z-40 flex w-[400px] max-w-[100vw] flex-col border-l border-border bg-[var(--color-background)] shadow-2xl transition-transform duration-300',
+          'fixed bottom-0 right-0 top-16 z-40 flex w-full sm:w-[400px] max-w-[100vw] flex-col border-l border-border bg-[var(--color-background)] shadow-2xl transition-transform duration-300',
           isOpen ? 'translate-x-0' : 'translate-x-full',
         )}
         role="complementary"

@@ -119,7 +119,7 @@ export function AccountPage() {
 
         <div className="space-y-6 section-fade-in">
           {/* 1. Profile */}
-          <section className="card-premium rounded-xl border border-border bg-card p-6">
+          <section className="card-premium rounded-xl border border-border bg-card p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <User className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-[15px] font-semibold text-foreground">Profile</h2>
@@ -138,7 +138,7 @@ export function AccountPage() {
           </section>
 
           {/* 2. Security */}
-          <section className="card-premium rounded-xl border border-border bg-card p-6">
+          <section className="card-premium rounded-xl border border-border bg-card p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Shield className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-[15px] font-semibold text-foreground">Security</h2>
@@ -241,7 +241,7 @@ export function AccountPage() {
           </section>
 
           {/* 3. Subscription */}
-          <section className="card-premium rounded-xl border border-border bg-card p-6">
+          <section className="card-premium rounded-xl border border-border bg-card p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-[15px] font-semibold text-foreground">Subscription</h2>
@@ -265,7 +265,7 @@ export function AccountPage() {
           </section>
 
           {/* 5. Preferences */}
-          <section className="card-premium rounded-xl border border-border bg-card p-6">
+          <section className="card-premium rounded-xl border border-border bg-card p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-[15px] font-semibold text-foreground">Preferences</h2>
@@ -303,7 +303,7 @@ export function AccountPage() {
           </section>
 
           {/* 6. Danger Zone */}
-          <section className="card-danger rounded-xl bg-card p-6">
+          <section className="card-danger rounded-xl bg-card p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
               <Trash2 className="h-4 w-4 text-red-500" />
               <h2 className="text-[15px] font-semibold text-red-600 dark:text-red-400">Danger Zone</h2>
@@ -347,7 +347,7 @@ export function AccountPage() {
                   />
                 </div>
                 {deleteError && (
-                  <p className="text-[12px] text-red-600">{deleteError}</p>
+                  <p className="text-[12px] text-red-600" role="alert">{deleteError}</p>
                 )}
                 <div className="flex gap-2 justify-end">
                   <Button

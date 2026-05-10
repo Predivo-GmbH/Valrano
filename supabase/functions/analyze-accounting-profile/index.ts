@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
-import { extractPdfText } from '../_shared/pdf-text.ts'
+import { preparePdfForAnalysis } from '../_shared/pdf-text.ts'
 
 // ---------------------------------------------------------------------------
 // Accounting policy areas the AI must extract
@@ -72,7 +72,7 @@ serve(async (req: Request) => {
     const companyNameHint = overrideName ?? company.name
 
     // ------------------------------------------------------------------
-    // 2. Download PDF → extract text
+    // 2. Download PDF → prepare for analysis (subset if >100 pages)
     // ------------------------------------------------------------------
     const { data: pdfData, error: downloadError } = await adminClient.storage
       .from('reports')
@@ -81,16 +81,12 @@ serve(async (req: Request) => {
     if (downloadError) throw new Error(`PDF download failed: ${downloadError.message}`)
 
     const pdfArrayBuffer = await pdfData.arrayBuffer()
-    const { text: pdfText, pageCount, charCount } = await extractPdfText(pdfArrayBuffer)
+    const { base64: pdfBase64, pageCount, subsetPageCount, wasSubset } = await preparePdfForAnalysis(pdfArrayBuffer)
 
-    if (!pdfText || charCount < 100) {
-      return jsonResponse({ error: 'Could not extract text from PDF. The file may be image-only or corrupt.' }, 422)
-    }
-
-    console.log(`[analyze-accounting-profile] Extracted ${charCount} chars from ${pageCount} pages`)
+    console.log(`[analyze-accounting-profile] PDF: ${pageCount} pages${wasSubset ? ` → subset ${subsetPageCount} pages` : ''}`)
 
     // ------------------------------------------------------------------
-    // 3. Claude: Extract accounting framework (text-based)
+    // 3. Claude: Extract accounting framework (PDF document)
     // ------------------------------------------------------------------
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is not set')
@@ -273,11 +269,18 @@ serve(async (req: Request) => {
         messages: [
           {
             role: 'user',
-            content: `You are an expert financial reporting analyst. Below is the full text extracted from an annual report${companyNameHint !== 'Pending Analysis' ? ` (hint: "${companyNameHint}")` : ''}. Extract the complete accounting framework. First, identify the official company name as stated in the report.
-
-<annual_report>
-${pdfText}
-</annual_report>
+            content: [
+              {
+                type: 'document',
+                source: {
+                  type: 'base64',
+                  media_type: 'application/pdf',
+                  data: pdfBase64,
+                },
+              },
+              {
+                type: 'text',
+                text: `You are an expert financial reporting analyst. Analyze this annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''} and extract their complete accounting framework. First, identify the official company name as stated in the report.${wasSubset ? `\n\nNOTE: This is a subset of a ${pageCount}-page report (first 5 pages + last ${subsetPageCount - 5} pages). The financial statements and notes are included.` : ''}
 
 FOCUS ON THE ACCOUNTING POLICIES SECTION (typically in the Notes to the Financial Statements).
 
@@ -303,6 +306,8 @@ KPI codes to map: ${KPI_CODES.join(', ')}
 
 ALWAYS include the source_page number for each finding. This is essential for auditability.
 If you cannot find information about a specific policy, skip it rather than guessing.`,
+              },
+            ],
           },
         ],
       }),

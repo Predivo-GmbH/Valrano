@@ -1,35 +1,79 @@
-import { getDocumentProxy } from 'https://esm.sh/unpdf@0.12.1'
+import { PDFDocument } from 'https://esm.sh/pdf-lib@1.17.1'
 
 /**
- * Extract all text from a PDF ArrayBuffer.
- * Returns the full text with page markers for source_page references.
+ * Prepare a PDF for AI analysis by creating a subset if too large.
+ * Returns base64-encoded PDF (either original or subset).
+ *
+ * Strategy for large reports (>100 pages):
+ * - First 5 pages (cover, TOC, company overview)
+ * - Last 100 pages (financial statements + notes — always at the end)
+ * This ensures we capture accounting policies and KPI definitions.
  */
-export async function extractPdfText(pdfArrayBuffer: ArrayBuffer): Promise<{
-  text: string
+const MAX_PAGES = 100
+const FRONT_PAGES = 5
+
+export async function preparePdfForAnalysis(pdfArrayBuffer: ArrayBuffer): Promise<{
+  base64: string
   pageCount: number
-  charCount: number
+  subsetPageCount: number
+  wasSubset: boolean
 }> {
-  const pdf = await getDocumentProxy(new Uint8Array(pdfArrayBuffer))
-  const pages: string[] = []
+  const originalBytes = new Uint8Array(pdfArrayBuffer)
+  const srcDoc = await PDFDocument.load(originalBytes)
+  const pageCount = srcDoc.getPageCount()
 
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i)
-    const content = await page.getTextContent()
-    const pageText = content.items
-      .map((item: { str?: string }) => item.str ?? '')
-      .join(' ')
-      .replace(/\s+/g, ' ')
-      .trim()
+  let finalBytes: Uint8Array
 
-    if (pageText) {
-      pages.push(`[PAGE ${i}]\n${pageText}`)
+  if (pageCount <= MAX_PAGES) {
+    // Small enough — send the whole PDF
+    finalBytes = originalBytes
+    return {
+      base64: uint8ToBase64(finalBytes),
+      pageCount,
+      subsetPageCount: pageCount,
+      wasSubset: false,
     }
   }
 
-  const text = pages.join('\n\n')
-  return {
-    text,
-    pageCount: pdf.numPages,
-    charCount: text.length,
+  // Large PDF: extract first 5 + last (MAX_PAGES - FRONT_PAGES) pages
+  const tailCount = MAX_PAGES - FRONT_PAGES
+  const tailStart = Math.max(FRONT_PAGES, pageCount - tailCount)
+
+  const subsetDoc = await PDFDocument.create()
+
+  // Copy front pages
+  const frontIndices = Array.from({ length: Math.min(FRONT_PAGES, pageCount) }, (_, i) => i)
+  const frontPages = await subsetDoc.copyPages(srcDoc, frontIndices)
+  for (const page of frontPages) {
+    subsetDoc.addPage(page)
   }
+
+  // Copy tail pages (skip if they overlap with front)
+  if (tailStart > FRONT_PAGES) {
+    const tailIndices = Array.from({ length: pageCount - tailStart }, (_, i) => tailStart + i)
+    const tailPages = await subsetDoc.copyPages(srcDoc, tailIndices)
+    for (const page of tailPages) {
+      subsetDoc.addPage(page)
+    }
+  }
+
+  const subsetPageCount = subsetDoc.getPageCount()
+  finalBytes = await subsetDoc.save()
+
+  return {
+    base64: uint8ToBase64(new Uint8Array(finalBytes)),
+    pageCount,
+    subsetPageCount,
+    wasSubset: true,
+  }
+}
+
+/** Encode Uint8Array to base64 in chunks (avoids stack overflow on large arrays) */
+function uint8ToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const chunkSize = 8192
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.slice(i, i + chunkSize))
+  }
+  return btoa(binary)
 }

@@ -48,7 +48,7 @@ export default function AuthConfirmPage() {
       <div className="text-center" role="status" aria-live="polite">
         {error ? (
           <>
-            <p className="text-sm text-red-500 mb-4">{error}</p>
+            <p className="text-sm text-red-500 mb-4" role="alert">{error}</p>
             <a href="/login" className="text-sm text-[var(--color-accent)] hover:underline">Back to login</a>
           </>
         ) : (

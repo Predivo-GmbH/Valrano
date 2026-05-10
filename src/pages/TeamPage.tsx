@@ -135,7 +135,7 @@ export function TeamPage() {
 
       {/* Invite form */}
       {isAdmin && (
-        <form onSubmit={handleInvite} className="flex items-end gap-3">
+        <form onSubmit={handleInvite} className="flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="flex-1">
             <label className="mb-1.5 block text-[12px] font-medium text-muted-foreground">
               Email address
@@ -211,7 +211,7 @@ export function TeamPage() {
                 <div className="relative">
                   <button
                     onClick={() => setMenuOpen(menuOpen === member.id ? null : member.id)}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+                    className="rounded-lg p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </button>
@@ -224,7 +224,7 @@ export function TeamPage() {
                             updateRole.mutate({ memberId: member.id, role: r, workspaceId: workspace!.id })
                             setMenuOpen(null)
                           }}
-                          className={`block w-full px-3 py-1.5 text-left text-[12px] transition-colors hover:bg-muted/50 ${
+                          className={`block w-full px-3 py-2.5 min-h-[44px] text-left text-[12px] transition-colors hover:bg-muted/50 ${
                             member.role === r ? 'font-medium text-[var(--color-accent)]' : 'text-foreground'
                           }`}
                         >
@@ -238,7 +238,7 @@ export function TeamPage() {
                           setMenuOpen(null)
                           toast.success('Member removed')
                         }}
-                        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-red-500 transition-colors hover:bg-red-500/10"
+                        className="flex w-full items-center gap-2 px-3 py-2.5 min-h-[44px] text-left text-[12px] text-red-500 transition-colors hover:bg-red-500/10"
                       >
                         <Trash2 className="h-3 w-3" /> Remove
                       </button>

@@ -147,7 +147,7 @@ function AdminPanel({
                           key={tier}
                           onClick={() => updateTier.mutate({ userId: u.id, tier })}
                           disabled={updateTier.isPending}
-                          className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                          className={`rounded-md px-2.5 py-1.5 min-h-[44px] text-[11px] font-medium transition-colors cursor-pointer ${
                             u.tier === tier
                               ? 'bg-[var(--color-accent)] text-white'
                               : 'bg-[var(--color-bg-tertiary)] text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)]/80'

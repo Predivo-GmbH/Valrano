@@ -123,7 +123,7 @@ export function AnalyticsPage() {
 
         {/* Summary cards */}
         {companies && kpiDefs && (
-          <div className="mb-6 grid grid-cols-3 gap-3">
+          <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="card-premium rounded-xl border border-border bg-card px-4 py-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Companies</div>
               <div className="mt-1 text-lg font-semibold tabular-nums text-foreground">{companyIds.length}</div>
@@ -570,7 +570,7 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
   const visibleKpis = data.kpis
 
   return (
-    <div className="card-premium rounded-xl border border-border bg-card">
+    <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
       <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }}>
         <thead>
           <tr className="border-b border-border">
@@ -735,7 +735,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
 
   return (
     <div className="space-y-4">
-      <div className="card-premium rounded-xl border border-border bg-card">
+      <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
         <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr className="border-b border-border">
