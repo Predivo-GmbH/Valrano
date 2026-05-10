@@ -14,6 +14,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { extractPdfText } from '../_shared/pdf-text.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -94,15 +95,15 @@ Deno.serve(async (req) => {
     return errorResponse('Failed to download PDF: ' + (dlError?.message ?? 'unknown'), 500)
   }
 
-  // Convert to base64 in chunks
+  // Extract text from PDF
   const buffer = await pdfData.arrayBuffer()
-  const bytes = new Uint8Array(buffer)
-  let base64 = ''
-  const CHUNK = 8192
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    const chunk = bytes.subarray(i, Math.min(i + CHUNK, bytes.length))
-    base64 += btoa(String.fromCharCode(...chunk))
+  const { text: pdfText, pageCount, charCount } = await extractPdfText(buffer)
+
+  if (!pdfText || charCount < 100) {
+    return errorResponse('Could not extract text from PDF. The file may be image-only or corrupt.', 422)
   }
+
+  console.log(`[extract-report-context] Extracted ${charCount} chars from ${pageCount} pages`)
 
   // Build the extraction prompt
   const companyList = companyNames
@@ -290,17 +291,11 @@ Be precise with page numbers. If something spans multiple pages, use the first p
         tool_choice: { type: 'tool', name: 'extract_report_context' },
         messages: [{
           role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: base64 },
-              cache_control: { type: 'ephemeral' },
-            },
-            {
-              type: 'text',
-              text: `Extract all strategic context and segment breakdowns from this ${company.name} FY${report.fiscal_year} annual report. Be thorough with segment financials — the comparability engine depends on accurate segment-level revenue and EBITDA data.`,
-            },
-          ],
+          content: `Below is the full text extracted from ${company.name}'s FY${report.fiscal_year} annual report. Extract all strategic context and segment breakdowns. Be thorough with segment financials — the comparability engine depends on accurate segment-level revenue and EBITDA data.
+
+<annual_report>
+${pdfText}
+</annual_report>`,
         }],
       }),
     })

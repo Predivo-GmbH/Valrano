@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { extractPdfText } from '../_shared/pdf-text.ts'
 
 // ---------------------------------------------------------------------------
 // Accounting policy areas the AI must extract
@@ -71,7 +72,7 @@ serve(async (req: Request) => {
     const companyNameHint = overrideName ?? company.name
 
     // ------------------------------------------------------------------
-    // 2. Download PDF → base64
+    // 2. Download PDF → extract text
     // ------------------------------------------------------------------
     const { data: pdfData, error: downloadError } = await adminClient.storage
       .from('reports')
@@ -80,16 +81,16 @@ serve(async (req: Request) => {
     if (downloadError) throw new Error(`PDF download failed: ${downloadError.message}`)
 
     const pdfArrayBuffer = await pdfData.arrayBuffer()
-    const pdfBytes = new Uint8Array(pdfArrayBuffer)
-    let binary = ''
-    const chunkSize = 8192
-    for (let i = 0; i < pdfBytes.length; i += chunkSize) {
-      binary += String.fromCharCode(...pdfBytes.slice(i, i + chunkSize))
+    const { text: pdfText, pageCount, charCount } = await extractPdfText(pdfArrayBuffer)
+
+    if (!pdfText || charCount < 100) {
+      return jsonResponse({ error: 'Could not extract text from PDF. The file may be image-only or corrupt.' }, 422)
     }
-    const pdfBase64 = btoa(binary)
+
+    console.log(`[analyze-accounting-profile] Extracted ${charCount} chars from ${pageCount} pages`)
 
     // ------------------------------------------------------------------
-    // 3. Claude Vision: Extract accounting framework
+    // 3. Claude: Extract accounting framework (text-based)
     // ------------------------------------------------------------------
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is not set')
@@ -272,18 +273,11 @@ serve(async (req: Request) => {
         messages: [
           {
             role: 'user',
-            content: [
-              {
-                type: 'document',
-                source: {
-                  type: 'base64',
-                  media_type: 'application/pdf',
-                  data: pdfBase64,
-                },
-              },
-              {
-                type: 'text',
-                text: `You are an expert financial reporting analyst. Analyze this annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''} and extract their complete accounting framework. First, identify the official company name as stated in the report.
+            content: `You are an expert financial reporting analyst. Below is the full text extracted from an annual report${companyNameHint !== 'Pending Analysis' ? ` (hint: "${companyNameHint}")` : ''}. Extract the complete accounting framework. First, identify the official company name as stated in the report.
+
+<annual_report>
+${pdfText}
+</annual_report>
 
 FOCUS ON THE ACCOUNTING POLICIES SECTION (typically in the Notes to the Financial Statements).
 
@@ -309,8 +303,6 @@ KPI codes to map: ${KPI_CODES.join(', ')}
 
 ALWAYS include the source_page number for each finding. This is essential for auditability.
 If you cannot find information about a specific policy, skip it rather than guessing.`,
-              },
-            ],
           },
         ],
       }),
@@ -324,7 +316,19 @@ If you cannot find information about a specific policy, skip it rather than gues
     const claudeJson = await claudeResponse.json()
 
     // ------------------------------------------------------------------
-    // 4. Parse tool-use response
+    // 4a. Extract token usage for cost tracking
+    // ------------------------------------------------------------------
+    const usage = claudeJson.usage as {
+      input_tokens: number
+      output_tokens: number
+    } | undefined
+    const inputTokens = usage?.input_tokens ?? 0
+    const outputTokens = usage?.output_tokens ?? 0
+    // Sonnet 4.6 pricing: $3/MTok input, $15/MTok output
+    const estimatedCostUsd = (inputTokens * 3 + outputTokens * 15) / 1_000_000
+
+    // ------------------------------------------------------------------
+    // 4b. Parse tool-use response
     // ------------------------------------------------------------------
     const toolUseBlock = claudeJson.content?.find(
       (block: { type: string }) => block.type === 'tool_use',
@@ -406,6 +410,9 @@ If you cannot find information about a specific policy, skip it rather than gues
         .eq('id', report.company_id)
     }
 
+    // Log usage to console for debugging
+    console.log(`[analyze-accounting-profile] Tokens: ${inputTokens} in / ${outputTokens} out | Cost: $${estimatedCostUsd.toFixed(4)} | Company: ${companyName}`)
+
     return jsonResponse({
       profile_id: profileId,
       company_name: companyName,
@@ -415,6 +422,12 @@ If you cannot find information about a specific policy, skip it rather than gues
       kpi_mappings_extracted: kpiMappingCount,
       policies: result.policies,
       kpi_mappings: result.kpi_mappings,
+      usage: {
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        estimated_cost_usd: Math.round(estimatedCostUsd * 10000) / 10000,
+        model: 'claude-sonnet-4-6',
+      },
     })
   } catch (err) {
     return errorResponse(err)

@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { extractPdfText } from '../_shared/pdf-text.ts'
 
 // ---------------------------------------------------------------------------
 // KPI codes recognised by the extraction tool
@@ -121,7 +122,7 @@ serve(async (req: Request) => {
     if (extractionError) throw new Error(`Extraction insert failed: ${extractionError.message}`)
 
     // ------------------------------------------------------------------
-    // 4. Download PDF from Supabase Storage as ArrayBuffer → base64
+    // 4. Download PDF → extract text
     // ------------------------------------------------------------------
     const { data: pdfData, error: downloadError } = await adminClient.storage
       .from('reports')
@@ -130,18 +131,16 @@ serve(async (req: Request) => {
     if (downloadError) throw new Error(`PDF download failed: ${downloadError.message}`)
 
     const pdfArrayBuffer = await pdfData.arrayBuffer()
-    const pdfBytes = new Uint8Array(pdfArrayBuffer)
+    const { text: pdfText, pageCount, charCount } = await extractPdfText(pdfArrayBuffer)
 
-    // Encode to base64 without using btoa (which fails on binary > 64KB in Deno)
-    let binary = ''
-    const chunkSize = 8192
-    for (let i = 0; i < pdfBytes.length; i += chunkSize) {
-      binary += String.fromCharCode(...pdfBytes.slice(i, i + chunkSize))
+    if (!pdfText || charCount < 100) {
+      return jsonResponse({ error: 'Could not extract text from PDF. The file may be image-only or corrupt.' }, 422)
     }
-    const pdfBase64 = btoa(binary)
+
+    console.log(`[extract-kpis] Extracted ${charCount} chars from ${pageCount} pages`)
 
     // ------------------------------------------------------------------
-    // 5. Call Claude Vision with PDF document block
+    // 5. Call Claude with extracted text
     // ------------------------------------------------------------------
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is not set')
@@ -207,18 +206,11 @@ serve(async (req: Request) => {
         messages: [
           {
             role: 'user',
-            content: [
-              {
-                type: 'document',
-                source: {
-                  type: 'base64',
-                  media_type: 'application/pdf',
-                  data: pdfBase64,
-                },
-              },
-              {
-                type: 'text',
-                text: `You are a financial data extraction expert. Extract all financial and ESG KPIs from this corporate report for ${companyName}${companyTicker ? ` (${companyTicker})` : ''}.
+            content: `You are a financial data extraction expert. Below is the full text extracted from a corporate report for ${companyName}${companyTicker ? ` (${companyTicker})` : ''}.
+
+<annual_report>
+${pdfText}
+</annual_report>
 ${accountingProfile ? `
 IMPORTANT CONTEXT — USER'S ACCOUNTING FRAMEWORK:
 The user's company (${accountingProfile.company_name}) uses ${accountingProfile.accounting_standard}.
@@ -261,8 +253,6 @@ For each KPI found:
 - Include surrounding source_text for audit trail${accountingProfile ? '\n- In source_text, note any accounting policy differences vs the user\'s framework (e.g., "Competitor includes restructuring in EBITDA; user excludes it")' : ''}
 
 Important: Values are typically in millions unless stated otherwise. Convert all values to millions.`,
-              },
-            ],
           },
         ],
       }),
