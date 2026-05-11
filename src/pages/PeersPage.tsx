@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { useCompanies, useReports } from '@/hooks/useData'
+import { useCompanies, useReports, useKpiDefinitions, useKpiValues } from '@/hooks/useData'
+import { usePrimaryCompany } from '@/hooks/useMyCompany'
 import { usePublicationEvents, useCheckPublication } from '@/hooks/useCalendar'
 import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
 import type { Company, ReportType, PublicationEventStatus } from '@/types/database'
@@ -26,6 +27,10 @@ import {
   Search,
   CalendarDays,
   ClipboardCheck,
+  LayoutGrid,
+  Table2,
+  ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -49,6 +54,30 @@ const STATUS_COLORS: Record<PublicationEventStatus, string> = {
 }
 
 const MONITORING_ACTIVE_STATUSES: PublicationEventStatus[] = ['scheduled', 'due_today', 'overdue']
+
+const TABLE_KPI_CODES = ['REVENUE', 'EBITDA_MARGIN', 'NET_DEBT_EBITDA', 'ROIC'] as const
+
+/** KPIs where lower = better */
+const LOWER_IS_BETTER = new Set(['NET_DEBT_EBITDA'])
+
+const TABLE_KPI_LABELS: Record<string, string> = {
+  REVENUE: 'Revenue',
+  EBITDA_MARGIN: 'EBITDA Margin',
+  NET_DEBT_EBITDA: 'Net Debt / EBITDA',
+  ROIC: 'ROIC',
+}
+
+const TABLE_KPI_FORMATS: Record<string, (v: number) => string> = {
+  REVENUE: (v) => {
+    if (Math.abs(v) >= 1e9) return `${(v / 1e9).toFixed(1)}B`
+    if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(1)}M`
+    if (Math.abs(v) >= 1e3) return `${(v / 1e3).toFixed(0)}K`
+    return v.toFixed(0)
+  },
+  EBITDA_MARGIN: (v) => `${v.toFixed(1)}%`,
+  NET_DEBT_EBITDA: (v) => `${v.toFixed(1)}x`,
+  ROIC: (v) => `${v.toFixed(1)}%`,
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -528,13 +557,30 @@ function PeerCard({
   onUpload,
   onCheckNow,
   isChecking,
+  totalKpiDefinitions,
+  userSector,
 }: {
   peer: PeerCardData
   onUpload: (companyId: string) => void
   onCheckNow: (eventId: string) => void
   isChecking: boolean
+  totalKpiDefinitions: number
+  userSector: string | null
 }) {
   const { company, isMonitoring, monitoringStatus, lastReport, nextExpectedDate, kpiExtracted, kpiPendingReview, nextEventId } = peer
+
+  const completenessPercent = totalKpiDefinitions > 0
+    ? Math.round((kpiExtracted / totalKpiDefinitions) * 100)
+    : 0
+
+  const completenessColor =
+    completenessPercent > 75
+      ? 'bg-[var(--color-signal-green)]'
+      : completenessPercent >= 25
+      ? 'bg-[var(--color-signal-amber)]'
+      : 'bg-[var(--color-signal-red)]'
+
+  const sectorMatch = !!(userSector && company.sector && company.sector === userSector)
 
   return (
     <div className="card-premium rounded-xl border border-border bg-card p-3 sm:p-5 transition-colors hover:border-[var(--color-primary)]/30">
@@ -608,6 +654,34 @@ function PeerCard({
         </div>
       </div>
 
+      {/* Data completeness + Sector match */}
+      <div className="mt-3 space-y-2">
+        {/* Data completeness bar */}
+        {totalKpiDefinitions > 0 && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground">Data completeness</span>
+              <span className="font-medium tabular-nums text-foreground">
+                {kpiExtracted}/{totalKpiDefinitions} KPIs
+              </span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-[var(--color-bg-tertiary)]">
+              <div
+                className={cn('h-full rounded-full transition-all duration-500', completenessColor)}
+                style={{ width: `${Math.min(completenessPercent, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Sector match badge */}
+        {sectorMatch && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
+            Same sector
+          </span>
+        )}
+      </div>
+
       {/* Action buttons */}
       <div className="mt-4 flex items-center gap-2">
         <Link
@@ -638,6 +712,192 @@ function PeerCard({
           </Button>
         )}
       </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Comparison Table View
+// ---------------------------------------------------------------------------
+
+function ComparisonTableView({
+  peerCards,
+  userCompanyName,
+  userCompanySector,
+  userCompanyId,
+  allCompanyIds,
+}: {
+  peerCards: PeerCardData[]
+  userCompanyName: string | null
+  userCompanySector: string | null
+  userCompanyId: string | null
+  allCompanyIds: string[]
+}) {
+  // Fetch KPI values for all companies (peers + user's company if linked)
+  const { data: kpiValues, isLoading: kpiLoading } = useKpiValues({
+    companyIds: allCompanyIds.length > 0 ? allCompanyIds : undefined,
+    kpiCodes: [...TABLE_KPI_CODES],
+  })
+
+  // Build a lookup: companyId -> kpiCode -> latest value
+  const kpiLookup = useMemo(() => {
+    const lookup: Record<string, Record<string, { value: number; year: number }>> = {}
+    for (const kv of kpiValues ?? []) {
+      const code = kv.kpi_definitions?.code
+      if (!code) continue
+      const val = kv.normalized_value ?? kv.raw_value
+      if (val == null) continue
+
+      if (!lookup[kv.company_id]) lookup[kv.company_id] = {}
+      const existing = lookup[kv.company_id][code]
+      if (!existing || kv.fiscal_year > existing.year) {
+        lookup[kv.company_id][code] = { value: val, year: kv.fiscal_year }
+      }
+    }
+    return lookup
+  }, [kpiValues])
+
+  // Find fiscal year for last report per company
+  const lastReportYear = useMemo(() => {
+    const years: Record<string, number> = {}
+    for (const kv of kpiValues ?? []) {
+      if (!years[kv.company_id] || kv.fiscal_year > years[kv.company_id]) {
+        years[kv.company_id] = kv.fiscal_year
+      }
+    }
+    return years
+  }, [kpiValues])
+
+  // User's company KPI values for comparison coloring
+  const userKpis = userCompanyId ? kpiLookup[userCompanyId] : null
+
+  // Build rows: user company first (if exists), then peers
+  const rows = useMemo(() => {
+    const result: { companyId: string; name: string; sector: string | null; isUser: boolean }[] = []
+
+    if (userCompanyId && userCompanyName) {
+      result.push({
+        companyId: userCompanyId,
+        name: userCompanyName,
+        sector: userCompanySector,
+        isUser: true,
+      })
+    }
+
+    for (const peer of peerCards) {
+      // Skip if this is the user's company (already added as first row)
+      if (userCompanyId && peer.company.id === userCompanyId) continue
+      result.push({
+        companyId: peer.company.id,
+        name: peer.company.name,
+        sector: peer.company.sector ?? null,
+        isUser: false,
+      })
+    }
+
+    return result
+  }, [peerCards, userCompanyId, userCompanyName, userCompanySector])
+
+  if (kpiLoading) {
+    return <CardSkeleton />
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-12 text-center">
+        <Table2 className="mb-3 h-6 w-6 text-muted-foreground" />
+        <p className="text-[13px] text-muted-foreground">No data available for comparison table</p>
+      </div>
+    )
+  }
+
+  const renderCellValue = (companyId: string, kpiCode: string, isUserRow: boolean) => {
+    const entry = kpiLookup[companyId]?.[kpiCode]
+    if (!entry) return <span className="text-muted-foreground">--</span>
+
+    const formatted = TABLE_KPI_FORMATS[kpiCode]?.(entry.value) ?? entry.value.toFixed(1)
+
+    // Color coding for peer rows vs user
+    if (!isUserRow && userKpis?.[kpiCode]) {
+      const userVal = userKpis[kpiCode].value
+      const peerVal = entry.value
+      const lowerBetter = LOWER_IS_BETTER.has(kpiCode)
+      const isBetter = lowerBetter ? peerVal < userVal : peerVal > userVal
+      const isWorse = lowerBetter ? peerVal > userVal : peerVal < userVal
+
+      if (isBetter) {
+        return (
+          <span className="inline-flex items-center gap-0.5 text-[var(--color-signal-green)]">
+            {formatted}
+            <ArrowUpRight className="h-3 w-3" />
+          </span>
+        )
+      }
+      if (isWorse) {
+        return (
+          <span className="inline-flex items-center gap-0.5 text-[var(--color-signal-red)]">
+            {formatted}
+            <ArrowDownRight className="h-3 w-3" />
+          </span>
+        )
+      }
+    }
+
+    return <span>{formatted}</span>
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <table className="w-full min-w-[700px] text-[13px]">
+        <thead>
+          <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
+            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Company
+            </th>
+            {TABLE_KPI_CODES.map((code) => (
+              <th
+                key={code}
+                className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground"
+              >
+                {TABLE_KPI_LABELS[code]}
+              </th>
+            ))}
+            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Last Report
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr
+              key={row.companyId}
+              className={cn(
+                'border-b border-border last:border-b-0 transition-colors hover:bg-[var(--color-bg-tertiary)]/50',
+                row.isUser && 'border-l-2 border-l-[var(--color-accent)] bg-[var(--color-accent)]/5',
+              )}
+            >
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-foreground">{row.name}</span>
+                  {row.isUser && (
+                    <span className="rounded-full bg-[var(--color-accent)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
+                      You
+                    </span>
+                  )}
+                </div>
+              </td>
+              {TABLE_KPI_CODES.map((code) => (
+                <td key={code} className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
+                  {renderCellValue(row.companyId, code, row.isUser)}
+                </td>
+              ))}
+              <td className="px-4 py-3 text-right tabular-nums text-foreground">
+                {lastReportYear[row.companyId] ?? <span className="text-muted-foreground">--</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -743,6 +1003,45 @@ export function PeersPage() {
 }
 
 // ---------------------------------------------------------------------------
+// View Toggle
+// ---------------------------------------------------------------------------
+
+type ViewMode = 'cards' | 'table'
+
+function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode) => void }) {
+  return (
+    <div className="flex items-center gap-1 rounded-lg border border-border bg-[var(--color-bg-tertiary)] p-0.5">
+      <button
+        onClick={() => onChange('cards')}
+        aria-label="Card view"
+        className={cn(
+          'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium transition-all min-h-[32px]',
+          view === 'cards'
+            ? 'bg-card text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground',
+        )}
+      >
+        <LayoutGrid className="h-3.5 w-3.5" />
+        Cards
+      </button>
+      <button
+        onClick={() => onChange('table')}
+        aria-label="Table view"
+        className={cn(
+          'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium transition-all min-h-[32px]',
+          view === 'table'
+            ? 'bg-card text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground',
+        )}
+      >
+        <Table2 className="h-3.5 w-3.5" />
+        Table
+      </button>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Competitors Tab (formerly PeersPage content)
 // ---------------------------------------------------------------------------
 
@@ -751,12 +1050,20 @@ function CompetitorsTab() {
   const [uploadCompanyId, setUploadCompanyId] = useState<string | undefined>(undefined)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [viewMode, setViewMode] = useState<ViewMode>('cards')
 
   // Data fetching
   const { data: companies, isLoading: companiesLoading } = useCompanies()
   const { data: reports } = useReports()
   const { data: events } = usePublicationEvents()
+  const { data: kpiDefs } = useKpiDefinitions()
+  const { data: primaryCompany } = usePrimaryCompany()
   const checkMutation = useCheckPublication()
+
+  const totalKpiDefinitions = kpiDefs?.length ?? 0
+  const userSector = primaryCompany?.sector ?? null
+  const userCompanyId = primaryCompany?.company_id ?? null
+  const userCompanyName = primaryCompany?.name ?? null
 
   // Fetch KPI review counts per company
   const { data: kpiCounts } = useQuery({
@@ -817,6 +1124,15 @@ function CompetitorsTab() {
     }
   })
 
+  // All company IDs for table view (peers + user's company)
+  const allCompanyIds = useMemo(() => {
+    const ids = peerCards.map((p) => p.company.id)
+    if (userCompanyId && !ids.includes(userCompanyId)) {
+      ids.unshift(userCompanyId)
+    }
+    return ids
+  }, [peerCards, userCompanyId])
+
   const handleUpload = (companyId: string) => {
     setUploadCompanyId(companyId)
     setUploadDialogOpen(true)
@@ -838,7 +1154,12 @@ function CompetitorsTab() {
   return (
     <>
       {/* Action bar */}
-      <div className="mb-6 flex items-center justify-end">
+      <div className="mb-6 flex items-center justify-between gap-3">
+        {!isLoading && peerCards.length > 0 ? (
+          <ViewToggle view={viewMode} onChange={setViewMode} />
+        ) : (
+          <div />
+        )}
         <Button onClick={handleAddPeer}>
           <Plus className="h-4 w-4" />
           Add Peer
@@ -913,10 +1234,6 @@ function CompetitorsTab() {
               )
             : peerCards
 
-          const monitored = filtered.filter((p) => p.isMonitoring)
-          const other = filtered.filter((p) => !p.isMonitoring)
-          const hasBothSections = monitored.length > 0 && other.length > 0
-
           if (filtered.length === 0) {
             return (
               <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-12 text-center">
@@ -927,6 +1244,24 @@ function CompetitorsTab() {
               </div>
             )
           }
+
+          // Table view
+          if (viewMode === 'table') {
+            return (
+              <ComparisonTableView
+                peerCards={filtered}
+                userCompanyName={userCompanyName}
+                userCompanySector={userSector}
+                userCompanyId={userCompanyId}
+                allCompanyIds={allCompanyIds}
+              />
+            )
+          }
+
+          // Card view
+          const monitored = filtered.filter((p) => p.isMonitoring)
+          const other = filtered.filter((p) => !p.isMonitoring)
+          const hasBothSections = monitored.length > 0 && other.length > 0
 
           return (
             <div className="space-y-6">
@@ -945,6 +1280,8 @@ function CompetitorsTab() {
                         onUpload={handleUpload}
                         onCheckNow={handleCheckNow}
                         isChecking={checkMutation.isPending}
+                        totalKpiDefinitions={totalKpiDefinitions}
+                        userSector={userSector}
                       />
                     ))}
                   </div>
@@ -966,6 +1303,8 @@ function CompetitorsTab() {
                         onUpload={handleUpload}
                         onCheckNow={handleCheckNow}
                         isChecking={checkMutation.isPending}
+                        totalKpiDefinitions={totalKpiDefinitions}
+                        userSector={userSector}
                       />
                     ))}
                   </div>
