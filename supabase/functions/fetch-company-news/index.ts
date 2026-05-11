@@ -10,6 +10,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -137,6 +138,7 @@ async function classifyArticles(
       }
 
       const data = await resp.json()
+      await logAnthropicUsage('BenchmarkSignal', 'fetch-company-news', data)
       const text = data.content?.[0]?.text ?? '[]'
       // Extract JSON from potential markdown code block
       const jsonStr = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim()

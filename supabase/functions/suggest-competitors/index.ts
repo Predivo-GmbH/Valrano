@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 /**
  * suggest-competitors — AI-powered competitor suggestions
@@ -126,6 +127,7 @@ Focus on companies that are:
     }
 
     const aiResult = await response.json()
+    await logAnthropicUsage('BenchmarkSignal', 'suggest-competitors', aiResult)
     const text = aiResult.content?.[0]?.text ?? ''
 
     // Parse JSON from response

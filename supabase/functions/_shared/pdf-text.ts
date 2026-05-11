@@ -5,12 +5,13 @@ import { PDFDocument } from 'https://esm.sh/pdf-lib@1.17.1'
  * Returns base64-encoded PDF (either original or subset).
  *
  * Strategy for large reports (>100 pages):
- * - First 5 pages (cover, TOC, company overview)
- * - Last 100 pages (financial statements + notes — always at the end)
- * This ensures we capture accounting policies and KPI definitions.
+ * - First 30 pages (cover, TOC, company overview, market position, competitors)
+ * - Last 70 pages (financial statements + notes — always at the end)
+ * This ensures we capture both competitor mentions (typically pages 5-30)
+ * and accounting policies/KPI definitions (notes at the end).
  */
 const MAX_PAGES = 100
-const FRONT_PAGES = 5
+const FRONT_PAGES = 30
 
 export async function preparePdfForAnalysis(pdfArrayBuffer: ArrayBuffer): Promise<{
   base64: string

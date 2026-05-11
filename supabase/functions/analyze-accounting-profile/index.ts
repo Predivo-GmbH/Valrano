@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { preparePdfForAnalysis } from '../_shared/pdf-text.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 // ---------------------------------------------------------------------------
 // Accounting policy areas the AI must extract
@@ -320,9 +321,13 @@ KPI codes to map: ${KPI_CODES.join(', ')}
 ALWAYS include the source_page number for each finding. This is essential for auditability.
 If you cannot find information about a specific policy, skip it rather than guessing.
 
-For MENTIONED COMPETITORS: Look for any companies explicitly named as competitors, peers, or used in benchmarking comparisons anywhere in the report. Check peer group tables, market share sections, competitive landscape discussions, and industry comparisons. Include the context of where/how they were mentioned. If no competitors are explicitly mentioned, return an empty array.
-
-COMPETITOR EXTRACTION: Also identify any companies explicitly mentioned as competitors, peers, or used in benchmarking comparisons anywhere in the report. Look in sections like competitive landscape, market overview, peer comparison tables, market share analysis, and industry benchmarks. Include their stock ticker if mentioned. Return an empty array if no competitors are mentioned.`,
+For MENTIONED COMPETITORS: Carefully scan the ENTIRE report for any companies explicitly named as competitors, peers, or used in benchmarking comparisons. Pay special attention to:
+- Business overview / market position sections (typically pages 5-30)
+- Competitive landscape or market share discussions
+- Peer group or benchmarking comparison tables
+- Industry overview sections
+- CEO/Chairman letters mentioning other players
+Include the stock ticker if mentioned and brief context of where/how each company appears. This is critical — do NOT skip this extraction. If genuinely no competitors are named anywhere in the report, return an empty array.`,
               },
             ],
           },
@@ -336,6 +341,7 @@ COMPETITOR EXTRACTION: Also identify any companies explicitly mentioned as compe
     }
 
     const claudeJson = await claudeResponse.json()
+    await logAnthropicUsage('BenchmarkSignal', 'analyze-accounting-profile', claudeJson)
 
     // ------------------------------------------------------------------
     // 4a. Extract token usage for cost tracking

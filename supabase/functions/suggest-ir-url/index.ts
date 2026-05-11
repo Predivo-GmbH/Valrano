@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 /**
  * suggest-ir-url — AI-powered IR page discovery
@@ -149,6 +150,7 @@ Return the most likely URL. Only return URLs you are confident about — these w
     }
 
     const claudeJson = await claudeResponse.json()
+    await logAnthropicUsage('BenchmarkSignal', 'suggest-ir-url', claudeJson)
     const toolUseBlock = claudeJson.content?.find(
       (block: { type: string }) => block.type === 'tool_use',
     )

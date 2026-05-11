@@ -15,6 +15,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { extractPdfText } from '../_shared/pdf-text.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -307,6 +308,7 @@ ${pdfText}
     }
 
     const result = await apiResp.json()
+    await logAnthropicUsage('BenchmarkSignal', 'extract-report-context', result)
     const toolUse = result.content?.find((c: { type: string }) => c.type === 'tool_use')
     if (!toolUse?.input) {
       return errorResponse('No tool_use response from AI', 500)

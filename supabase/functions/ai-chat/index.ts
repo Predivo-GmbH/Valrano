@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse } from '../_shared/auth.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -268,6 +269,9 @@ ${!hasKpis ? `\nNote: No KPI data is available yet for this user. If they ask ab
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'session', session_id: sessionId })}\n\n`))
 
         let buffer = ''
+        let streamModel = 'claude-sonnet-4-6'
+        let streamInputTokens = 0
+        let streamOutputTokens = 0
         try {
           while (true) {
             const { done, value } = await reader.read()
@@ -284,6 +288,13 @@ ${!hasKpis ? `\nNote: No KPI data is available yet for this user. If they ask ab
 
               try {
                 const parsed = JSON.parse(data)
+                if (parsed.type === 'message_start' && parsed.message) {
+                  streamModel = parsed.message.model ?? streamModel
+                  streamInputTokens = parsed.message.usage?.input_tokens ?? 0
+                }
+                if (parsed.type === 'message_delta' && parsed.usage) {
+                  streamOutputTokens = parsed.usage.output_tokens ?? 0
+                }
                 if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
                   fullResponse += parsed.delta.text
                   controller.enqueue(
@@ -302,6 +313,11 @@ ${!hasKpis ? `\nNote: No KPI data is available yet for this user. If they ask ab
             role: 'assistant',
             content: fullResponse,
             citations: [],
+          })
+
+          await logAnthropicUsage('BenchmarkSignal', 'ai-chat', {
+            model: streamModel,
+            usage: { input_tokens: streamInputTokens, output_tokens: streamOutputTokens },
           })
 
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`))

@@ -1054,33 +1054,50 @@ function StepCompetitors({
         </div>
       </div>
 
-      {/* Selected competitors */}
+      {/* Selected competitors summary */}
       {selectedIds.length > 0 && (() => {
         const selectedCompanies = (companies ?? []).filter((c) => selectedIds.includes(c.id))
+        // Determine source for each selected company
+        const reportNames = new Set(reportCompetitors.map((rc) => rc.name.toLowerCase()))
+        const aiNames = new Set(aiSuggestions.map((s) => s.name.toLowerCase()))
         return (
           <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Your competitors ({selectedCompanies.length})
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-accent)]">
+              Selected competitors ({selectedCompanies.length})
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {selectedCompanies.map((company) => (
-                <button
-                  key={company.id}
-                  onClick={() => toggleCompany(company.id)}
-                  className="flex items-center gap-3 rounded-lg border border-[var(--color-accent)] bg-[var(--color-accent)]/5 p-3 text-left transition-all"
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent)] text-white text-[11px] font-bold flex-shrink-0">
-                    <Check className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {[company.ticker, company.sector].filter(Boolean).join(' · ') || company.country || ''}
-                    </p>
-                  </div>
-                  <span className="flex-shrink-0 text-[9px] text-muted-foreground">✕ remove</span>
-                </button>
-              ))}
+              {selectedCompanies.map((company) => {
+                const nameLower = company.name.toLowerCase()
+                const source = reportNames.has(nameLower) ? 'report' : aiNames.has(nameLower) ? 'AI' : 'search'
+                return (
+                  <button
+                    key={company.id}
+                    onClick={() => toggleCompany(company.id)}
+                    className="flex items-center gap-3 rounded-lg border border-[var(--color-accent)] bg-[var(--color-accent)]/5 p-3 text-left transition-all hover:bg-[var(--color-accent)]/10"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent)] text-white text-[11px] font-bold flex-shrink-0">
+                      <Check className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {[company.ticker, company.sector].filter(Boolean).join(' · ') || company.country || ''}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className={cn(
+                        'rounded-full px-1.5 py-0.5 text-[9px] font-medium',
+                        source === 'report' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          : source === 'AI' ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                      )}>
+                        {source}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground">✕ remove</span>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )

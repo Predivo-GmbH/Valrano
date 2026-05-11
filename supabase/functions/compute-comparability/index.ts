@@ -14,6 +14,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -227,6 +228,7 @@ No markdown code blocks. Just the JSON.`
     }
 
     const data = await resp.json()
+    await logAnthropicUsage('BenchmarkSignal', 'compute-comparability', data)
     const text = data.content?.[0]?.text ?? '{}'
     const jsonStr = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim()
     const result: AdjustmentResult = JSON.parse(jsonStr)

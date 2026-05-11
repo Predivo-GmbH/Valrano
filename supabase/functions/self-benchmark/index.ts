@@ -1,5 +1,6 @@
 import { authenticateRequest, errorResponse, jsonResponse, AuthError } from '../_shared/auth.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
 if (!ANTHROPIC_API_KEY) {
@@ -189,6 +190,7 @@ Be specific with numbers. Use professional financial language. Do not use bullet
 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json()
+          await logAnthropicUsage('BenchmarkSignal', 'self-benchmark', aiData)
           aiNarrative = aiData.content?.[0]?.text ?? ''
         }
       } catch (aiErr) {

@@ -20,7 +20,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
-import { useCompanies, useKpiValues } from '@/hooks/useData'
+import { useAllCompanies, useKpiValues } from '@/hooks/useData'
 import { usePublicationEvents } from '@/hooks/useCalendar'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 
@@ -37,7 +37,7 @@ const CHART_COLORS = [
 
 export function CompanyProfilePage() {
   const { id } = useParams<{ id: string }>()
-  const { data: companies, isLoading: companiesLoading } = useCompanies()
+  const { data: companies, isLoading: companiesLoading } = useAllCompanies()
   const { data: kpiValues, isLoading: kpisLoading } = useKpiValues({ companyIds: id ? [id] : [] })
   const { data: events } = usePublicationEvents()
 

@@ -1,5 +1,6 @@
 import { authenticateRequest, errorResponse, jsonResponse, AuthError } from '../_shared/auth.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
 if (!ANTHROPIC_API_KEY) {
@@ -164,6 +165,7 @@ Be specific, use actual numbers from the data, and provide actionable insights.`
 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json()
+          await logAnthropicUsage('BenchmarkSignal', 'generate-report', aiData)
           const rawText = aiData.content?.[0]?.text ?? ''
 
           // Parse JSON from response

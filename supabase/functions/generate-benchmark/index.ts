@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 // ---------------------------------------------------------------------------
 // Benchmark document content structure (matches EnhancedBenchmarkContentJson)
@@ -575,6 +576,7 @@ ${newsContext}${reportContextBlock}${segmentContext}`,
     }
 
     const claudeJson = await claudeResponse.json()
+    await logAnthropicUsage('BenchmarkSignal', 'generate-benchmark', claudeJson)
 
     // ------------------------------------------------------------------
     // 6. Parse tool-use response

@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { preparePdfForAnalysis } from '../_shared/pdf-text.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 // ---------------------------------------------------------------------------
 // KPI codes recognised by the extraction tool
@@ -264,6 +265,7 @@ Important: Values are typically in millions unless stated otherwise. Convert all
     }
 
     const claudeJson = await claudeResponse.json()
+    await logAnthropicUsage('BenchmarkSignal', 'extract-kpis', claudeJson)
 
     // ------------------------------------------------------------------
     // 6. Parse tool-use response

@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 /**
  * suggest-publication-dates — AI-powered date/time prediction
@@ -190,6 +191,7 @@ Important guidelines:
     }
 
     const claudeJson = await claudeResponse.json()
+    await logAnthropicUsage('BenchmarkSignal', 'suggest-publication-dates', claudeJson)
     const toolUseBlock = claudeJson.content?.find(
       (block: { type: string }) => block.type === 'tool_use',
     )

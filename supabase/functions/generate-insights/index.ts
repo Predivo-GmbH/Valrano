@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 interface InsightInput {
   insight_type: string
@@ -292,6 +293,7 @@ Generate 3-8 insights based on data availability. Prioritize:
     }
 
     const claudeJson = await claudeResponse.json()
+    await logAnthropicUsage('BenchmarkSignal', 'generate-insights', claudeJson)
     const toolUseBlock = claudeJson.content?.find(
       (block: { type: string }) => block.type === 'tool_use',
     )
