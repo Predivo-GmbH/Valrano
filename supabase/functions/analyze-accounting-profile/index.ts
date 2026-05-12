@@ -73,7 +73,7 @@ serve(async (req: Request) => {
     const companyNameHint = overrideName ?? company.name
 
     // ------------------------------------------------------------------
-    // 2. Download PDF → prepare for analysis (subset if >100 pages)
+    // 2. Download PDF → prepare for analysis
     // ------------------------------------------------------------------
     const { data: pdfData, error: downloadError } = await adminClient.storage
       .from('reports')
@@ -82,9 +82,9 @@ serve(async (req: Request) => {
     if (downloadError) throw new Error(`PDF download failed: ${downloadError.message}`)
 
     const pdfArrayBuffer = await pdfData.arrayBuffer()
-    const { base64: pdfBase64, pageCount, subsetPageCount, wasSubset } = await preparePdfForAnalysis(pdfArrayBuffer)
+    const { base64: pdfBase64, pageCount } = await preparePdfForAnalysis(pdfArrayBuffer)
 
-    console.log(`[analyze-accounting-profile] PDF: ${pageCount} pages${wasSubset ? ` → subset ${subsetPageCount} pages` : ''}`)
+    console.log(`[analyze-accounting-profile] PDF: ${pageCount} pages`)
 
     // ------------------------------------------------------------------
     // 3. Claude: Extract accounting framework (PDF document)
@@ -294,7 +294,7 @@ serve(async (req: Request) => {
               },
               {
                 type: 'text',
-                text: `You are an expert financial reporting analyst. Analyze this annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''} and extract their complete accounting framework. First, identify the official company name as stated in the report.${wasSubset ? `\n\nNOTE: This is a subset of a ${pageCount}-page report (first 5 pages + last ${subsetPageCount - 5} pages). The financial statements and notes are included.` : ''}
+                text: `You are an expert financial reporting analyst. Analyze this annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''} and extract their complete accounting framework. First, identify the official company name as stated in the report.
 
 FOCUS ON THE ACCOUNTING POLICIES SECTION (typically in the Notes to the Financial Statements).
 
