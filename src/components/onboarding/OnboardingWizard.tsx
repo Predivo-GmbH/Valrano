@@ -1079,6 +1079,7 @@ function StepCompetitors({
                   toast.error('Failed to add company')
                 } else {
                   onSelectedIdsChange([...selectedIds, inserted.id])
+                  await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
                   toast.success(`${result.name} added`)
                 }
               }
