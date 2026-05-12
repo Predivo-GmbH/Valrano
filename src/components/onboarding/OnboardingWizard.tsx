@@ -401,6 +401,8 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
       }, 50)
     }
 
+    let extractTimer: ReturnType<typeof setTimeout> | null = null
+
     try {
       // Step 1: Upload PDF — create a placeholder company silently (required by storage path)
       animateTo(25, 3000)
@@ -450,7 +452,7 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
       animateTo(55, 8000)
 
       // Step 3: Extracting policies (shown after a delay while analysis runs)
-      const extractTimer = setTimeout(() => {
+      extractTimer = setTimeout(() => {
         setUploadStep('extracting')
         animateTo(80, 10000)
       }, 5000)
@@ -482,6 +484,7 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
       setUploadProgress(100)
       toast.success('Report analyzed! Your accounting framework has been detected.')
     } catch (err) {
+      if (extractTimer) clearTimeout(extractTimer)
       if (progressInterval.current) clearInterval(progressInterval.current)
       setUploadStep('idle')
       setUploadProgress(0)
