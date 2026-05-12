@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
-import { extractTextFromPdf } from '../_shared/pdf-text.ts'
+import { extractTextFromPdf, getPdfPageCount } from '../_shared/pdf-text.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 // ---------------------------------------------------------------------------
@@ -356,38 +356,42 @@ serve(async (req: Request) => {
 
     const pdfBuffer = await pdfBytes.arrayBuffer()
 
-    // Extract all text to check size
-    const fullExtraction = await extractTextFromPdf(pdfBuffer)
-    console.log(`[analyze] Full extraction: ${fullExtraction.text.length} chars, ${fullExtraction.pageCount} pages`)
-
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is not set')
 
+    // Get page count without extracting text (memory-safe)
+    const pageCount = await getPdfPageCount(pdfBuffer)
+    console.log(`[analyze] PDF has ${pageCount} pages`)
+
+    const MAX_PAGES_SINGLE_PASS = 80 // ~80 pages fits comfortably in memory + context
     let textForAnalysis: string
     let extractedPages: number
 
-    if (fullExtraction.text.length <= MAX_CHARS_FOR_SINGLE_PASS) {
-      // Small report — single pass
+    if (pageCount <= MAX_PAGES_SINGLE_PASS) {
+      // Small report — extract all pages, single pass
       console.log('[analyze] Small report — single pass')
-      textForAnalysis = fullExtraction.text
-      extractedPages = fullExtraction.extractedPages
+      const extraction = await extractTextFromPdf(pdfBuffer)
+      textForAnalysis = extraction.text
+      extractedPages = extraction.extractedPages
     } else {
-      // Large report — two-pass approach
-      console.log('[analyze] Large report — two-pass approach')
+      // Large report — two-pass approach (never extract all pages)
+      console.log(`[analyze] Large report (${pageCount} pages) — two-pass approach`)
 
-      // Pass 1: Send first 30 pages to Haiku to identify relevant sections
+      // Pass 1: Extract first 30 pages for TOC/overview, send to Haiku
       const tocExtraction = await extractTextFromPdf(pdfBuffer, [{ start: 1, end: 30 }])
+      console.log(`[analyze] Pass 1: ${tocExtraction.text.length} chars from first 30 pages`)
+
       const pageRanges = await identifyRelevantPages(
         anthropicApiKey,
         tocExtraction.text,
-        fullExtraction.pageCount,
+        pageCount,
       )
 
       // Pass 2: Extract only relevant pages
       const relevantExtraction = await extractTextFromPdf(pdfBuffer, pageRanges)
-      console.log(`[analyze] Pass 2: ${relevantExtraction.text.length} chars from ${relevantExtraction.extractedPages} pages (of ${fullExtraction.pageCount} total)`)
+      console.log(`[analyze] Pass 2: ${relevantExtraction.text.length} chars from ${relevantExtraction.extractedPages} pages (of ${pageCount} total)`)
 
-      // Safety: truncate if still too large
+      // Safety: truncate if still too large for context window
       if (relevantExtraction.text.length > 700_000) {
         console.warn(`[analyze] Still large (${relevantExtraction.text.length} chars), truncating to 700K`)
         textForAnalysis = relevantExtraction.text.substring(0, 700_000)
@@ -409,7 +413,7 @@ serve(async (req: Request) => {
           role: 'user',
           content: `You are an expert financial reporting analyst. Below is extracted text from an annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''}. Analyze it and extract the complete accounting framework.
 
-The full report has ${fullExtraction.pageCount} pages. You are seeing ${extractedPages} relevant pages.
+The full report has ${pageCount} pages. You are seeing ${extractedPages} relevant pages.
 
 FOCUS ON THE ACCOUNTING POLICIES SECTION (typically in the Notes to the Financial Statements).
 
@@ -530,7 +534,7 @@ ${textForAnalysis}
         .eq('id', report.company_id)
     }
 
-    console.log(`[analyze] Tokens: ${inputTokens} in / ${outputTokens} out | Cost: $${estimatedCostUsd.toFixed(4)} | Company: ${companyName} | Pages: ${fullExtraction.pageCount} (${extractedPages} analyzed)`)
+    console.log(`[analyze] Tokens: ${inputTokens} in / ${outputTokens} out | Cost: $${estimatedCostUsd.toFixed(4)} | Company: ${companyName} | Pages: ${pageCount} (${extractedPages} analyzed)`)
 
     return jsonResponse({
       profile_id: profileId,
@@ -547,7 +551,7 @@ ${textForAnalysis}
         output_tokens: outputTokens,
         estimated_cost_usd: Math.round(estimatedCostUsd * 10000) / 10000,
         model: 'claude-sonnet-4-6',
-        pages_total: fullExtraction.pageCount,
+        pages_total: pageCount,
         pages_analyzed: extractedPages,
       },
     })
