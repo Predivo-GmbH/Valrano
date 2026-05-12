@@ -629,8 +629,8 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
           {/* Step indicators */}
           <div className="space-y-3">
             {PROGRESS_STEPS.map((step, stepIdx) => {
-              const stepOrder = PROGRESS_STEPS.map(s => s.key)
-              const currentIdx = stepOrder.indexOf(uploadStep)
+              const stepOrder: string[] = PROGRESS_STEPS.map(s => s.key)
+              const currentIdx = uploadStep === 'complete' || uploadStep === 'done' ? stepOrder.length : stepOrder.indexOf(uploadStep)
               const isActive = step.key === uploadStep
               const isDone = stepIdx < currentIdx
 
