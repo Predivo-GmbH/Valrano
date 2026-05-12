@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
-import { preparePdfForAnalysis } from '../_shared/pdf-text.ts'
+// PDF is sent via signed URL — no base64 encoding needed
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 // ---------------------------------------------------------------------------
@@ -73,18 +73,18 @@ serve(async (req: Request) => {
     const companyNameHint = overrideName ?? company.name
 
     // ------------------------------------------------------------------
-    // 2. Download PDF → prepare for analysis
+    // 2. Generate signed URL for PDF (avoids base64 payload size limits)
     // ------------------------------------------------------------------
-    const { data: pdfData, error: downloadError } = await adminClient.storage
+    const { data: signedUrlData, error: signedUrlError } = await adminClient.storage
       .from('reports')
-      .download(report.pdf_storage_path)
+      .createSignedUrl(report.pdf_storage_path, 600) // 10 min expiry
 
-    if (downloadError) throw new Error(`PDF download failed: ${downloadError.message}`)
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      throw new Error(`Failed to create signed URL: ${signedUrlError?.message ?? 'no URL returned'}`)
+    }
 
-    const pdfArrayBuffer = await pdfData.arrayBuffer()
-    const { base64: pdfBase64, pageCount } = await preparePdfForAnalysis(pdfArrayBuffer)
-
-    console.log(`[analyze-accounting-profile] PDF: ${pageCount} pages`)
+    const pdfUrl = signedUrlData.signedUrl
+    console.log(`[analyze-accounting-profile] PDF URL generated for: ${report.pdf_storage_path}`)
 
     // ------------------------------------------------------------------
     // 3. Claude: Extract accounting framework (PDF document)
@@ -102,6 +102,7 @@ serve(async (req: Request) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 8192,
+        stream: true,
         tools: [
           {
             name: 'extract_accounting_profile',
@@ -287,9 +288,8 @@ serve(async (req: Request) => {
               {
                 type: 'document',
                 source: {
-                  type: 'base64',
-                  media_type: 'application/pdf',
-                  data: pdfBase64,
+                  type: 'url',
+                  url: pdfUrl,
                 },
               },
               {
@@ -340,18 +340,84 @@ Include the stock ticker if mentioned and brief context of where/how each compan
       throw new Error(`Claude API error ${claudeResponse.status}: ${errBody}`)
     }
 
-    const claudeJson = await claudeResponse.json()
+    // ------------------------------------------------------------------
+    // 4a. Parse streaming SSE response to reassemble the full message
+    // ------------------------------------------------------------------
+    const reader = claudeResponse.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let inputTokens = 0
+    let outputTokens = 0
+    const contentBlocks: Array<{ type: string; id?: string; name?: string; input?: string }> = []
+    let currentBlockIdx = -1
+    let currentInput = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const data = line.slice(6).trim()
+        if (data === '[DONE]') continue
+
+        try {
+          const evt = JSON.parse(data)
+
+          if (evt.type === 'message_start' && evt.message?.usage) {
+            inputTokens = evt.message.usage.input_tokens ?? 0
+          }
+          if (evt.type === 'content_block_start') {
+            currentBlockIdx = evt.index
+            const block = evt.content_block
+            contentBlocks[currentBlockIdx] = {
+              type: block.type,
+              id: block.id,
+              name: block.name,
+              input: '',
+            }
+            currentInput = ''
+          }
+          if (evt.type === 'content_block_delta') {
+            const delta = evt.delta
+            if (delta?.type === 'input_json_delta' && delta.partial_json) {
+              currentInput += delta.partial_json
+            }
+          }
+          if (evt.type === 'content_block_stop') {
+            if (contentBlocks[currentBlockIdx]) {
+              contentBlocks[currentBlockIdx].input = currentInput
+            }
+          }
+          if (evt.type === 'message_delta' && evt.usage) {
+            outputTokens = evt.usage.output_tokens ?? 0
+          }
+        } catch {
+          // Skip unparseable SSE lines
+        }
+      }
+    }
+
+    // Reconstruct the tool_use content block
+    const toolBlock = contentBlocks.find((b) => b.type === 'tool_use')
+    if (!toolBlock) throw new Error('No tool_use block in Claude response')
+
+    const claudeJson = {
+      content: [{
+        type: 'tool_use',
+        id: toolBlock.id,
+        name: toolBlock.name,
+        input: JSON.parse(toolBlock.input ?? '{}'),
+      }],
+      usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+    }
+
     await logAnthropicUsage('BenchmarkSignal', 'analyze-accounting-profile', claudeJson)
 
-    // ------------------------------------------------------------------
-    // 4a. Extract token usage for cost tracking
-    // ------------------------------------------------------------------
-    const usage = claudeJson.usage as {
-      input_tokens: number
-      output_tokens: number
-    } | undefined
-    const inputTokens = usage?.input_tokens ?? 0
-    const outputTokens = usage?.output_tokens ?? 0
     // Sonnet 4.6 pricing: $3/MTok input, $15/MTok output
     const estimatedCostUsd = (inputTokens * 3 + outputTokens * 15) / 1_000_000
 
