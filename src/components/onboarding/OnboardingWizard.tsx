@@ -253,22 +253,37 @@ export function OnboardingWizard() {
           // Auto-select report competitors by inserting them into the DB if needed
           if (autoSelect && competitors.length > 0) {
             void (async () => {
-              const { data: existingCompanies } = await supabase.from('companies').select('id, name, ticker')
+              // Re-fetch companies fresh to avoid race conditions with parallel calls
+              const { data: freshCompanies } = await supabase.from('companies').select('id, name, ticker')
+              const existingCompanies = freshCompanies ?? []
               const newIds: string[] = [...selectedCompanyIds]
               for (const rc of competitors) {
-                const match = (existingCompanies ?? []).find(
+                const match = existingCompanies.find(
                   (c) => c.name.toLowerCase() === rc.name.toLowerCase() ||
                     (rc.ticker && c.ticker && c.ticker.toLowerCase() === rc.ticker.toLowerCase()),
                 )
                 if (match) {
                   if (!newIds.includes(match.id)) newIds.push(match.id)
                 } else {
-                  const { data: inserted } = await supabase
+                  // Use upsert-like pattern: try insert, on conflict select existing
+                  const { data: inserted, error } = await supabase
                     .from('companies')
                     .insert({ name: rc.name, ticker: rc.ticker ?? null })
                     .select('id')
                     .single()
-                  if (inserted) newIds.push(inserted.id)
+                  if (inserted) {
+                    newIds.push(inserted.id)
+                    existingCompanies.push({ id: inserted.id, name: rc.name, ticker: rc.ticker ?? null })
+                  } else if (error) {
+                    // If insert failed (e.g. race condition duplicate), find the existing one
+                    const { data: existing } = await supabase
+                      .from('companies')
+                      .select('id')
+                      .ilike('name', rc.name)
+                      .limit(1)
+                      .single()
+                    if (existing && !newIds.includes(existing.id)) newIds.push(existing.id)
+                  }
                 }
               }
               if (newIds.length > selectedCompanyIds.length) {
@@ -349,13 +364,14 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
   const createCompany = useCreateMyCompany()
   const { data: primaryCompany } = usePrimaryCompany()
 
-  // Seed report competitors from existing profile on mount
+  // Seed report competitors from existing profile on mount (display only — no auto-select,
+  // because the upload handler already auto-selects when the report is first analyzed)
   const seededRef = useRef(false)
   useEffect(() => {
     if (profile && !seededRef.current) {
       const mc = profile.mentioned_competitors
       if (mc && mc.length > 0) {
-        onReportCompetitorsFound(mc, true)
+        onReportCompetitorsFound(mc, false)
         seededRef.current = true
       }
     }

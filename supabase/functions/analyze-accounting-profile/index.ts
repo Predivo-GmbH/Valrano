@@ -269,11 +269,16 @@ const EXTRACTION_SCHEMA = {
       },
     },
     kpi_mappings: {
-      type: 'object',
-      description: 'How this company calculates each KPI. Keys are KPI codes.',
-      additionalProperties: {
+      type: 'array',
+      description: 'How this company calculates each KPI.',
+      items: {
         type: 'object',
         properties: {
+          kpi_code: {
+            type: 'string',
+            enum: [...KPI_CODES],
+            description: 'The KPI code from the list above',
+          },
           formula: { type: 'string', description: 'How the KPI is calculated' },
           adjustments: {
             type: 'array',
@@ -283,7 +288,7 @@ const EXTRACTION_SCHEMA = {
           label_in_report: { type: 'string', description: 'The exact label used in the report' },
           source_page: { type: 'integer' },
         },
-        required: ['formula'],
+        required: ['kpi_code', 'formula'],
       },
     },
     mentioned_competitors: {
@@ -454,13 +459,21 @@ For MENTIONED COMPETITORS: Scan the ENTIRE document for companies explicitly nam
     // ------------------------------------------------------------------
     const companyName = (result.company_name as string) || companyNameHint
 
+    // Convert kpi_mappings array back to object keyed by kpi_code
+    const kpiArray = (result.kpi_mappings as Array<{ kpi_code: string; [k: string]: unknown }>) ?? []
+    const kpiMappingsObj: Record<string, unknown> = {}
+    for (const kpi of kpiArray) {
+      const { kpi_code, ...rest } = kpi
+      kpiMappingsObj[kpi_code] = rest
+    }
+
     const profileData = {
       user_id: user.id,
       company_name: companyName,
       accounting_standard: result.accounting_standard as string,
       accounting_standard_confidence: result.accounting_standard_confidence as number,
       policies: result.policies as Record<string, unknown>,
-      kpi_mappings: result.kpi_mappings as Record<string, unknown>,
+      kpi_mappings: kpiMappingsObj,
       mentioned_competitors: (result.mentioned_competitors as Array<{ name: string; ticker?: string; context?: string }>) ?? [],
       source_report_id: reportId,
       source_report_title: report.title ?? `${companyName} Annual Report`,
@@ -505,7 +518,7 @@ For MENTIONED COMPETITORS: Scan the ENTIRE document for companies explicitly nam
     // 5. Return the extracted profile
     // ------------------------------------------------------------------
     const policyCount = Object.keys(result.policies as Record<string, unknown>).length
-    const kpiMappingCount = Object.keys(result.kpi_mappings as Record<string, unknown>).length
+    const kpiMappingCount = Object.keys(kpiMappingsObj).length
 
     if (result.company_name && report.company_id) {
       await adminClient
@@ -524,7 +537,7 @@ For MENTIONED COMPETITORS: Scan the ENTIRE document for companies explicitly nam
       policies_extracted: policyCount,
       kpi_mappings_extracted: kpiMappingCount,
       policies: result.policies,
-      kpi_mappings: result.kpi_mappings,
+      kpi_mappings: kpiMappingsObj,
       mentioned_competitors: result.mentioned_competitors ?? [],
       usage: {
         input_tokens: inputTokens,
