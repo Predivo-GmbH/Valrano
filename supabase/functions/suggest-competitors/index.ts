@@ -101,12 +101,13 @@ For each competitor, provide:
 - name: The official company name (as it would appear in financial databases)
 - ticker: Stock ticker symbol (if publicly traded)
 - sector: Industry sector
+- website_domain: The company's main corporate website domain (e.g. "heidelbergmaterials.com", "cemex.com"). Just the domain, no https:// prefix.
 - reasoning: One sentence explaining why this is a relevant competitor
 
 Return ONLY valid JSON in this exact format:
 {
   "competitors": [
-    { "name": "...", "ticker": "...", "sector": "...", "reasoning": "..." }
+    { "name": "...", "ticker": "...", "sector": "...", "website_domain": "...", "reasoning": "..." }
   ]
 }
 
@@ -131,7 +132,7 @@ Focus on companies that are:
     const text = aiResult.content?.[0]?.text ?? ''
 
     // Parse JSON from response
-    let suggestions: Array<{ name: string; ticker?: string; sector?: string; reasoning?: string }> = []
+    let suggestions: Array<{ name: string; ticker?: string; sector?: string; website_domain?: string; reasoning?: string }> = []
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {

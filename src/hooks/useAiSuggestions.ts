@@ -59,6 +59,7 @@ export interface CompetitorSuggestion {
   name: string
   ticker?: string
   sector?: string
+  website_domain?: string
   reasoning?: string
   existing_id: string | null
   in_database: boolean

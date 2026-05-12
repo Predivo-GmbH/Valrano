@@ -768,6 +768,7 @@ function StepCompetitors({
           name: suggestion.name,
           ticker: suggestion.ticker ?? null,
           sector: suggestion.sector ?? null,
+          website_url: suggestion.website_domain ? `https://${suggestion.website_domain}` : null,
         })
         .select('id')
         .single()
