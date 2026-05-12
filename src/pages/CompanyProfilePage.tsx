@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useQuery } from '@tanstack/react-query'
@@ -387,14 +387,15 @@ export function CompanyProfilePage() {
     return companyEvents.find((e) => e.expected_date >= now && e.status !== 'detected')
   }, [companyEvents])
 
+  const [now] = useState(() => Date.now())
   const nextEventCountdown = useMemo(() => {
     if (!nextEvent) return null
-    const diff = new Date(nextEvent.expected_date).getTime() - Date.now()
+    const diff = new Date(nextEvent.expected_date).getTime() - now
     const days = Math.ceil(diff / 86400000)
     if (days <= 0) return 'Due today'
     if (days === 1) return 'Tomorrow'
     return `In ${days} days`
-  }, [nextEvent])
+  }, [nextEvent, now])
 
   // -------------------------------------------------------------------------
   // Render
