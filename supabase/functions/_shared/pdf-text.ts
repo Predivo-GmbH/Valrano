@@ -1,33 +1,44 @@
-import { PDFDocument } from 'https://esm.sh/pdf-lib@1.17.1'
+import { getDocument } from 'https://esm.sh/pdfjs-dist@4.9.155/legacy/build/pdf.mjs'
 
 /**
- * Prepare a PDF for AI analysis.
- * Always sends the complete PDF — every page is analyzed.
+ * Extract text from a PDF. Supports full extraction or specific page ranges.
  */
-export async function preparePdfForAnalysis(pdfArrayBuffer: ArrayBuffer): Promise<{
-  base64: string
+export async function extractTextFromPdf(
+  pdfArrayBuffer: ArrayBuffer,
+  pageRanges?: Array<{ start: number; end: number }>,
+): Promise<{
+  text: string
   pageCount: number
-  subsetPageCount: number
-  wasSubset: boolean
+  extractedPages: number
 }> {
-  const originalBytes = new Uint8Array(pdfArrayBuffer)
-  const srcDoc = await PDFDocument.load(originalBytes)
-  const pageCount = srcDoc.getPageCount()
+  const pdf = await getDocument({ data: new Uint8Array(pdfArrayBuffer) }).promise
+  const pageCount = pdf.numPages
+  const pages: string[] = []
+
+  const pagesToExtract = new Set<number>()
+  if (pageRanges) {
+    for (const range of pageRanges) {
+      for (let i = Math.max(1, range.start); i <= Math.min(pageCount, range.end); i++) {
+        pagesToExtract.add(i)
+      }
+    }
+  }
+
+  for (let i = 1; i <= pageCount; i++) {
+    if (pageRanges && !pagesToExtract.has(i)) continue
+    const page = await pdf.getPage(i)
+    const content = await page.getTextContent()
+    const pageText = content.items
+      .map((item: { str?: string }) => item.str ?? '')
+      .join(' ')
+    if (pageText.trim()) {
+      pages.push(`--- Page ${i} ---\n${pageText}`)
+    }
+  }
 
   return {
-    base64: uint8ToBase64(originalBytes),
+    text: pages.join('\n\n'),
     pageCount,
-    subsetPageCount: pageCount,
-    wasSubset: false,
+    extractedPages: pages.length,
   }
-}
-
-/** Encode Uint8Array to base64 in chunks (avoids stack overflow on large arrays) */
-function uint8ToBase64(bytes: Uint8Array): string {
-  let binary = ''
-  const chunkSize = 8192
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.slice(i, i + chunkSize))
-  }
-  return btoa(binary)
 }

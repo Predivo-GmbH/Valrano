@@ -5,21 +5,11 @@ import { extractTextFromPdf } from '../_shared/pdf-text.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 // ---------------------------------------------------------------------------
-// Accounting policy areas the AI must extract
+// Constants
 // ---------------------------------------------------------------------------
-const POLICY_AREAS = [
-  'revenue_recognition',
-  'rd_treatment',
-  'lease_treatment',
-  'ebitda_definition',
-  'net_debt_definition',
-  'goodwill_treatment',
-  'pension_accounting',
-  'fx_translation',
-  'segment_reporting',
-] as const
 
-// KPI codes we need mappings for
+const MAX_CHARS_FOR_SINGLE_PASS = 400_000 // ~100K tokens — fits in context
+
 const KPI_CODES = [
   'REVENUE', 'EBITDA', 'EBITDA_ADJ', 'EBITDA_MARGIN', 'EBIT',
   'NET_INCOME', 'EPS_BASIC', 'NET_DEBT', 'NET_DEBT_EBITDA', 'ROIC',
@@ -31,12 +21,292 @@ interface AnalyzeRequest {
   company_name?: string
 }
 
+interface PageRange {
+  start: number
+  end: number
+  section: string
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function callClaude(
+  apiKey: string,
+  model: string,
+  maxTokens: number,
+  messages: Array<{ role: string; content: string }>,
+  tools?: unknown[],
+  toolChoice?: unknown,
+) {
+  const body: Record<string, unknown> = { model, max_tokens: maxTokens, messages }
+  if (tools) body.tools = tools
+  if (toolChoice) body.tool_choice = toolChoice
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const errBody = await res.text()
+    throw new Error(`Claude API error ${res.status}: ${errBody}`)
+  }
+
+  return res.json()
+}
+
+// ---------------------------------------------------------------------------
+// Pass 1: Identify relevant page ranges using Haiku
+// ---------------------------------------------------------------------------
+
+async function identifyRelevantPages(
+  apiKey: string,
+  tocText: string,
+  pageCount: number,
+): Promise<PageRange[]> {
+  const response = await callClaude(
+    apiKey,
+    'claude-haiku-4-5-20251001',
+    2048,
+    [
+      {
+        role: 'user',
+        content: `You are analyzing the table of contents and first pages of a ${pageCount}-page annual report.
+
+Identify the page ranges that contain:
+1. Financial statements (income statement, balance sheet, cash flow statement)
+2. Notes to the financial statements (accounting policies, significant estimates)
+3. Segment reporting
+4. Any peer/competitor comparisons or benchmarking sections
+5. Key performance indicators / alternative performance measures
+
+Return a JSON array of page ranges. Each entry: {"start": number, "end": number, "section": "description"}
+
+Be generous with ranges — include a few pages before and after to avoid missing content.
+If you cannot identify specific sections, return a single range covering the likely financial report portion (typically the second half of integrated reports).
+
+Respond ONLY with the JSON array, no other text.
+
+--- REPORT TEXT (first pages) ---
+${tocText}
+--- END ---`,
+      },
+    ],
+  )
+
+  const textBlock = response.content?.find(
+    (b: { type: string }) => b.type === 'text',
+  )
+  if (!textBlock) return [{ start: 1, end: pageCount, section: 'full_report' }]
+
+  try {
+    const jsonStr = textBlock.text.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '')
+    const ranges = JSON.parse(jsonStr) as PageRange[]
+    if (Array.isArray(ranges) && ranges.length > 0) {
+      console.log(`[pass-1] Identified ${ranges.length} relevant sections:`, ranges.map(r => `${r.section} (pp ${r.start}-${r.end})`).join(', '))
+      return ranges
+    }
+  } catch {
+    console.warn('[pass-1] Failed to parse page ranges, falling back to full report')
+  }
+
+  return [{ start: 1, end: pageCount, section: 'full_report' }]
+}
+
+// ---------------------------------------------------------------------------
+// Extraction tool schema
+// ---------------------------------------------------------------------------
+
+const EXTRACTION_TOOL = {
+  name: 'extract_accounting_profile',
+  description:
+    'Extract the accounting framework, policies, and KPI calculation methods from this annual report',
+  input_schema: {
+    type: 'object',
+    properties: {
+      company_name: {
+        type: 'string',
+        description: 'The official company name as stated in the annual report',
+      },
+      accounting_standard: {
+        type: 'string',
+        enum: ['IFRS', 'US_GAAP', 'Swiss_GAAP_FER', 'HGB', 'other'],
+        description: 'The primary accounting standard used',
+      },
+      accounting_standard_confidence: {
+        type: 'number',
+        minimum: 0,
+        maximum: 1,
+        description: 'Confidence in the detected standard (0-1)',
+      },
+      policies: {
+        type: 'object',
+        description: 'Specific accounting policies extracted from the report',
+        properties: {
+          revenue_recognition: {
+            type: 'object',
+            properties: {
+              method: { type: 'string', description: 'e.g., over_time, point_in_time, percentage_of_completion' },
+              description: { type: 'string' },
+              source_page: { type: 'integer' },
+            },
+            required: ['method'],
+          },
+          rd_treatment: {
+            type: 'object',
+            properties: {
+              method: { type: 'string', description: 'capitalize, expense, or mixed' },
+              threshold: { type: 'string', description: 'When capitalization starts' },
+              description: { type: 'string' },
+              source_page: { type: 'integer' },
+            },
+            required: ['method'],
+          },
+          lease_treatment: {
+            type: 'object',
+            properties: {
+              standard: { type: 'string', description: 'e.g., IFRS_16, ASC_842, operating' },
+              on_balance_sheet: { type: 'boolean' },
+              description: { type: 'string' },
+              source_page: { type: 'integer' },
+            },
+            required: ['standard'],
+          },
+          ebitda_definition: {
+            type: 'object',
+            properties: {
+              excludes: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Items excluded from EBITDA',
+              },
+              includes: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Non-standard items included in EBITDA',
+              },
+              description: { type: 'string' },
+              source_page: { type: 'integer' },
+            },
+            required: ['excludes', 'includes'],
+          },
+          net_debt_definition: {
+            type: 'object',
+            properties: {
+              includes: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Debt items included',
+              },
+              excludes: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Items excluded from debt',
+              },
+              deducts: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Items deducted from debt',
+              },
+              description: { type: 'string' },
+              source_page: { type: 'integer' },
+            },
+            required: ['includes', 'deducts'],
+          },
+          goodwill_treatment: {
+            type: 'object',
+            properties: {
+              method: { type: 'string', description: 'impairment_only or amortize' },
+              description: { type: 'string' },
+              source_page: { type: 'integer' },
+            },
+            required: ['method'],
+          },
+          pension_accounting: {
+            type: 'object',
+            properties: {
+              method: { type: 'string', description: 'e.g., projected_unit_credit, defined_contribution' },
+              description: { type: 'string' },
+              source_page: { type: 'integer' },
+            },
+            required: ['method'],
+          },
+          fx_translation: {
+            type: 'object',
+            properties: {
+              method: { type: 'string', description: 'e.g., closing_rate, temporal, current_rate' },
+              functional_currency: { type: 'string' },
+              description: { type: 'string' },
+              source_page: { type: 'integer' },
+            },
+            required: ['method'],
+          },
+          segment_reporting: {
+            type: 'object',
+            properties: {
+              basis: { type: 'string', description: 'e.g., geographic, product_line, business_unit' },
+              segments: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'List of reported segments',
+              },
+              description: { type: 'string' },
+              source_page: { type: 'integer' },
+            },
+            required: ['basis'],
+          },
+        },
+      },
+      kpi_mappings: {
+        type: 'object',
+        description: 'How this company calculates each KPI. Keys are KPI codes.',
+        additionalProperties: {
+          type: 'object',
+          properties: {
+            formula: { type: 'string', description: 'How the KPI is calculated' },
+            adjustments: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Any adjustments made to the standard calculation',
+            },
+            label_in_report: { type: 'string', description: 'The exact label used in the report' },
+            source_page: { type: 'integer' },
+          },
+          required: ['formula'],
+        },
+      },
+      mentioned_competitors: {
+        type: 'array',
+        description: 'Companies explicitly mentioned as competitors, peers, or used for benchmarking. Only include companies clearly identified as industry peers — not suppliers, customers, or partners.',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: 'Official company name' },
+            ticker: { type: 'string', description: 'Stock ticker if mentioned' },
+            context: { type: 'string', description: 'Brief context of how/where mentioned' },
+          },
+          required: ['name'],
+        },
+      },
+    },
+    required: ['company_name', 'accounting_standard', 'accounting_standard_confidence', 'policies', 'kpi_mappings', 'mentioned_competitors'],
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Main handler
+// ---------------------------------------------------------------------------
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(req) })
   }
-
-  const corsHeaders = getCorsHeaders(req)
 
   try {
     const { user, adminClient } = await authenticateRequest(req)
@@ -48,7 +318,7 @@ serve(async (req: Request) => {
     }
 
     // ------------------------------------------------------------------
-    // 1. Load the report + PDF
+    // 1. Load the report
     // ------------------------------------------------------------------
     const { data: report, error: reportError } = await adminClient
       .from('reports')
@@ -62,7 +332,7 @@ serve(async (req: Request) => {
       return jsonResponse({ error: 'Report has no PDF attached' }, 422)
     }
 
-    // Data isolation: verify report's company is in user's peer groups
+    // Data isolation
     const { data: visibleIds } = await adminClient
       .rpc('visible_company_ids_for_user', { p_user_id: user.id })
     const visible = new Set((visibleIds ?? []) as string[])
@@ -74,7 +344,7 @@ serve(async (req: Request) => {
     const companyNameHint = overrideName ?? company.name
 
     // ------------------------------------------------------------------
-    // 2. Download PDF and extract text (much cheaper than sending document)
+    // 2. Download PDF and extract text
     // ------------------------------------------------------------------
     const { data: pdfBytes, error: downloadError } = await adminClient.storage
       .from('reports')
@@ -85,223 +355,75 @@ serve(async (req: Request) => {
     }
 
     const pdfBuffer = await pdfBytes.arrayBuffer()
-    const { text: pdfText, pageCount } = await extractTextFromPdf(pdfBuffer)
-    console.log(`[analyze-accounting-profile] Extracted ${pdfText.length} chars from ${pageCount} pages`)
 
-    // ------------------------------------------------------------------
-    // 3. Claude: Extract accounting framework from text
-    // ------------------------------------------------------------------
+    // Extract all text to check size
+    const fullExtraction = await extractTextFromPdf(pdfBuffer)
+    console.log(`[analyze] Full extraction: ${fullExtraction.text.length} chars, ${fullExtraction.pageCount} pages`)
+
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is not set')
 
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 8192,
-        tools: [
-          {
-            name: 'extract_accounting_profile',
-            description:
-              'Extract the accounting framework, policies, and KPI calculation methods from this annual report',
-            input_schema: {
-              type: 'object',
-              properties: {
-                company_name: {
-                  type: 'string',
-                  description: 'The official company name as stated in the annual report (e.g., "Holcim Ltd", "LafargeHolcim")',
-                },
-                accounting_standard: {
-                  type: 'string',
-                  enum: ['IFRS', 'US_GAAP', 'Swiss_GAAP_FER', 'HGB', 'other'],
-                  description: 'The primary accounting standard used',
-                },
-                accounting_standard_confidence: {
-                  type: 'number',
-                  minimum: 0,
-                  maximum: 1,
-                  description: 'Confidence in the detected standard (0-1)',
-                },
-                policies: {
-                  type: 'object',
-                  description: 'Specific accounting policies extracted from the report',
-                  properties: {
-                    revenue_recognition: {
-                      type: 'object',
-                      properties: {
-                        method: { type: 'string', description: 'e.g., over_time, point_in_time, percentage_of_completion' },
-                        description: { type: 'string' },
-                        source_page: { type: 'integer' },
-                      },
-                      required: ['method'],
-                    },
-                    rd_treatment: {
-                      type: 'object',
-                      properties: {
-                        method: { type: 'string', description: 'capitalize, expense, or mixed' },
-                        threshold: { type: 'string', description: 'When capitalization starts (e.g., development_phase)' },
-                        description: { type: 'string' },
-                        source_page: { type: 'integer' },
-                      },
-                      required: ['method'],
-                    },
-                    lease_treatment: {
-                      type: 'object',
-                      properties: {
-                        standard: { type: 'string', description: 'e.g., IFRS_16, ASC_842, operating' },
-                        on_balance_sheet: { type: 'boolean' },
-                        description: { type: 'string' },
-                        source_page: { type: 'integer' },
-                      },
-                      required: ['standard'],
-                    },
-                    ebitda_definition: {
-                      type: 'object',
-                      properties: {
-                        excludes: {
-                          type: 'array',
-                          items: { type: 'string' },
-                          description: 'Items excluded from EBITDA (e.g., restructuring, impairments, share_based_comp)',
-                        },
-                        includes: {
-                          type: 'array',
-                          items: { type: 'string' },
-                          description: 'Non-standard items included in EBITDA (e.g., joint_venture_income)',
-                        },
-                        description: { type: 'string' },
-                        source_page: { type: 'integer' },
-                      },
-                      required: ['excludes', 'includes'],
-                    },
-                    net_debt_definition: {
-                      type: 'object',
-                      properties: {
-                        includes: {
-                          type: 'array',
-                          items: { type: 'string' },
-                          description: 'Debt items included (e.g., bank_borrowings, bonds, lease_liabilities)',
-                        },
-                        excludes: {
-                          type: 'array',
-                          items: { type: 'string' },
-                          description: 'Items excluded from debt (e.g., pension_obligations)',
-                        },
-                        deducts: {
-                          type: 'array',
-                          items: { type: 'string' },
-                          description: 'Items deducted from debt (e.g., cash, short_term_investments)',
-                        },
-                        description: { type: 'string' },
-                        source_page: { type: 'integer' },
-                      },
-                      required: ['includes', 'deducts'],
-                    },
-                    goodwill_treatment: {
-                      type: 'object',
-                      properties: {
-                        method: { type: 'string', description: 'impairment_only or amortize' },
-                        description: { type: 'string' },
-                        source_page: { type: 'integer' },
-                      },
-                      required: ['method'],
-                    },
-                    pension_accounting: {
-                      type: 'object',
-                      properties: {
-                        method: { type: 'string', description: 'e.g., projected_unit_credit, defined_contribution' },
-                        description: { type: 'string' },
-                        source_page: { type: 'integer' },
-                      },
-                      required: ['method'],
-                    },
-                    fx_translation: {
-                      type: 'object',
-                      properties: {
-                        method: { type: 'string', description: 'e.g., closing_rate, temporal, current_rate' },
-                        functional_currency: { type: 'string' },
-                        description: { type: 'string' },
-                        source_page: { type: 'integer' },
-                      },
-                      required: ['method'],
-                    },
-                    segment_reporting: {
-                      type: 'object',
-                      properties: {
-                        basis: { type: 'string', description: 'e.g., geographic, product_line, business_unit' },
-                        segments: {
-                          type: 'array',
-                          items: { type: 'string' },
-                          description: 'List of reported segments',
-                        },
-                        description: { type: 'string' },
-                        source_page: { type: 'integer' },
-                      },
-                      required: ['basis'],
-                    },
-                  },
-                },
-                kpi_mappings: {
-                  type: 'object',
-                  description: 'How this company calculates each KPI. Keys are KPI codes.',
-                  additionalProperties: {
-                    type: 'object',
-                    properties: {
-                      formula: { type: 'string', description: 'How the KPI is calculated' },
-                      adjustments: {
-                        type: 'array',
-                        items: { type: 'string' },
-                        description: 'Any adjustments made to the standard calculation',
-                      },
-                      label_in_report: { type: 'string', description: 'The exact label used in the report' },
-                      source_page: { type: 'integer' },
-                    },
-                    required: ['formula'],
-                  },
-                },
-                mentioned_competitors: {
-                  type: 'array',
-                  description: 'Companies explicitly mentioned as competitors, peers, or used for benchmarking in the report. Only include companies clearly identified as industry peers or competitors — not suppliers, customers, or partners.',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      name: { type: 'string', description: 'Official company name' },
-                      ticker: { type: 'string', description: 'Stock ticker if mentioned' },
-                      context: { type: 'string', description: 'Brief context of how/where the company is mentioned (e.g., "peer comparison table", "market share analysis")' },
-                    },
-                    required: ['name'],
-                  },
-                },
-              },
-              required: ['company_name', 'accounting_standard', 'accounting_standard_confidence', 'policies', 'kpi_mappings', 'mentioned_competitors'],
-            },
-          },
-        ],
-        tool_choice: { type: 'tool', name: 'extract_accounting_profile' },
-        messages: [
-          {
-            role: 'user',
-            content: `You are an expert financial reporting analyst. Below is the full extracted text from an annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''}. Analyze it and extract the complete accounting framework. First, identify the official company name as stated in the report.
+    let textForAnalysis: string
+    let extractedPages: number
 
-The report has ${pageCount} pages. The text below is the complete content.
+    if (fullExtraction.text.length <= MAX_CHARS_FOR_SINGLE_PASS) {
+      // Small report — single pass
+      console.log('[analyze] Small report — single pass')
+      textForAnalysis = fullExtraction.text
+      extractedPages = fullExtraction.extractedPages
+    } else {
+      // Large report — two-pass approach
+      console.log('[analyze] Large report — two-pass approach')
+
+      // Pass 1: Send first 30 pages to Haiku to identify relevant sections
+      const tocExtraction = await extractTextFromPdf(pdfBuffer, [{ start: 1, end: 30 }])
+      const pageRanges = await identifyRelevantPages(
+        anthropicApiKey,
+        tocExtraction.text,
+        fullExtraction.pageCount,
+      )
+
+      // Pass 2: Extract only relevant pages
+      const relevantExtraction = await extractTextFromPdf(pdfBuffer, pageRanges)
+      console.log(`[analyze] Pass 2: ${relevantExtraction.text.length} chars from ${relevantExtraction.extractedPages} pages (of ${fullExtraction.pageCount} total)`)
+
+      // Safety: truncate if still too large
+      if (relevantExtraction.text.length > 700_000) {
+        console.warn(`[analyze] Still large (${relevantExtraction.text.length} chars), truncating to 700K`)
+        textForAnalysis = relevantExtraction.text.substring(0, 700_000)
+      } else {
+        textForAnalysis = relevantExtraction.text
+      }
+      extractedPages = relevantExtraction.extractedPages
+    }
+
+    // ------------------------------------------------------------------
+    // 3. Extract accounting profile with Sonnet
+    // ------------------------------------------------------------------
+    const claudeJson = await callClaude(
+      anthropicApiKey,
+      'claude-sonnet-4-6',
+      8192,
+      [
+        {
+          role: 'user',
+          content: `You are an expert financial reporting analyst. Below is extracted text from an annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''}. Analyze it and extract the complete accounting framework.
+
+The full report has ${fullExtraction.pageCount} pages. You are seeing ${extractedPages} relevant pages.
 
 FOCUS ON THE ACCOUNTING POLICIES SECTION (typically in the Notes to the Financial Statements).
 
 For each area, extract:
-1. **Accounting standard** — Is this IFRS, US GAAP, Swiss GAAP FER, HGB, or other?
+1. **Accounting standard** — IFRS, US GAAP, Swiss GAAP FER, HGB, or other?
 2. **Revenue recognition** — Over time, point in time, percentage of completion?
-3. **R&D treatment** — Do they capitalize or expense R&D? At what stage?
+3. **R&D treatment** — Capitalize or expense? At what stage?
 4. **Lease treatment** — IFRS 16 (on balance sheet) or operating leases?
-5. **EBITDA definition** — What do they include/exclude? This is CRITICAL.
-6. **Net debt definition** — What's included in debt? Do they include lease liabilities?
+5. **EBITDA definition** — What do they include/exclude? CRITICAL.
+6. **Net debt definition** — What's included? Do they include lease liabilities?
 7. **Goodwill** — Amortize or impairment-only?
 8. **Pension accounting** — Projected unit credit, defined contribution, other?
-9. **FX translation** — Closing rate, temporal? What's the functional currency?
-10. **Segment reporting** — Geographic, product line, or business unit? List the segments.
+9. **FX translation** — Closing rate, temporal? Functional currency?
+10. **Segment reporting** — Geographic, product line, or business unit? List segments.
 
 For KPI MAPPINGS, find how this company calculates each of these KPIs:
 KPI codes: ${KPI_CODES.join(', ')}
@@ -309,26 +431,19 @@ KPI codes: ${KPI_CODES.join(', ')}
 ALWAYS include the source_page number for each finding.
 If you cannot find information about a specific policy, skip it rather than guessing.
 
-For MENTIONED COMPETITORS: Scan the text for any companies explicitly named as competitors, peers, or used in benchmarking comparisons. If none are found, return an empty array.
+For MENTIONED COMPETITORS: Scan for companies explicitly named as competitors, peers, or used in benchmarking. If none found, return an empty array.
 
 --- BEGIN ANNUAL REPORT TEXT ---
-${pdfText}
+${textForAnalysis}
 --- END ANNUAL REPORT TEXT ---`,
-          },
-        ],
-      }),
-    })
-
-    if (!claudeResponse.ok) {
-      const errBody = await claudeResponse.text()
-      throw new Error(`Claude API error ${claudeResponse.status}: ${errBody}`)
-    }
-
-    const claudeJson = await claudeResponse.json()
+        },
+      ],
+      [EXTRACTION_TOOL],
+      { type: 'tool', name: 'extract_accounting_profile' },
+    )
 
     await logAnthropicUsage('BenchmarkSignal', 'analyze-accounting-profile', claudeJson)
 
-    // Sonnet 4.6 pricing: $3/MTok input, $15/MTok output
     const inputTokens = claudeJson.usage?.input_tokens ?? 0
     const outputTokens = claudeJson.usage?.output_tokens ?? 0
     const estimatedCostUsd = (inputTokens * 3 + outputTokens * 15) / 1_000_000
@@ -409,36 +524,13 @@ ${pdfText}
     const kpiMappingCount = Object.keys(result.kpi_mappings).length
 
     if (result.company_name && report.company_id) {
-      // Resolve verified website domain via Brandfetch Brand Search API
-      let websiteUrl: string | null = null
-      const brandfetchClientId = Deno.env.get('BRANDFETCH_CLIENT_ID')
-      if (brandfetchClientId) {
-        try {
-          const bfResp = await fetch(
-            `https://api.brandfetch.io/v2/search/${encodeURIComponent(result.company_name)}?c=${brandfetchClientId}`,
-            { signal: AbortSignal.timeout(3000) },
-          )
-          if (bfResp.ok) {
-            const bfResults = await bfResp.json() as Array<{ name: string; domain: string }>
-            if (bfResults.length > 0 && bfResults[0].domain) {
-              websiteUrl = `https://${bfResults[0].domain}`
-            }
-          }
-        } catch {
-          // Non-critical — continue without logo
-        }
-      }
-
       await adminClient
         .from('companies')
-        .update({
-          name: result.company_name,
-          ...(websiteUrl ? { website_url: websiteUrl } : {}),
-        })
+        .update({ name: result.company_name })
         .eq('id', report.company_id)
     }
 
-    console.log(`[analyze-accounting-profile] Tokens: ${inputTokens} in / ${outputTokens} out | Cost: $${estimatedCostUsd.toFixed(4)} | Company: ${companyName} | Pages: ${pageCount}`)
+    console.log(`[analyze] Tokens: ${inputTokens} in / ${outputTokens} out | Cost: $${estimatedCostUsd.toFixed(4)} | Company: ${companyName} | Pages: ${fullExtraction.pageCount} (${extractedPages} analyzed)`)
 
     return jsonResponse({
       profile_id: profileId,
@@ -455,11 +547,13 @@ ${pdfText}
         output_tokens: outputTokens,
         estimated_cost_usd: Math.round(estimatedCostUsd * 10000) / 10000,
         model: 'claude-sonnet-4-6',
+        pages_total: fullExtraction.pageCount,
+        pages_analyzed: extractedPages,
       },
     })
   } catch (err) {
-    console.error('[analyze-accounting-profile] Error:', err instanceof Error ? err.message : String(err))
-    console.error('[analyze-accounting-profile] Stack:', err instanceof Error ? err.stack : 'no stack')
+    console.error('[analyze] Error:', err instanceof Error ? err.message : String(err))
+    console.error('[analyze] Stack:', err instanceof Error ? err.stack : 'no stack')
     return errorResponse(err)
   }
 })

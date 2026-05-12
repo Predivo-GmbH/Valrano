@@ -682,8 +682,8 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
         disabled={isAnalyzing}
       />
 
-      {/* Or analyze existing report */}
-      {ownReports.length > 0 && (
+      {/* Or analyze existing report — hidden during active upload */}
+      {ownReports.length > 0 && uploadStep === 'idle' && (
         <div className="space-y-2">
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
             Or select an existing report
