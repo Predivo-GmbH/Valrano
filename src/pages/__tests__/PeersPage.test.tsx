@@ -4,6 +4,7 @@ import { PeersPage } from '../PeersPage'
 vi.mock('@/hooks/useData', () => ({
   useCompanies: () => ({ data: [], isLoading: false }),
   useReports: () => ({ data: [], isLoading: false }),
+  useKpiDefinitions: () => ({ data: [], isLoading: false }),
 }))
 
 vi.mock('@/hooks/useCalendar', () => ({
