@@ -39,6 +39,20 @@ import { CalendarPage } from './CalendarPage'
 import { ReviewPage } from './ReviewPage'
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function companyLogoUrl(websiteUrl: string | null | undefined, size = 32): string | null {
+  if (!websiteUrl) return null
+  try {
+    const domain = new URL(websiteUrl).hostname
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=${size}`
+  } catch {
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
@@ -586,7 +600,20 @@ function PeerCard({
     <div className="card-premium rounded-xl border border-border bg-card p-3 sm:p-5 transition-colors hover:border-[var(--color-primary)]/30">
       {/* Header: Company name + monitoring indicator */}
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0">
+          {companyLogoUrl(company.website_url) ? (
+            <img
+              src={companyLogoUrl(company.website_url, 32)!}
+              alt=""
+              className="h-7 w-7 rounded-md border border-border/50 bg-white object-contain p-0.5 shrink-0"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          ) : (
+            <div className="flex h-7 w-7 items-center justify-center rounded-md border border-border/50 bg-[var(--color-bg-tertiary)] shrink-0">
+              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+          )}
+          <div className="min-w-0">
           <h3 className="text-[15px] font-semibold text-foreground truncate">
             {company.name}
           </h3>
@@ -595,6 +622,7 @@ function PeerCard({
               {company.ticker}{company.exchange ? ` · ${company.exchange}` : ''}
             </span>
           )}
+          </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <span

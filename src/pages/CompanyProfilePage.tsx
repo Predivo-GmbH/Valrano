@@ -106,6 +106,17 @@ const SENTIMENT_STYLES: Record<string, string> = {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Company logo via Google Favicon API (free, no key needed) */
+function companyLogoUrl(websiteUrl: string | null | undefined, size = 64): string | null {
+  if (!websiteUrl) return null
+  try {
+    const domain = new URL(websiteUrl).hostname
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=${size}`
+  } catch {
+    return null
+  }
+}
+
 function formatValue(value: number | null | undefined, unitType?: string): string {
   if (value == null) return '--'
   if (unitType === 'percentage') return `${value.toFixed(1)}%`
@@ -436,7 +447,19 @@ export function CompanyProfilePage() {
         <div className="mb-6 card-premium card-accent-top rounded-xl border border-border bg-card p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-3">
+                {companyLogoUrl(company.website_url) ? (
+                  <img
+                    src={companyLogoUrl(company.website_url, 64)!}
+                    alt=""
+                    className="h-10 w-10 rounded-lg border border-border/50 bg-white object-contain p-1"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)]">
+                    <Building2 className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                )}
                 <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">
                   {company.name}
                 </h1>
@@ -504,17 +527,21 @@ export function CompanyProfilePage() {
                   {accountingStandardMatch}
                 </div>
               )}
-              {/* Data freshness */}
-              <div className="text-right text-[11px] text-muted-foreground">
+              {/* Data source */}
+              <div className="text-right text-[11px]">
                 {latestReport ? (
-                  <>
-                    Last report: FY {latestReport.fiscal_year}
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-signal-green)]/10 px-2.5 py-1 text-[var(--color-signal-green)]">
+                    <FileText className="h-3 w-3" />
+                    Based on Annual Report FY {latestReport.fiscal_year}
                     {latestReport.publication_date && (
-                      <> &middot; {relativeTime(latestReport.publication_date)}</>
+                      <span className="text-[var(--color-signal-green)]/70"> &middot; {relativeTime(latestReport.publication_date)}</span>
                     )}
-                  </>
+                  </span>
                 ) : (
-                  <span className="text-[var(--color-signal-amber)]">No reports uploaded</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-signal-amber)]/10 px-2.5 py-1 text-[var(--color-signal-amber)]">
+                    <Clock className="h-3 w-3" />
+                    Awaiting report
+                  </span>
                 )}
               </div>
             </div>
@@ -641,13 +668,38 @@ export function CompanyProfilePage() {
             )}
           </div>
         ) : (
-          <EmptyCard
-            icon={BarChart3}
-            title="No KPI data yet"
-            description={`Upload a report for ${company.name} to see extracted KPIs and comparisons.`}
-            actionLabel="Upload Report"
-            actionTo={`/peers?tab=upload&company=${company.id}`}
-          />
+          <div className="mb-6 card-premium rounded-xl border border-border bg-card p-6">
+            <div className="flex flex-col items-center text-center max-w-md mx-auto">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent)]/10 mb-3">
+                <BarChart3 className="h-6 w-6 text-[var(--color-accent)]" />
+              </div>
+              <h3 className="text-[15px] font-semibold text-foreground">Waiting for Report Data</h3>
+              <p className="mt-1.5 text-[12px] text-muted-foreground leading-relaxed">
+                KPI comparison, trends, and benchmarks will appear here once {company.name}'s annual report has been processed by the pipeline.
+              </p>
+              <div className="mt-4 w-full rounded-lg bg-[var(--color-bg-tertiary)] p-3 text-left">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">What to expect</p>
+                <ul className="space-y-1.5 text-[12px] text-muted-foreground">
+                  <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-[var(--color-accent)] shrink-0" /> Side-by-side KPI comparison with your company</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-[var(--color-accent)] shrink-0" /> Year-over-year trends with sparklines</li>
+                  <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-[var(--color-accent)] shrink-0" /> Delta analysis showing where you lead or lag</li>
+                </ul>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {!company.ir_page_url && (
+                  <span className="text-[11px] text-[var(--color-signal-amber)]">
+                    Tip: Add an IR page URL in the publication schedule so the system can auto-detect new reports.
+                  </span>
+                )}
+                <Link
+                  to={`/peers?tab=upload&company=${company.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[var(--color-accent)]/90"
+                >
+                  <Upload className="h-3.5 w-3.5" /> Upload Report Manually
+                </Link>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ============================================================= */}
@@ -878,13 +930,40 @@ export function CompanyProfilePage() {
             </div>
           </div>
         ) : (
-          <EmptyCard
-            icon={FileText}
-            title="No reports uploaded"
-            description="Upload an annual or quarterly report to start benchmarking."
-            actionLabel="Upload Report"
-            actionTo={`/peers?tab=upload&company=${company.id}`}
-          />
+          <div className="mb-6 card-premium rounded-xl border border-border bg-card p-6">
+            <div className="flex flex-col items-center text-center max-w-md mx-auto">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent)]/10 mb-3">
+                <FileText className="h-6 w-6 text-[var(--color-accent)]" />
+              </div>
+              <h3 className="text-[15px] font-semibold text-foreground">No Reports Yet</h3>
+              <p className="mt-1.5 text-[12px] text-muted-foreground leading-relaxed">
+                {company.name}'s annual report hasn't been processed yet. Once the pipeline detects and downloads it, KPIs will be extracted automatically and all sections on this page will populate.
+              </p>
+              <div className="mt-4 w-full rounded-lg bg-[var(--color-bg-tertiary)] p-3 text-left">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">How reports get here</p>
+                <ol className="space-y-1.5 text-[12px] text-muted-foreground list-decimal list-inside">
+                  <li>The system monitors {company.name}'s IR page{company.ir_page_url ? '' : ' (URL not set yet)'}</li>
+                  <li>When a new report is published, it's downloaded automatically</li>
+                  <li>AI extracts all KPIs and accounting policies</li>
+                  <li>This profile page fills with comparison data</li>
+                </ol>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                <Link
+                  to={`/peers?tab=upload&company=${company.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[var(--color-accent)]/90"
+                >
+                  <Upload className="h-3.5 w-3.5" /> Upload Report Manually
+                </Link>
+                <Link
+                  to="/calendar"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Calendar className="h-3.5 w-3.5" /> Set Publication Date
+                </Link>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ============================================================= */}
@@ -946,11 +1025,21 @@ export function CompanyProfilePage() {
             </div>
           </div>
         ) : (
-          <EmptyCard
-            icon={Calendar}
-            title="No publication events"
-            description="No scheduled or detected publications for this company."
-          />
+          <div className="mb-6 card-premium rounded-xl border border-border bg-card p-6">
+            <div className="flex flex-col items-center text-center max-w-md mx-auto">
+              <Calendar className="h-8 w-8 text-muted-foreground/40 mb-2" />
+              <h3 className="text-[15px] font-semibold text-foreground">No Publication Schedule</h3>
+              <p className="mt-1.5 text-[12px] text-muted-foreground leading-relaxed">
+                Set an expected publication date so the system knows when to start monitoring {company.name}'s IR page for new reports.
+              </p>
+              <Link
+                to="/calendar"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[var(--color-accent)]/90"
+              >
+                <Calendar className="h-3.5 w-3.5" /> Add to Calendar
+              </Link>
+            </div>
+          </div>
         )}
 
         {/* ============================================================= */}
@@ -1011,11 +1100,13 @@ export function CompanyProfilePage() {
             ))}
           </div>
         ) : (
-          <EmptyCard
-            icon={Newspaper}
-            title="No news tracked"
-            description="Enable news monitoring for this peer to see relevant articles."
-          />
+          <div className="mb-6 card-premium rounded-xl border border-border bg-card p-6 text-center">
+            <Newspaper className="mx-auto h-8 w-8 text-muted-foreground/40" />
+            <h3 className="mt-2 text-[15px] font-semibold text-foreground">No News Yet</h3>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              News articles about {company.name} will appear here once news monitoring is active.
+            </p>
+          </div>
         )}
 
         {/* ============================================================= */}
@@ -1070,11 +1161,13 @@ export function CompanyProfilePage() {
             })}
           </div>
         ) : (
-          <EmptyCard
-            icon={Zap}
-            title="No AI insights"
-            description="Insights will appear here once enough data is available for analysis."
-          />
+          <div className="mb-6 card-premium rounded-xl border border-border bg-card p-6 text-center">
+            <Zap className="mx-auto h-8 w-8 text-muted-foreground/40" />
+            <h3 className="mt-2 text-[15px] font-semibold text-foreground">No AI Insights Yet</h3>
+            <p className="mt-1 text-[12px] text-muted-foreground max-w-sm mx-auto">
+              AI-generated insights (trend reversals, outliers, opportunities) will appear here once {company.name}'s report data has been analyzed.
+            </p>
+          </div>
         )}
       </div>
     </>
@@ -1140,32 +1233,4 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function EmptyCard({
-  icon: Icon,
-  title,
-  description,
-  actionLabel,
-  actionTo,
-}: {
-  icon: typeof TrendingUp
-  title: string
-  description: string
-  actionLabel?: string
-  actionTo?: string
-}) {
-  return (
-    <div className="mb-6 card-premium rounded-xl border border-border bg-card p-8 text-center">
-      <Icon className="mx-auto h-8 w-8 text-muted-foreground/40" />
-      <h3 className="mt-2 text-[15px] font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 text-[12px] text-muted-foreground">{description}</p>
-      {actionLabel && actionTo && (
-        <Link
-          to={actionTo}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[var(--color-accent)]/90"
-        >
-          {actionLabel}
-        </Link>
-      )}
-    </div>
-  )
-}
+// EmptyCard removed — replaced with inline contextual guidance per section
