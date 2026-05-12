@@ -106,12 +106,12 @@ const SENTIMENT_STYLES: Record<string, string> = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Company logo via Google Favicon API (free, no key needed) */
-function companyLogoUrl(websiteUrl: string | null | undefined, size = 64): string | null {
+/** Company logo via Brandfetch Logo API (free 500K/mo, no key, no attribution) */
+function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
   if (!websiteUrl) return null
   try {
     const domain = new URL(websiteUrl).hostname
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=${size}`
+    return `https://logo.brandfetch.com/${domain}`
   } catch {
     return null
   }
@@ -450,7 +450,7 @@ export function CompanyProfilePage() {
               <div className="flex flex-wrap items-center gap-3">
                 {companyLogoUrl(company.website_url) ? (
                   <img
-                    src={companyLogoUrl(company.website_url, 64)!}
+                    src={companyLogoUrl(company.website_url)!}
                     alt=""
                     className="h-10 w-10 rounded-lg border border-border/50 bg-white object-contain p-1"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}

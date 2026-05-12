@@ -42,11 +42,12 @@ import { ReviewPage } from './ReviewPage'
 // Helpers
 // ---------------------------------------------------------------------------
 
-function companyLogoUrl(websiteUrl: string | null | undefined, size = 32): string | null {
+/** Company logo via Brandfetch Logo API (free 500K/mo, no key, no attribution) */
+function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
   if (!websiteUrl) return null
   try {
     const domain = new URL(websiteUrl).hostname
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=${size}`
+    return `https://logo.brandfetch.com/${domain}`
   } catch {
     return null
   }
@@ -603,7 +604,7 @@ function PeerCard({
         <div className="flex items-center gap-2.5 min-w-0">
           {companyLogoUrl(company.website_url) ? (
             <img
-              src={companyLogoUrl(company.website_url, 32)!}
+              src={companyLogoUrl(company.website_url)!}
               alt=""
               className="h-7 w-7 rounded-md border border-border/50 bg-white object-contain p-0.5 shrink-0"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}

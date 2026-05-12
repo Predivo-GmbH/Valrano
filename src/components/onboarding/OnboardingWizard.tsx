@@ -7,8 +7,10 @@ import {
   Calendar,
   Check,
   ChevronRight,
+  FileText,
   Loader2,
   Rocket,
+  Search,
   Sparkles,
   Upload,
 } from 'lucide-react'
@@ -858,159 +860,191 @@ function StepCompetitors({
     })
   }
 
-  const hasAnySuggestions = unifiedSuggestions.length > 0
+  // Helper: resolve DB id for a suggestion item
+  const resolveDbId = (item: typeof unifiedSuggestions[number]) => {
+    if (item.source === 'report') {
+      const existing = (companies ?? []).find(
+        (c) => c.name.toLowerCase() === item.name.toLowerCase() ||
+          (item.ticker && c.ticker && c.ticker.toLowerCase() === item.ticker.toLowerCase()),
+      )
+      return existing?.id
+    }
+    return item.in_database ? item.existing_id : undefined
+  }
+
+  // Helper: add a suggestion to DB and select it
+  const addAndSelect = async (item: typeof unifiedSuggestions[number]) => {
+    setAddingIdx(item.originalIdx)
+    try {
+      if (item.source === 'report') {
+        const { data: inserted, error } = await supabase
+          .from('companies')
+          .insert({ name: item.name, ticker: item.ticker ?? null })
+          .select('id')
+          .single()
+        if (error) { toast.error(`Failed to add ${item.name}`); return }
+        onSelectedIdsChange([...selectedIds, inserted.id])
+        await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+        toast.success(`${item.name} added`)
+      } else {
+        await handleAddSuggestion(aiSuggestions[item.originalIdx], item.originalIdx)
+      }
+    } catch { toast.error(`Failed to add ${item.name}`) }
+    finally { setAddingIdx(null) }
+  }
+
+  // Render a suggestion card
+  const renderSuggestionCard = (item: typeof unifiedSuggestions[number], idx: number) => {
+    const dbId = resolveDbId(item)
+    const isSelected = dbId ? selectedIds.includes(dbId) : false
+    const isAdding = addingIdx === item.originalIdx
+
+    const handleClick = () => {
+      if (dbId) {
+        toggleCompany(dbId)
+      } else {
+        addAndSelect(item)
+      }
+    }
+
+    return (
+      <button
+        key={`${item.source}-${idx}`}
+        onClick={handleClick}
+        disabled={isAdding}
+        className={cn(
+          'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
+          isSelected
+            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
+            : 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50',
+          isAdding && 'opacity-60',
+        )}
+      >
+        <div
+          className={cn(
+            'flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0',
+            isSelected
+              ? 'bg-[var(--color-accent)] text-white'
+              : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
+          )}
+        >
+          {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : isSelected ? <Check className="h-4 w-4" /> : item.name.slice(0, 2).toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-medium text-foreground truncate">{item.name}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {item.source === 'report'
+              ? [item.ticker, item.context].filter(Boolean).join(' · ')
+              : [item.ticker, item.sector].filter(Boolean).join(' · ')}
+          </p>
+          {item.reasoning && (
+            <p className="text-[10px] text-muted-foreground/70 mt-0.5 line-clamp-1">
+              {item.reasoning}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {isSelected ? (
+            <span className="text-[10px] text-muted-foreground">✕</span>
+          ) : !isAdding ? (
+            <span className="text-[10px] text-[var(--color-accent)] font-medium">+ Add</span>
+          ) : null}
+        </div>
+      </button>
+    )
+  }
+
+  const reportSuggestions = unifiedSuggestions.filter((s) => s.source === 'report')
+  const aiSuggestionItems = unifiedSuggestions.filter((s) => s.source === 'ai')
+  const selectedCompanies = (companies ?? []).filter((c) => selectedIds.includes(c.id))
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-[22px] font-semibold text-foreground">Add Your Competitors</h2>
         <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
-          Select the companies you want to benchmark against. Let AI suggest competitors based on your
-          company, or search manually.
+          Build your peer group for benchmarking. Add competitors from three sources:
         </p>
       </div>
 
-      {/* AI Suggest button */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleAiSuggest}
-          disabled={suggestCompetitors.isPending || !myCompanyName}
-          className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-[13px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {suggestCompetitors.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="h-4 w-4" />
-          )}
-          {suggestCompetitors.isPending
-            ? 'Finding competitors...'
-            : reportCompetitors.length > 0
-            ? 'Find More Competitors'
-            : 'AI Suggest Competitors'}
-        </button>
-        {myCompanyName && (
-          <span className="text-[12px] text-muted-foreground">
-            for <span className="font-medium text-foreground">{myCompanyName}</span>
+      {/* ── Section 1: Report-extracted competitors ── */}
+      <div className="rounded-xl border border-border p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/10">
+            <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <h3 className="text-[13px] font-semibold text-foreground">From your annual report</h3>
+          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+            {reportSuggestions.length} found
           </span>
-        )}
-        {!myCompanyName && (
-          <span className="text-[11px] text-muted-foreground">
-            Add your company name in Step 1 first
-          </span>
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          {reportSuggestions.length > 0
+            ? 'These companies were explicitly mentioned as competitors or peers in your uploaded report. Click to add them to your peer group.'
+            : 'No competitors were explicitly named in your report. Use AI discovery or manual search below.'}
+        </p>
+        {reportSuggestions.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {reportSuggestions.map((item, idx) => renderSuggestionCard(item, idx))}
+          </div>
         )}
       </div>
 
-      {/* Unified suggestion list */}
-      {hasAnySuggestions && (
-        <div className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Suggested competitors
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {unifiedSuggestions.map((item, idx) => {
-              const isReport = item.source === 'report'
-              const existing = isReport
-                ? (companies ?? []).find(
-                    (c) => c.name.toLowerCase() === item.name.toLowerCase() ||
-                      (item.ticker && c.ticker && c.ticker.toLowerCase() === item.ticker.toLowerCase()),
-                  )
-                : undefined
-              const dbId = isReport ? existing?.id : (item.in_database ? item.existing_id : undefined)
-              const isSelected = dbId ? selectedIds.includes(dbId) : false
-              const isAdding = addingIdx === item.originalIdx
-
-              const handleClick = () => {
-                if (dbId) {
-                  toggleCompany(dbId)
-                } else if (isReport) {
-                  void (async () => {
-                    setAddingIdx(item.originalIdx)
-                    try {
-                      const { data: inserted, error } = await supabase
-                        .from('companies')
-                        .insert({ name: item.name, ticker: item.ticker ?? null })
-                        .select('id')
-                        .single()
-                      if (error) { toast.error(`Failed to add ${item.name}`); return }
-                      onSelectedIdsChange([...selectedIds, inserted.id])
-                      await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-                      toast.success(`${item.name} added and selected`)
-                    } catch { toast.error(`Failed to add ${item.name}`) }
-                    finally { setAddingIdx(null) }
-                  })()
-                } else {
-                  // AI suggestion not yet in DB
-                  handleAddSuggestion(aiSuggestions[item.originalIdx], item.originalIdx)
-                }
-              }
-
-              return (
-                <button
-                  key={`${item.source}-${idx}`}
-                  onClick={handleClick}
-                  disabled={isAdding}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
-                    isSelected
-                      ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
-                      : 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50',
-                    isAdding && 'opacity-60',
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0',
-                      isSelected
-                        ? 'bg-[var(--color-accent)] text-white'
-                        : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
-                    )}
-                  >
-                    {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : isSelected ? <Check className="h-4 w-4" /> : item.name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-medium text-foreground truncate">{item.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {isReport
-                        ? [item.ticker, item.context].filter(Boolean).join(' · ')
-                        : [item.ticker, item.sector].filter(Boolean).join(' · ')}
-                    </p>
-                    {item.reasoning && (
-                      <p className="text-[10px] text-muted-foreground/70 mt-0.5 line-clamp-1">
-                        {item.reasoning}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <span className={cn(
-                      'rounded-full px-1.5 py-0.5 text-[9px] font-medium',
-                      isReport
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]',
-                    )}>
-                      {isReport ? 'report' : 'AI'}
-                    </span>
-                    {!isSelected && !isAdding && (
-                      <span className="text-[9px] text-[var(--color-accent)] font-medium">
-                        + Add
-                      </span>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
+      {/* ── Section 2: AI-discovered competitors ── */}
+      <div className="rounded-xl border border-border p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--color-accent)]/10">
+              <Sparkles className="h-3.5 w-3.5 text-[var(--color-accent)]" />
+            </div>
+            <h3 className="text-[13px] font-semibold text-foreground">AI-discovered competitors</h3>
+            {aiSuggestionItems.length > 0 && (
+              <span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
+                {aiSuggestionItems.length} found
+              </span>
+            )}
           </div>
-          {aiSuggestions.length > 0 && (
-            <p className="mt-3 text-[12px] text-muted-foreground leading-relaxed">
-              Use the search below to add any competitors that are missing.
-            </p>
-          )}
+          <button
+            onClick={handleAiSuggest}
+            disabled={suggestCompetitors.isPending || !myCompanyName}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-[12px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {suggestCompetitors.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
+            {suggestCompetitors.isPending
+              ? 'Searching...'
+              : aiSuggestionItems.length > 0
+              ? 'Find more'
+              : 'Discover competitors'}
+          </button>
         </div>
-      )}
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          {aiSuggestionItems.length > 0
+            ? `AI analyzed ${myCompanyName}'s industry and found these competitors. Click to add them.`
+            : myCompanyName
+            ? `Click "Discover competitors" to let AI find companies in the same industry as ${myCompanyName}.`
+            : 'Set up your company name in Step 1, then use AI to discover competitors automatically.'}
+        </p>
+        {aiSuggestionItems.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {aiSuggestionItems.map((item, idx) => renderSuggestionCard(item, idx))}
+          </div>
+        )}
+      </div>
 
-      {/* Search + Manual selection */}
-      <div className="space-y-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {aiSuggestions.length > 0 ? 'Add more competitors' : 'Search companies'}
+      {/* ── Section 3: Manual search ── */}
+      <div className="rounded-xl border border-border p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500/10">
+            <Search className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <h3 className="text-[13px] font-semibold text-foreground">Search & add manually</h3>
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          Search Swiss (Zefix) and international company registers to add specific competitors.
         </p>
         <div className="max-w-md">
           <CompanyAutocomplete
@@ -1041,63 +1075,55 @@ function StepCompetitors({
                   toast.error('Failed to add company')
                 } else {
                   onSelectedIdsChange([...selectedIds, inserted.id])
-                  toast.success(`${result.name} added and selected`)
+                  toast.success(`${result.name} added`)
                 }
               }
               setSearch('')
             })()}
-            placeholder="Type 3+ letters to search company registers..."
+            placeholder="Type a company name to search..."
+            className="border-amber-500/30 focus-within:border-amber-500/60"
           />
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            Searches Swiss (Zefix) and international company registers
-          </p>
         </div>
       </div>
 
-      {/* Selected competitors summary */}
-      {selectedIds.length > 0 && (() => {
-        const selectedCompanies = (companies ?? []).filter((c) => selectedIds.includes(c.id))
-        // Determine source for each selected company
+      {/* ── Selected peer group summary ── */}
+      {selectedCompanies.length > 0 && (() => {
         const reportNames = new Set(reportCompetitors.map((rc) => rc.name.toLowerCase()))
         const aiNames = new Set(aiSuggestions.map((s) => s.name.toLowerCase()))
         return (
-          <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-accent)]">
-              Selected competitors ({selectedCompanies.length})
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="rounded-xl border-2 border-[var(--color-accent)]/30 bg-[var(--color-accent)]/3 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Check className="h-4 w-4 text-[var(--color-accent)]" />
+              <h3 className="text-[13px] font-semibold text-foreground">
+                Your peer group ({selectedCompanies.length})
+              </h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
               {selectedCompanies.map((company) => {
                 const nameLower = company.name.toLowerCase()
-                const source = reportNames.has(nameLower) ? 'report' : aiNames.has(nameLower) ? 'AI' : 'search'
+                const source = reportNames.has(nameLower) ? 'report' : aiNames.has(nameLower) ? 'AI' : 'manual'
                 return (
                   <button
                     key={company.id}
                     onClick={() => toggleCompany(company.id)}
-                    className="flex items-center gap-3 rounded-lg border border-[var(--color-accent)] bg-[var(--color-accent)]/5 p-3 text-left transition-all hover:bg-[var(--color-accent)]/10"
+                    className="group inline-flex items-center gap-1.5 rounded-full border border-[var(--color-accent)]/30 bg-background px-3 py-1.5 text-[12px] font-medium text-foreground transition-all hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent)] text-white text-[11px] font-bold flex-shrink-0">
-                      <Check className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {[company.ticker, company.sector].filter(Boolean).join(' · ') || company.country || ''}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span className={cn(
-                        'rounded-full px-1.5 py-0.5 text-[9px] font-medium',
-                        source === 'report' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                          : source === 'AI' ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
-                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-                      )}>
-                        {source}
-                      </span>
-                      <span className="text-[9px] text-muted-foreground">✕ remove</span>
-                    </div>
+                    <span className={cn(
+                      'inline-block h-1.5 w-1.5 rounded-full',
+                      source === 'report' ? 'bg-emerald-500'
+                        : source === 'AI' ? 'bg-[var(--color-accent)]'
+                        : 'bg-amber-500',
+                    )} />
+                    {company.name}
+                    <span className="text-muted-foreground group-hover:text-red-500 transition-colors">✕</span>
                   </button>
                 )
               })}
+            </div>
+            <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" /> from report</span>
+              <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" /> AI-discovered</span>
+              <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" /> manually added</span>
             </div>
           </div>
         )
