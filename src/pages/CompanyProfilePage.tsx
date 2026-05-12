@@ -24,10 +24,13 @@ import {
   Minus,
   Clock,
   CheckCircle2,
-  XCircle,
   Target,
   Zap,
   BookOpen,
+  Plus,
+  Trash2,
+  Sparkles,
+  Loader2,
 } from 'lucide-react'
 import {
   RadarChart,
@@ -41,7 +44,8 @@ import {
 import { useAllCompanies, useKpiValues, useReports } from '@/hooks/useData'
 import { usePrimaryCompany } from '@/hooks/useMyCompany'
 import { useAccountingProfile } from '@/hooks/useAccountingProfile'
-import { usePublicationEvents } from '@/hooks/useCalendar'
+import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEvent } from '@/hooks/useCalendar'
+import { useSuggestDates } from '@/hooks/useAiSuggestions'
 import { supabase } from '@/lib/supabase'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 import { cn } from '@/lib/utils'
@@ -956,92 +960,29 @@ export function CompanyProfilePage() {
                 >
                   <Upload className="h-3.5 w-3.5" /> Upload Report Manually
                 </Link>
-                <Link
-                  to="/calendar"
+                <a
+                  href="#publication-schedule"
+                  onClick={(e) => { e.preventDefault(); document.getElementById('publication-schedule')?.scrollIntoView({ behavior: 'smooth' }) }}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <Calendar className="h-3.5 w-3.5" /> Set Publication Date
-                </Link>
+                </a>
               </div>
             </div>
           </div>
         )}
 
         {/* ============================================================= */}
-        {/* SECTION 7: Publication Timeline                                 */}
+        {/* SECTION 7: Publication Schedule                                 */}
         {/* ============================================================= */}
-        <SectionHeader icon={Calendar} title="Publication Timeline" />
-        {companyEvents.length > 0 ? (
-          <div className="mb-6 card-premium rounded-xl border border-border bg-card p-5">
-            {/* Pattern + countdown */}
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              {publicationPattern && (
-                <p className="text-[12px] text-muted-foreground">
-                  Typically publishes annual results in <span className="font-medium text-foreground">{publicationPattern}</span>
-                </p>
-              )}
-              {nextEvent && nextEventCountdown && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--color-accent)]">
-                  <Clock className="h-3 w-3" />
-                  Next: {nextEvent.report_type} FY {nextEvent.fiscal_year} &middot; {nextEventCountdown}
-                </span>
-              )}
-            </div>
-
-            {/* Visual timeline */}
-            <div className="relative">
-              {/* Horizontal line */}
-              <div className="absolute left-0 right-0 top-3 h-px bg-border" />
-              <div className="flex gap-0 overflow-x-auto pb-2">
-                {companyEvents.slice(0, 12).map((event) => {
-                  const isDetected = event.status === 'detected' || event.status === 'ingested'
-                  const isOverdue = event.status === 'overdue'
-                  return (
-                    <div key={event.id} className="flex flex-col items-center px-3 pt-0" style={{ minWidth: 80 }}>
-                      <div
-                        className={cn(
-                          'relative z-10 h-6 w-6 rounded-full border-2 flex items-center justify-center',
-                          isDetected
-                            ? 'border-[var(--color-signal-green)] bg-[var(--color-signal-green)]/10'
-                            : isOverdue
-                              ? 'border-[var(--color-signal-red)] bg-[var(--color-signal-red)]/10'
-                              : 'border-border bg-card',
-                        )}
-                      >
-                        {isDetected && <CheckCircle2 className="h-3 w-3 text-[var(--color-signal-green)]" />}
-                        {isOverdue && <XCircle className="h-3 w-3 text-[var(--color-signal-red)]" />}
-                        {!isDetected && !isOverdue && <Clock className="h-3 w-3 text-muted-foreground" />}
-                      </div>
-                      <p className="mt-1.5 text-[10px] font-medium text-foreground">
-                        {event.report_type.replace('_', ' ')}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">FY {event.fiscal_year}</p>
-                      <p className="text-[10px] tabular-nums text-muted-foreground">
-                        {event.expected_date.slice(5)}
-                      </p>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="mb-6 card-premium rounded-xl border border-border bg-card p-6">
-            <div className="flex flex-col items-center text-center max-w-md mx-auto">
-              <Calendar className="h-8 w-8 text-muted-foreground/40 mb-2" />
-              <h3 className="text-[15px] font-semibold text-foreground">No Publication Schedule</h3>
-              <p className="mt-1.5 text-[12px] text-muted-foreground leading-relaxed">
-                Set an expected publication date so the system knows when to start monitoring {company.name}'s IR page for new reports.
-              </p>
-              <Link
-                to="/calendar"
-                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[var(--color-accent)]/90"
-              >
-                <Calendar className="h-3.5 w-3.5" /> Add to Calendar
-              </Link>
-            </div>
-          </div>
-        )}
+        <PublicationScheduleSection
+          companyId={id!}
+          companyName={company.name}
+          companyEvents={companyEvents}
+          publicationPattern={publicationPattern}
+          nextEvent={nextEvent}
+          nextEventCountdown={nextEventCountdown}
+        />
 
         {/* ============================================================= */}
         {/* SECTION 8: News Feed                                            */}
@@ -1231,6 +1172,246 @@ function StatusBadge({ status }: { status: string }) {
     >
       {status}
     </span>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Publication Schedule Section — inline add/edit/delete + AI suggest
+// ---------------------------------------------------------------------------
+
+const REPORT_TYPES = [
+  { value: 'annual', label: 'Annual' },
+  { value: 'half_year', label: 'Half-Year' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'sustainability', label: 'Sustainability' },
+] as const
+
+const EVENT_STATUS_LABELS: Record<string, string> = {
+  scheduled: 'Scheduled',
+  due_today: 'Due Today',
+  overdue: 'Overdue',
+  detected: 'Detected',
+  ingested: 'Ingested',
+  benchmark_ready: 'Ready',
+  cancelled: 'Cancelled',
+}
+
+const EVENT_STATUS_COLORS: Record<string, string> = {
+  scheduled: 'bg-blue-500/10 text-blue-400',
+  due_today: 'bg-amber-500/10 text-amber-400',
+  overdue: 'bg-red-500/10 text-red-400',
+  detected: 'bg-green-500/10 text-green-400',
+  ingested: 'bg-amber-500/10 text-amber-400',
+  benchmark_ready: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]',
+  cancelled: 'bg-zinc-500/10 text-zinc-400',
+}
+
+function PublicationScheduleSection({
+  companyId,
+  companyName,
+  companyEvents,
+  publicationPattern,
+  nextEvent,
+  nextEventCountdown,
+}: {
+  companyId: string
+  companyName: string
+  companyEvents: import('@/types/database').PublicationEvent[]
+  publicationPattern: string | null
+  nextEvent: import('@/types/database').PublicationEvent | undefined
+  nextEventCountdown: string | null
+}) {
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addReportType, setAddReportType] = useState('annual')
+  const [addFiscalYear, setAddFiscalYear] = useState(new Date().getFullYear())
+  const [addDate, setAddDate] = useState('')
+  const [addTime, setAddTime] = useState('07:00')
+  const [suggestingId, setSuggestingId] = useState<string | null>(null)
+
+  const createEvent = useCreatePublicationEvent()
+  const deleteEvent = useDeletePublicationEvent()
+  const suggestDates = useSuggestDates()
+
+  const handleAdd = () => {
+    if (!addDate) return
+    createEvent.mutate(
+      {
+        company_id: companyId,
+        report_type: addReportType,
+        fiscal_year: addFiscalYear,
+        expected_date: addDate,
+        expected_time: addTime ? `${addTime}:00` : null,
+      },
+      {
+        onSuccess: () => {
+          setShowAddForm(false)
+          setAddDate('')
+          setAddReportType('annual')
+        },
+      },
+    )
+  }
+
+  const handleSuggestNew = () => {
+    setSuggestingId('new')
+    suggestDates.mutate(
+      {
+        company_id: companyId,
+        company_name: companyName,
+        report_type: addReportType,
+        fiscal_year: addFiscalYear,
+      },
+      {
+        onSuccess: (data) => {
+          setAddDate(data.suggestion.suggested_date)
+          setAddTime(data.suggestion.suggested_time)
+          setSuggestingId(null)
+        },
+        onError: () => setSuggestingId(null),
+      },
+    )
+  }
+
+  return (
+    <div id="publication-schedule">
+      <SectionHeader icon={Calendar} title="Publication Schedule" />
+      <div className="mb-6 card-premium rounded-xl border border-border bg-card p-5">
+        {/* Pattern + countdown header */}
+        {(publicationPattern || nextEvent) && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            {publicationPattern && (
+              <p className="text-[12px] text-muted-foreground">
+                Typically publishes annual results in <span className="font-medium text-foreground">{publicationPattern}</span>
+              </p>
+            )}
+            {nextEvent && nextEventCountdown && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)]/10 px-3 py-1 text-[11px] font-semibold text-[var(--color-accent)]">
+                <Clock className="h-3 w-3" />
+                Next: {nextEvent.report_type} FY {nextEvent.fiscal_year} &middot; {nextEventCountdown}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Events table */}
+        {companyEvents.length > 0 ? (
+          <div className="space-y-2">
+            {companyEvents.map((event) => (
+              <div
+                key={event.id}
+                className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)]/50 px-4 py-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-medium text-foreground">
+                    {event.report_type.replace('_', ' ')} &middot; FY {event.fiscal_year}
+                    {event.fiscal_quarter ? ` Q${event.fiscal_quarter}` : ''}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {new Date(event.expected_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    {event.expected_time ? ` at ${event.expected_time.slice(0, 5)} CET` : ''}
+                  </p>
+                </div>
+                <span className={cn('shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium', EVENT_STATUS_COLORS[event.status] ?? 'bg-muted text-muted-foreground')}>
+                  {EVENT_STATUS_LABELS[event.status] ?? event.status}
+                </span>
+                <button
+                  onClick={() => deleteEvent.mutate(event.id)}
+                  className="shrink-0 rounded-lg p-2 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  aria-label="Delete event"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[12px] text-muted-foreground mb-4">
+            No publication dates scheduled. Add one so the system knows when to start monitoring for new reports.
+          </p>
+        )}
+
+        {/* Add new event form */}
+        {showAddForm ? (
+          <div className="mt-4 rounded-lg border border-border bg-[var(--color-bg-tertiary)]/30 p-4 space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Report Type</label>
+                <select
+                  value={addReportType}
+                  onChange={(e) => setAddReportType(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[12px] text-foreground"
+                >
+                  {REPORT_TYPES.map((rt) => (
+                    <option key={rt.value} value={rt.value}>{rt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Fiscal Year</label>
+                <input
+                  type="number"
+                  value={addFiscalYear}
+                  onChange={(e) => setAddFiscalYear(parseInt(e.target.value))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[12px] text-foreground"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Expected Date</label>
+                <input
+                  type="date"
+                  value={addDate}
+                  onChange={(e) => setAddDate(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[12px] text-foreground"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Time (CET)</label>
+                <input
+                  type="time"
+                  value={addTime}
+                  onChange={(e) => setAddTime(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-[12px] text-foreground"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSuggestNew}
+                disabled={suggestingId === 'new'}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] transition-colors disabled:opacity-40"
+              >
+                {suggestingId === 'new' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                AI Suggest Date
+              </button>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => setShowAddForm(false)}
+                  className="rounded-lg px-3 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAdd}
+                  disabled={!addDate || createEvent.isPending}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-[11px] font-medium text-white hover:bg-[var(--color-accent)]/90 transition-colors disabled:opacity-40"
+                >
+                  {createEvent.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                  Add Event
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-4 py-2.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors w-full justify-center"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Publication Date
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 

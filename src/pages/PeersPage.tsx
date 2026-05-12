@@ -107,6 +107,7 @@ interface PeerCardData {
   kpiExtracted: number
   kpiPendingReview: number
   nextEventId: string | null
+  scheduledCount: number
 }
 
 // ---------------------------------------------------------------------------
@@ -582,7 +583,7 @@ function PeerCard({
   totalKpiDefinitions: number
   userSector: string | null
 }) {
-  const { company, isMonitoring, monitoringStatus, lastReport, nextExpectedDate, kpiExtracted, kpiPendingReview, nextEventId } = peer
+  const { company, isMonitoring, monitoringStatus, lastReport, nextExpectedDate, kpiExtracted, kpiPendingReview, nextEventId, scheduledCount } = peer
 
   const completenessPercent = totalKpiDefinitions > 0
     ? Math.round((kpiExtracted / totalKpiDefinitions) * 100)
@@ -660,6 +661,21 @@ function PeerCard({
             {nextExpectedDate
               ? new Date(nextExpectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
               : 'Not set'}
+          </span>
+        </div>
+
+        {/* Scheduled dates */}
+        <div className="flex items-center justify-between text-[12px]">
+          <span className="text-muted-foreground">Scheduled dates</span>
+          <span className="font-medium text-foreground">
+            {scheduledCount > 0 ? (
+              <span className="inline-flex items-center gap-1">
+                <CalendarDays className="h-3 w-3 text-muted-foreground" />
+                {scheduledCount} event{scheduledCount !== 1 ? 's' : ''}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">None</span>
+            )}
           </span>
         </div>
 
@@ -1150,6 +1166,7 @@ function CompetitorsTab() {
       kpiExtracted: kpi?.extracted ?? 0,
       kpiPendingReview: kpi?.pendingReview ?? 0,
       nextEventId: nextEvent?.id ?? null,
+      scheduledCount: companyEvents.length,
     }
   })
 
