@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
-// PDF is sent via signed URL — no base64 encoding needed
+import { extractTextFromPdf } from '../_shared/pdf-text.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 // ---------------------------------------------------------------------------
@@ -36,6 +36,8 @@ serve(async (req: Request) => {
     return new Response('ok', { headers: getCorsHeaders(req) })
   }
 
+  const corsHeaders = getCorsHeaders(req)
+
   try {
     const { user, adminClient } = await authenticateRequest(req)
 
@@ -69,25 +71,25 @@ serve(async (req: Request) => {
     }
 
     const company = report.companies as { id: string; name: string; ticker: string | null }
-    // companyName will be overridden by AI-extracted name after analysis
     const companyNameHint = overrideName ?? company.name
 
     // ------------------------------------------------------------------
-    // 2. Generate signed URL for PDF (avoids base64 payload size limits)
+    // 2. Download PDF and extract text (much cheaper than sending document)
     // ------------------------------------------------------------------
-    const { data: signedUrlData, error: signedUrlError } = await adminClient.storage
+    const { data: pdfBytes, error: downloadError } = await adminClient.storage
       .from('reports')
-      .createSignedUrl(report.pdf_storage_path, 600) // 10 min expiry
+      .download(report.pdf_storage_path)
 
-    if (signedUrlError || !signedUrlData?.signedUrl) {
-      throw new Error(`Failed to create signed URL: ${signedUrlError?.message ?? 'no URL returned'}`)
+    if (downloadError || !pdfBytes) {
+      throw new Error(`Failed to download PDF: ${downloadError?.message ?? 'no data'}`)
     }
 
-    const pdfUrl = signedUrlData.signedUrl
-    console.log(`[analyze-accounting-profile] PDF URL generated for: ${report.pdf_storage_path}`)
+    const pdfBuffer = await pdfBytes.arrayBuffer()
+    const { text: pdfText, pageCount } = await extractTextFromPdf(pdfBuffer)
+    console.log(`[analyze-accounting-profile] Extracted ${pdfText.length} chars from ${pageCount} pages`)
 
     // ------------------------------------------------------------------
-    // 3. Claude: Extract accounting framework (PDF document)
+    // 3. Claude: Extract accounting framework from text
     // ------------------------------------------------------------------
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is not set')
@@ -102,7 +104,6 @@ serve(async (req: Request) => {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 8192,
-        stream: true,
         tools: [
           {
             name: 'extract_accounting_profile',
@@ -284,17 +285,9 @@ serve(async (req: Request) => {
         messages: [
           {
             role: 'user',
-            content: [
-              {
-                type: 'document',
-                source: {
-                  type: 'url',
-                  url: pdfUrl,
-                },
-              },
-              {
-                type: 'text',
-                text: `You are an expert financial reporting analyst. Analyze this annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''} and extract their complete accounting framework. First, identify the official company name as stated in the report.
+            content: `You are an expert financial reporting analyst. Below is the full extracted text from an annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''}. Analyze it and extract the complete accounting framework. First, identify the official company name as stated in the report.
+
+The report has ${pageCount} pages. The text below is the complete content.
 
 FOCUS ON THE ACCOUNTING POLICIES SECTION (typically in the Notes to the Financial Statements).
 
@@ -303,33 +296,24 @@ For each area, extract:
 2. **Revenue recognition** — Over time, point in time, percentage of completion?
 3. **R&D treatment** — Do they capitalize or expense R&D? At what stage?
 4. **Lease treatment** — IFRS 16 (on balance sheet) or operating leases?
-5. **EBITDA definition** — What do they include/exclude? This is CRITICAL. Many companies define "recurring EBITDA" or "adjusted EBITDA" differently.
-6. **Net debt definition** — What's included in debt? Do they include lease liabilities? What do they deduct (cash, investments)?
+5. **EBITDA definition** — What do they include/exclude? This is CRITICAL.
+6. **Net debt definition** — What's included in debt? Do they include lease liabilities?
 7. **Goodwill** — Amortize or impairment-only?
 8. **Pension accounting** — Projected unit credit, defined contribution, other?
 9. **FX translation** — Closing rate, temporal? What's the functional currency?
 10. **Segment reporting** — Geographic, product line, or business unit? List the segments.
 
-For KPI MAPPINGS, find how this company calculates each of these KPIs and record:
-- The formula they use
-- Any adjustments they make to the standard definition
-- The exact label they use in their report (e.g., "Recurring EBITDA" vs "Adjusted EBITDA")
-- The page number where you found it
+For KPI MAPPINGS, find how this company calculates each of these KPIs:
+KPI codes: ${KPI_CODES.join(', ')}
 
-KPI codes to map: ${KPI_CODES.join(', ')}
-
-ALWAYS include the source_page number for each finding. This is essential for auditability.
+ALWAYS include the source_page number for each finding.
 If you cannot find information about a specific policy, skip it rather than guessing.
 
-For MENTIONED COMPETITORS: Carefully scan the ENTIRE report for any companies explicitly named as competitors, peers, or used in benchmarking comparisons. Pay special attention to:
-- Business overview / market position sections (typically pages 5-30)
-- Competitive landscape or market share discussions
-- Peer group or benchmarking comparison tables
-- Industry overview sections
-- CEO/Chairman letters mentioning other players
-Include the stock ticker if mentioned and brief context of where/how each company appears. This is critical — do NOT skip this extraction. If genuinely no competitors are named anywhere in the report, return an empty array.`,
-              },
-            ],
+For MENTIONED COMPETITORS: Scan the text for any companies explicitly named as competitors, peers, or used in benchmarking comparisons. If none are found, return an empty array.
+
+--- BEGIN ANNUAL REPORT TEXT ---
+${pdfText}
+--- END ANNUAL REPORT TEXT ---`,
           },
         ],
       }),
@@ -340,89 +324,17 @@ Include the stock ticker if mentioned and brief context of where/how each compan
       throw new Error(`Claude API error ${claudeResponse.status}: ${errBody}`)
     }
 
-    // ------------------------------------------------------------------
-    // 4a. Parse streaming SSE response to reassemble the full message
-    // ------------------------------------------------------------------
-    const reader = claudeResponse.body!.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let inputTokens = 0
-    let outputTokens = 0
-    const contentBlocks: Array<{ type: string; id?: string; name?: string; input?: string }> = []
-    let currentBlockIdx = -1
-    let currentInput = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue
-        const data = line.slice(6).trim()
-        if (data === '[DONE]') continue
-
-        try {
-          const evt = JSON.parse(data)
-
-          if (evt.type === 'message_start' && evt.message?.usage) {
-            inputTokens = evt.message.usage.input_tokens ?? 0
-          }
-          if (evt.type === 'content_block_start') {
-            currentBlockIdx = evt.index
-            const block = evt.content_block
-            contentBlocks[currentBlockIdx] = {
-              type: block.type,
-              id: block.id,
-              name: block.name,
-              input: '',
-            }
-            currentInput = ''
-          }
-          if (evt.type === 'content_block_delta') {
-            const delta = evt.delta
-            if (delta?.type === 'input_json_delta' && delta.partial_json) {
-              currentInput += delta.partial_json
-            }
-          }
-          if (evt.type === 'content_block_stop') {
-            if (contentBlocks[currentBlockIdx]) {
-              contentBlocks[currentBlockIdx].input = currentInput
-            }
-          }
-          if (evt.type === 'message_delta' && evt.usage) {
-            outputTokens = evt.usage.output_tokens ?? 0
-          }
-        } catch {
-          // Skip unparseable SSE lines
-        }
-      }
-    }
-
-    // Reconstruct the tool_use content block
-    const toolBlock = contentBlocks.find((b) => b.type === 'tool_use')
-    if (!toolBlock) throw new Error('No tool_use block in Claude response')
-
-    const claudeJson = {
-      content: [{
-        type: 'tool_use',
-        id: toolBlock.id,
-        name: toolBlock.name,
-        input: JSON.parse(toolBlock.input ?? '{}'),
-      }],
-      usage: { input_tokens: inputTokens, output_tokens: outputTokens },
-    }
+    const claudeJson = await claudeResponse.json()
 
     await logAnthropicUsage('BenchmarkSignal', 'analyze-accounting-profile', claudeJson)
 
     // Sonnet 4.6 pricing: $3/MTok input, $15/MTok output
+    const inputTokens = claudeJson.usage?.input_tokens ?? 0
+    const outputTokens = claudeJson.usage?.output_tokens ?? 0
     const estimatedCostUsd = (inputTokens * 3 + outputTokens * 15) / 1_000_000
 
     // ------------------------------------------------------------------
-    // 4b. Parse tool-use response
+    // 4. Parse tool-use response
     // ------------------------------------------------------------------
     const toolUseBlock = claudeJson.content?.find(
       (block: { type: string }) => block.type === 'tool_use',
@@ -444,7 +356,6 @@ Include the stock ticker if mentioned and brief context of where/how each compan
     // ------------------------------------------------------------------
     // 5. Upsert accounting_profiles row
     // ------------------------------------------------------------------
-    // Use AI-extracted company name, fall back to hint
     const companyName = result.company_name || companyNameHint
 
     const profileData = {
@@ -462,7 +373,6 @@ Include the stock ticker if mentioned and brief context of where/how each compan
       manually_edited: false,
     }
 
-    // Upsert: if profile exists for this user, update it
     const { data: existing } = await adminClient
       .from('accounting_profiles')
       .select('id')
@@ -498,16 +408,37 @@ Include the stock ticker if mentioned and brief context of where/how each compan
     const policyCount = Object.keys(result.policies).length
     const kpiMappingCount = Object.keys(result.kpi_mappings).length
 
-    // Update the company name in the companies table with AI-extracted name
     if (result.company_name && report.company_id) {
+      // Resolve verified website domain via Brandfetch Brand Search API
+      let websiteUrl: string | null = null
+      const brandfetchClientId = Deno.env.get('BRANDFETCH_CLIENT_ID')
+      if (brandfetchClientId) {
+        try {
+          const bfResp = await fetch(
+            `https://api.brandfetch.io/v2/search/${encodeURIComponent(result.company_name)}?c=${brandfetchClientId}`,
+            { signal: AbortSignal.timeout(3000) },
+          )
+          if (bfResp.ok) {
+            const bfResults = await bfResp.json() as Array<{ name: string; domain: string }>
+            if (bfResults.length > 0 && bfResults[0].domain) {
+              websiteUrl = `https://${bfResults[0].domain}`
+            }
+          }
+        } catch {
+          // Non-critical — continue without logo
+        }
+      }
+
       await adminClient
         .from('companies')
-        .update({ name: result.company_name })
+        .update({
+          name: result.company_name,
+          ...(websiteUrl ? { website_url: websiteUrl } : {}),
+        })
         .eq('id', report.company_id)
     }
 
-    // Log usage to console for debugging
-    console.log(`[analyze-accounting-profile] Tokens: ${inputTokens} in / ${outputTokens} out | Cost: $${estimatedCostUsd.toFixed(4)} | Company: ${companyName}`)
+    console.log(`[analyze-accounting-profile] Tokens: ${inputTokens} in / ${outputTokens} out | Cost: $${estimatedCostUsd.toFixed(4)} | Company: ${companyName} | Pages: ${pageCount}`)
 
     return jsonResponse({
       profile_id: profileId,
