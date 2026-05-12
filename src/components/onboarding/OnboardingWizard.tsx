@@ -109,7 +109,7 @@ export function OnboardingWizard() {
     switch (step) {
       case 0: return status.hasFramework
       case 1: return status.hasCompetitors || selectedCompanyIds.length >= 1
-      case 2: return status.hasSchedule || Object.keys(schedules).length >= 1
+      case 2: return true // schedule is optional — user can skip and add dates later
       case 3: return status.isComplete
       default: return false
     }
@@ -395,7 +395,7 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
     { key: 'processing_file', label: 'Processing your PDF file' },
     { key: 'uploading_to_ai', label: 'Uploading PDF to AI engine' },
     { key: 'analyzing', label: 'AI reading your annual report' },
-    { key: 'saving', label: 'Saving your company profile' },
+    { key: 'saving', label: 'Saving profile & extracting competitors' },
   ] as const
 
   const STEP_PROGRESS: Record<string, number> = {
@@ -1190,8 +1190,8 @@ function StepSchedule({
   onSchedulesChange: (s: Record<string, { reportType: string; expectedDate: string }>) => void
 }) {
   const { data: companies } = useAllCompanies()
-  const createEvent = useCreatePublicationEvent()
   const suggestDates = useSuggestDates()
+  const [suggestingCompanyId, setSuggestingCompanyId] = useState<string | null>(null)
 
   const selectedCompanies = (companies ?? []).filter((c) => selectedCompanyIds.includes(c.id))
 
@@ -1206,6 +1206,7 @@ function StepSchedule({
   const handleSuggestDate = (company: Company) => {
     const schedule = schedules[company.id]
     const reportType = schedule?.reportType ?? 'annual'
+    setSuggestingCompanyId(company.id)
     suggestDates.mutate(
       {
         company_id: company.id,
@@ -1219,41 +1220,73 @@ function StepSchedule({
           toast.success(
             `Suggested: ${data.suggestion.suggested_date} (${data.suggestion.confidence}% confidence)`,
           )
+          setSuggestingCompanyId(null)
         },
-        onError: (err) => toast.error(err.message),
+        onError: (err) => {
+          toast.error(err.message)
+          setSuggestingCompanyId(null)
+        },
       },
     )
   }
 
-  const handleSaveSchedules = async () => {
-    let saved = 0
-    for (const [companyId, schedule] of Object.entries(schedules)) {
-      if (!schedule.expectedDate) continue
+  const [suggestingAll, setSuggestingAll] = useState(false)
+
+  const handleSuggestAll = async () => {
+    const toSuggest = selectedCompanies.filter((c) => !schedules[c.id]?.expectedDate)
+    if (toSuggest.length === 0) {
+      toast.info('All competitors already have dates')
+      return
+    }
+    setSuggestingAll(true)
+    let completed = 0
+    for (const company of toSuggest) {
+      const reportType = schedules[company.id]?.reportType ?? 'annual'
+      setSuggestingCompanyId(company.id)
       try {
-        await createEvent.mutateAsync({
-          company_id: companyId,
-          report_type: schedule.reportType,
+        const data = await suggestDates.mutateAsync({
+          company_id: company.id,
+          company_name: company.name,
+          report_type: reportType,
           fiscal_year: new Date().getFullYear(),
-          expected_date: schedule.expectedDate,
         })
-        saved++
+        updateSchedule(company.id, 'expectedDate', data.suggestion.suggested_date)
+        completed++
       } catch (err) {
-        if (import.meta.env.DEV) console.error(`Failed to create event for ${companyId}:`, err)
+        if (import.meta.env.DEV) console.error(`Failed to suggest for ${company.name}:`, err)
       }
     }
-    if (saved > 0) {
-      toast.success(`${saved} publication event${saved !== 1 ? 's' : ''} scheduled`)
+    setSuggestingCompanyId(null)
+    setSuggestingAll(false)
+    if (completed > 0) {
+      toast.success(`Suggested dates for ${completed} competitor${completed !== 1 ? 's' : ''}`)
     }
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-[22px] font-semibold text-foreground">Publication Schedule</h2>
-        <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
-          Set when each competitor typically publishes their reports. The AI can suggest dates based on
-          historical patterns. The system will start monitoring before these dates.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-[22px] font-semibold text-foreground">Publication Schedule</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
+            Set when each competitor typically publishes their reports. The AI can suggest dates based on
+            historical patterns. You can skip this step and add dates later.
+          </p>
+        </div>
+        {selectedCompanies.length > 0 && (
+          <button
+            onClick={handleSuggestAll}
+            disabled={suggestingAll}
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)]/10 px-4 py-2.5 text-[12px] font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors disabled:opacity-40 flex-shrink-0 mt-1"
+          >
+            {suggestingAll ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
+            Suggest All
+          </button>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -1289,11 +1322,11 @@ function StepSchedule({
 
               <button
                 onClick={() => handleSuggestDate(company)}
-                disabled={suggestDates.isPending}
+                disabled={suggestingCompanyId !== null}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] transition-colors disabled:opacity-40 flex-shrink-0"
                 title="AI suggest date"
               >
-                {suggestDates.isPending ? (
+                {suggestingCompanyId === company.id ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
                   <Sparkles className="h-3 w-3" />
@@ -1307,23 +1340,8 @@ function StepSchedule({
 
       {selectedCompanies.length === 0 && (
         <p className="text-[12px] text-muted-foreground text-center py-8">
-          Go back and select at least one competitor first.
+          No competitors selected yet. You can skip this step and add publication dates later from the Calendar page.
         </p>
-      )}
-
-      {Object.values(schedules).some((s) => s.expectedDate) && (
-        <button
-          onClick={handleSaveSchedules}
-          disabled={createEvent.isPending}
-          className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)]/10 px-4 py-2 text-[12px] font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors"
-        >
-          {createEvent.isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Calendar className="h-3.5 w-3.5" />
-          )}
-          Save schedule to calendar
-        </button>
       )}
     </div>
   )
