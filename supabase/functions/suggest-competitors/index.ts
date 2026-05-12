@@ -145,39 +145,31 @@ Focus on companies that are:
     }
 
     // ------------------------------------------------------------------
-    // 3. Validate website domains (HEAD request, 2s timeout)
+    // 3. Validate domains via Brandfetch (only keep if logo exists)
     // ------------------------------------------------------------------
-    async function validateDomain(domain: string): Promise<string | null> {
-      for (const url of [`https://${domain}`, `https://www.${domain}`]) {
-        try {
-          const resp = await fetch(url, {
-            method: 'HEAD',
-            redirect: 'follow',
-            signal: AbortSignal.timeout(2000),
-          })
-          if (resp.ok || resp.status === 301 || resp.status === 302 || resp.status === 403) {
-            // 403 = exists but blocks HEAD (many corporate sites do this)
-            return url
-          }
-        } catch {
-          // timeout or DNS failure — try next variant
-        }
+    async function validateLogoExists(domain: string): Promise<boolean> {
+      try {
+        const resp = await fetch(`https://logo.brandfetch.com/${domain}`, {
+          method: 'HEAD',
+          signal: AbortSignal.timeout(3000),
+        })
+        // Brandfetch returns 200 with image content-type for known brands,
+        // 404 or redirect to placeholder for unknown domains
+        return resp.ok && (resp.headers.get('content-type') ?? '').startsWith('image/')
+      } catch {
+        return false
       }
-      return null
     }
 
-    const validatedDomains = await Promise.all(
+    const logoResults = await Promise.all(
       suggestions.map(async (s) => {
-        if (!s.website_domain) return null
-        return validateDomain(s.website_domain)
+        if (!s.website_domain) return false
+        return validateLogoExists(s.website_domain)
       }),
     )
 
-    // Replace website_domain with validated URL or null
     for (let i = 0; i < suggestions.length; i++) {
-      if (validatedDomains[i]) {
-        suggestions[i].website_domain = validatedDomains[i]!.replace(/^https?:\/\//, '')
-      } else {
+      if (!logoResults[i]) {
         delete suggestions[i].website_domain
       }
     }
