@@ -365,14 +365,31 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
   const [selectedReportId, setSelectedReportId] = useState('')
   const [uploading, setUploading] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
-  const [uploadStep, setUploadStep] = useState<'idle' | 'creating' | 'uploading' | 'analyzing' | 'extracting' | 'done'>('idle')
+  const [uploadStep, setUploadStep] = useState<'idle' | 'uploading' | 'processing_file' | 'uploading_to_ai' | 'analyzing' | 'saving' | 'complete' | 'done'>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
-  const progressInterval = useRef<ReturnType<typeof setInterval>>(null)
   const progressRef = useRef(0)
 
   const ownReports = (reports ?? [])
     .filter((r) => r.pdf_storage_path)
     .sort((a, b) => b.fiscal_year - a.fiscal_year)
+
+  // Map edge function processing_status steps to UI display
+  const PROGRESS_STEPS = [
+    { key: 'uploading', label: 'Uploading PDF to secure storage' },
+    { key: 'processing_file', label: 'Processing your PDF file' },
+    { key: 'uploading_to_ai', label: 'Uploading PDF to AI engine' },
+    { key: 'analyzing', label: 'AI reading your annual report' },
+    { key: 'saving', label: 'Saving your company profile' },
+  ] as const
+
+  const STEP_PROGRESS: Record<string, number> = {
+    uploading: 10,
+    processing_file: 25,
+    uploading_to_ai: 40,
+    analyzing: 60,
+    saving: 85,
+    complete: 100,
+  }
 
   const processFile = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.pdf')) {
@@ -385,27 +402,10 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
     setUploadProgress(0)
     progressRef.current = 0
 
-    // Animate progress smoothly within each step
-    const animateTo = (target: number, durationMs: number) => {
-      if (progressInterval.current) clearInterval(progressInterval.current)
-      const startProgress = progressRef.current
-      const startTime = Date.now()
-      progressInterval.current = setInterval(() => {
-        const elapsed = Date.now() - startTime
-        const fraction = Math.min(elapsed / durationMs, 1)
-        const eased = 1 - Math.pow(1 - fraction, 3)
-        const val = Math.round(startProgress + (target - startProgress) * eased)
-        progressRef.current = val
-        setUploadProgress(val)
-        if (fraction >= 1 && progressInterval.current) clearInterval(progressInterval.current)
-      }, 50)
-    }
-
-    let extractTimer: ReturnType<typeof setTimeout> | null = null
+    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null
 
     try {
       // Step 1: Upload PDF — create a placeholder company silently (required by storage path)
-      animateTo(25, 3000)
       const placeholderName = 'Pending Analysis'
       let company = primaryCompany
       if (!company) {
@@ -440,6 +440,8 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
 
       if (!companyId) throw new Error('Could not resolve company')
 
+      setUploadProgress(5)
+
       const result = await uploadMutation.mutateAsync({
         file,
         companyId,
@@ -447,22 +449,51 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
         fiscalYear: new Date().getFullYear() - 1,
       })
 
-      // Step 2: AI analyzing the document
-      setUploadStep('analyzing')
-      animateTo(55, 8000)
+      setUploadProgress(10)
 
-      // Step 3: Extracting policies (shown after a delay while analysis runs)
-      extractTimer = setTimeout(() => {
-        setUploadStep('extracting')
-        animateTo(80, 10000)
-      }, 5000)
+      // Subscribe to Realtime progress updates from the edge function
+      realtimeChannel = supabase
+        .channel(`processing-${result.report_id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'processing_status',
+            filter: `report_id=eq.${result.report_id}`,
+          },
+          (payload) => {
+            const row = payload.new as { step: string; status: string; message: string }
+
+            if (row.status === 'error') {
+              toast.error(row.message || 'Analysis failed')
+              return
+            }
+
+            // Only update UI on in_progress events (marks the start of each step)
+            if (row.status === 'in_progress') {
+              setUploadStep(row.step as typeof uploadStep)
+              setUploadProgress(STEP_PROGRESS[row.step] ?? progressRef.current)
+              progressRef.current = STEP_PROGRESS[row.step] ?? progressRef.current
+            }
+
+            if (row.step === 'complete' && row.status === 'done') {
+              setUploadProgress(100)
+              progressRef.current = 100
+            }
+          },
+        )
+        .subscribe()
+
+      // Step 2: Call the analysis edge function (progress comes via Realtime)
+      setUploadStep('analyzing')
+      setUploadProgress(15)
 
       const analysisResult = await analyzeMutation.mutateAsync({ reportId: result.report_id })
-      clearTimeout(extractTimer)
 
-      // Step 4: Setting up company profile with AI-extracted name
-      setUploadStep('creating')
-      animateTo(95, 1500)
+      // Step 3: Setting up company profile with AI-extracted name
+      setUploadStep('saving')
+      setUploadProgress(90)
 
       const analysisData = analysisResult as { company_name?: string; mentioned_competitors?: Array<{ name: string; ticker?: string; context?: string }> }
       const extractedName = analysisData?.company_name
@@ -479,17 +510,15 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
       }
 
       // Done
-      if (progressInterval.current) clearInterval(progressInterval.current)
       setUploadStep('done')
       setUploadProgress(100)
       toast.success('Report analyzed! Your accounting framework has been detected.')
     } catch (err) {
-      if (extractTimer) clearTimeout(extractTimer)
-      if (progressInterval.current) clearInterval(progressInterval.current)
       setUploadStep('idle')
       setUploadProgress(0)
       toast.error(err instanceof Error ? err.message : 'Upload failed')
     } finally {
+      if (realtimeChannel) supabase.removeChannel(realtimeChannel)
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
@@ -599,15 +628,9 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
 
           {/* Step indicators */}
           <div className="space-y-3">
-            {[
-              { key: 'uploading', label: 'Uploading PDF to secure storage', estimate: '~5s' },
-              { key: 'analyzing', label: 'AI reading your annual report', estimate: '~30s' },
-              { key: 'extracting', label: 'Extracting accounting policies & KPIs', estimate: '~20s' },
-              { key: 'creating', label: 'Setting up your company profile', estimate: '~2s' },
-            ].map((step) => {
-              const stepOrder = ['uploading', 'analyzing', 'extracting', 'creating']
+            {PROGRESS_STEPS.map((step, stepIdx) => {
+              const stepOrder = PROGRESS_STEPS.map(s => s.key)
               const currentIdx = stepOrder.indexOf(uploadStep)
-              const stepIdx = stepOrder.indexOf(step.key)
               const isActive = step.key === uploadStep
               const isDone = stepIdx < currentIdx
 
@@ -643,7 +666,7 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
                     isActive ? 'text-muted-foreground' :
                     'text-muted-foreground/30',
                   )}>
-                    {isDone ? 'Done' : isActive ? step.estimate : ''}
+                    {isDone ? 'Done' : isActive ? '…' : ''}
                   </span>
                 </div>
               )

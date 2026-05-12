@@ -1,7 +1,6 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
-import { extractTextFromPdf } from '../_shared/pdf-text.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 // ---------------------------------------------------------------------------
@@ -23,9 +22,68 @@ interface AnalyzeRequest {
 // Gemini API call
 // ---------------------------------------------------------------------------
 
+async function uploadToGeminiFileApi(
+  apiKey: string,
+  pdfBuffer: ArrayBuffer,
+  displayName: string,
+): Promise<string> {
+  // Step 1: Start resumable upload
+  const startRes = await fetch(
+    `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: {
+        'x-goog-upload-protocol': 'resumable',
+        'x-goog-upload-command': 'start',
+        'x-goog-upload-header-content-length': String(pdfBuffer.byteLength),
+        'x-goog-upload-header-content-type': 'application/pdf',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ file: { display_name: displayName } }),
+    },
+  )
+
+  const uploadUrl = startRes.headers.get('x-goog-upload-url')
+  if (!uploadUrl) throw new Error('Failed to get upload URL from Gemini File API')
+
+  // Step 2: Upload the file
+  const uploadRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'x-goog-upload-command': 'upload, finalize',
+      'x-goog-upload-offset': '0',
+      'content-length': String(pdfBuffer.byteLength),
+    },
+    body: pdfBuffer,
+  })
+
+  if (!uploadRes.ok) {
+    const err = await uploadRes.text()
+    throw new Error(`Gemini file upload failed: ${err}`)
+  }
+
+  const fileInfo = await uploadRes.json()
+  const fileUri = fileInfo.file?.uri
+  if (!fileUri) throw new Error('No file URI in upload response')
+
+  // Step 3: Wait for file to be ACTIVE (processing may take a moment)
+  const fileName = fileInfo.file?.name
+  for (let i = 0; i < 30; i++) {
+    const statusRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${fileName}?key=${apiKey}`,
+    )
+    const status = await statusRes.json()
+    if (status.state === 'ACTIVE') return fileUri
+    if (status.state === 'FAILED') throw new Error('Gemini file processing failed')
+    await new Promise((r) => setTimeout(r, 2000))
+  }
+  throw new Error('Gemini file processing timed out')
+}
+
 async function callGemini(
   apiKey: string,
-  text: string,
+  fileUri: string,
+  userPrompt: string,
   systemPrompt: string,
 ): Promise<{ result: Record<string, unknown>; inputTokens: number; outputTokens: number }> {
   const response = await fetch(
@@ -35,7 +93,13 @@ async function callGemini(
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         contents: [
-          { role: 'user', parts: [{ text }] },
+          {
+            role: 'user',
+            parts: [
+              { file_data: { mime_type: 'application/pdf', file_uri: fileUri } },
+              { text: userPrompt },
+            ],
+          },
         ],
         systemInstruction: { parts: [{ text: systemPrompt }] },
         generationConfig: {
@@ -240,6 +304,27 @@ const EXTRACTION_SCHEMA = {
 }
 
 // ---------------------------------------------------------------------------
+// Progress tracking helper — writes to processing_status for Realtime
+// ---------------------------------------------------------------------------
+
+async function emitProgress(
+  adminClient: ReturnType<typeof import('https://esm.sh/@supabase/supabase-js@2').createClient>,
+  reportId: string,
+  step: string,
+  status: string,
+  message: string,
+) {
+  await adminClient.from('processing_status').insert({
+    report_id: reportId,
+    step,
+    status,
+    message,
+  }).then(({ error }) => {
+    if (error) console.error(`[progress] Failed to emit ${step}/${status}:`, error.message)
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Main handler
 // ---------------------------------------------------------------------------
 
@@ -248,11 +333,16 @@ serve(async (req: Request) => {
     return new Response('ok', { headers: getCorsHeaders(req) })
   }
 
+  let _adminClient: Awaited<ReturnType<typeof authenticateRequest>>['adminClient'] | null = null
+  let _reportId: string | null = null
+
   try {
     const { user, adminClient } = await authenticateRequest(req)
+    _adminClient = adminClient
 
     const { report_id: reportId, company_name: overrideName } =
       (await req.json()) as AnalyzeRequest
+    _reportId = reportId ?? null
     if (!reportId) {
       return jsonResponse({ error: 'Missing required field: report_id' }, 400)
     }
@@ -283,6 +373,8 @@ serve(async (req: Request) => {
     const company = report.companies as { id: string; name: string; ticker: string | null }
     const companyNameHint = overrideName ?? company.name
 
+    await emitProgress(adminClient, reportId, 'processing_file', 'in_progress', 'Processing your PDF file…')
+
     // ------------------------------------------------------------------
     // 2. Download PDF and extract ALL text
     // ------------------------------------------------------------------
@@ -294,20 +386,27 @@ serve(async (req: Request) => {
       throw new Error(`Failed to download PDF: ${downloadError?.message ?? 'no data'}`)
     }
 
-    const pdfBuffer = await pdfBytes.arrayBuffer()
-
     const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY')
     if (!geminiApiKey) throw new Error('GOOGLE_AI_API_KEY is not set')
 
-    // Extract ALL pages — Gemini 2.5 Pro has 1M token context, no need to filter
-    const extraction = await extractTextFromPdf(pdfBuffer)
-    const { text: textForAnalysis, pageCount, extractedPages } = extraction
-    console.log(`[analyze] Extracted ${extractedPages} pages (of ${pageCount} total), ${textForAnalysis.length} chars`)
+    await emitProgress(adminClient, reportId, 'processing_file', 'done', 'PDF file ready')
+    await emitProgress(adminClient, reportId, 'uploading_to_ai', 'in_progress', 'Uploading PDF to AI engine…')
+
+    // Upload PDF to Gemini File API, then reference it in the prompt.
+    // Inline data has a 20MB limit; File API handles any size up to 2GB.
+    const pdfBuffer = await pdfBytes.arrayBuffer()
+    const pdfSizeMB = (pdfBuffer.byteLength / 1_048_576).toFixed(1)
+    console.log(`[analyze] Uploading ${pdfSizeMB}MB PDF to Gemini File API`)
+
+    const fileUri = await uploadToGeminiFileApi(geminiApiKey, pdfBuffer, report.pdf_storage_path)
+
+    await emitProgress(adminClient, reportId, 'uploading_to_ai', 'done', 'PDF uploaded to AI engine')
+    await emitProgress(adminClient, reportId, 'analyzing', 'in_progress', 'AI is reading your annual report…')
 
     // ------------------------------------------------------------------
     // 3. Extract accounting profile with Gemini 2.5 Pro
     // ------------------------------------------------------------------
-    const systemPrompt = `You are an expert financial reporting analyst. Analyze the annual report text and extract the complete accounting framework.
+    const systemPrompt = `You are an expert financial reporting analyst. Analyze this annual report PDF and extract the complete accounting framework.
 
 For each area, extract:
 1. **Accounting standard** — IFRS, US GAAP, Swiss GAAP FER, HGB, or other?
@@ -329,19 +428,17 @@ If you cannot find information about a specific policy, skip it rather than gues
 
 For MENTIONED COMPETITORS: Scan the ENTIRE document for companies explicitly named as competitors, peers, or used in benchmarking comparisons (including compensation/remuneration peer groups). If none found, return an empty array.`
 
-    const userPrompt = `Below is the full extracted text from an annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''}.
-
-The report has ${pageCount} pages. You are seeing all ${extractedPages} pages with text content.
-
---- BEGIN ANNUAL REPORT TEXT ---
-${textForAnalysis}
---- END ANNUAL REPORT TEXT ---`
+    const userPrompt = `Analyze this annual report${companyNameHint !== 'Pending Analysis' ? ` for "${companyNameHint}"` : ''} and extract the accounting framework, KPI definitions, and mentioned competitors.`
 
     const { result, inputTokens, outputTokens } = await callGemini(
       geminiApiKey,
+      fileUri,
       userPrompt,
       systemPrompt,
     )
+
+    await emitProgress(adminClient, reportId, 'analyzing', 'done', 'Analysis complete')
+    await emitProgress(adminClient, reportId, 'saving', 'in_progress', 'Saving your company profile…')
 
     // Gemini 2.5 Pro pricing (>200K tokens): $1.25/M input, $10/M output
     const estimatedCostUsd = (inputTokens * 1.25 + outputTokens * 10) / 1_000_000
@@ -401,6 +498,9 @@ ${textForAnalysis}
       profileId = inserted.id
     }
 
+    await emitProgress(adminClient, reportId, 'saving', 'done', 'Profile saved')
+    await emitProgress(adminClient, reportId, 'complete', 'done', 'All done!')
+
     // ------------------------------------------------------------------
     // 5. Return the extracted profile
     // ------------------------------------------------------------------
@@ -414,7 +514,7 @@ ${textForAnalysis}
         .eq('id', report.company_id)
     }
 
-    console.log(`[analyze] Tokens: ${inputTokens} in / ${outputTokens} out | Cost: $${estimatedCostUsd.toFixed(4)} | Company: ${companyName} | Pages: ${pageCount} (${extractedPages} analyzed)`)
+    console.log(`[analyze] Tokens: ${inputTokens} in / ${outputTokens} out | Cost: $${estimatedCostUsd.toFixed(4)} | Company: ${companyName} | PDF: ${pdfSizeMB}MB`)
 
     return jsonResponse({
       profile_id: profileId,
@@ -431,13 +531,18 @@ ${textForAnalysis}
         output_tokens: outputTokens,
         estimated_cost_usd: Math.round(estimatedCostUsd * 10000) / 10000,
         model: 'gemini-2.5-pro',
-        pages_total: pageCount,
-        pages_analyzed: extractedPages,
+        pdf_size_mb: parseFloat(pdfSizeMB),
       },
     })
   } catch (err) {
     console.error('[analyze] Error:', err instanceof Error ? err.message : String(err))
     console.error('[analyze] Stack:', err instanceof Error ? err.stack : 'no stack')
+
+    // Emit error status so the frontend knows processing failed
+    if (_adminClient && _reportId) {
+      await emitProgress(_adminClient, _reportId, 'error', 'error', err instanceof Error ? err.message : 'Analysis failed').catch(() => {})
+    }
+
     return errorResponse(err)
   }
 })
