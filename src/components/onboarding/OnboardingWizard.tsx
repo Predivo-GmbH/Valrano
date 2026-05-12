@@ -131,6 +131,44 @@ export function OnboardingWizard() {
 
   const handleNext = async () => {
     if (currentStep < STEPS.length - 1) {
+      // Auto-save selected competitors as a peer group when leaving Step 1
+      if (currentStep === 1 && selectedCompanyIds.length > 0) {
+        try {
+          // Create or find the default peer group
+          const { data: existingPg } = await supabase
+            .from('peer_groups')
+            .select('id')
+            .eq('name', 'Default')
+            .maybeSingle()
+
+          let pgId: string
+          if (existingPg) {
+            pgId = existingPg.id
+            // Remove old members to replace with current selection
+            await supabase.from('peer_group_members').delete().eq('peer_group_id', pgId)
+          } else {
+            const { data: newPg, error: pgError } = await supabase
+              .from('peer_groups')
+              .insert({ name: 'Default', description: 'Auto-created during onboarding' })
+              .select('id')
+              .single()
+            if (pgError || !newPg) throw pgError
+            pgId = newPg.id
+          }
+
+          // Add all selected companies as peer group members
+          const members = selectedCompanyIds.map((companyId) => ({
+            peer_group_id: pgId,
+            company_id: companyId,
+          }))
+          await supabase.from('peer_group_members').insert(members)
+          queryClient.invalidateQueries({ queryKey: ['peer-groups'] })
+        } catch (err) {
+          if (import.meta.env.DEV) console.error('Failed to save peer group:', err)
+          toast.error('Failed to save competitors')
+        }
+      }
+
       // Auto-save publication schedules when leaving the schedule step
       if (currentStep === 2) {
         let saved = 0
