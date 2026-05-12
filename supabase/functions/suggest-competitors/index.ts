@@ -101,13 +101,12 @@ For each competitor, provide:
 - name: The official company name (as it would appear in financial databases)
 - ticker: Stock ticker symbol (if publicly traded)
 - sector: Industry sector
-- website_domain: The company's main corporate website domain (e.g. "heidelbergmaterials.com", "cemex.com"). Just the domain, no https:// prefix.
 - reasoning: One sentence explaining why this is a relevant competitor
 
 Return ONLY valid JSON in this exact format:
 {
   "competitors": [
-    { "name": "...", "ticker": "...", "sector": "...", "website_domain": "...", "reasoning": "..." }
+    { "name": "...", "ticker": "...", "sector": "...", "reasoning": "..." }
   ]
 }
 
@@ -132,7 +131,7 @@ Focus on companies that are:
     const text = aiResult.content?.[0]?.text ?? ''
 
     // Parse JSON from response
-    let suggestions: Array<{ name: string; ticker?: string; sector?: string; website_domain?: string; reasoning?: string }> = []
+    let suggestions: Array<{ name: string; ticker?: string; sector?: string; reasoning?: string; website_domain?: string }> = []
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
@@ -145,32 +144,33 @@ Focus on companies that are:
     }
 
     // ------------------------------------------------------------------
-    // 3. Validate domains via Brandfetch (only keep if logo exists)
+    // 3. Resolve verified domains via Brandfetch Brand Search API
     // ------------------------------------------------------------------
-    async function validateLogoExists(domain: string): Promise<boolean> {
-      try {
-        const resp = await fetch(`https://logo.brandfetch.com/${domain}`, {
-          method: 'HEAD',
-          signal: AbortSignal.timeout(3000),
-        })
-        // Brandfetch returns 200 with image content-type for known brands,
-        // 404 or redirect to placeholder for unknown domains
-        return resp.ok && (resp.headers.get('content-type') ?? '').startsWith('image/')
-      } catch {
-        return false
-      }
-    }
+    const brandfetchClientId = Deno.env.get('BRANDFETCH_CLIENT_ID')
 
-    const logoResults = await Promise.all(
-      suggestions.map(async (s) => {
-        if (!s.website_domain) return false
-        return validateLogoExists(s.website_domain)
-      }),
-    )
+    if (brandfetchClientId) {
+      const domainResults = await Promise.all(
+        suggestions.map(async (s) => {
+          try {
+            const resp = await fetch(
+              `https://api.brandfetch.io/v2/search/${encodeURIComponent(s.name)}?c=${brandfetchClientId}`,
+              { signal: AbortSignal.timeout(3000) },
+            )
+            if (!resp.ok) return null
+            const results = await resp.json() as Array<{ name: string; domain: string; icon: string | null }>
+            // Take the first result — Brandfetch ranks by relevance
+            if (results.length > 0 && results[0].domain) {
+              return results[0].domain
+            }
+            return null
+          } catch {
+            return null
+          }
+        }),
+      )
 
-    for (let i = 0; i < suggestions.length; i++) {
-      if (!logoResults[i]) {
-        delete suggestions[i].website_domain
+      for (let i = 0; i < suggestions.length; i++) {
+        suggestions[i].website_domain = domainResults[i] ?? undefined
       }
     }
 
