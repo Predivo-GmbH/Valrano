@@ -698,9 +698,9 @@ function PeerCard({
       {/* Header: Company name + monitoring indicator */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          {companyLogoUrl(company.website_url) ? (
+          {(company.logo_url || companyLogoUrl(company.website_url)) ? (
             <img
-              src={companyLogoUrl(company.website_url)!}
+              src={(company.logo_url || companyLogoUrl(company.website_url))!}
               alt=""
               className="h-7 w-7 rounded-md border border-border/50 bg-white object-contain p-0.5 shrink-0"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
