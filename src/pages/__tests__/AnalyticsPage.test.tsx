@@ -64,25 +64,23 @@ describe('AnalyticsPage', () => {
 
   it('shows view mode tabs', () => {
     render(<AnalyticsPage />)
-    expect(screen.getByText('Trends')).toBeInTheDocument()
-    expect(screen.getByText('Pivot Table')).toBeInTheDocument()
-    expect(screen.getByText('Scatter')).toBeInTheDocument()
-    expect(screen.getByText('Heatmap')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Trends' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Pivot Table' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Scatter' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Heatmap' })).toBeInTheDocument()
   })
 
   it('defaults to pivot table view', () => {
     render(<AnalyticsPage />)
-    // Pivot tab should be active (has primary bg)
-    const pivotBtn = screen.getByText('Pivot Table').closest('button')
-    expect(pivotBtn?.className).toContain('bg-')
+    const pivotBtn = screen.getByRole('tab', { name: 'Pivot Table' })
+    expect(pivotBtn.className).toContain('bg-')
   })
 
   it('switches to scatter view on tab click', () => {
     render(<AnalyticsPage />)
-    fireEvent.click(screen.getByText('Scatter'))
-    // Scatter tab should become active
-    const scatterBtn = screen.getByText('Scatter').closest('button')
-    expect(scatterBtn?.getAttribute('aria-selected')).toBe('true')
+    fireEvent.click(screen.getByRole('tab', { name: 'Scatter' }))
+    const scatterBtn = screen.getByRole('tab', { name: 'Scatter' })
+    expect(scatterBtn.getAttribute('aria-selected')).toBe('true')
   })
 
   it('shows year filter', () => {
