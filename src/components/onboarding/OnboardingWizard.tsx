@@ -70,6 +70,7 @@ export function OnboardingWizard() {
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
   const [aiSuggestions, setAiSuggestions] = useState<CompetitorSuggestion[]>([])
   const [reportCompetitors, setReportCompetitors] = useState<Array<{ name: string; ticker?: string; context?: string }>>([])
+  const [competitorsConfirmed, setCompetitorsConfirmed] = useState(false)
 
   // Seed report competitors from accounting profile (persists across step navigation)
   const { data: accountingProfile } = useAccountingProfile()
@@ -108,8 +109,8 @@ export function OnboardingWizard() {
   const stepDone = (step: number): boolean => {
     switch (step) {
       case 0: return status.hasFramework
-      case 1: return status.hasCompetitors || selectedCompanyIds.length >= 1
-      case 2: return true // schedule is optional — user can skip and add dates later
+      case 1: return status.hasCompetitors || competitorsConfirmed
+      case 2: return currentStep > 2 || Object.values(schedules).some(s => s.expectedDate)
       case 3: return status.isComplete
       default: return false
     }
@@ -147,9 +148,10 @@ export function OnboardingWizard() {
             // Remove old members to replace with current selection
             await supabase.from('peer_group_members').delete().eq('peer_group_id', pgId)
           } else {
+            const { data: { user } } = await supabase.auth.getUser()
             const { data: newPg, error: pgError } = await supabase
               .from('peer_groups')
-              .insert({ name: 'Default', description: 'Auto-created during onboarding' })
+              .insert({ name: 'Default', description: 'Auto-created during onboarding', owner_id: user?.id })
               .select('id')
               .single()
             if (pgError || !newPg) throw pgError
@@ -163,6 +165,7 @@ export function OnboardingWizard() {
           }))
           await supabase.from('peer_group_members').insert(members)
           queryClient.invalidateQueries({ queryKey: ['peer-groups'] })
+          setCompetitorsConfirmed(true)
         } catch (err) {
           if (import.meta.env.DEV) console.error('Failed to save peer group:', err)
           toast.error('Failed to save competitors')
@@ -346,6 +349,7 @@ export function OnboardingWizard() {
             selectedCompanyIds={selectedCompanyIds}
             schedules={schedules}
             onSchedulesChange={setSchedules}
+            onSkip={() => setCurrentStep(3)}
           />
         )}
         {currentStep === 3 && (
@@ -1222,10 +1226,12 @@ function StepSchedule({
   selectedCompanyIds,
   schedules,
   onSchedulesChange,
+  onSkip,
 }: {
   selectedCompanyIds: string[]
   schedules: Record<string, { reportType: string; expectedDate: string }>
   onSchedulesChange: (s: Record<string, { reportType: string; expectedDate: string }>) => void
+  onSkip: () => void
 }) {
   const { data: companies } = useAllCompanies()
   const suggestDates = useSuggestDates()
@@ -1308,9 +1314,16 @@ function StepSchedule({
           <h2 className="text-[22px] font-semibold text-foreground">Publication Schedule</h2>
           <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
             Set when each competitor typically publishes their reports. The AI can suggest dates based on
-            historical patterns. You can skip this step and add dates later.
+            historical patterns.
           </p>
         </div>
+        <div className="flex items-center gap-2 flex-shrink-0 mt-1">
+          <button
+            onClick={onSkip}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
+          >
+            Skip this step
+          </button>
         {selectedCompanies.length > 0 && (
           <button
             onClick={handleSuggestAll}
@@ -1325,6 +1338,7 @@ function StepSchedule({
             Suggest All
           </button>
         )}
+        </div>
       </div>
 
       <div className="space-y-3">
