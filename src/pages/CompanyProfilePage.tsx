@@ -832,17 +832,24 @@ export function CompanyProfilePage() {
                   className="grid grid-cols-1 sm:grid-cols-[180px_1fr_1fr_40px] gap-2 px-5 py-2.5 items-start"
                 >
                   <span className="text-[13px] font-medium text-foreground">{label}</span>
-                  <span className="text-[12px] text-muted-foreground line-clamp-2">
-                    {hasMyData ? myDesc : (
-                      <span className="italic text-muted-foreground/50">Not set</span>
-                    )}
-                  </span>
-                  <span className="text-[12px] text-muted-foreground line-clamp-2">
-                    {hasPeerData ? peerDesc : (
-                      <span className="italic text-muted-foreground/50">Upload peer report</span>
-                    )}
-                  </span>
-                  <div className="flex justify-center">
+                  <div>
+                    <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground sm:hidden">Your Company</span>
+                    <span className="text-[12px] text-muted-foreground line-clamp-2">
+                      {hasMyData ? myDesc : (
+                        <span className="italic text-muted-foreground/50">Not set</span>
+                      )}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground sm:hidden">Peer</span>
+                    <span className="text-[12px] text-muted-foreground line-clamp-2">
+                      {hasPeerData ? peerDesc : (
+                        <span className="italic text-muted-foreground/50">Upload peer report</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 sm:justify-center">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground sm:hidden">Match</span>
                     {hasMyData && hasPeerData ? (
                       myDesc === peerDesc ? (
                         <CheckCircle2 className="h-4 w-4 text-[var(--color-signal-green)]" />
@@ -884,7 +891,8 @@ export function CompanyProfilePage() {
           <>
             <SectionHeader icon={Target} title="KPI Comparison" subtitle={`FY ${latestYear} — Signal Analysis`} />
             <div className="mb-6 card-premium rounded-xl border border-border bg-card overflow-x-auto">
-              <div className="hidden sm:grid grid-cols-[1fr_100px_100px_90px_100px] gap-2 border-b border-border px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              <div className="min-w-[600px]">
+              <div className="grid grid-cols-[1fr_100px_100px_90px_100px] gap-2 border-b border-border px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                 <span>KPI Name</span>
                 <span className="text-right">This Company</span>
                 <span className="text-right">Your Company</span>
@@ -907,9 +915,9 @@ export function CompanyProfilePage() {
                   return (
                     <div
                       key={row.code}
-                      className="grid grid-cols-2 sm:grid-cols-[1fr_100px_100px_90px_100px] gap-2 px-5 py-2.5 items-center"
+                      className="grid grid-cols-[1fr_100px_100px_90px_100px] gap-2 px-5 py-2.5 items-center"
                     >
-                      <div className="col-span-2 sm:col-span-1">
+                      <div>
                         <p className="text-[13px] font-medium text-foreground">{row.name}</p>
                       </div>
                       <div className="text-right">
@@ -949,6 +957,7 @@ export function CompanyProfilePage() {
                     </div>
                   )
                 })}
+              </div>
               </div>
             </div>
           </>

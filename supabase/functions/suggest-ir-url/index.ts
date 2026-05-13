@@ -15,6 +15,24 @@ import { logAnthropicUsage } from '../_shared/log-usage.ts'
  * Falls back to Gemini-only guess if Firecrawl unavailable.
  */
 
+/** Reject URLs targeting internal/private networks (SSRF prevention) */
+function isPublicUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    if (!['http:', 'https:'].includes(u.protocol)) return false
+    const host = u.hostname.toLowerCase()
+    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return false
+    if (host.endsWith('.local') || host.endsWith('.internal')) return false
+    if (/^10\./.test(host) || /^192\.168\./.test(host)) return false
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return false
+    if (host.startsWith('169.254.')) return false
+    if (host === '0.0.0.0' || host.startsWith('0.')) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 const GEMINI_MODEL = 'gemini-2.5-flash'
 
 const TIER_LIMITS: Record<string, number> = {
@@ -109,7 +127,7 @@ serve(async (req: Request) => {
     let sitemapUrls: string[] = []
     let scrapedIrContent = ''
 
-    if (firecrawlApiKey && websiteUrl) {
+    if (firecrawlApiKey && websiteUrl && isPublicUrl('https://' + websiteUrl)) {
       try {
         // Use Firecrawl /map to get all URLs on the site
         const mapResp = await fetch('https://api.firecrawl.dev/v1/map', {
@@ -266,6 +284,7 @@ If no sitemap, construct the most likely URL based on common patterns (confidenc
     const urlsToTry = [suggestion.ir_page_url, ...(suggestion.alternative_urls ?? [])]
 
     for (const url of urlsToTry) {
+      if (!isPublicUrl(url)) continue
       try {
         const resp = await fetch(url, {
           method: 'HEAD',

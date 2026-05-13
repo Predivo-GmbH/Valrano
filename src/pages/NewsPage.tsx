@@ -156,7 +156,7 @@ export default function NewsPage() {
       <Helmet><title>News Intelligence - BenchmarkSignal</title></Helmet>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[var(--color-foreground)] flex items-center gap-3">
             <Newspaper className="h-6 w-6 text-[var(--color-accent)]" />
@@ -202,7 +202,7 @@ export default function NewsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search news..."
             aria-label="Search news"
-            className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] pl-9 pr-4 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
+            className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] pl-9 pr-4 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus-visible:border-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/30"
           />
         </div>
       </div>
@@ -289,7 +289,8 @@ export default function NewsPage() {
                             href={article.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-shrink-0 text-[var(--color-muted-foreground)] hover:text-[var(--color-accent)] transition-colors"
+                            aria-label={`Open ${article.title} in new tab`}
+                            className="flex min-h-[44px] min-w-[44px] flex-shrink-0 items-center justify-center text-[var(--color-muted-foreground)] hover:text-[var(--color-accent)] transition-colors"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>

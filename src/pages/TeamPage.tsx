@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { useAuth } from '@/hooks/useAuth'
 import {
   useCurrentWorkspace,
@@ -105,6 +106,7 @@ export function TeamPage() {
 
   return (
     <div className="space-y-8">
+      <Helmet><title>Team - BenchmarkSignal</title></Helmet>
       {/* Workspace info */}
       <div>
         <h2 className="text-[16px] font-semibold text-foreground">Team</h2>

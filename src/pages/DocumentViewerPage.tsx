@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { useParams, Link } from 'react-router-dom'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { useBenchmarkDocument, useUpdateDocumentStatus, useUpdateDocumentContent } from '@/hooks/useBenchmark'
@@ -470,6 +471,7 @@ export function DocumentViewerPage() {
 
   return (
     <div className="section-fade-in mx-auto max-w-[960px] px-4 py-8 sm:px-6">
+      <Helmet><title>{doc.title ? `${doc.title} - BenchmarkSignal` : 'Document - BenchmarkSignal'}</title></Helmet>
       {/* Breadcrumbs */}
       <Breadcrumbs items={[
         { label: 'Reports', href: '/reports' },

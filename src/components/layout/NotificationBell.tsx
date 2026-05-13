@@ -49,7 +49,13 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-card shadow-lg">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Notifications"
+          onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}
+          className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-card shadow-lg"
+        >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <span className="text-sm font-semibold text-foreground">Notifications</span>
             {count > 0 && (
@@ -101,7 +107,8 @@ export function NotificationBell() {
                     {!n.is_read && (
                       <button
                         onClick={() => markAsRead.mutate(n.id)}
-                        className="shrink-0 text-[10px] text-muted-foreground hover:text-foreground"
+                        aria-label={`Mark "${n.title}" as read`}
+                        className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-[10px] text-muted-foreground hover:text-foreground"
                       >
                         Read
                       </button>

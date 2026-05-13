@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
@@ -31,7 +32,15 @@ export function AdminPage() {
     )
   }
 
-  return <AdminPanel disabledUsers={disabledUsers} setDisabledUsers={setDisabledUsersState} queryClient={queryClient} />
+  return (
+    <>
+      <Helmet>
+        <title>Admin - BenchmarkSignal</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
+      <AdminPanel disabledUsers={disabledUsers} setDisabledUsers={setDisabledUsersState} queryClient={queryClient} />
+    </>
+  )
 }
 
 function AdminPanel({

@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, type ReactNode } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { Link } from 'react-router-dom'
 import { useCompanies, useKpiDefinitions, useKpiValues, useReports } from '@/hooks/useData'
 import { usePrimaryCompany, useMyCompanyKpis } from '@/hooks/useMyCompany'
@@ -99,12 +100,8 @@ function getSignalClass(
 
 // KPIs where lower value is better (costs, emissions, etc.)
 const LOWER_IS_BETTER_CODES = new Set([
-  'co2_emissions',
-  'co2_intensity',
-  'energy_intensity',
-  'water_intensity',
-  'net_debt',
-  'debt_to_equity',
+  'CO2_EMISSIONS', 'CO2_INTENSITY', 'ENERGY_INTENSITY',
+  'WATER_INTENSITY', 'NET_DEBT', 'DEBT_TO_EQUITY',
 ])
 
 // ---------------------------------------------------------------------------
@@ -112,8 +109,9 @@ const LOWER_IS_BETTER_CODES = new Set([
 // ---------------------------------------------------------------------------
 
 function computePercentile(myValue: number, peerValues: number[]): number {
+  if (peerValues.length === 0) return 50
   const allValues = [...peerValues, myValue].sort((a, b) => a - b)
-  const rank = allValues.indexOf(myValue)
+  const rank = allValues.filter((v) => v < myValue).length
   return Math.round((rank / (allValues.length - 1)) * 100)
 }
 
@@ -615,11 +613,11 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${iconColor} bg-current/5`}>
+                      <span className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${iconColor} bg-current/5`}>
                         {typeLabel}
                       </span>
                       {insight.delta_label && insight.delta_label !== 'unchanged' && DELTA_BADGE[insight.delta_label] && (
-                        <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${DELTA_BADGE[insight.delta_label].class}`}>
+                        <span className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${DELTA_BADGE[insight.delta_label].class}`}>
                           {DELTA_BADGE[insight.delta_label].label}
                         </span>
                       )}
@@ -628,7 +626,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                       </h3>
                       {insight.data_confidence && (
                         <Tooltip>
-                          <TooltipTrigger className="cursor-default bg-transparent border-none p-0">
+                          <TooltipTrigger className="cursor-default bg-transparent border-none p-0" aria-label={`Data confidence: ${insight.data_confidence}`}>
                             <Shield className={`h-3 w-3 ${confidenceColor}`} />
                           </TooltipTrigger>
                           <TooltipContent>Data confidence: {insight.data_confidence} — based on completeness of underlying KPI data</TooltipContent>
@@ -686,10 +684,10 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                   {/* Action buttons — visible on hover */}
                   <div className="flex flex-col gap-1 flex-shrink-0">
                     <Tooltip>
-                      <TooltipTrigger>
+                      <TooltipTrigger asChild>
                         <button
                           onClick={() => bookmarkInsight.mutate({ id: insight.id, bookmarked: !insight.is_bookmarked })}
-                          className={`transition-all cursor-pointer ${
+                          className={`min-h-[44px] min-w-[44px] flex items-center justify-center transition-all cursor-pointer focus-visible:opacity-100 ${
                             insight.is_bookmarked
                               ? 'text-[var(--color-accent)] opacity-100'
                               : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground'
@@ -703,10 +701,10 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                     </Tooltip>
                     {!insight.is_acted_upon && (
                       <Tooltip>
-                        <TooltipTrigger>
+                        <TooltipTrigger asChild>
                           <button
                             onClick={() => markActed.mutate({ id: insight.id })}
-                            className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-all hover:text-[var(--color-signal-green)] cursor-pointer"
+                            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all hover:text-[var(--color-signal-green)] cursor-pointer"
                             aria-label="Mark as acted upon"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -717,7 +715,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                     )}
                     <button
                       onClick={() => dismissInsight.mutate(insight.id)}
-                      className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground cursor-pointer"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-muted-foreground hover:text-foreground cursor-pointer"
                       aria-label="Dismiss insight"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -758,9 +756,11 @@ export function DashboardPage() {
     return companies.filter((c) => c.id !== userCompanyId)
   }, [companies, userCompanyId])
 
+  const companyIds = useMemo(() => companies?.map((c) => c.id), [companies])
+
   const { data: kpiValues, isLoading: valuesLoading } = useKpiValues({
     fiscalYear: effectiveYear,
-    companyIds: companies?.map((c) => c.id),
+    companyIds,
   })
 
   const { data: reports } = useReports()
@@ -826,7 +826,7 @@ export function DashboardPage() {
     }
 
     return { companiesWithData: withData, companiesWithoutData: withoutData }
-  }, [companies, filteredDefs, valueMap])
+  }, [peerCompanies, filteredDefs, valueMap])
 
   // Sort peer companies by sort column or alphabetical
   const sortedCompaniesWithData = useMemo(() => {
@@ -1033,8 +1033,88 @@ export function DashboardPage() {
     ).length
   }, [filteredDefs, companiesWithData, valueMap])
 
+  // ---------------------------------------------------------------------------
+  // Pipeline status bar computation (extracted from JSX IIFE for performance)
+  // ---------------------------------------------------------------------------
+  const pipelineStatusBar = useMemo(() => {
+    if (!publicationEvents || publicationEvents.length === 0) return null
+    const counts = { scheduled: 0, detected: 0, ingested: 0, benchmark_ready: 0 }
+    for (const ev of publicationEvents) {
+      if (ev.status === 'scheduled' || ev.status === 'due_today' || ev.status === 'overdue') counts.scheduled++
+      else if (ev.status === 'detected') counts.detected++
+      else if (ev.status === 'ingested') counts.ingested++
+      else if (ev.status === 'benchmark_ready') counts.benchmark_ready++
+    }
+    return [
+      { label: 'Scheduled', count: counts.scheduled, color: 'bg-blue-500', borderColor: '#3b82f6' },
+      { label: 'Detected', count: counts.detected, color: 'bg-green-500', borderColor: '#22c55e' },
+      { label: 'Ingested', count: counts.ingested, color: 'bg-emerald-500', borderColor: '#10b981' },
+      { label: 'Benchmark', count: counts.benchmark_ready, color: 'bg-violet-500', borderColor: '#8b5cf6' },
+    ]
+  }, [publicationEvents])
+
+  // ---------------------------------------------------------------------------
+  // Peer benchmark comparison rows (extracted from JSX IIFE for performance)
+  // ---------------------------------------------------------------------------
+  const peerComparisonRows = useMemo(() => {
+    if (!hasCompany || !hasPeers || !myCompanyKpis || myCompanyKpis.length === 0) return null
+    const rows: {
+      code: string
+      label: string
+      myValue: number
+      peerAvg: number
+      peerMedian: number
+      rank: number
+      totalInRank: number
+      signal: 'advantage' | 'neutral' | 'risk'
+    }[] = []
+
+    for (const myKpi of myCompanyKpis) {
+      const def = myKpi.kpi_definitions
+      if (!def) continue
+      const defId = myKpi.kpi_definition_id
+      const peerNums: number[] = []
+      for (const c of peerCompanies) {
+        const v = valueMap.get(`${c.id}__${defId}`)
+        if (v?.normalized_value != null) peerNums.push(v.normalized_value)
+      }
+      if (peerNums.length === 0) continue
+
+      const avg = peerNums.reduce((a, b) => a + b, 0) / peerNums.length
+      const sorted = [...peerNums].sort((a, b) => a - b)
+      const mid = Math.floor(sorted.length / 2)
+      const median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
+
+      const higherIsBetter = !LOWER_IS_BETTER_CODES.has(def.code)
+      const allVals = [...peerNums, myKpi.value].sort((a, b) => b - a)
+      const rank = higherIsBetter
+        ? allVals.indexOf(myKpi.value) + 1
+        : [...allVals].reverse().indexOf(myKpi.value) + 1
+
+      let signal: 'advantage' | 'neutral' | 'risk' = 'neutral'
+      const pctile = computePercentile(myKpi.value, peerNums)
+      const effectivePctile = higherIsBetter ? pctile : 100 - pctile
+      if (effectivePctile >= 70) signal = 'advantage'
+      else if (effectivePctile <= 30) signal = 'risk'
+
+      rows.push({
+        code: def.code,
+        label: shortKpiLabel(def.name),
+        myValue: myKpi.value,
+        peerAvg: avg,
+        peerMedian: median,
+        rank,
+        totalInRank: peerNums.length + 1,
+        signal,
+      })
+    }
+    return rows.length > 0 ? rows : null
+  }, [hasCompany, hasPeers, myCompanyKpis, peerCompanies, valueMap])
+
   return (
     <TooltipProvider>
+    <>
+    <Helmet><title>Dashboard - BenchmarkSignal</title></Helmet>
     <div className="section-fade-in mx-auto max-w-[1440px] px-4 py-8 sm:px-6">
 
       {/* Setup progress banner (shows when wizard dismissed but steps incomplete) */}
@@ -1132,21 +1212,7 @@ export function DashboardPage() {
       {/* ================================================================== */}
       {/* Pipeline Status Bar                                               */}
       {/* ================================================================== */}
-      {publicationEvents && publicationEvents.length > 0 && (() => {
-        const counts = { scheduled: 0, detected: 0, ingested: 0, benchmark_ready: 0 }
-        for (const ev of publicationEvents) {
-          if (ev.status === 'scheduled' || ev.status === 'due_today' || ev.status === 'overdue') counts.scheduled++
-          else if (ev.status === 'detected') counts.detected++
-          else if (ev.status === 'ingested') counts.ingested++
-          else if (ev.status === 'benchmark_ready') counts.benchmark_ready++
-        }
-        const stages = [
-          { label: 'Scheduled', count: counts.scheduled, color: 'bg-blue-500' },
-          { label: 'Detected', count: counts.detected, color: 'bg-green-500' },
-          { label: 'Ingested', count: counts.ingested, color: 'bg-emerald-500' },
-          { label: 'Benchmark', count: counts.benchmark_ready, color: 'bg-violet-500' },
-        ]
-        return (
+      {pipelineStatusBar && (
           <div className="card-premium mb-8 rounded-xl border border-border bg-card p-5">
             <div className="mb-3 flex items-center justify-between">
               <Tooltip>
@@ -1163,25 +1229,19 @@ export function DashboardPage() {
                 View Calendar →
               </Link>
             </div>
-            <div className="flex items-center gap-2">
-              {stages.map((stage, i) => (
-                <div key={stage.label} className="flex items-center gap-2 flex-1">
-                  {i > 0 && (
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
-                  )}
-                  <div className={`flex-1 rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2.5 text-center border-t-2`} style={{ borderTopColor: stage.color === 'bg-blue-500' ? '#3b82f6' : stage.color === 'bg-green-500' ? '#22c55e' : stage.color === 'bg-emerald-500' ? '#10b981' : '#8b5cf6' }}>
-                    <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                      <span className={`h-2 w-2 rounded-full ${stage.color}`} />
-                      <span className="text-[18px] font-semibold tabular-nums text-foreground">{stage.count}</span>
-                    </div>
-                    <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{stage.label}</div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {pipelineStatusBar.map((stage) => (
+                <div key={stage.label} className="rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2.5 text-center border-t-2" style={{ borderTopColor: stage.borderColor }}>
+                  <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                    <span className={`h-2 w-2 rounded-full ${stage.color}`} />
+                    <span className="text-[18px] font-semibold tabular-nums text-foreground">{stage.count}</span>
                   </div>
+                  <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{stage.label}</div>
                 </div>
               ))}
             </div>
           </div>
-        )
-      })()}
+      )}
 
       {/* ================================================================== */}
       {/* Section 3: Upcoming Publications Timeline                         */}
@@ -1270,60 +1330,8 @@ export function DashboardPage() {
       {/* ================================================================== */}
       {/* Section 3c: Peer Benchmark Comparison                              */}
       {/* ================================================================== */}
-      {hasCompany && hasPeers && myCompanyKpis && myCompanyKpis.length > 0 && (() => {
-        // Build comparison rows: for each KPI where user has data AND at least one peer has data
-        const comparisonRows: {
-          code: string
-          label: string
-          myValue: number
-          peerAvg: number
-          peerMedian: number
-          rank: number
-          totalInRank: number
-          signal: 'advantage' | 'neutral' | 'risk'
-        }[] = []
-
-        for (const myKpi of myCompanyKpis) {
-          const def = myKpi.kpi_definitions
-          if (!def) continue
-          const defId = myKpi.kpi_definition_id
-          const peerNums: number[] = []
-          for (const c of peerCompanies) {
-            const v = valueMap.get(`${c.id}__${defId}`)
-            if (v?.normalized_value != null) peerNums.push(v.normalized_value)
-          }
-          if (peerNums.length === 0) continue
-
-          const avg = peerNums.reduce((a, b) => a + b, 0) / peerNums.length
-          const sorted = [...peerNums].sort((a, b) => a - b)
-          const mid = Math.floor(sorted.length / 2)
-          const median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
-
-          const higherIsBetter = !LOWER_IS_BETTER_CODES.has(def.code)
-          const allVals = [...peerNums, myKpi.value].sort((a, b) => b - a)
-          const rank = higherIsBetter
-            ? allVals.indexOf(myKpi.value) + 1
-            : [...allVals].reverse().indexOf(myKpi.value) + 1
-
-          let signal: 'advantage' | 'neutral' | 'risk' = 'neutral'
-          const pctile = computePercentile(myKpi.value, peerNums)
-          const effectivePctile = higherIsBetter ? pctile : 100 - pctile
-          if (effectivePctile >= 70) signal = 'advantage'
-          else if (effectivePctile <= 30) signal = 'risk'
-
-          comparisonRows.push({
-            code: def.code,
-            label: shortKpiLabel(def.name),
-            myValue: myKpi.value,
-            peerAvg: avg,
-            peerMedian: median,
-            rank,
-            totalInRank: peerNums.length + 1,
-            signal,
-          })
-        }
-
-        if (comparisonRows.length === 0) return null
+      {peerComparisonRows && (() => {
+        const comparisonRows = peerComparisonRows
 
         const fmtCompact = (v: number) => {
           if (Math.abs(v) >= 1e9) return `${(v / 1e9).toFixed(1)}B`
@@ -1737,6 +1745,7 @@ export function DashboardPage() {
       {/* ================================================================== */}
       <AiInsightsSection hasCompany={hasCompany} hasPeers={hasPeers} />
     </div>
+    </>
     </TooltipProvider>
   )
 }

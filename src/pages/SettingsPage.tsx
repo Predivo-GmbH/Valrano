@@ -26,7 +26,7 @@ const ADMIN_TAB = { id: 'admin' as const, label: 'Admin', icon: ShieldCheck }
 type TabId = (typeof BASE_TABS)[number]['id'] | 'admin'
 
 const tabCls = (isActive: boolean) =>
-  `flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] ${
+  `flex flex-shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] ${
     isActive
       ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
       : 'text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground'
@@ -67,7 +67,7 @@ export function SettingsPage() {
         <div
           role="tablist"
           aria-label="Settings sections"
-          className="mb-6 flex items-center gap-1 overflow-x-auto border-b border-border pb-3"
+          className="mb-6 flex items-center gap-1 overflow-x-auto border-b border-border pb-3 scrollbar-thin"
         >
           {tabs.map((tab) => (
             <button

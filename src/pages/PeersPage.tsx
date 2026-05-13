@@ -293,6 +293,7 @@ function AddCompanyDialog({
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${session.access_token}`,
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
             },
             body: JSON.stringify({ company_id: newCompany.id }),
           }).catch(() => {})
@@ -1113,7 +1114,7 @@ const PEER_TABS = [
 type PeerTabId = (typeof PEER_TABS)[number]['id']
 
 const peerTabCls = (isActive: boolean) =>
-  `flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] ${
+  `flex flex-shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] ${
     isActive
       ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
       : 'text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground'

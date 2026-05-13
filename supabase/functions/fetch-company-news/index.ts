@@ -13,6 +13,24 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { authenticateRequest } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
+/** Reject URLs targeting internal/private networks (SSRF prevention) */
+function isPublicUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    if (!['http:', 'https:'].includes(u.protocol)) return false
+    const host = u.hostname.toLowerCase()
+    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return false
+    if (host.endsWith('.local') || host.endsWith('.internal')) return false
+    if (/^10\./.test(host) || /^192\.168\./.test(host)) return false
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return false
+    if (host.startsWith('169.254.')) return false
+    if (host === '0.0.0.0' || host.startsWith('0.')) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
@@ -166,6 +184,10 @@ async function fetchFromSource(
   let items: RssItem[] = []
 
   try {
+    if (!isPublicUrl(source.source_url)) {
+      console.warn('Skipping non-public URL:', source.source_url)
+      return 0
+    }
     const resp = await fetch(source.source_url, {
       headers: { 'User-Agent': 'BenchmarkSignal/1.0 (news aggregator)' },
       signal: AbortSignal.timeout(15000),

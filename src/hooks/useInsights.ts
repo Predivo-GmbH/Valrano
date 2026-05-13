@@ -53,6 +53,7 @@ export type InsightWithCompany = AiInsight & {
 export function useInsights(params?: { dismissed?: boolean }) {
   return useQuery({
     queryKey: ['ai-insights', params],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       let query = supabase
         .from('ai_insights')

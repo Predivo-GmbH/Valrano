@@ -90,6 +90,7 @@ export function useKpiValues(params: {
 }) {
   return useQuery({
     queryKey: ['kpi-values', params],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       // Use !inner join when filtering by kpiCodes to push filtering to PostgREST
       const selectClause = params.kpiCodes?.length
@@ -125,6 +126,7 @@ export function useKpiValues(params: {
 export function useReports(companyId?: string) {
   return useQuery({
     queryKey: ['reports', companyId],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       let query = supabase
         .from('reports')
@@ -133,6 +135,13 @@ export function useReports(companyId?: string) {
 
       if (companyId) {
         query = query.eq('company_id', companyId)
+      } else {
+        const { data: visibleIds } = await supabase.rpc('visible_company_ids')
+        if (visibleIds?.length) {
+          query = query.in('company_id', visibleIds)
+        } else {
+          return []
+        }
       }
 
       const { data, error } = await query

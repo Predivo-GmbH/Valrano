@@ -397,7 +397,7 @@ const FAQS = [
 const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'Organization', name: 'BenchmarkSignal', url: 'https://benchmarksignal.predivo.ch', logo: 'https://benchmarksignal.predivo.ch/og-image.svg', description: 'Fully automated competitive benchmarking platform for listed corporations. AI-powered KPI extraction from peer reports.', sameAs: [], parentOrganization: { '@type': 'Organization', name: 'Predivo GmbH', url: 'https://predivo.ch' } },
+    { '@type': 'Organization', name: 'BenchmarkSignal', url: 'https://benchmarksignal.predivo.ch', logo: 'https://benchmarksignal.predivo.ch/og-image.png', description: 'Fully automated competitive benchmarking platform for listed corporations. AI-powered KPI extraction from peer reports.', sameAs: [], parentOrganization: { '@type': 'Organization', name: 'Predivo GmbH', url: 'https://predivo.ch' } },
     { '@type': 'SoftwareApplication', name: 'BenchmarkSignal', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: 'AI-powered competitive benchmarking: extract financial and ESG KPIs from peer PDF reports, normalize across currencies and standards, deliver board-ready briefings in 60 minutes.', offers: { '@type': 'Offer', priceCurrency: 'CHF', price: '0', availability: 'https://schema.org/OnlineOnly', description: 'Contact us for enterprise pricing' } },
     { '@type': 'FAQPage', mainEntity: FAQS.map((faq) => ({ '@type': 'Question', name: faq.q, acceptedAnswer: { '@type': 'Answer', text: faq.a } })) },
   ],
@@ -465,12 +465,11 @@ export default function LandingPage() {
         <meta property="og:description" content="Extract financial and ESG KPIs from competitor PDF reports, normalize across currencies and standards, deliver board-ready briefings in 60 minutes." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://benchmarksignal.predivo.ch" />
-        <meta property="og:image" content="https://benchmarksignal.predivo.ch/og-image.svg" />
+        <meta property="og:image" content="https://benchmarksignal.predivo.ch/og-image.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
         <link rel="canonical" href="https://benchmarksignal.predivo.ch" />
-        <link rel="preconnect" href="https://mkdeftmubrkseyrrbzvp.supabase.co" />
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
 

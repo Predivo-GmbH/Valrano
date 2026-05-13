@@ -8,5 +8,9 @@ Disallow: /signup
 Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /auth/
+Disallow: /admin
+Disallow: /companies/
+Disallow: /reports/
+Disallow: /documents/
 
 Sitemap: https://benchmarksignal.predivo.ch/sitemap.xml

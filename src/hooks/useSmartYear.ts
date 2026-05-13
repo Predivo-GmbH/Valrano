@@ -24,9 +24,12 @@ export function useSmartYear(): SmartYearResult {
   const { data, isLoading } = useQuery({
     queryKey: ['smart-year-available'],
     queryFn: async () => {
+      const { data: visibleIds } = await supabase.rpc('visible_company_ids')
+      if (!visibleIds?.length) return []
       const { data: rows, error } = await supabase
         .from('kpi_values')
         .select('fiscal_year')
+        .in('company_id', visibleIds)
         .order('fiscal_year', { ascending: false })
 
       if (error) throw error

@@ -33,11 +33,11 @@ import { PageSkeleton } from '@/components/ui/page-skeleton'
 
 type TabId = 'trends' | 'pivot' | 'scatter' | 'heatmap'
 
-const TABS: { id: TabId; label: string; icon: ReactNode }[] = [
-  { id: 'trends', label: 'Trends', icon: <BarChart3 className="h-4 w-4" /> },
-  { id: 'pivot', label: 'Pivot Table', icon: <Table2 className="h-4 w-4" /> },
-  { id: 'scatter', label: 'Scatter', icon: <ScatterIcon className="h-4 w-4" /> },
-  { id: 'heatmap', label: 'Heatmap', icon: <Grid3X3 className="h-4 w-4" /> },
+const TABS: { id: TabId; label: string; shortLabel: string; icon: ReactNode }[] = [
+  { id: 'trends', label: 'Trends', shortLabel: 'Trends', icon: <BarChart3 className="h-4 w-4" /> },
+  { id: 'pivot', label: 'Pivot Table', shortLabel: 'Pivot', icon: <Table2 className="h-4 w-4" /> },
+  { id: 'scatter', label: 'Scatter', shortLabel: 'Scatter', icon: <ScatterIcon className="h-4 w-4" /> },
+  { id: 'heatmap', label: 'Heatmap', shortLabel: 'Heat', icon: <Grid3X3 className="h-4 w-4" /> },
 ]
 
 const CHART_COLORS = [
@@ -165,7 +165,7 @@ export function AnalyticsPage() {
               }`}
             >
               {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.shortLabel}</span><span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
         </div>
@@ -802,7 +802,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
 function getHeatColor(percentile: number): string {
   if (percentile >= 80) return 'var(--color-signal-green)'
   if (percentile >= 60) return 'var(--color-signal-green)'
-  if (percentile >= 40) return 'var(--color-muted-foreground)'
+  if (percentile >= 40) return 'var(--color-muted)'
   if (percentile >= 20) return 'var(--color-signal-red)'
   return 'var(--color-signal-red)'
 }
