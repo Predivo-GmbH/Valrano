@@ -1,6 +1,13 @@
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 
+/** Strip common legal suffixes that break brand search (e.g. "Holcim Ltd" → "Holcim") */
+function stripLegalSuffix(name: string): string {
+  return name
+    .replace(/\b(Ltd|Limited|Inc|Incorporated|Corp|Corporation|AG|SA|SE|GmbH|NV|BV|plc|SpA|SAS|SAB|de CV|S\.?A\.?B?\.?|Co\.?\s*KG|& Co)\b\.?\s*$/i, '')
+    .trim()
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(req) })
@@ -19,18 +26,26 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'Brandfetch not configured' }, 500)
     }
 
-    // Call Brandfetch Search API
-    const resp = await fetch(
-      `https://api.brandfetch.io/v2/search/${encodeURIComponent(name.trim())}?c=${brandfetchClientId}`,
-      { signal: AbortSignal.timeout(5000) },
-    )
+    // Try with original name first, fall back to stripped name
+    const cleanName = stripLegalSuffix(name.trim())
+    const namesToTry = cleanName !== name.trim() ? [name.trim(), cleanName] : [name.trim()]
 
-    if (!resp.ok) {
-      console.error('Brandfetch API error:', resp.status, await resp.text())
-      return jsonResponse({ website_url: null, domain: null }, 200)
+    let results: Array<{ name: string; domain: string; icon: string | null }> = []
+
+    for (const searchName of namesToTry) {
+      const resp = await fetch(
+        `https://api.brandfetch.io/v2/search/${encodeURIComponent(searchName)}?c=${brandfetchClientId}`,
+        { signal: AbortSignal.timeout(5000) },
+      )
+
+      if (!resp.ok) {
+        console.error('Brandfetch API error:', resp.status, await resp.text())
+        continue
+      }
+
+      results = await resp.json() as Array<{ name: string; domain: string; icon: string | null }>
+      if (results.length > 0 && results[0].domain) break
     }
-
-    const results = await resp.json() as Array<{ name: string; domain: string; icon: string | null }>
 
     if (!results.length || !results[0].domain) {
       return jsonResponse({ website_url: null, domain: null }, 200)
