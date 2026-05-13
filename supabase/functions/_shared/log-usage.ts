@@ -21,7 +21,7 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
 }
 
 const BACKOFFICE_URL = 'https://xoecpzfsskalvjrtcbbl.supabase.co/functions/v1/log-api-usage'
-const CRON_SECRET = 'sync-usage-cron-1b101455280a2e66341baf24b4cfe7e3'
+const CRON_SECRET = Deno.env.get('BACKOFFICE_CRON_SECRET') ?? ''
 
 interface AnthropicResponse {
   model?: string

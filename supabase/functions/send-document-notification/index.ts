@@ -39,7 +39,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { adminClient } = await authenticateRequest(req)
+    const { user, adminClient } = await authenticateRequest(req)
 
     const { document_id, notification_type, recipient_email, recipient_name } = await req.json()
     if (!document_id || !notification_type || !recipient_email) {
@@ -48,14 +48,26 @@ serve(async (req: Request) => {
       }, 400)
     }
 
-    // Load document info
+    // Load document info + ownership
     const { data: doc, error: docError } = await adminClient
       .from('benchmark_documents')
-      .select('id, title, status, fiscal_year, trigger_company_id, companies:trigger_company_id(name)')
+      .select('id, title, status, fiscal_year, trigger_company_id, companies:trigger_company_id(name), benchmark_rules(delivery_recipients, created_by)')
       .eq('id', document_id)
       .single()
 
     if (docError) throw new Error(`Document lookup failed: ${docError.message}`)
+
+    // Ownership check: caller must own the benchmark rule
+    const rule = doc.benchmark_rules as { delivery_recipients?: string[]; created_by?: string } | null
+    if (rule?.created_by && rule.created_by !== user.id) {
+      return jsonResponse({ error: 'You do not own this document' }, 403)
+    }
+
+    // Recipient must be in the configured delivery_recipients list
+    const allowedRecipients = rule?.delivery_recipients ?? []
+    if (!allowedRecipients.includes(recipient_email)) {
+      return jsonResponse({ error: 'Recipient not in delivery recipients list' }, 403)
+    }
 
     const companyName = (doc.companies as { name: string } | null)?.name ?? 'Unknown'
     const smtp = getSmtpConfig()

@@ -10,6 +10,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
+import { authenticateRequest } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
@@ -327,7 +328,13 @@ Deno.serve(async (req) => {
     })
   }
 
-  // Single company mode
+  // Single company mode — requires JWT auth
+  try {
+    await authenticateRequest(req)
+  } catch {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+  }
+
   const companyId = body.company_id as string
   if (!companyId) {
     return new Response(JSON.stringify({ error: 'company_id required' }), { status: 400 })

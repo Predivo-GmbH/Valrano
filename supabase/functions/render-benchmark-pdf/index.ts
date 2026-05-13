@@ -16,7 +16,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { adminClient } = await authenticateRequest(req)
+    const { user, adminClient } = await authenticateRequest(req)
 
     const { document_id } = await req.json()
     if (!document_id) {
@@ -26,12 +26,18 @@ serve(async (req: Request) => {
     // 1. Load the benchmark document
     const { data: doc, error: docError } = await adminClient
       .from('benchmark_documents')
-      .select('id, title, content_html, content_json, fiscal_year, trigger_company_id, customer_company_id')
+      .select('id, title, content_html, content_json, fiscal_year, trigger_company_id, customer_company_id, benchmark_rules(created_by)')
       .eq('id', document_id)
       .single()
 
     if (docError) throw new Error(`Document lookup failed: ${docError.message}`)
     if (!doc) return jsonResponse({ error: 'Document not found' }, 404)
+
+    // Ownership check: user must own the benchmark rule
+    const ruleCreator = (doc.benchmark_rules as { created_by?: string } | null)?.created_by
+    if (ruleCreator && ruleCreator !== user.id) {
+      return jsonResponse({ error: 'You do not own this document' }, 403)
+    }
     if (!doc.content_html && !doc.content_json) {
       return jsonResponse({ error: 'Document has no content' }, 422)
     }

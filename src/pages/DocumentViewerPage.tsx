@@ -408,13 +408,28 @@ export function DocumentViewerPage() {
     if (!doc?.content_html) return
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
-    // Sanitize AI-generated HTML — strip scripts and event handlers to prevent XSS
+    // Sanitize AI-generated HTML — strip dangerous elements, event handlers, and URI schemes
     const parser = new DOMParser()
     const parsed = parser.parseFromString(doc.content_html, 'text/html')
-    parsed.querySelectorAll('script,iframe,object,embed,link[rel="import"]').forEach(el => el.remove())
+    parsed.querySelectorAll('script,iframe,object,embed,link[rel="import"],style,base,form').forEach(el => el.remove())
     parsed.querySelectorAll('*').forEach(el => {
       for (const attr of [...el.attributes]) {
-        if (attr.name.startsWith('on')) el.removeAttribute(attr.name)
+        // Remove event handlers
+        if (attr.name.startsWith('on')) {
+          el.removeAttribute(attr.name)
+          continue
+        }
+        // Remove dangerous URI schemes from src/href/action/formaction/xlink:href
+        if (['href', 'src', 'action', 'formaction', 'xlink:href'].includes(attr.name)) {
+          const val = attr.value.trim().toLowerCase()
+          if (val.startsWith('javascript:') || val.startsWith('data:') || val.startsWith('vbscript:')) {
+            el.removeAttribute(attr.name)
+          }
+        }
+        // Remove style attributes that could exfiltrate data via url()
+        if (attr.name === 'style' && /url\s*\(/i.test(attr.value)) {
+          el.removeAttribute(attr.name)
+        }
       }
     })
     printWindow.document.open()

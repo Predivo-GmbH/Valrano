@@ -1,18 +1,8 @@
-import { getDocumentProxy, getResolvedPDFJS } from 'https://esm.sh/unpdf@0.12.1'
+import { getDocumentProxy } from 'https://esm.sh/unpdf@0.12.1'
 
 /**
- * Get the page count of a PDF without extracting text.
- */
-export async function getPdfPageCount(pdfArrayBuffer: ArrayBuffer): Promise<number> {
-  const pdf = await getDocumentProxy(new Uint8Array(pdfArrayBuffer))
-  const count = pdf.numPages
-  pdf.cleanup()
-  return count
-}
-
-/**
- * Extract text from specific pages of a PDF.
- * Uses per-page extraction to avoid loading all pages into memory at once.
+ * Extract text from a PDF. Cleans up each page after extraction
+ * to keep memory usage low for large documents.
  */
 export async function extractTextFromPdf(
   pdfArrayBuffer: ArrayBuffer,
@@ -34,7 +24,7 @@ export async function extractTextFromPdf(
     }
   }
 
-  const pages: string[] = []
+  const textChunks: string[] = []
 
   for (let i = 1; i <= pageCount; i++) {
     if (pageRanges && !pagesToExtract.has(i)) continue
@@ -45,15 +35,27 @@ export async function extractTextFromPdf(
       .map((item: { str?: string }) => item.str ?? '')
       .join(' ')
     if (pageText.trim()) {
-      pages.push(`--- Page ${i} ---\n${pageText}`)
+      textChunks.push(`--- Page ${i} ---\n${pageText}`)
     }
+    // Release page rendering resources immediately
+    page.cleanup()
   }
 
   pdf.cleanup()
 
   return {
-    text: pages.join('\n\n'),
+    text: textChunks.join('\n\n'),
     pageCount,
-    extractedPages: pages.length,
+    extractedPages: textChunks.length,
   }
+}
+
+/**
+ * Get page count without extracting text.
+ */
+export async function getPdfPageCount(pdfArrayBuffer: ArrayBuffer): Promise<number> {
+  const pdf = await getDocumentProxy(new Uint8Array(pdfArrayBuffer))
+  const count = pdf.numPages
+  pdf.cleanup()
+  return count
 }

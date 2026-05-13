@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
   // Allow both JWT auth and service_role calls (from pipeline-orchestrator)
   const authHeader = req.headers.get('authorization') ?? ''
-  const isServiceRole = authHeader.includes(SERVICE_ROLE_KEY)
+  const isServiceRole = authHeader === `Bearer ${SERVICE_ROLE_KEY}`
   let userId: string | null = null
   if (!isServiceRole) {
     const authResult = await authenticateRequest(req)

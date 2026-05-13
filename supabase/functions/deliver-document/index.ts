@@ -17,7 +17,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { adminClient } = await authenticateRequest(req)
+    const { user, adminClient } = await authenticateRequest(req)
     const authHeader = req.headers.get('Authorization')!
 
     const { document_id } = await req.json()
@@ -33,7 +33,7 @@ serve(async (req: Request) => {
       .from('benchmark_documents')
       .select(`
         id, title, status, pdf_storage_path,
-        benchmark_rules(id, name, delivery_recipients, customer_company_id),
+        benchmark_rules(id, name, delivery_recipients, customer_company_id, created_by),
         trigger_company_id
       `)
       .eq('id', document_id)
@@ -41,6 +41,12 @@ serve(async (req: Request) => {
 
     if (docError) throw new Error(`Document lookup failed: ${docError.message}`)
     if (!doc) return jsonResponse({ error: 'Document not found' }, 404)
+
+    // Ownership check: user must own the benchmark rule
+    const ruleCreator = (doc.benchmark_rules as { created_by?: string } | null)?.created_by
+    if (ruleCreator && ruleCreator !== user.id) {
+      return jsonResponse({ error: 'You do not own this document' }, 403)
+    }
 
     if (doc.status !== 'approved') {
       return jsonResponse({ error: `Document status is '${doc.status}', must be 'approved'` }, 400)

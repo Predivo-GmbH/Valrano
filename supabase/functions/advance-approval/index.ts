@@ -32,6 +32,11 @@ serve(async (req: Request) => {
       return jsonResponse({ error: 'No active approval step found for this document' }, 404)
     }
 
+    // Ownership check: user must be the assignee for this step
+    if (currentStep.assignee_id && currentStep.assignee_id !== user.id) {
+      return jsonResponse({ error: 'You are not assigned to this approval step' }, 403)
+    }
+
     const now = new Date().toISOString()
 
     if (action === 'approve') {

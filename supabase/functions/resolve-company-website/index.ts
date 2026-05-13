@@ -54,8 +54,15 @@ Deno.serve(async (req: Request) => {
     const domain = results[0].domain
     const website_url = `https://${domain}`
 
-    // If company_id provided, update the company record directly
+    // If company_id provided, update only if company is in user's visible set
     if (company_id) {
+      const { data: visibleIds } = await adminClient
+        .rpc('visible_company_ids_for_user', { p_user_id: user.id })
+      const visible = new Set((visibleIds ?? []) as string[])
+      if (!visible.has(company_id)) {
+        return jsonResponse({ error: 'Company not in your peer groups' }, 403)
+      }
+
       const { error } = await adminClient
         .from('companies')
         .update({ website_url })

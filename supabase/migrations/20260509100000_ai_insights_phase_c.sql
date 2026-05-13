@@ -25,6 +25,17 @@ CREATE TABLE IF NOT EXISTS ai_insight_auto_gen_log (
 CREATE INDEX IF NOT EXISTS idx_auto_gen_log_user
   ON ai_insight_auto_gen_log(user_id, created_at DESC);
 
+-- RLS for ai_insight_auto_gen_log
+ALTER TABLE public.ai_insight_auto_gen_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own auto-gen logs"
+  ON public.ai_insight_auto_gen_log FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role full access"
+  ON public.ai_insight_auto_gen_log FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+
 -- 4. Allow 'insight_risk_flag' as a notification type
 ALTER TABLE notifications
   DROP CONSTRAINT IF EXISTS notifications_type_check;

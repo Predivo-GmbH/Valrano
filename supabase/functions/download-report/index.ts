@@ -2,6 +2,24 @@ import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 
+/** Reject URLs targeting internal/private networks (SSRF prevention) */
+function isPublicUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    if (!['http:', 'https:'].includes(u.protocol)) return false
+    const host = u.hostname.toLowerCase()
+    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return false
+    if (host.endsWith('.local') || host.endsWith('.internal')) return false
+    if (/^10\./.test(host) || /^192\.168\./.test(host)) return false
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return false
+    if (host.startsWith('169.254.')) return false
+    if (host === '0.0.0.0' || host.startsWith('0.')) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(req) })
@@ -46,7 +64,10 @@ serve(async (req: Request) => {
       })
     }
 
-    // 2. Fetch the PDF
+    // 2. SSRF check + Fetch the PDF
+    if (!isPublicUrl(report.source_url)) {
+      return jsonResponse({ error: 'Source URL targets a private/reserved network' }, 400)
+    }
     const pdfResponse = await fetch(report.source_url)
     if (!pdfResponse.ok) {
       throw new Error(`PDF fetch failed: ${pdfResponse.status} ${pdfResponse.statusText}`)

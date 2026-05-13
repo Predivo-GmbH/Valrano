@@ -172,6 +172,18 @@ Focus on companies that are:
       for (let i = 0; i < suggestions.length; i++) {
         suggestions[i].website_domain = domainResults[i] ?? undefined
       }
+
+      // Log Brandfetch API calls for usage tracking (queried by BackOffice)
+      const brandfetchCallCount = suggestions.length
+      await adminClient.from('api_request_logs').insert({
+        service: 'brandfetch',
+        endpoint: '/v2/search',
+        call_count: brandfetchCallCount,
+        user_id: user.id,
+        edge_function: 'suggest-competitors',
+      }).then(({ error }) => {
+        if (error) console.error('Failed to log Brandfetch usage:', error.message)
+      })
     }
 
     // ------------------------------------------------------------------

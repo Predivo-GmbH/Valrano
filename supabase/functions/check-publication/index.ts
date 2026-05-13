@@ -2,6 +2,24 @@ import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 
+/** Reject URLs targeting internal/private networks (SSRF prevention) */
+function isPublicUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    if (!['http:', 'https:'].includes(u.protocol)) return false
+    const host = u.hostname.toLowerCase()
+    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return false
+    if (host.endsWith('.local') || host.endsWith('.internal')) return false
+    if (/^10\./.test(host) || /^192\.168\./.test(host)) return false
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return false
+    if (host.startsWith('169.254.')) return false
+    if (host === '0.0.0.0' || host.startsWith('0.')) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 // PDF link detection patterns for annual/quarterly reports
 const PDF_PATTERNS = [
   /href=["']([^"']*(?:annual|jahres|geschaefts)[\w-]*report[^"']*\.pdf)/gi,
@@ -45,7 +63,9 @@ serve(async (req: Request) => {
     // 2. If direct_pdf_url exists -> HEAD request, check Content-Type
     if (event.direct_pdf_url) {
       checkMethod = 'head_request'
-      try {
+      if (!isPublicUrl(event.direct_pdf_url)) {
+        errorMessage = 'URL targets a private/reserved network'
+      } else try {
         const headResp = await fetch(event.direct_pdf_url, { method: 'HEAD' })
         const contentType = headResp.headers.get('content-type') ?? ''
         if (contentType.includes('pdf')) {
@@ -61,7 +81,9 @@ serve(async (req: Request) => {
     // 3. Else check IR page for new PDF links
     else {
       const irPageUrl = event.ir_page_url ?? company.ir_page_url
-      if (irPageUrl) {
+      if (irPageUrl && !isPublicUrl(irPageUrl)) {
+        errorMessage = 'IR page URL targets a private/reserved network'
+      } else if (irPageUrl) {
         try {
           const pageResp = await fetch(irPageUrl)
           if (pageResp.ok) {
