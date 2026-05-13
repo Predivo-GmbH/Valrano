@@ -69,7 +69,7 @@ export function OnboardingWizard() {
   // Shared state across steps — seeded from existing data
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
   const selectedCompanyIdsRef = useRef(selectedCompanyIds)
-  selectedCompanyIdsRef.current = selectedCompanyIds
+  useEffect(() => { selectedCompanyIdsRef.current = selectedCompanyIds }, [selectedCompanyIds])
   const [aiSuggestions, setAiSuggestions] = useState<CompetitorSuggestion[]>([])
   const [reportCompetitors, setReportCompetitors] = useState<Array<{ name: string; ticker?: string; context?: string }>>([])
   const [competitorsConfirmed, setCompetitorsConfirmed] = useState(false)
@@ -1246,7 +1246,7 @@ function StepSchedule({
   const selectedCompanies = (companies ?? []).filter((c) => selectedCompanyIds.includes(c.id))
 
   const updateScheduleRef = useRef(schedules)
-  updateScheduleRef.current = schedules
+  useEffect(() => { updateScheduleRef.current = schedules }, [schedules])
 
   const updateSchedule = (companyId: string, field: 'reportType' | 'expectedDate', value: string) => {
     const current = updateScheduleRef.current
