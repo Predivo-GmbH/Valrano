@@ -523,7 +523,7 @@ function UploadReportDialog({
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Company
             </Label>
-            <Select value={companyId} onValueChange={(v) => v && setCompanyId(v)}>
+            <Select value={companies.some((c) => c.id === companyId) ? companyId : undefined} onValueChange={(v) => v && setCompanyId(v)}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
                 <SelectValue placeholder="Select company" />
               </SelectTrigger>
