@@ -371,6 +371,11 @@ export function CompanyProfilePage() {
 
   const isPeerCompany = !!myCompanyId && id !== myCompanyId
 
+  const accountingStandardMatch = useMemo(() => {
+    if (!accountingProfile) return null
+    return accountingProfile.accounting_standard
+  }, [accountingProfile])
+
   // Radar chart data
   const radarData = useMemo(() => {
     if (!latestYear || kpiRows.length === 0) return []
