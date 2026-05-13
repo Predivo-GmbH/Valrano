@@ -116,7 +116,11 @@ export function OnboardingWizard() {
     }
   }
 
-  const canProceed = (step: number): boolean => stepDone(step)
+  const canProceed = (step: number): boolean => {
+    if (step === 1) return stepDone(1) || selectedCompanyIds.length >= 1
+    if (step === 2) return true // schedule is optional
+    return stepDone(step)
+  }
 
   // A step is reachable in the breadcrumb if all previous steps are done, or it's before the current step
   const canNavigateTo = (step: number): boolean => {
