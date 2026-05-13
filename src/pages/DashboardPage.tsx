@@ -684,7 +684,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                   {/* Action buttons — visible on hover */}
                   <div className="flex flex-col gap-1 flex-shrink-0">
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger>
                         <button
                           onClick={() => bookmarkInsight.mutate({ id: insight.id, bookmarked: !insight.is_bookmarked })}
                           className={`min-h-[44px] min-w-[44px] flex items-center justify-center transition-all cursor-pointer focus-visible:opacity-100 ${
@@ -701,7 +701,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                     </Tooltip>
                     {!insight.is_acted_upon && (
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger>
                           <button
                             onClick={() => markActed.mutate({ id: insight.id })}
                             className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all hover:text-[var(--color-signal-green)] cursor-pointer"
