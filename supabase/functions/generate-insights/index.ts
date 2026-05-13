@@ -3,6 +3,8 @@ import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
+const GEMINI_MODEL = 'gemini-2.5-flash'
+
 interface InsightInput {
   insight_type: string
   title: string
@@ -12,6 +14,37 @@ interface InsightInput {
   priority: string
   data_confidence?: string
 }
+
+// Gemini JSON mode schema for structured insight output
+const INSIGHTS_SCHEMA = {
+  type: 'object',
+  properties: {
+    insights: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          insight_type: {
+            type: 'string',
+            enum: ['trend_reversal', 'outlier', 'risk_flag', 'opportunity'],
+          },
+          title: { type: 'string', description: 'Short headline (max 80 chars), framed relative to user company' },
+          body: { type: 'string', description: '2-3 sentences with specific numbers, ending with "Consider..." recommendation' },
+          related_company: { type: 'string', description: 'Primary company this insight references' },
+          related_kpi_code: { type: 'string', description: 'KPI code (e.g. EBITDA_MARGIN, REVENUE)' },
+          priority: { type: 'string', enum: ['low', 'medium', 'high'] },
+          data_confidence: {
+            type: 'string',
+            enum: ['high', 'medium', 'low'],
+            description: 'How complete/reliable the underlying data is for this insight',
+          },
+        },
+        required: ['insight_type', 'title', 'body', 'priority', 'data_confidence'],
+      },
+    },
+  },
+  required: ['insights'],
+} as const
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -206,10 +239,10 @@ serve(async (req: Request) => {
     }
 
     // ------------------------------------------------------------------
-    // 8. Call Claude with company-anchored prompt
+    // 8. Call Gemini 2.5 Flash with company-anchored prompt
     // ------------------------------------------------------------------
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
-    if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is not set')
+    const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY')
+    if (!geminiApiKey) throw new Error('GOOGLE_AI_API_KEY is not set')
 
     const systemPrompt = `You are a senior strategy analyst preparing a competitive intelligence briefing for ${myCompanyName ?? 'the user\'s company'}. Your job is to surface actionable insights from peer benchmarking data.
 
@@ -234,75 +267,44 @@ Generate 3-8 insights based on data availability. Prioritize:
 3. **Trend reversals** — KPIs that changed direction YoY (only if multi-year data)
 4. **Outliers** — values far from peer group median`
 
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        tools: [
-          {
-            name: 'generate_insights',
-            description: 'Generate company-anchored competitive intelligence insights',
-            input_schema: {
-              type: 'object',
-              properties: {
-                insights: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      insight_type: {
-                        type: 'string',
-                        enum: ['trend_reversal', 'outlier', 'risk_flag', 'opportunity'],
-                      },
-                      title: { type: 'string', description: 'Short headline (max 80 chars), framed relative to user company' },
-                      body: { type: 'string', description: '2-3 sentences with specific numbers, ending with "Consider..." recommendation' },
-                      related_company: { type: 'string', description: 'Primary company this insight references' },
-                      related_kpi_code: { type: 'string', description: 'KPI code (e.g. EBITDA_MARGIN, REVENUE)' },
-                      priority: { type: 'string', enum: ['low', 'medium', 'high'] },
-                      data_confidence: {
-                        type: 'string',
-                        enum: ['high', 'medium', 'low'],
-                        description: 'How complete/reliable the underlying data is for this insight',
-                      },
-                    },
-                    required: ['insight_type', 'title', 'body', 'priority', 'data_confidence'],
-                  },
-                },
-              },
-              required: ['insights'],
-            },
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: INSIGHTS_SCHEMA,
+            temperature: 0,
           },
-        ],
-        tool_choice: { type: 'tool', name: 'generate_insights' },
-        messages: [
-          { role: 'user', content: userPrompt },
-        ],
-        system: systemPrompt,
-      }),
-    })
-
-    if (!claudeResponse.ok) {
-      const errBody = await claudeResponse.text()
-      throw new Error(`Claude API error ${claudeResponse.status}: ${errBody}`)
-    }
-
-    const claudeJson = await claudeResponse.json()
-    await logAnthropicUsage('BenchmarkSignal', 'generate-insights', claudeJson)
-    const toolUseBlock = claudeJson.content?.find(
-      (block: { type: string }) => block.type === 'tool_use',
+        }),
+      },
     )
 
-    if (!toolUseBlock) {
-      throw new Error('Claude did not return a tool_use block')
+    if (!geminiResponse.ok) {
+      const errBody = await geminiResponse.text()
+      throw new Error(`Gemini API error ${geminiResponse.status}: ${errBody}`)
     }
 
-    const { insights } = toolUseBlock.input as { insights: InsightInput[] }
+    const geminiJson = await geminiResponse.json()
+    const inputTokens = geminiJson.usageMetadata?.promptTokenCount ?? 0
+    const outputTokens = geminiJson.usageMetadata?.candidatesTokenCount ?? 0
+
+    await logAnthropicUsage('BenchmarkSignal', 'generate-insights', {
+      model: GEMINI_MODEL,
+      usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+    })
+
+    const candidate = geminiJson.candidates?.[0]
+    if (!candidate?.content?.parts?.[0]?.text) {
+      throw new Error('Gemini did not return a valid response')
+    }
+
+    const parsed = JSON.parse(candidate.content.parts[0].text)
+    const insights: InsightInput[] = parsed.insights ?? []
 
     // ------------------------------------------------------------------
     // 9. Resolve company names to IDs

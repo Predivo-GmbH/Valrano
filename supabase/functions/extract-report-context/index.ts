@@ -14,12 +14,13 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
-import { extractPdfText } from '../_shared/pdf-text.ts'
+import { extractTextFromPdf } from '../_shared/pdf-text.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
+const GEMINI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY')!
+const GEMINI_MODEL = 'gemini-2.5-pro'
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
@@ -98,7 +99,8 @@ Deno.serve(async (req) => {
 
   // Extract text from PDF
   const buffer = await pdfData.arrayBuffer()
-  const { text: pdfText, pageCount, charCount } = await extractPdfText(buffer)
+  const { text: pdfText, pageCount, extractedPages } = await extractTextFromPdf(buffer)
+  const charCount = pdfText.length
 
   if (!pdfText || charCount < 100) {
     return errorResponse('Could not extract text from PDF. The file may be image-only or corrupt.', 422)
@@ -125,14 +127,11 @@ For management guidance: Extract any forward-looking statements about expected r
 
 Be precise with page numbers. If something spans multiple pages, use the first page.`
 
-  // Call Claude with document + tool_use
-  const toolSchema = {
-    name: 'extract_report_context',
-    description: 'Extract strategic context and segment breakdowns from an annual report',
-    input_schema: {
-      type: 'object' as const,
-      required: ['competitor_mentions', 'strategic_initiatives', 'risk_factors', 'business_segments', 'segment_financials'],
-      properties: {
+  // Gemini JSON mode schema for structured extraction
+  const responseSchema = {
+    type: 'object' as const,
+    required: ['competitor_mentions', 'strategic_initiatives', 'risk_factors', 'business_segments', 'segment_financials'],
+    properties: {
         competitor_mentions: {
           type: 'array' as const,
           items: {
@@ -271,50 +270,49 @@ Be precise with page numbers. If something spans multiple pages, use the first p
             },
           },
         },
-      },
     },
   }
-
   try {
-    const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+    const apiResp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [{ text: `Below is the full text extracted from ${company.name}'s FY${report.fiscal_year} annual report. Extract all strategic context and segment breakdowns. Be thorough with segment financials — the comparability engine depends on accurate segment-level revenue and EBITDA data.\n\n<annual_report>\n${pdfText}\n</annual_report>` }],
+          }],
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema,
+            temperature: 0,
+          },
+        }),
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6-20250514',
-        max_tokens: 16000,
-        temperature: 0,
-        system: systemPrompt,
-        tools: [toolSchema],
-        tool_choice: { type: 'tool', name: 'extract_report_context' },
-        messages: [{
-          role: 'user',
-          content: `Below is the full text extracted from ${company.name}'s FY${report.fiscal_year} annual report. Extract all strategic context and segment breakdowns. Be thorough with segment financials — the comparability engine depends on accurate segment-level revenue and EBITDA data.
-
-<annual_report>
-${pdfText}
-</annual_report>`,
-        }],
-      }),
-    })
+    )
 
     if (!apiResp.ok) {
       const errText = await apiResp.text()
-      console.error('Claude API error:', apiResp.status, errText)
+      console.error('Gemini API error:', apiResp.status, errText)
       return errorResponse('AI extraction failed: ' + apiResp.status, 500)
     }
 
     const result = await apiResp.json()
-    await logAnthropicUsage('BenchmarkSignal', 'extract-report-context', result)
-    const toolUse = result.content?.find((c: { type: string }) => c.type === 'tool_use')
-    if (!toolUse?.input) {
-      return errorResponse('No tool_use response from AI', 500)
+    const inputTokens = result.usageMetadata?.promptTokenCount ?? 0
+    const outputTokens = result.usageMetadata?.candidatesTokenCount ?? 0
+    await logAnthropicUsage('BenchmarkSignal', 'extract-report-context', {
+      model: GEMINI_MODEL,
+      usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+    })
+
+    const candidate = result.candidates?.[0]
+    if (!candidate?.content?.parts?.[0]?.text) {
+      return errorResponse('Gemini did not return a valid response', 500)
     }
 
-    const extracted = toolUse.input
+    const extracted = JSON.parse(candidate.content.parts[0].text)
 
     // Insert report_contexts
     const { error: ctxErr } = await admin
@@ -333,7 +331,7 @@ ${pdfText}
         key_quotes: extracted.key_quotes ?? [],
         business_segments: extracted.business_segments ?? [],
         geographic_mix: extracted.geographic_mix ?? [],
-        ai_model_used: 'claude-sonnet-4-6',
+        ai_model_used: GEMINI_MODEL,
         extraction_confidence: 0.85,
       }, { onConflict: 'report_id' })
 
@@ -362,7 +360,7 @@ ${pdfText}
       source_page: s.source_page,
       confidence: s.confidence ?? 0.8,
       notes: s.notes,
-      ai_model_used: 'claude-sonnet-4-6',
+      ai_model_used: GEMINI_MODEL,
     }))
 
     if (segments.length > 0) {

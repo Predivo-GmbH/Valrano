@@ -1268,6 +1268,146 @@ export function DashboardPage() {
       )}
 
       {/* ================================================================== */}
+      {/* Section 3c: Peer Benchmark Comparison                              */}
+      {/* ================================================================== */}
+      {hasCompany && hasPeers && myCompanyKpis && myCompanyKpis.length > 0 && (() => {
+        // Build comparison rows: for each KPI where user has data AND at least one peer has data
+        const comparisonRows: {
+          code: string
+          label: string
+          myValue: number
+          peerAvg: number
+          peerMedian: number
+          rank: number
+          totalInRank: number
+          signal: 'advantage' | 'neutral' | 'risk'
+        }[] = []
+
+        for (const myKpi of myCompanyKpis) {
+          const def = myKpi.kpi_definitions
+          if (!def) continue
+          const defId = myKpi.kpi_definition_id
+          const peerNums: number[] = []
+          for (const c of peerCompanies) {
+            const v = valueMap.get(`${c.id}__${defId}`)
+            if (v?.normalized_value != null) peerNums.push(v.normalized_value)
+          }
+          if (peerNums.length === 0) continue
+
+          const avg = peerNums.reduce((a, b) => a + b, 0) / peerNums.length
+          const sorted = [...peerNums].sort((a, b) => a - b)
+          const mid = Math.floor(sorted.length / 2)
+          const median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
+
+          const higherIsBetter = !LOWER_IS_BETTER_CODES.has(def.code)
+          const allVals = [...peerNums, myKpi.value].sort((a, b) => b - a)
+          const rank = higherIsBetter
+            ? allVals.indexOf(myKpi.value) + 1
+            : [...allVals].reverse().indexOf(myKpi.value) + 1
+
+          let signal: 'advantage' | 'neutral' | 'risk' = 'neutral'
+          const pctile = computePercentile(myKpi.value, peerNums)
+          const effectivePctile = higherIsBetter ? pctile : 100 - pctile
+          if (effectivePctile >= 70) signal = 'advantage'
+          else if (effectivePctile <= 30) signal = 'risk'
+
+          comparisonRows.push({
+            code: def.code,
+            label: shortKpiLabel(def.name),
+            myValue: myKpi.value,
+            peerAvg: avg,
+            peerMedian: median,
+            rank,
+            totalInRank: peerNums.length + 1,
+            signal,
+          })
+        }
+
+        if (comparisonRows.length === 0) return null
+
+        const fmtCompact = (v: number) => {
+          if (Math.abs(v) >= 1e9) return `${(v / 1e9).toFixed(1)}B`
+          if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(1)}M`
+          if (Math.abs(v) >= 1e3) return `${(v / 1e3).toFixed(0)}K`
+          return v.toFixed(1)
+        }
+
+        return (
+          <div className="mb-8">
+            <Tooltip>
+              <TooltipTrigger className="text-[15px] font-semibold text-foreground mb-3 flex items-center gap-2 cursor-default bg-transparent border-none p-0 w-fit">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                Peer Benchmark Comparison
+              </TooltipTrigger>
+              <TooltipContent>Side-by-side comparison of your KPIs vs peer averages and medians.</TooltipContent>
+            </Tooltip>
+            <div className="card-premium rounded-xl border border-border bg-card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-[12px]">
+                  <thead>
+                    <tr className="border-b-2 border-border">
+                      <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">KPI</th>
+                      <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Your Value</th>
+                      <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Peer Avg</th>
+                      <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Peer Median</th>
+                      <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Rank</th>
+                      <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Signal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparisonRows.map((row, idx) => (
+                      <tr
+                        key={row.code}
+                        className={`border-b border-border/50 last:border-0 transition-colors ${
+                          idx % 2 === 0 ? '' : 'bg-[var(--color-bg-tertiary)]/10'
+                        }`}
+                      >
+                        <td className="px-3 py-2.5 text-[12px] font-medium text-foreground">{row.label}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-foreground font-semibold">{fmtCompact(row.myValue)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{fmtCompact(row.peerAvg)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{fmtCompact(row.peerMedian)}</td>
+                        <td className="px-3 py-2.5 text-center tabular-nums text-muted-foreground">{row.rank}/{row.totalInRank}</td>
+                        <td className="px-3 py-2.5 text-center">
+                          {row.signal === 'advantage' ? (
+                            <span className="inline-flex items-center gap-1 text-[var(--color-signal-green)]">
+                              <ArrowUp className="h-3 w-3" />
+                              <span className="text-[10px] font-medium">Advantage</span>
+                            </span>
+                          ) : row.signal === 'risk' ? (
+                            <span className="inline-flex items-center gap-1 text-[var(--color-signal-red)]">
+                              <ArrowDown className="h-3 w-3" />
+                              <span className="text-[10px] font-medium">Risk</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-medium text-muted-foreground">Neutral</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-t border-border px-4 py-2 flex items-center justify-between">
+                <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <ArrowUp className="h-2.5 w-2.5 text-[var(--color-signal-green)]" />
+                    Advantage
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <ArrowDown className="h-2.5 w-2.5 text-[var(--color-signal-red)]" />
+                    Risk
+                  </span>
+                </div>
+                <span className="text-[10px] text-muted-foreground">
+                  vs {peerCompanies.length} peer{peerCompanies.length === 1 ? '' : 's'} · FY {effectiveYear}
+                </span>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ================================================================== */}
       {/* Section 4: Peer Comparison Table                                   */}
       {/* ================================================================== */}
       <div className="mb-8">

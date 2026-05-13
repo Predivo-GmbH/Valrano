@@ -31,6 +31,7 @@ import {
   Trash2,
   Sparkles,
   Loader2,
+  Info,
 } from 'lucide-react'
 import {
   RadarChart,
@@ -352,13 +353,23 @@ export function CompanyProfilePage() {
     return reports[0] // already sorted by fiscal_year desc
   }, [reports])
 
-  // Comparability check
-  const accountingStandardMatch = useMemo(() => {
-    if (!accountingProfile) return null
-    // We only have the user's profile; for the peer we'd need a separate query
-    // For now just show the user's standard
-    return accountingProfile.accounting_standard
-  }, [accountingProfile])
+  // Peer's accounting profile (queried by company name match)
+  const { data: peerAccountingProfile } = useQuery({
+    queryKey: ['peer-accounting-profile', company?.name],
+    queryFn: async () => {
+      if (!company?.name) return null
+      const { data, error } = await supabase
+        .from('accounting_profiles')
+        .select('accounting_standard')
+        .eq('company_name', company.name)
+        .maybeSingle()
+      if (error) throw error
+      return data as { accounting_standard: string } | null
+    },
+    enabled: !!company?.name && id !== myCompanyId,
+  })
+
+  const isPeerCompany = !!myCompanyId && id !== myCompanyId
 
   // Radar chart data
   const radarData = useMemo(() => {
@@ -842,6 +853,101 @@ export function CompanyProfilePage() {
             })}
           </div>
         </div>
+
+        {/* ============================================================= */}
+        {/* SECTION 3b: Accounting Standard Comparability Note             */}
+        {/* ============================================================= */}
+        {isPeerCompany && accountingProfile && peerAccountingProfile &&
+          accountingProfile.accounting_standard !== peerAccountingProfile.accounting_standard && (
+          <div className="mb-6 card-premium rounded-xl border border-border bg-card p-4 flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-signal-amber)]/10">
+              <Info className="h-4 w-4 text-[var(--color-signal-amber)]" />
+            </div>
+            <div>
+              <p className="text-[13px] font-medium text-foreground">Different Accounting Standards</p>
+              <p className="mt-0.5 text-[12px] text-muted-foreground">
+                Your company uses <span className="font-semibold text-foreground">{accountingProfile.accounting_standard}</span>, while this company reports under <span className="font-semibold text-foreground">{peerAccountingProfile.accounting_standard}</span>. KPI comparisons may not be fully comparable without adjustments.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================= */}
+        {/* SECTION 3c: KPI Comparison with Signal                         */}
+        {/* ============================================================= */}
+        {isPeerCompany && kpiRows.length > 0 && latestYear && (
+          <>
+            <SectionHeader icon={Target} title="KPI Comparison" subtitle={`FY ${latestYear} — Signal Analysis`} />
+            <div className="mb-6 card-premium rounded-xl border border-border bg-card overflow-x-auto">
+              <div className="hidden sm:grid grid-cols-[1fr_100px_100px_90px_100px] gap-2 border-b border-border px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                <span>KPI Name</span>
+                <span className="text-right">This Company</span>
+                <span className="text-right">Your Company</span>
+                <span className="text-right">Difference</span>
+                <span className="text-right">Signal</span>
+              </div>
+              <div className="divide-y divide-border/30">
+                {kpiRows.map((row) => {
+                  const peerVal = row.peerValues.get(latestYear) ?? null
+                  const myVal = row.myValues.get(latestYear) ?? null
+                  if (peerVal == null || myVal == null) return null
+
+                  const diff = myVal !== 0 ? ((peerVal - myVal) / Math.abs(myVal)) * 100 : null
+                  const lowerBetter = LOWER_IS_BETTER.has(row.code)
+                  // Signal: peer outperforms you = risk, you outperform peer = advantage
+                  const peerBetter = lowerBetter ? peerVal < myVal : peerVal > myVal
+                  const peerWorse = lowerBetter ? peerVal > myVal : peerVal < myVal
+                  const signal = peerBetter ? 'risk' : peerWorse ? 'advantage' : 'neutral'
+
+                  return (
+                    <div
+                      key={row.code}
+                      className="grid grid-cols-2 sm:grid-cols-[1fr_100px_100px_90px_100px] gap-2 px-5 py-2.5 items-center"
+                    >
+                      <div className="col-span-2 sm:col-span-1">
+                        <p className="text-[13px] font-medium text-foreground">{row.name}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[13px] tabular-nums text-foreground">
+                          {formatValue(peerVal, row.unitType)}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[13px] tabular-nums text-foreground">
+                          {formatValue(myVal, row.unitType)}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        {diff != null && isFinite(diff) ? (
+                          <span className={cn('text-[12px] tabular-nums', deltaColor(diff, row.code))}>
+                            {diff > 0 ? '+' : ''}{diff.toFixed(1)}%
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground/60">--</span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        {signal === 'risk' ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-red)]">
+                            <ShieldAlert className="h-3 w-3" /> Risk
+                          </span>
+                        ) : signal === 'advantage' ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-green)]">
+                            <ShieldCheck className="h-3 w-3" /> Advantage
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            <Minus className="h-3 w-3" /> Neutral
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* ============================================================= */}
         {/* SECTION 4: KPI Trend Cards by Category                         */}

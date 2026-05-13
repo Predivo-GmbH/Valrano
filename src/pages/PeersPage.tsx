@@ -31,6 +31,8 @@ import {
   Table2,
   ArrowUpRight,
   ArrowDownRight,
+  Sparkles,
+  Check,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -251,7 +253,7 @@ function AddCompanyDialog({
         }
       }
 
-      const { error } = await supabase
+      const { data: newCompany, error } = await supabase
         .from('companies')
         .insert({
           name: name.trim(),
@@ -265,6 +267,37 @@ function AddCompanyDialog({
         .single()
 
       if (error) throw error
+
+      // Non-blocking: auto-resolve IR URL for the new company
+      if (newCompany?.id && !irUrl.trim()) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session) return
+          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-ir-url`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ company_id: newCompany.id, company_name: newCompany.name }),
+          }).catch(() => {})
+        })
+      }
+
+      // Non-blocking: auto-fetch news for the new company
+      if (newCompany?.id) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session) return
+          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-company-news`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ company_id: newCompany.id }),
+          }).catch(() => {})
+        })
+      }
 
       await queryClient.invalidateQueries({ queryKey: ['companies'] })
       toast.success(`Added "${name.trim()}" to peer group`)
@@ -1184,6 +1217,186 @@ function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
 }
 
 // ---------------------------------------------------------------------------
+// Suggest Peers Section
+// ---------------------------------------------------------------------------
+
+interface SuggestedCompany {
+  name: string
+  ticker: string | null
+  sector: string | null
+  reasoning: string
+  website_domain: string | null
+  existing_id: string | null
+  in_database: boolean
+}
+
+function SuggestPeersSection({
+  companyName,
+  sector,
+  existingPeerNames,
+}: {
+  companyName: string
+  sector: string | null
+  existingPeerNames: string[]
+}) {
+  const queryClient = useQueryClient()
+  const [suggestions, setSuggestions] = useState<SuggestedCompany[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [hasLoaded, setHasLoaded] = useState(false)
+  const [addingName, setAddingName] = useState<string | null>(null)
+  const [addedNames, setAddedNames] = useState<Set<string>>(new Set())
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSuggest = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Not authenticated')
+
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-competitors`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
+            company_name: companyName,
+            sector: sector ?? undefined,
+            exclude_names: existingPeerNames,
+          }),
+        },
+      )
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error ?? `Request failed (${res.status})`)
+      }
+      const data = await res.json() as { suggestions: SuggestedCompany[] }
+      setSuggestions(data.suggestions ?? [])
+      setHasLoaded(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get suggestions')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAdd = async (s: SuggestedCompany) => {
+    setAddingName(s.name)
+    try {
+      if (s.in_database && s.existing_id) {
+        // Company already exists — no need to insert
+        toast.success(`"${s.name}" is already in your peer group`)
+      } else {
+        const websiteUrl = s.website_domain ? `https://${s.website_domain}` : null
+        const { error } = await supabase
+          .from('companies')
+          .insert({
+            name: s.name,
+            ticker: s.ticker ?? null,
+            sector: s.sector ?? null,
+            website_url: websiteUrl,
+          })
+          .select()
+          .single()
+        if (error) throw error
+        await queryClient.invalidateQueries({ queryKey: ['companies'] })
+        toast.success(`Added "${s.name}" to peer group`)
+      }
+      setAddedNames((prev) => new Set(prev).add(s.name))
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add company')
+    } finally {
+      setAddingName(null)
+    }
+  }
+
+  return (
+    <div className="mb-6">
+      <div className="card-premium rounded-xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
+            <span className="text-[13px] font-semibold text-foreground">Suggest Peers</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSuggest}
+            disabled={isLoading}
+            className="text-[11px]"
+          >
+            {isLoading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Sparkles className="h-3 w-3" />
+            )}
+            {isLoading ? 'Finding...' : hasLoaded ? 'Refresh' : 'Find Competitors'}
+          </Button>
+        </div>
+
+        {error && (
+          <p className="text-[12px] text-[var(--color-signal-red)] mb-3">{error}</p>
+        )}
+
+        {!hasLoaded && !isLoading && (
+          <p className="text-[11px] text-muted-foreground">
+            AI will suggest competitors for {companyName} based on sector and market position.
+          </p>
+        )}
+
+        {hasLoaded && suggestions.length === 0 && (
+          <p className="text-[11px] text-muted-foreground">No suggestions found.</p>
+        )}
+
+        {suggestions.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {suggestions.map((s) => {
+              const isAdded = addedNames.has(s.name) || existingPeerNames.includes(s.name) || s.in_database
+              return (
+                <div
+                  key={s.name}
+                  className="rounded-lg border border-border bg-[var(--color-bg-tertiary)]/30 p-3 flex flex-col gap-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <div className="text-[12px] font-medium text-foreground truncate">{s.name}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {[s.ticker, s.sector].filter(Boolean).join(' · ') || 'No details'}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2">{s.reasoning}</p>
+                  <Button
+                    variant={isAdded ? 'ghost' : 'outline'}
+                    size="sm"
+                    className="w-full text-[11px] mt-auto"
+                    disabled={isAdded || addingName === s.name}
+                    onClick={() => handleAdd(s)}
+                  >
+                    {addingName === s.name ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : isAdded ? (
+                      <Check className="h-3 w-3" />
+                    ) : (
+                      <Plus className="h-3 w-3" />
+                    )}
+                    {isAdded ? 'Added' : 'Add to Peers'}
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Competitors Tab (formerly PeersPage content)
 // ---------------------------------------------------------------------------
 
@@ -1404,6 +1617,15 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
               </div>
             </div>
           </div>
+        )}
+
+        {/* Suggest Peers */}
+        {userCompanyName && (
+          <SuggestPeersSection
+            companyName={userCompanyName}
+            sector={userSector}
+            existingPeerNames={peerCards.map((p) => p.company.name)}
+          />
         )}
 
         {/* Content */}

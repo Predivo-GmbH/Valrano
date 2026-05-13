@@ -1,8 +1,36 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
-import { preparePdfForAnalysis } from '../_shared/pdf-text.ts'
+import { extractTextFromPdf } from '../_shared/pdf-text.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
+
+const GEMINI_MODEL = 'gemini-2.5-pro'
+
+// Gemini JSON mode schema for KPI extraction
+const KPI_EXTRACTION_SCHEMA = {
+  type: 'object',
+  properties: {
+    kpis: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          kpi_code: { type: 'string', enum: KPI_CODES as unknown as string[] },
+          raw_value: { type: 'number' },
+          raw_currency: { type: 'string' },
+          raw_label: { type: 'string', description: 'The exact label as printed in the report' },
+          fiscal_year: { type: 'integer' },
+          fiscal_quarter: { type: 'integer', description: 'null for annual reports' },
+          confidence: { type: 'number', description: '0-1 confidence score' },
+          source_page: { type: 'integer' },
+          source_text: { type: 'string', description: 'The surrounding text context' },
+        },
+        required: ['kpi_code', 'raw_value', 'raw_currency', 'raw_label', 'fiscal_year', 'confidence', 'source_page'],
+      },
+    },
+  },
+  required: ['kpis'],
+} as const
 
 // ---------------------------------------------------------------------------
 // KPI codes recognised by the extraction tool
@@ -112,7 +140,7 @@ serve(async (req: Request) => {
       .from('extractions')
       .insert({
         report_id: reportId,
-        model_used: 'claude-sonnet-4-6',
+        model_used: GEMINI_MODEL,
         started_at: new Date().toISOString(),
         status: 'running',
         total_kpis_extracted: 0,
@@ -132,7 +160,8 @@ serve(async (req: Request) => {
     if (downloadError) throw new Error(`PDF download failed: ${downloadError.message}`)
 
     const pdfArrayBuffer = await pdfData.arrayBuffer()
-    const { text: pdfText, pageCount, charCount } = await extractPdfText(pdfArrayBuffer)
+    const { text: pdfText, pageCount, extractedPages } = await extractTextFromPdf(pdfArrayBuffer)
+    const charCount = pdfText.length
 
     if (!pdfText || charCount < 100) {
       return jsonResponse({ error: 'Could not extract text from PDF. The file may be image-only or corrupt.' }, 422)
@@ -141,77 +170,12 @@ serve(async (req: Request) => {
     console.log(`[extract-kpis] Extracted ${charCount} chars from ${pageCount} pages`)
 
     // ------------------------------------------------------------------
-    // 5. Call Claude with extracted text
+    // 5. Call Gemini 2.5 Pro with extracted text
     // ------------------------------------------------------------------
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
-    if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is not set')
+    const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY')
+    if (!geminiApiKey) throw new Error('GOOGLE_AI_API_KEY is not set')
 
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        tools: [
-          {
-            name: 'extract_kpis',
-            description: 'Extract financial and ESG KPIs from this report',
-            input_schema: {
-              type: 'object',
-              properties: {
-                kpis: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      kpi_code: {
-                        type: 'string',
-                        enum: KPI_CODES as unknown as string[],
-                      },
-                      raw_value: { type: 'number' },
-                      raw_currency: { type: 'string' },
-                      raw_label: {
-                        type: 'string',
-                        description: 'The exact label as printed in the report',
-                      },
-                      fiscal_year: { type: 'integer' },
-                      fiscal_quarter: { type: ['integer', 'null'] },
-                      confidence: { type: 'number', minimum: 0, maximum: 1 },
-                      source_page: { type: 'integer' },
-                      source_text: {
-                        type: 'string',
-                        description: 'The surrounding text context',
-                      },
-                    },
-                    required: [
-                      'kpi_code',
-                      'raw_value',
-                      'raw_currency',
-                      'raw_label',
-                      'fiscal_year',
-                      'confidence',
-                      'source_page',
-                    ],
-                  },
-                },
-              },
-              required: ['kpis'],
-            },
-          },
-        ],
-        tool_choice: { type: 'tool', name: 'extract_kpis' },
-        messages: [
-          {
-            role: 'user',
-            content: `You are a financial data extraction expert. Below is the full text extracted from a corporate report for ${companyName}${companyTicker ? ` (${companyTicker})` : ''}.
-
-<annual_report>
-${pdfText}
-</annual_report>
+    const systemPrompt = `You are a financial data extraction expert. Extract KPIs from this corporate report for ${companyName}${companyTicker ? ` (${companyTicker})` : ''}.
 ${accountingProfile ? `
 IMPORTANT CONTEXT — USER'S ACCOUNTING FRAMEWORK:
 The user's company (${accountingProfile.company_name}) uses ${accountingProfile.accounting_standard}.
@@ -248,38 +212,61 @@ For each KPI found:
 - Extract the raw_value as a number (convert "CHF 27.5bn" to 27500 in millions)
 - Record the raw_currency (CHF, EUR, USD, etc.)
 - Record the exact raw_label as printed
-- Note the fiscal_year and fiscal_quarter (null for annual)
+- Note the fiscal_year and fiscal_quarter (use 0 for annual)
 - Assign a confidence score (0-1): 1.0 = clearly stated, 0.9 = derived/calculated, 0.7 = estimated from context
 - Record the source_page number
 - Include surrounding source_text for audit trail${accountingProfile ? '\n- In source_text, note any accounting policy differences vs the user\'s framework (e.g., "Competitor includes restructuring in EBITDA; user excludes it")' : ''}
 
-Important: Values are typically in millions unless stated otherwise. Convert all values to millions.`,
+Important: Values are typically in millions unless stated otherwise. Convert all values to millions.`
+
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [{ text: `<annual_report>\n${pdfText}\n</annual_report>` }],
+          }],
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: KPI_EXTRACTION_SCHEMA,
+            temperature: 0,
           },
-        ],
-      }),
-    })
-
-    if (!claudeResponse.ok) {
-      const errBody = await claudeResponse.text()
-      throw new Error(`Claude API error ${claudeResponse.status}: ${errBody}`)
-    }
-
-    const claudeJson = await claudeResponse.json()
-    await logAnthropicUsage('BenchmarkSignal', 'extract-kpis', claudeJson)
-
-    // ------------------------------------------------------------------
-    // 6. Parse tool-use response
-    // ------------------------------------------------------------------
-    const toolUseBlock = claudeJson.content?.find(
-      (block: { type: string }) => block.type === 'tool_use',
+        }),
+      },
     )
 
-    if (!toolUseBlock) {
-      throw new Error('Claude did not return a tool_use block')
+    if (!geminiResponse.ok) {
+      const errBody = await geminiResponse.text()
+      throw new Error(`Gemini API error ${geminiResponse.status}: ${errBody}`)
     }
 
-    const toolResult = toolUseBlock.input as ClaudeToolResult
-    const extractedKpis: ExtractedKpi[] = toolResult.kpis ?? []
+    const geminiJson = await geminiResponse.json()
+    const inputTokens = geminiJson.usageMetadata?.promptTokenCount ?? 0
+    const outputTokens = geminiJson.usageMetadata?.candidatesTokenCount ?? 0
+
+    await logAnthropicUsage('BenchmarkSignal', 'extract-kpis', {
+      model: GEMINI_MODEL,
+      usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+    })
+
+    // ------------------------------------------------------------------
+    // 6. Parse Gemini JSON response
+    // ------------------------------------------------------------------
+    const candidate = geminiJson.candidates?.[0]
+    if (!candidate?.content?.parts?.[0]?.text) {
+      throw new Error('Gemini did not return a valid response')
+    }
+
+    const parsed = JSON.parse(candidate.content.parts[0].text) as ClaudeToolResult
+    const extractedKpis: ExtractedKpi[] = (parsed.kpis ?? []).map(kpi => ({
+      ...kpi,
+      // Gemini uses 0 for annual (null not supported in JSON schema), convert back
+      fiscal_quarter: kpi.fiscal_quarter === 0 ? null : kpi.fiscal_quarter,
+    }))
 
     // ------------------------------------------------------------------
     // 7. Resolve kpi_definition_id for each KPI code

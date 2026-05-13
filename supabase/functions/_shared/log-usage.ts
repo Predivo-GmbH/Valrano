@@ -13,9 +13,13 @@
 
 // Per-million-token pricing (USD) — update when pricing changes
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  // Anthropic
   'claude-opus-4-6': { input: 15, output: 75 },
   'claude-sonnet-4-6': { input: 3, output: 15 },
   'claude-haiku-4-5-20251001': { input: 1, output: 5 },
+  // Google Gemini
+  'gemini-2.5-pro': { input: 1.25, output: 10 },
+  'gemini-2.5-flash': { input: 0.30, output: 2.50 },
   // Fallback for unknown models
   'default': { input: 3, output: 15 },
 }
@@ -42,6 +46,7 @@ export function logAnthropicUsage(
 
   const pricing = MODEL_PRICING[model] ?? MODEL_PRICING['default']
   const cost = (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000
+  const provider = model.startsWith('gemini') ? 'google' : 'anthropic'
 
   // IMPORTANT: Supabase kills pending fetches when the edge function returns.
   // Callers MUST await this before returning their response.
@@ -54,7 +59,7 @@ export function logAnthropicUsage(
     body: JSON.stringify({
       project_name: projectName,
       edge_function: edgeFunction,
-      provider: 'anthropic',
+      provider,
       model,
       input_tokens: inputTokens,
       output_tokens: outputTokens,

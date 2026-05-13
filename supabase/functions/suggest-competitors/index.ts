@@ -85,7 +85,7 @@ serve(async (req: Request) => {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
         temperature: 0,
         messages: [
@@ -213,7 +213,7 @@ Focus on companies that are:
     await adminClient.from('ai_usage').insert({
       user_id: user.id,
       feature: 'suggest_competitors',
-      model_used: 'claude-sonnet-4-20250514',
+      model_used: 'claude-haiku-4-5-20251001',
       input_tokens: aiResult.usage?.input_tokens ?? 0,
       output_tokens: aiResult.usage?.output_tokens ?? 0,
     })

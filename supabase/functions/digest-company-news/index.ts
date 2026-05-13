@@ -13,7 +13,30 @@ import { logAnthropicUsage } from '../_shared/log-usage.ts'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
+const GEMINI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY')!
+const GEMINI_MODEL = 'gemini-2.5-flash'
+
+const DIGEST_SCHEMA = {
+  type: 'object',
+  properties: {
+    summary: { type: 'string', description: '2-4 sentence narrative overview of key developments' },
+    key_events: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          date: { type: 'string' },
+          title: { type: 'string' },
+          impact: { type: 'string', enum: ['high', 'medium', 'low'] },
+          category: { type: 'string' },
+        },
+        required: ['date', 'title', 'impact', 'category'],
+      },
+    },
+    sentiment_trend: { type: 'string', enum: ['improving', 'stable', 'deteriorating', 'mixed'] },
+  },
+  required: ['summary', 'key_events', 'sentiment_trend'],
+} as const
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
@@ -33,21 +56,24 @@ async function generateDigest(
     .map((a, i) => `[${i + 1}] ${a.published_at?.slice(0, 10) ?? '?'} | ${a.sentiment ?? '?'} | ${a.title}${a.ai_summary ? ` — ${a.ai_summary}` : ''}`)
     .join('\n')
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
+  const systemPrompt = `You are a financial news analyst creating a digest for "${companyName}" covering ${periodStart} to ${periodEnd}.`
+
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: `Here are ${articles.length} news articles:\n\n${articleList}` }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: DIGEST_SCHEMA,
+          temperature: 0,
+        },
+      }),
     },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6-20250514',
-      max_tokens: 2000,
-      temperature: 0,
-      system: `You are a financial news analyst creating a digest for "${companyName}" covering ${periodStart} to ${periodEnd}. Return ONLY valid JSON with: {summary: string (2-4 sentence narrative overview of key developments), key_events: [{date: "YYYY-MM-DD", title: string, impact: "high"|"medium"|"low", category: string}], sentiment_trend: "improving"|"stable"|"deteriorating"|"mixed"}. No markdown.`,
-      messages: [{ role: 'user', content: `Here are ${articles.length} news articles:\n\n${articleList}` }],
-    }),
-  })
+  )
 
   if (!resp.ok) {
     console.error('Digest generation failed:', resp.status)
@@ -55,10 +81,19 @@ async function generateDigest(
   }
 
   const data = await resp.json()
-  await logAnthropicUsage('BenchmarkSignal', 'digest-company-news', data)
-  const text = data.content?.[0]?.text ?? '{}'
-  const jsonStr = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim()
-  return JSON.parse(jsonStr) as DigestResult
+  const inputTokens = data.usageMetadata?.promptTokenCount ?? 0
+  const outputTokens = data.usageMetadata?.candidatesTokenCount ?? 0
+  await logAnthropicUsage('BenchmarkSignal', 'digest-company-news', {
+    model: GEMINI_MODEL,
+    usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+  })
+
+  const candidate = data.candidates?.[0]
+  if (!candidate?.content?.parts?.[0]?.text) {
+    return { summary: 'Digest generation failed.', key_events: [], sentiment_trend: 'stable' }
+  }
+
+  return JSON.parse(candidate.content.parts[0].text) as DigestResult
 }
 
 async function createDigestForCompany(
@@ -115,7 +150,7 @@ async function createDigestForCompany(
       key_events: result.key_events,
       sentiment_trend: result.sentiment_trend,
       article_count: articles.length,
-      ai_model_used: 'claude-sonnet-4-6',
+      ai_model_used: GEMINI_MODEL,
     })
 
   if (error) {

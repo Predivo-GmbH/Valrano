@@ -4,20 +4,39 @@ import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/aut
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 /**
- * suggest-ir-url — AI-powered IR page discovery
+ * suggest-ir-url — Data-driven IR page discovery
  *
- * Given a company name, finds the investor relations page URL.
- * Validates it exists via HEAD request, then stores it on the company record.
+ * 1. Gets the company's website_url from DB (resolved via Brandfetch)
+ * 2. Crawls the website via Firecrawl map endpoint to find all pages
+ * 3. Uses Gemini 2.5 Flash to identify the IR page from the sitemap
+ * 4. Validates the URL via HEAD request
+ * 5. Stores on company record
  *
- * Uses Claude to construct the most likely IR URL, then validates it.
+ * Falls back to Gemini-only guess if Firecrawl unavailable.
  */
 
-// AI suggestion limits per tier per month
+const GEMINI_MODEL = 'gemini-2.5-flash'
+
 const TIER_LIMITS: Record<string, number> = {
   starter: 5,
   professional: 50,
   enterprise: 999,
 }
+
+const IR_URL_SCHEMA = {
+  type: 'object',
+  properties: {
+    ir_page_url: { type: 'string', description: 'The investor relations page URL' },
+    alternative_urls: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'Alternative URLs to try if the primary fails',
+    },
+    confidence: { type: 'number', description: '0-1 confidence score' },
+    source: { type: 'string', enum: ['sitemap_match', 'page_content', 'url_pattern', 'estimated'] },
+  },
+  required: ['ir_page_url', 'confidence', 'source'],
+} as const
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -37,7 +56,7 @@ serve(async (req: Request) => {
     // ------------------------------------------------------------------
     const { data: company } = await adminClient
       .from('companies')
-      .select('ir_page_url')
+      .select('ir_page_url, website_url')
       .eq('id', company_id)
       .single()
 
@@ -83,90 +102,165 @@ serve(async (req: Request) => {
     }
 
     // ------------------------------------------------------------------
-    // 3. Call Claude to find the IR page URL
+    // 3. Crawl company website via Firecrawl map endpoint
     // ------------------------------------------------------------------
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
-    if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is not set')
+    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY')
+    const websiteUrl = company?.website_url
+    let sitemapUrls: string[] = []
+    let scrapedIrContent = ''
 
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 512,
-        tools: [
-          {
-            name: 'suggest_ir_url',
-            description: 'Suggest the investor relations page URL for a company',
-            input_schema: {
-              type: 'object',
-              properties: {
-                ir_page_url: {
-                  type: 'string',
-                  description: 'The most likely investor relations page URL',
-                },
-                alternative_urls: {
-                  type: 'array',
-                  items: { type: 'string' },
-                  description: 'Alternative URLs to try if the primary fails',
-                },
-                confidence: {
-                  type: 'number',
-                  minimum: 0,
-                  maximum: 1,
-                },
-              },
-              required: ['ir_page_url', 'confidence'],
-            },
+    if (firecrawlApiKey && websiteUrl) {
+      try {
+        // Use Firecrawl /map to get all URLs on the site
+        const mapResp = await fetch('https://api.firecrawl.dev/v1/map', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${firecrawlApiKey}`,
           },
-        ],
-        tool_choice: { type: 'tool', name: 'suggest_ir_url' },
-        messages: [
-          {
-            role: 'user',
-            content: `What is the investor relations page URL for "${company_name}"?
+          body: JSON.stringify({
+            url: `https://${websiteUrl}`,
+            limit: 200,
+          }),
+          signal: AbortSignal.timeout(15000),
+        })
+
+        if (mapResp.ok) {
+          const mapData = await mapResp.json()
+          sitemapUrls = (mapData.links ?? []) as string[]
+          console.log(`[suggest-ir-url] Found ${sitemapUrls.length} URLs on ${websiteUrl}`)
+        }
+
+        // Log Firecrawl usage
+        await adminClient.from('api_request_logs').insert({
+          service: 'firecrawl',
+          endpoint: '/v1/map',
+          call_count: 1,
+          user_id: user.id,
+          edge_function: 'suggest-ir-url',
+        }).then(({ error }) => {
+          if (error) console.error('Failed to log Firecrawl usage:', error.message)
+        })
+      } catch (err) {
+        console.error(`[suggest-ir-url] Firecrawl map error:`, (err as Error).message)
+      }
+
+      // If we found URLs, filter for likely IR pages and scrape the best candidate
+      if (sitemapUrls.length > 0) {
+        const irPatterns = /\/(investor|ir|investors|investor-relations|aktionaere|financial-results|publications|annual-report)/i
+        const irCandidates = sitemapUrls.filter(url => irPatterns.test(url))
+
+        if (irCandidates.length > 0) {
+          // Scrape the most likely IR page for content verification
+          try {
+            const scrapeResp = await fetch('https://api.firecrawl.dev/v1/scrape', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${firecrawlApiKey}`,
+              },
+              body: JSON.stringify({
+                url: irCandidates[0],
+                formats: ['markdown'],
+                onlyMainContent: true,
+                timeout: 10000,
+              }),
+              signal: AbortSignal.timeout(15000),
+            })
+
+            if (scrapeResp.ok) {
+              const scrapeData = await scrapeResp.json()
+              scrapedIrContent = scrapeData.data?.markdown ?? ''
+            }
+
+            await adminClient.from('api_request_logs').insert({
+              service: 'firecrawl',
+              endpoint: '/v1/scrape',
+              call_count: 1,
+              user_id: user.id,
+              edge_function: 'suggest-ir-url',
+            }).then(({ error }) => {
+              if (error) console.error('Failed to log Firecrawl usage:', error.message)
+            })
+          } catch (err) {
+            console.error(`[suggest-ir-url] Firecrawl scrape error:`, (err as Error).message)
+          }
+        }
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // 4. Call Gemini 2.5 Flash to identify the IR page
+    // ------------------------------------------------------------------
+    const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY')
+    if (!geminiApiKey) throw new Error('GOOGLE_AI_API_KEY is not set')
+
+    const sitemapSection = sitemapUrls.length > 0
+      ? `\n\nSITEMAP URLS found on ${websiteUrl}:\n${sitemapUrls.slice(0, 100).join('\n')}\n\nSelect the URL that is most likely the investor relations landing page.`
+      : ''
+
+    const scrapedSection = scrapedIrContent
+      ? `\n\nSCRAPED CONTENT from candidate IR page:\n<ir_page>\n${scrapedIrContent.slice(0, 5000)}\n</ir_page>\n\nVerify this page contains investor relations content (annual reports, financial calendar, press releases).`
+      : ''
+
+    const userPrompt = `Find the investor relations page URL for "${company_name}".
+${websiteUrl ? `Known website: ${websiteUrl}` : 'No website URL known.'}
 
 This is a building materials / construction industry company. I need the URL to the main investor relations landing page where they publish annual reports, quarterly results, and financial publications.
+${sitemapSection}${scrapedSection}
 
-Common patterns:
+If sitemap URLs are available, pick from those (confidence 0.9+).
+If no sitemap, construct the most likely URL based on common patterns (confidence 0.5-0.7):
 - https://www.company.com/investors
 - https://www.company.com/investor-relations
 - https://www.company.com/en/investors
-- https://investors.company.com
+- https://investors.company.com`
 
-Return the most likely URL. Only return URLs you are confident about — these will be validated.`,
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+          systemInstruction: { parts: [{ text: 'You are an expert at finding investor relations pages on corporate websites. Identify the correct IR page URL.' }] },
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: IR_URL_SCHEMA,
+            temperature: 0,
           },
-        ],
-      }),
-    })
-
-    if (!claudeResponse.ok) {
-      const errBody = await claudeResponse.text()
-      throw new Error(`Claude API error ${claudeResponse.status}: ${errBody}`)
-    }
-
-    const claudeJson = await claudeResponse.json()
-    await logAnthropicUsage('BenchmarkSignal', 'suggest-ir-url', claudeJson)
-    const toolUseBlock = claudeJson.content?.find(
-      (block: { type: string }) => block.type === 'tool_use',
+        }),
+      },
     )
 
-    if (!toolUseBlock) {
-      throw new Error('Claude did not return a suggestion')
+    if (!geminiResponse.ok) {
+      const errBody = await geminiResponse.text()
+      throw new Error(`Gemini API error ${geminiResponse.status}: ${errBody}`)
     }
 
-    const suggestion = toolUseBlock.input as {
+    const geminiJson = await geminiResponse.json()
+    const inputTokens = geminiJson.usageMetadata?.promptTokenCount ?? 0
+    const outputTokens = geminiJson.usageMetadata?.candidatesTokenCount ?? 0
+
+    await logAnthropicUsage('BenchmarkSignal', 'suggest-ir-url', {
+      model: GEMINI_MODEL,
+      usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+    })
+
+    const candidate = geminiJson.candidates?.[0]
+    if (!candidate?.content?.parts?.[0]?.text) {
+      throw new Error('Gemini did not return a valid response')
+    }
+
+    const suggestion = JSON.parse(candidate.content.parts[0].text) as {
       ir_page_url: string
       alternative_urls?: string[]
       confidence: number
+      source: string
     }
 
     // ------------------------------------------------------------------
-    // 4. Validate the URL via HEAD request
+    // 5. Validate the URL via HEAD request
     // ------------------------------------------------------------------
     let validatedUrl: string | null = null
     const urlsToTry = [suggestion.ir_page_url, ...(suggestion.alternative_urls ?? [])]
@@ -179,7 +273,6 @@ Return the most likely URL. Only return URLs you are confident about — these w
           signal: AbortSignal.timeout(5000),
         })
         if (resp.ok || resp.status === 405) {
-          // 405 = method not allowed but page exists
           validatedUrl = url
           break
         }
@@ -189,7 +282,7 @@ Return the most likely URL. Only return URLs you are confident about — these w
     }
 
     // ------------------------------------------------------------------
-    // 5. Store on company if validated
+    // 6. Store on company if validated
     // ------------------------------------------------------------------
     if (validatedUrl) {
       await adminClient
@@ -199,21 +292,23 @@ Return the most likely URL. Only return URLs you are confident about — these w
     }
 
     // ------------------------------------------------------------------
-    // 6. Track usage
+    // 7. Track usage
     // ------------------------------------------------------------------
     await adminClient.from('ai_usage').insert({
       user_id: user.id,
       feature: 'suggest_ir_url',
-      model_used: 'claude-haiku-4-5-20251001',
-      input_tokens: claudeJson.usage?.input_tokens ?? 0,
-      output_tokens: claudeJson.usage?.output_tokens ?? 0,
+      model_used: GEMINI_MODEL,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
     })
 
     return jsonResponse({
       ir_page_url: validatedUrl ?? suggestion.ir_page_url,
       validated: !!validatedUrl,
       confidence: suggestion.confidence,
+      source: suggestion.source,
       stored: !!validatedUrl,
+      sitemap_urls_found: sitemapUrls.length,
       usage: {
         used: used + 1,
         limit,

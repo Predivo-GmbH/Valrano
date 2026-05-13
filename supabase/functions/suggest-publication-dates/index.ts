@@ -4,24 +4,46 @@ import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/aut
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 /**
- * suggest-publication-dates — AI-powered date/time prediction
+ * suggest-publication-dates — Data-driven date prediction
  *
- * Given a company name + report type + fiscal year, predicts when the report
- * will likely be published based on:
- * - Company's historical publication pattern (from DB)
- * - Industry norms
- * - Known public information
+ * 1. Scrapes the company's IR page via Firecrawl to find past publication dates
+ * 2. Uses Gemini 2.5 Flash to parse scraped content into structured dates
+ * 3. Projects the next publication date based on historical pattern
  *
- * Returns: suggested date, time, confidence, reasoning.
- * Gated by subscription tier (tracked in ai_usage table).
+ * Falls back to Gemini-only prediction if IR page unavailable.
  */
 
-// AI suggestion limits per tier per month
+const GEMINI_MODEL = 'gemini-2.5-flash'
+
 const TIER_LIMITS: Record<string, number> = {
   starter: 5,
   professional: 50,
   enterprise: 999,
 }
+
+const SUGGESTION_SCHEMA = {
+  type: 'object',
+  properties: {
+    suggested_date: { type: 'string', description: 'ISO date (YYYY-MM-DD) of expected publication' },
+    suggested_time: { type: 'string', description: 'Time in HH:MM format (24h, CET timezone)' },
+    confidence: { type: 'number', description: '0-1 confidence score' },
+    reasoning: { type: 'string', description: 'Brief explanation (1-2 sentences)' },
+    source: { type: 'string', enum: ['ir_page_scraped', 'historical_pattern', 'industry_norm', 'estimated'] },
+    historical_dates_found: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          fiscal_year: { type: 'integer' },
+          report_type: { type: 'string' },
+          publication_date: { type: 'string' },
+        },
+      },
+      description: 'Past publication dates found on the IR page',
+    },
+  },
+  required: ['suggested_date', 'suggested_time', 'confidence', 'reasoning', 'source'],
+} as const
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -48,7 +70,6 @@ serve(async (req: Request) => {
     const tier = subscription?.tier ?? 'starter'
     const limit = TIER_LIMITS[tier] ?? 5
 
-    // Count usage this month
     const startOfMonth = new Date()
     startOfMonth.setDate(1)
     startOfMonth.setHours(0, 0, 0, 0)
@@ -76,12 +97,27 @@ serve(async (req: Request) => {
     }
 
     // ------------------------------------------------------------------
-    // 2. Load company history + pattern from DB
+    // 2. Load company data + IR page URL
     // ------------------------------------------------------------------
+    let irPageUrl: string | null = null
+    let websiteUrl: string | null = null
     let historicalContext = ''
 
     if (company_id) {
-      // Check for existing publication events for this company
+      const { data: companyData } = await adminClient
+        .from('companies')
+        .select('ir_page_url, website_url, typical_publication_pattern')
+        .eq('id', company_id)
+        .single()
+
+      irPageUrl = companyData?.ir_page_url ?? null
+      websiteUrl = companyData?.website_url ?? null
+
+      if (companyData?.typical_publication_pattern) {
+        historicalContext += `\nStored publication pattern: ${JSON.stringify(companyData.typical_publication_pattern)}`
+      }
+
+      // Load existing publication events for pattern
       const { data: pastEvents } = await adminClient
         .from('publication_events')
         .select('report_type, fiscal_year, expected_date, expected_time, actual_detected_at')
@@ -90,137 +126,152 @@ serve(async (req: Request) => {
         .limit(5)
 
       if (pastEvents && pastEvents.length > 0) {
-        historicalContext = `\n\nHistorical publication data for this company:\n` +
+        historicalContext += `\n\nHistorical publication data from DB:\n` +
           pastEvents.map(e =>
             `- FY${e.fiscal_year} ${e.report_type}: expected ${e.expected_date}${e.expected_time ? ' at ' + e.expected_time : ''}` +
             (e.actual_detected_at ? ` (actually published ${e.actual_detected_at})` : '')
           ).join('\n')
       }
+    }
 
-      // Check company's typical pattern
-      const { data: company } = await adminClient
-        .from('companies')
-        .select('typical_publication_pattern')
-        .eq('id', company_id)
-        .single()
+    // ------------------------------------------------------------------
+    // 3. Scrape IR page via Firecrawl (if URL available)
+    // ------------------------------------------------------------------
+    let scrapedContent = ''
+    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY')
 
-      if (company?.typical_publication_pattern) {
-        historicalContext += `\n\nStored publication pattern: ${JSON.stringify(company.typical_publication_pattern)}`
+    if (firecrawlApiKey && (irPageUrl || websiteUrl)) {
+      const urlToScrape = irPageUrl ?? `https://${websiteUrl}/investors`
+
+      try {
+        const scrapeResp = await fetch('https://api.firecrawl.dev/v1/scrape', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${firecrawlApiKey}`,
+          },
+          body: JSON.stringify({
+            url: urlToScrape,
+            formats: ['markdown'],
+            onlyMainContent: true,
+            timeout: 15000,
+          }),
+          signal: AbortSignal.timeout(20000),
+        })
+
+        if (scrapeResp.ok) {
+          const scrapeData = await scrapeResp.json()
+          scrapedContent = scrapeData.data?.markdown ?? ''
+
+          // Log Firecrawl usage
+          await adminClient.from('api_request_logs').insert({
+            service: 'firecrawl',
+            endpoint: '/v1/scrape',
+            call_count: 1,
+            user_id: user.id,
+            edge_function: 'suggest-publication-dates',
+          }).then(({ error }) => {
+            if (error) console.error('Failed to log Firecrawl usage:', error.message)
+          })
+
+          console.log(`[suggest-dates] Scraped ${scrapedContent.length} chars from ${urlToScrape}`)
+        } else {
+          console.error(`[suggest-dates] Firecrawl scrape failed: ${scrapeResp.status}`)
+        }
+      } catch (err) {
+        console.error(`[suggest-dates] Firecrawl scrape error:`, (err as Error).message)
       }
     }
 
     // ------------------------------------------------------------------
-    // 3. Call Claude for prediction
+    // 4. Call Gemini 2.5 Flash to analyze and predict
     // ------------------------------------------------------------------
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
-    if (!anthropicApiKey) throw new Error('ANTHROPIC_API_KEY is not set')
+    const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY')
+    if (!geminiApiKey) throw new Error('GOOGLE_AI_API_KEY is not set')
 
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        tools: [
-          {
-            name: 'suggest_publication_date',
-            description: 'Suggest the expected publication date and time for a corporate report',
-            input_schema: {
-              type: 'object',
-              properties: {
-                suggested_date: {
-                  type: 'string',
-                  description: 'ISO date (YYYY-MM-DD) of expected publication',
-                },
-                suggested_time: {
-                  type: 'string',
-                  description: 'Time in HH:MM format (24h, CET timezone). Most European companies publish at 06:00-07:30 CET.',
-                },
-                confidence: {
-                  type: 'number',
-                  minimum: 0,
-                  maximum: 1,
-                  description: '0-1 confidence score. 0.9+ if based on confirmed pattern, 0.5-0.8 if estimated.',
-                },
-                reasoning: {
-                  type: 'string',
-                  description: 'Brief explanation of why this date/time was chosen (1-2 sentences)',
-                },
-                source: {
-                  type: 'string',
-                  enum: ['historical_pattern', 'industry_norm', 'public_announcement', 'estimated'],
-                  description: 'Primary source for this prediction',
-                },
-              },
-              required: ['suggested_date', 'suggested_time', 'confidence', 'reasoning', 'source'],
-            },
-          },
-        ],
-        tool_choice: { type: 'tool', name: 'suggest_publication_date' },
-        messages: [
-          {
-            role: 'user',
-            content: `You are a corporate finance research assistant. Predict when ${company_name} will publish their ${report_type} report for fiscal year ${fiscal_year}.
+    const scrapedSection = scrapedContent
+      ? `\n\nSCRAPED IR PAGE CONTENT (from ${irPageUrl ?? websiteUrl}):\n<ir_page>\n${scrapedContent.slice(0, 15000)}\n</ir_page>\n\nIMPORTANT: Look for actual past publication dates, financial calendars, or reporting schedules in the scraped content above. These are the most reliable source.`
+      : '\n\nNo IR page content available — use industry norms and general knowledge.'
+
+    const systemPrompt = `You are a corporate finance research assistant predicting publication dates for financial reports. Use real data from the company's IR page when available.`
+
+    const userPrompt = `Predict when ${company_name} will publish their ${report_type} report for fiscal year ${fiscal_year}.
 
 Context:
 - Report type: ${report_type} (annual = full year results, quarterly = Q1-Q4, half_year = H1/H2, sustainability = ESG/CSR)
 - Fiscal year: ${fiscal_year}
 - Today: ${new Date().toISOString().split('T')[0]}
-- Industry: Building materials / construction (most companies in this sector publish annual results in February-March)
-${historicalContext}
+- Industry: Building materials / construction
+${historicalContext}${scrapedSection}
 
-Important guidelines:
-- Annual reports for European building materials companies typically publish in February-March of the following year
-- US companies tend to publish earlier (January-February)
-- Quarterly reports typically come 4-6 weeks after quarter end
-- Most large-caps publish early morning (06:00-07:30 CET) to allow market absorption before trading opens
-- If you have historical data, extrapolate the pattern (same weekday, similar date range)
-- Be honest about confidence: high (0.9+) only if you have strong pattern data or public announcement`,
+Guidelines:
+- If the IR page contains a financial calendar with scheduled dates, use those directly (confidence 0.95+)
+- If the IR page shows past publication dates, extrapolate the pattern (confidence 0.8-0.9)
+- If only DB history exists, use that pattern (confidence 0.7-0.8)
+- If no data, estimate from industry norms (confidence 0.4-0.6)
+- Annual reports for European building materials companies: typically February-March
+- Most large-caps publish early morning (06:00-07:30 CET)
+- Extract any historical dates you find in the scraped content into historical_dates_found`
+
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: SUGGESTION_SCHEMA,
+            temperature: 0,
           },
-        ],
-      }),
-    })
-
-    if (!claudeResponse.ok) {
-      const errBody = await claudeResponse.text()
-      throw new Error(`Claude API error ${claudeResponse.status}: ${errBody}`)
-    }
-
-    const claudeJson = await claudeResponse.json()
-    await logAnthropicUsage('BenchmarkSignal', 'suggest-publication-dates', claudeJson)
-    const toolUseBlock = claudeJson.content?.find(
-      (block: { type: string }) => block.type === 'tool_use',
+        }),
+      },
     )
 
-    if (!toolUseBlock) {
-      throw new Error('Claude did not return a suggestion')
+    if (!geminiResponse.ok) {
+      const errBody = await geminiResponse.text()
+      throw new Error(`Gemini API error ${geminiResponse.status}: ${errBody}`)
     }
 
-    const suggestion = toolUseBlock.input as {
+    const geminiJson = await geminiResponse.json()
+    const inputTokens = geminiJson.usageMetadata?.promptTokenCount ?? 0
+    const outputTokens = geminiJson.usageMetadata?.candidatesTokenCount ?? 0
+
+    await logAnthropicUsage('BenchmarkSignal', 'suggest-publication-dates', {
+      model: GEMINI_MODEL,
+      usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+    })
+
+    const candidate = geminiJson.candidates?.[0]
+    if (!candidate?.content?.parts?.[0]?.text) {
+      throw new Error('Gemini did not return a valid response')
+    }
+
+    const suggestion = JSON.parse(candidate.content.parts[0].text) as {
       suggested_date: string
       suggested_time: string
       confidence: number
       reasoning: string
       source: string
+      historical_dates_found?: Array<{ fiscal_year: number; report_type: string; publication_date: string }>
     }
 
     // ------------------------------------------------------------------
-    // 4. Track usage
+    // 5. Track usage
     // ------------------------------------------------------------------
     await adminClient.from('ai_usage').insert({
       user_id: user.id,
       feature: 'suggest_dates',
-      model_used: 'claude-haiku-4-5-20251001',
-      input_tokens: claudeJson.usage?.input_tokens ?? 0,
-      output_tokens: claudeJson.usage?.output_tokens ?? 0,
+      model_used: GEMINI_MODEL,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
     })
 
     return jsonResponse({
       suggestion,
+      data_source: scrapedContent ? 'ir_page_scraped' : 'ai_prediction',
       usage: {
         used: used + 1,
         limit,

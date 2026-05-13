@@ -5,6 +5,7 @@ import { PremiumSelect } from '@/components/ui/premium-select'
 import { useAllNews, useFetchNews } from '@/hooks/useNews'
 import { useCompanies } from '@/hooks/useData'
 import type { CompanyNews } from '@/types/database'
+import { toast } from 'sonner'
 
 const TOPIC_OPTIONS = [
   'earnings', 'M&A', 'ESG', 'restructuring', 'legal', 'product',
@@ -97,6 +98,26 @@ export default function NewsPage() {
     limit: 500,
   })
   const fetchNews = useFetchNews()
+  const [fetchingAll, setFetchingAll] = useState(false)
+
+  const handleFetchAll = async () => {
+    if (!companies?.length) return
+    setFetchingAll(true)
+    let totalNew = 0
+    try {
+      for (const company of companies) {
+        try {
+          const result = await fetchNews.mutateAsync(company.id)
+          totalNew += result?.new_articles ?? 0
+        } catch {
+          // Skip failures for individual companies
+        }
+      }
+      toast.success(`Fetched ${totalNew} new article${totalNew !== 1 ? 's' : ''} across ${companies.length} companies`)
+    } finally {
+      setFetchingAll(false)
+    }
+  }
 
   // Filter by search
   const filteredNews = useMemo(() => {
@@ -148,12 +169,13 @@ export default function NewsPage() {
         <button
           onClick={() => {
             if (selectedCompany) fetchNews.mutate(selectedCompany)
+            else handleFetchAll()
           }}
-          disabled={!selectedCompany || fetchNews.isPending}
+          disabled={fetchNews.isPending || fetchingAll || (!selectedCompany && !companies?.length)}
           className="flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-white transition-all hover:brightness-110 disabled:opacity-50 cursor-pointer"
         >
-          <RefreshCw className={`h-4 w-4 ${fetchNews.isPending ? 'animate-spin' : ''}`} />
-          Refresh News
+          <RefreshCw className={`h-4 w-4 ${fetchNews.isPending || fetchingAll ? 'animate-spin' : ''}`} />
+          {selectedCompany ? 'Refresh News' : 'Fetch All News'}
         </button>
       </div>
 
