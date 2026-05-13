@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft,
   Building2,
@@ -28,6 +28,7 @@ import {
   Zap,
   BookOpen,
   Plus,
+  Pencil,
   Trash2,
   Sparkles,
   Loader2,
@@ -114,7 +115,7 @@ const SENTIMENT_STYLES: Record<string, string> = {
 function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
   if (!websiteUrl) return null
   try {
-    const domain = new URL(websiteUrl).hostname
+    const domain = new URL(websiteUrl).hostname.replace(/^www\./, '')
     return `https://logo.brandfetch.com/${domain}`
   } catch {
     return null
@@ -204,6 +205,7 @@ function Sparkline({
 
 export function CompanyProfilePage() {
   const { id } = useParams<{ id: string }>()
+  const queryClient = useQueryClient()
 
   // Core data
   const { data: companies, isLoading: companiesLoading } = useAllCompanies()
@@ -498,7 +500,7 @@ export function CompanyProfilePage() {
 
               {/* Links */}
               <div className="mt-3 flex flex-wrap gap-2">
-                {company.website_url && (
+                {company.website_url ? (
                   <a
                     href={company.website_url}
                     target="_blank"
@@ -508,6 +510,34 @@ export function CompanyProfilePage() {
                     <Globe className="h-3.5 w-3.5" /> Website{' '}
                     <ExternalLink className="h-3 w-3" />
                   </a>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                    onClick={async () => {
+                      const url = window.prompt('Enter website URL (e.g. https://www.holcim.com):')
+                      if (!url?.trim()) return
+                      try {
+                        new URL(url.trim())
+                      } catch {
+                        alert('Please enter a valid URL starting with https://')
+                        return
+                      }
+                      const { error } = await supabase
+                        .from('companies')
+                        .update({ website_url: url.trim() })
+                        .eq('id', company.id)
+                      if (error) {
+                        alert('Failed to update: ' + error.message)
+                      } else {
+                        queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                      }
+                    }}
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Add website
+                    <Pencil className="h-3 w-3" />
+                  </button>
                 )}
                 {company.ir_page_url && (
                   <a

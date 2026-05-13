@@ -46,7 +46,7 @@ import { ReviewPage } from './ReviewPage'
 function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
   if (!websiteUrl) return null
   try {
-    const domain = new URL(websiteUrl).hostname
+    const domain = new URL(websiteUrl).hostname.replace(/^www\./, '')
     return `https://logo.brandfetch.com/${domain}`
   } catch {
     return null
@@ -145,6 +145,7 @@ function AddCompanyDialog({
   const [ticker, setTicker] = useState('')
   const [exchange, setExchange] = useState('')
   const [sector, setSector] = useState('')
+  const [websiteUrl, setWebsiteUrl] = useState('')
   const [irUrl, setIrUrl] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [nameError, setNameError] = useState(false)
@@ -168,6 +169,7 @@ function AddCompanyDialog({
     setTicker('')
     setExchange('')
     setSector('')
+    setWebsiteUrl('')
     setIrUrl('')
     setNameError(false)
   }
@@ -195,6 +197,7 @@ function AddCompanyDialog({
           ticker: ticker.trim().toUpperCase() || null,
           exchange: exchange || null,
           sector: sector || null,
+          website_url: websiteUrl.trim() || null,
           ir_page_url: irUrl.trim() || null,
         })
         .select()
@@ -289,6 +292,23 @@ function AddCompanyDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Website URL (used for logo) */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Website
+            </Label>
+            <Input
+              type="url"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              placeholder="https://www.holcim.com"
+              className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Used to fetch the company logo automatically
+            </p>
           </div>
 
           {/* IR Page URL */}
@@ -994,7 +1014,10 @@ const peerTabCls = (isActive: boolean) =>
 
 export function PeersPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const activeTab = (searchParams.get('tab') as PeerTabId) || 'competitors'
+  const rawTab = searchParams.get('tab') || 'competitors'
+  // tab=upload is handled by CompetitorsTab with auto-open dialog
+  const activeTab = (rawTab === 'upload' ? 'competitors' : rawTab) as PeerTabId
+  const autoUploadCompanyId = rawTab === 'upload' ? searchParams.get('company') ?? undefined : undefined
 
   return (
     <>
@@ -1038,7 +1061,7 @@ export function PeersPage() {
           id={`peer-tabpanel-${activeTab}`}
           aria-labelledby={`peer-tab-${activeTab}`}
         >
-          {activeTab === 'competitors' && <CompetitorsTab />}
+          {activeTab === 'competitors' && <CompetitorsTab autoUploadCompanyId={autoUploadCompanyId} />}
           {activeTab === 'calendar' && <CalendarPage embedded />}
           {activeTab === 'review' && <ReviewPage embedded />}
         </div>
@@ -1090,9 +1113,9 @@ function ViewToggle({ view, onChange }: { view: ViewMode; onChange: (v: ViewMode
 // Competitors Tab (formerly PeersPage content)
 // ---------------------------------------------------------------------------
 
-function CompetitorsTab() {
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
-  const [uploadCompanyId, setUploadCompanyId] = useState<string | undefined>(undefined)
+function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string }) {
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(!!autoUploadCompanyId)
+  const [uploadCompanyId, setUploadCompanyId] = useState<string | undefined>(autoUploadCompanyId)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
