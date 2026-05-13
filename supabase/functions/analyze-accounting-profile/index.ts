@@ -525,6 +525,12 @@ For MENTIONED COMPETITORS: Scan the ENTIRE document for companies explicitly nam
         .from('companies')
         .update({ name: result.company_name as string })
         .eq('id', report.company_id)
+
+      // Sync name to my_companies so Settings > My Company shows the real name
+      await adminClient
+        .from('my_companies')
+        .update({ name: result.company_name as string })
+        .eq('company_id', report.company_id)
     }
 
     console.log(`[analyze] Tokens: ${inputTokens} in / ${outputTokens} out | Cost: $${estimatedCostUsd.toFixed(4)} | Company: ${companyName} | PDF: ${pdfSizeMB}MB`)

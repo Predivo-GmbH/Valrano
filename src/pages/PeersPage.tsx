@@ -823,10 +823,10 @@ function PeerCard({
       </div>
 
       {/* Action buttons */}
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link
           to={`/companies/${company.id}`}
-          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'flex-1')}
+          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'min-w-0')}
         >
           <Eye className="h-3.5 w-3.5" />
           View Profile
@@ -835,7 +835,6 @@ function PeerCard({
           variant="outline"
           size="sm"
           onClick={() => onUpload(company.id)}
-          className="flex-1"
         >
           <Upload className="h-3.5 w-3.5" />
           Upload Report
