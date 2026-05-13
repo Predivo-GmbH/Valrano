@@ -1231,8 +1231,10 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
     },
   })
 
-  // Build card data
-  const peerCards: PeerCardData[] = (companies ?? []).map((company) => {
+  // Build card data — exclude user's own company (it's not a peer)
+  const peerCards: PeerCardData[] = (companies ?? [])
+    .filter((c) => c.id !== userCompanyId)
+    .map((company) => {
     // Find the latest report for this company
     const companyReports = (reports ?? [])
       .filter((r) => r.company_id === company.id)
