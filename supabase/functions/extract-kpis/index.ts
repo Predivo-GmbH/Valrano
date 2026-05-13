@@ -6,6 +6,27 @@ import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 const GEMINI_MODEL = 'gemini-2.5-pro'
 
+// ---------------------------------------------------------------------------
+// KPI codes recognised by the extraction tool (must be before schema)
+// ---------------------------------------------------------------------------
+const KPI_CODES = [
+  'REVENUE',
+  'EBITDA',
+  'EBITDA_ADJ',
+  'EBITDA_MARGIN',
+  'EBIT',
+  'NET_INCOME',
+  'EPS_BASIC',
+  'NET_DEBT',
+  'NET_DEBT_EBITDA',
+  'ROIC',
+  'CAPEX',
+  'CO2_ABSOLUTE',
+  'CO2_INTENSITY',
+  'LTIFR',
+  'CEMENT_VOLUME',
+] as const
+
 // Gemini JSON mode schema for KPI extraction
 const KPI_EXTRACTION_SCHEMA = {
   type: 'object',
@@ -31,27 +52,6 @@ const KPI_EXTRACTION_SCHEMA = {
   },
   required: ['kpis'],
 } as const
-
-// ---------------------------------------------------------------------------
-// KPI codes recognised by the extraction tool
-// ---------------------------------------------------------------------------
-const KPI_CODES = [
-  'REVENUE',
-  'EBITDA',
-  'EBITDA_ADJ',
-  'EBITDA_MARGIN',
-  'EBIT',
-  'NET_INCOME',
-  'EPS_BASIC',
-  'NET_DEBT',
-  'NET_DEBT_EBITDA',
-  'ROIC',
-  'CAPEX',
-  'CO2_ABSOLUTE',
-  'CO2_INTENSITY',
-  'LTIFR',
-  'CEMENT_VOLUME',
-] as const
 
 type KpiCode = typeof KPI_CODES[number]
 
@@ -160,7 +160,10 @@ serve(async (req: Request) => {
     if (downloadError) throw new Error(`PDF download failed: ${downloadError.message}`)
 
     const pdfArrayBuffer = await pdfData.arrayBuffer()
-    const { text: pdfText, pageCount, extractedPages } = await extractTextFromPdf(pdfArrayBuffer)
+    // Limit to first 80 pages to stay within compute limits (financial data is typically in first half)
+    const { text: fullText, pageCount, extractedPages } = await extractTextFromPdf(pdfArrayBuffer, [{ start: 1, end: 80 }])
+    // Truncate to ~500K chars max to fit Gemini context window and edge function limits
+    const pdfText = fullText.length > 500000 ? fullText.slice(0, 500000) : fullText
     const charCount = pdfText.length
 
     if (!pdfText || charCount < 100) {
