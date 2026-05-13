@@ -68,6 +68,8 @@ export function OnboardingWizard() {
 
   // Shared state across steps — seeded from existing data
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
+  const selectedCompanyIdsRef = useRef(selectedCompanyIds)
+  selectedCompanyIdsRef.current = selectedCompanyIds
   const [aiSuggestions, setAiSuggestions] = useState<CompetitorSuggestion[]>([])
   const [reportCompetitors, setReportCompetitors] = useState<Array<{ name: string; ticker?: string; context?: string }>>([])
   const [competitorsConfirmed, setCompetitorsConfirmed] = useState(false)
@@ -301,7 +303,7 @@ export function OnboardingWizard() {
               // Re-fetch companies fresh to avoid race conditions with parallel calls
               const { data: freshCompanies } = await supabase.from('companies').select('id, name, ticker')
               const existingCompanies = freshCompanies ?? []
-              const newIds: string[] = [...selectedCompanyIds]
+              const newIds: string[] = [...selectedCompanyIdsRef.current]
               for (const rc of competitors) {
                 const match = existingCompanies.find(
                   (c) => c.name.toLowerCase() === rc.name.toLowerCase() ||
@@ -331,7 +333,7 @@ export function OnboardingWizard() {
                   }
                 }
               }
-              if (newIds.length > selectedCompanyIds.length) {
+              if (newIds.length > selectedCompanyIdsRef.current.length) {
                 setSelectedCompanyIds(newIds)
                 queryClient.invalidateQueries({ queryKey: ['companies-all'] })
               }
@@ -1243,12 +1245,18 @@ function StepSchedule({
 
   const selectedCompanies = (companies ?? []).filter((c) => selectedCompanyIds.includes(c.id))
 
+  const updateScheduleRef = useRef(schedules)
+  updateScheduleRef.current = schedules
+
   const updateSchedule = (companyId: string, field: 'reportType' | 'expectedDate', value: string) => {
-    const existing = schedules[companyId] ?? { reportType: 'annual', expectedDate: '' }
-    onSchedulesChange({
-      ...schedules,
+    const current = updateScheduleRef.current
+    const existing = current[companyId] ?? { reportType: 'annual', expectedDate: '' }
+    const updated = {
+      ...current,
       [companyId]: { ...existing, [field]: value },
-    })
+    }
+    updateScheduleRef.current = updated
+    onSchedulesChange(updated)
   }
 
   const handleSuggestDate = (company: Company) => {
