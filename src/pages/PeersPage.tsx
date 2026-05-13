@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -1278,6 +1278,47 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
     }
     return ids
   }, [peerCards, userCompanyId])
+
+  // Auto-resolve website URLs for peers missing them (fires once)
+  const resolvedPeersRef = useRef(false)
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (resolvedPeersRef.current || !companies?.length) return
+    const missing = (companies ?? []).filter((c) => !c.website_url && c.name)
+    if (!missing.length) return
+    resolvedPeersRef.current = true
+    ;(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      let resolved = 0
+      await Promise.all(
+        missing.map(async (c) => {
+          try {
+            const res = await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`,
+                  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                },
+                body: JSON.stringify({ name: c.name, company_id: c.id }),
+              },
+            )
+            if (res.ok) {
+              const data = await res.json() as { website_url: string | null }
+              if (data.website_url) resolved++
+            }
+          } catch { /* silent */ }
+        }),
+      )
+      if (resolved > 0) {
+        queryClient.invalidateQueries({ queryKey: ['companies'] })
+        queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+      }
+    })()
+  }, [companies, queryClient])
 
   const handleUpload = (companyId: string) => {
     setUploadCompanyId(companyId)

@@ -504,6 +504,23 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
 
       if (!companyId) throw new Error('Could not resolve company')
 
+      // Auto-resolve website URL (and thus logo) in background
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) return
+        fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ name: placeholderName, company_id: companyId }),
+          },
+        ).catch(() => {})
+      })
+
       setUploadProgress(5)
 
       const result = await uploadMutation.mutateAsync({
@@ -865,6 +882,24 @@ function StepCompetitors({
       if (error) {
         toast.error(`Failed to add ${suggestion.name}`)
         return
+      }
+      // Auto-resolve website if not already set from suggestion
+      if (!suggestion.website_domain) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session) return
+          fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+                'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+              },
+              body: JSON.stringify({ name: suggestion.name, company_id: inserted.id }),
+            },
+          ).catch(() => {})
+        })
       }
       // Update suggestion to reflect it's now in DB
       onAiSuggestionsChange(

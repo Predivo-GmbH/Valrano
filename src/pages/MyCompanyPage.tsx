@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Plus, Pencil, Upload, FileText, Loader2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -343,9 +344,27 @@ function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => 
         website_url: null,
       },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           toast.success('Company added')
           onClose()
+          // Auto-resolve website URL (and thus logo) in background
+          if (data?.company_id) {
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              if (!session) return
+              fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                  },
+                  body: JSON.stringify({ name, company_id: data.company_id }),
+                },
+              ).catch(() => {})
+            })
+          }
         },
         onError: (err) => toast.error(`Failed: ${err.message}`),
       }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -260,6 +260,38 @@ export function CompanyProfilePage() {
   })
 
   const company = useMemo(() => companies?.find((c) => c.id === id), [companies, id])
+
+  // Auto-resolve website URL if missing (fires once per company)
+  const resolvedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!company || company.website_url || resolvedRef.current === company.id) return
+    resolvedRef.current = company.id
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) return
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ name: company.name, company_id: company.id }),
+          },
+        )
+        if (!res.ok) return
+        const data = await res.json() as { website_url: string | null }
+        if (data.website_url) {
+          queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+        }
+      } catch {
+        // Silent — user can still click "Detect website" manually
+      }
+    })()
+  }, [company, queryClient])
 
   // Organize KPI values by code, then by company, then by year
   type KpiRow = {
