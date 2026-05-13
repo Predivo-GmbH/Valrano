@@ -28,7 +28,6 @@ import {
   Zap,
   BookOpen,
   Plus,
-  Pencil,
   Trash2,
   Sparkles,
   Loader2,
@@ -515,28 +514,50 @@ export function CompanyProfilePage() {
                     type="button"
                     className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
                     onClick={async () => {
-                      const url = window.prompt('Enter website URL (e.g. https://www.holcim.com):')
-                      if (!url?.trim()) return
+                      const btn = document.activeElement as HTMLButtonElement
+                      btn.disabled = true
+                      btn.textContent = 'Resolving...'
                       try {
-                        new URL(url.trim())
+                        const { data: { session } } = await supabase.auth.getSession()
+                        if (!session) throw new Error('Not authenticated')
+                        const res = await fetch(
+                          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
+                          {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${session.access_token}`,
+                              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                            },
+                            body: JSON.stringify({ name: company.name, company_id: company.id }),
+                          },
+                        )
+                        if (!res.ok) throw new Error('Resolution failed')
+                        const data = await res.json() as { website_url: string | null }
+                        if (data.website_url) {
+                          queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                        } else {
+                          // Fallback: prompt for manual entry
+                          const url = window.prompt('Could not auto-detect. Enter website URL:')
+                          if (url?.trim()) {
+                            try { new URL(url.trim()) } catch { return }
+                            await supabase.from('companies').update({ website_url: url.trim() }).eq('id', company.id)
+                            queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                          }
+                        }
                       } catch {
-                        alert('Please enter a valid URL starting with https://')
-                        return
-                      }
-                      const { error } = await supabase
-                        .from('companies')
-                        .update({ website_url: url.trim() })
-                        .eq('id', company.id)
-                      if (error) {
-                        alert('Failed to update: ' + error.message)
-                      } else {
-                        queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                        // Fallback: manual prompt
+                        const url = window.prompt('Enter website URL (e.g. https://www.holcim.com):')
+                        if (url?.trim()) {
+                          try { new URL(url.trim()) } catch { return }
+                          await supabase.from('companies').update({ website_url: url.trim() }).eq('id', company.id)
+                          queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                        }
                       }
                     }}
                   >
-                    <Globe className="h-3.5 w-3.5" />
-                    Add website
-                    <Pencil className="h-3 w-3" />
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Detect website
                   </button>
                 )}
                 {company.ir_page_url && (

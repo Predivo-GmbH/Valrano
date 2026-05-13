@@ -146,9 +146,40 @@ function AddCompanyDialog({
   const [exchange, setExchange] = useState('')
   const [sector, setSector] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
+  const [isResolvingWebsite, setIsResolvingWebsite] = useState(false)
   const [irUrl, setIrUrl] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [nameError, setNameError] = useState(false)
+
+  const resolveWebsite = async (companyName: string) => {
+    if (!companyName.trim() || companyName.trim().length < 2) return
+    setIsResolvingWebsite(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ name: companyName.trim() }),
+        },
+      )
+      if (!res.ok) return
+      const data = await res.json() as { website_url: string | null }
+      if (data.website_url) {
+        setWebsiteUrl(data.website_url)
+      }
+    } catch {
+      // Silently fail — user can still enter manually
+    } finally {
+      setIsResolvingWebsite(false)
+    }
+  }
 
   const handleCompanyAutoSelect = (company: CompanyResult) => {
     setName(company.name)
@@ -162,6 +193,8 @@ function AddCompanyDialog({
       if (match) setSector(match)
     }
     setNameError(false)
+    // Auto-resolve website URL from company name
+    resolveWebsite(company.name)
   }
 
   const resetForm = () => {
@@ -190,6 +223,34 @@ function AddCompanyDialog({
     setIsSubmitting(true)
 
     try {
+      // If no website URL yet, try to resolve before inserting
+      let finalWebsiteUrl = websiteUrl.trim() || null
+      if (!finalWebsiteUrl) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session) {
+            const res = await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session.access_token}`,
+                  'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                },
+                body: JSON.stringify({ name: name.trim() }),
+              },
+            )
+            if (res.ok) {
+              const data = await res.json() as { website_url: string | null }
+              if (data.website_url) finalWebsiteUrl = data.website_url
+            }
+          }
+        } catch {
+          // Continue without website — not critical
+        }
+      }
+
       const { error } = await supabase
         .from('companies')
         .insert({
@@ -197,7 +258,7 @@ function AddCompanyDialog({
           ticker: ticker.trim().toUpperCase() || null,
           exchange: exchange || null,
           sector: sector || null,
-          website_url: websiteUrl.trim() || null,
+          website_url: finalWebsiteUrl,
           ir_page_url: irUrl.trim() || null,
         })
         .select()
@@ -294,20 +355,34 @@ function AddCompanyDialog({
             </Select>
           </div>
 
-          {/* Website URL (used for logo) */}
+          {/* Website URL (used for logo) — auto-resolved via Brandfetch */}
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Website
             </Label>
-            <Input
-              type="url"
-              value={websiteUrl}
-              onChange={(e) => setWebsiteUrl(e.target.value)}
-              placeholder="https://www.holcim.com"
-              className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
-            />
+            <div className="relative">
+              <Input
+                type="url"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder={isResolvingWebsite ? 'Resolving...' : 'https://www.holcim.com'}
+                className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground pr-10"
+                disabled={isResolvingWebsite}
+              />
+              {isResolvingWebsite && (
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              )}
+              {!isResolvingWebsite && websiteUrl && companyLogoUrl(websiteUrl) && (
+                <img
+                  src={companyLogoUrl(websiteUrl)!}
+                  alt=""
+                  className="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 rounded bg-white object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              )}
+            </div>
             <p className="text-[10px] text-muted-foreground">
-              Used to fetch the company logo automatically
+              Auto-detected from company name — logo fetched automatically
             </p>
           </div>
 
