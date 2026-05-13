@@ -749,6 +749,15 @@ export function DashboardPage() {
 
   const { data: companies, isLoading: companiesLoading } = useCompanies()
   const { data: kpiDefs, isLoading: defsLoading } = useKpiDefinitions()
+
+  // Peer companies = all visible companies MINUS the user's own company
+  const userCompanyId = primaryCompanyData?.company_id
+  const peerCompanies = useMemo(() => {
+    if (!companies) return []
+    if (!userCompanyId) return companies
+    return companies.filter((c) => c.id !== userCompanyId)
+  }, [companies, userCompanyId])
+
   const { data: kpiValues, isLoading: valuesLoading } = useKpiValues({
     fiscalYear: effectiveYear,
     companyIds: companies?.map((c) => c.id),
@@ -783,28 +792,28 @@ export function DashboardPage() {
     return map
   }, [kpiValues])
 
-  // For each KPI def, collect all company values (for min/max signal coloring)
+  // For each KPI def, collect all peer company values (for min/max signal coloring)
   const kpiPeerValues = useMemo(() => {
     const out = new Map<string, (number | null)[]>()
-    if (!companies || !filteredDefs) return out
+    if (!peerCompanies.length || !filteredDefs) return out
     for (const def of filteredDefs) {
-      const vals = companies.map((c) => {
+      const vals = peerCompanies.map((c) => {
         const v = valueMap.get(`${c.id}__${def.id}`)
         return v?.normalized_value ?? null
       })
       out.set(def.id, vals)
     }
     return out
-  }, [companies, filteredDefs, valueMap])
+  }, [peerCompanies, filteredDefs, valueMap])
 
-  // Split companies into those with data vs without
+  // Split peer companies (excluding user's own) into those with data vs without
   const { companiesWithData, companiesWithoutData } = useMemo(() => {
-    if (!companies || !filteredDefs) return { companiesWithData: [], companiesWithoutData: [] }
+    if (!peerCompanies || !filteredDefs) return { companiesWithData: [], companiesWithoutData: [] }
 
     const withData: Company[] = []
     const withoutData: Company[] = []
 
-    for (const company of companies) {
+    for (const company of peerCompanies) {
       const hasAnyValue = filteredDefs.some((def) => {
         const v = valueMap.get(`${company.id}__${def.id}`)
         return v?.normalized_value != null
@@ -819,16 +828,12 @@ export function DashboardPage() {
     return { companiesWithData: withData, companiesWithoutData: withoutData }
   }, [companies, filteredDefs, valueMap])
 
-  // Sort companies: primary first, then by sort column or alphabetical
+  // Sort peer companies by sort column or alphabetical
   const sortedCompaniesWithData = useMemo(() => {
     const sorted = [...companiesWithData]
 
     if (sortConfig.columnId && sortConfig.columnId !== '__name') {
       sorted.sort((a, b) => {
-        // Primary company always first
-        if (primaryCompanyName && a.name === primaryCompanyName) return -1
-        if (primaryCompanyName && b.name === primaryCompanyName) return 1
-
         const aVal = valueMap.get(`${a.id}__${sortConfig.columnId}`)?.normalized_value ?? null
         const bVal = valueMap.get(`${b.id}__${sortConfig.columnId}`)?.normalized_value ?? null
 
@@ -841,23 +846,16 @@ export function DashboardPage() {
       })
     } else if (sortConfig.columnId === '__name') {
       sorted.sort((a, b) => {
-        if (primaryCompanyName && a.name === primaryCompanyName) return -1
-        if (primaryCompanyName && b.name === primaryCompanyName) return 1
         return sortConfig.direction === 'asc'
           ? a.name.localeCompare(b.name)
           : b.name.localeCompare(a.name)
       })
     } else {
-      // Default: primary first, then alphabetical
-      sorted.sort((a, b) => {
-        if (primaryCompanyName && a.name === primaryCompanyName) return -1
-        if (primaryCompanyName && b.name === primaryCompanyName) return 1
-        return a.name.localeCompare(b.name)
-      })
+      sorted.sort((a, b) => a.name.localeCompare(b.name))
     }
 
     return sorted
-  }, [companiesWithData, sortConfig, valueMap, primaryCompanyName])
+  }, [companiesWithData, sortConfig, valueMap])
 
   function handleSort(columnId: string) {
     setSortConfig((prev) => {
@@ -947,14 +945,14 @@ export function DashboardPage() {
   // ---------------------------------------------------------------------------
 
   const performanceKpis = useMemo(() => {
-    if (!myCompanyKpis || myCompanyKpis.length === 0 || !companies) return []
+    if (!myCompanyKpis || myCompanyKpis.length === 0 || !peerCompanies.length) return []
     const results: KpiSnapshotCardProps[] = []
     for (const myKpi of myCompanyKpis.slice(0, 6)) {
       const def = myKpi.kpi_definitions
       if (!def) continue
       const defId = myKpi.kpi_definition_id
       const peerNums: number[] = []
-      for (const c of companies) {
+      for (const c of peerCompanies) {
         const v = valueMap.get(`${c.id}__${defId}`)
         if (v?.normalized_value != null) peerNums.push(v.normalized_value)
       }
@@ -972,7 +970,7 @@ export function DashboardPage() {
       })
     }
     return results
-  }, [myCompanyKpis, companies, valueMap])
+  }, [myCompanyKpis, peerCompanies, valueMap])
 
   // ---------------------------------------------------------------------------
   // Activity feed
@@ -1021,7 +1019,7 @@ export function DashboardPage() {
   // ---------------------------------------------------------------------------
 
   const hasCompany = !!primaryCompanyData
-  const hasPeers = !!companies && companies.length > 0
+  const hasPeers = peerCompanies.length > 0
   const hasKpiData = !!kpiValues && kpiValues.length > 0
   const hasData = !isLoading && hasPeers && hasKpiData
   const isGenuinelyEmpty = !isLoading && (!hasPeers || (!hasKpiData && availableYears.length === 0))
@@ -1285,7 +1283,7 @@ export function DashboardPage() {
                   <TooltipContent>Side-by-side KPI comparison across all peers, normalized to CHF.</TooltipContent>
                 </Tooltip>
                 <p className="text-[10px] text-muted-foreground">
-                  {companiesWithData.length}/{companies?.length ?? 0} peers · {dataKpiCount} KPIs · Normalized to CHF
+                  {companiesWithData.length}/{peerCompanies.length} peers · {dataKpiCount} KPIs · Normalized to CHF
                 </p>
               </div>
               <TabsList className="h-7 rounded-lg bg-[var(--color-bg-tertiary)] p-0.5 flex-shrink-0 overflow-x-auto">
