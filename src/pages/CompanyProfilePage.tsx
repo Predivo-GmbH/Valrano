@@ -111,12 +111,12 @@ const SENTIMENT_STYLES: Record<string, string> = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Company logo via Brandfetch Logo API (free 500K/mo, no key, no attribution) */
+/** Company logo via Brandfetch Logo CDN (free 500K/mo) */
 function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
   if (!websiteUrl) return null
   try {
     const domain = new URL(websiteUrl).hostname.replace(/^www\./, '')
-    return `https://logo.brandfetch.com/${domain}`
+    return `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
   } catch {
     return null
   }
