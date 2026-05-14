@@ -4,11 +4,6 @@ import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HelmetProvider } from 'react-helmet-async'
 
-// Use a fixed "today" so tests are deterministic
-const TODAY = '2026-05-14'
-const TODAY_YEAR = 2026
-const TODAY_MONTH = 4 // May (0-indexed)
-
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: 'test-user', email: 'test@example.com' },
