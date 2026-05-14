@@ -1099,6 +1099,7 @@ function StepSchedule({
       {
         onSuccess: (data) => {
           updateSchedule(company.id, 'expectedDate', data.suggestion.suggested_date)
+          setSuggestedIds((prev) => new Set(prev).add(company.id))
           toast.success(
             `Suggested: ${data.suggestion.suggested_date} (${data.suggestion.confidence}% confidence)`,
           )
@@ -1112,6 +1113,7 @@ function StepSchedule({
     )
   }
 
+  const [suggestedIds, setSuggestedIds] = useState<Set<string>>(new Set())
   const [suggestingAll, setSuggestingAll] = useState(false)
 
   const handleSuggestAll = async () => {
@@ -1133,6 +1135,7 @@ function StepSchedule({
           fiscal_year: new Date().getFullYear(),
         })
         updateSchedule(company.id, 'expectedDate', data.suggestion.suggested_date)
+        setSuggestedIds((prev) => new Set(prev).add(company.id))
         completed++
       } catch (err) {
         if (import.meta.env.DEV) console.error(`Failed to suggest for ${company.name}:`, err)
@@ -1182,10 +1185,14 @@ function StepSchedule({
       <div className="space-y-3">
         {selectedCompanies.map((company) => {
           const schedule = schedules[company.id] ?? { reportType: 'annual', expectedDate: '' }
+          const justSuggested = suggestedIds.has(company.id)
           return (
             <div
               key={company.id}
-              className="rounded-lg border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3"
+              className={cn(
+                'rounded-lg border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3 transition-colors duration-700',
+                justSuggested ? 'border-emerald-500/50' : 'border-border',
+              )}
             >
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
@@ -1210,19 +1217,26 @@ function StepSchedule({
                 className="rounded-lg border border-border bg-[var(--color-bg-tertiary)] px-3 py-2 text-[12px] text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] w-40"
               />
 
-              <button
-                onClick={() => handleSuggestDate(company)}
-                disabled={suggestingCompanyId !== null}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] transition-colors disabled:opacity-40 flex-shrink-0"
-                title="AI suggest date"
-              >
-                {suggestingCompanyId === company.id ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3 w-3" />
-                )}
-                Suggest
-              </button>
+              {justSuggested && suggestingCompanyId !== company.id ? (
+                <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex-shrink-0 animate-in fade-in duration-300">
+                  <Check className="h-3 w-3" />
+                  Done
+                </span>
+              ) : (
+                <button
+                  onClick={() => handleSuggestDate(company)}
+                  disabled={suggestingCompanyId !== null}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] transition-colors disabled:opacity-40 flex-shrink-0"
+                  title="AI suggest date"
+                >
+                  {suggestingCompanyId === company.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
+                  Suggest
+                </button>
+              )}
             </div>
           )
         })}
