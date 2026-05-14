@@ -1,62 +1,102 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 
 /**
  * Smooth progress animation hook with continuous exponential-decay creep.
  *
  * Takes a `milestone` percentage (the real progress from backend steps)
  * and returns a `displayProgress` that smoothly animates between milestones.
+ *
+ * Uses useSyncExternalStore to avoid setState-in-effect lint violations.
  */
-export function useSmoothProgress(milestone: number): number {
-  const [display, setDisplay] = useState(0)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const milestoneRef = useRef(0)
 
-  // Snap display on milestone change — setState here is intentional
-  // (synchronizing display with external milestone prop, not cascading renders)
-  useEffect(() => {
-    milestoneRef.current = milestone
-    if (milestone >= 100) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDisplay(100)
-    } else if (milestone <= 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDisplay(0)
-    } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDisplay((prev) => Math.max(prev, milestone))
-    }
-  }, [milestone])
+type Listener = () => void
 
-  // Continuous creep — runs while 0 < milestone < 100
-  const isActive = milestone > 0 && milestone < 100
-  useEffect(() => {
-    if (!isActive) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
+function createProgressStore() {
+  let display = 0
+  let milestone = 0
+  let intervalId: ReturnType<typeof setInterval> | null = null
+  const listeners = new Set<Listener>()
+
+  function notify() {
+    for (const l of listeners) l()
+  }
+
+  function setMilestone(m: number) {
+    milestone = m
+    if (m >= 100) {
+      display = 100
+      stop()
+      notify()
       return
     }
-
-    intervalRef.current = setInterval(() => {
-      setDisplay((prev) => {
-        const hardCeiling = 98
-        if (prev >= hardCeiling) return prev
-        const distFromMilestone = prev - milestoneRef.current
-        const decayFactor = Math.exp(-distFromMilestone / 20)
-        const remaining = hardCeiling - prev
-        const increment = Math.max(remaining * 0.02 * decayFactor, 0.05)
-        return Math.min(prev + increment, hardCeiling)
-      })
-    }, 200)
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
+    if (m <= 0) {
+      display = 0
+      stop()
+      notify()
+      return
     }
-  }, [isActive])
+    if (m > display) {
+      display = m
+      notify()
+    }
+    start()
+  }
 
-  return Math.round(display)
+  function start() {
+    if (intervalId) return
+    intervalId = setInterval(() => {
+      const hardCeiling = 98
+      if (display >= hardCeiling) return
+      const distFromMilestone = display - milestone
+      const decayFactor = Math.exp(-distFromMilestone / 20)
+      const remaining = hardCeiling - display
+      const increment = Math.max(remaining * 0.02 * decayFactor, 0.05)
+      const prev = display
+      display = Math.min(display + increment, hardCeiling)
+      if (Math.round(display) !== Math.round(prev)) {
+        notify()
+      }
+    }, 200)
+  }
+
+  function stop() {
+    if (intervalId) {
+      clearInterval(intervalId)
+      intervalId = null
+    }
+  }
+
+  function subscribe(listener: Listener) {
+    listeners.add(listener)
+    return () => {
+      listeners.delete(listener)
+      if (listeners.size === 0) stop()
+    }
+  }
+
+  function getSnapshot() {
+    return Math.round(display)
+  }
+
+  function reset() {
+    display = 0
+    milestone = 0
+    stop()
+  }
+
+  return { setMilestone, subscribe, getSnapshot, reset }
+}
+
+export function useSmoothProgress(milestoneValue: number): number {
+  const store = useMemo(() => createProgressStore(), [])
+
+  useEffect(() => {
+    store.setMilestone(milestoneValue)
+  }, [milestoneValue, store])
+
+  useEffect(() => {
+    return () => store.reset()
+  }, [store])
+
+  return useSyncExternalStore(store.subscribe, store.getSnapshot)
 }
