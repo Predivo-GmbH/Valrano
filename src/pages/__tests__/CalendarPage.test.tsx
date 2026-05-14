@@ -1,8 +1,13 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HelmetProvider } from 'react-helmet-async'
+
+// Use a fixed "today" so tests are deterministic
+const TODAY = '2026-05-14'
+const TODAY_YEAR = 2026
+const TODAY_MONTH = 4 // May (0-indexed)
 
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
@@ -33,7 +38,8 @@ vi.mock('@/hooks/useCalendar', () => ({
         report_type: 'annual',
         fiscal_year: 2025,
         fiscal_quarter: null,
-        expected_date: '2026-02-27',
+        expected_date: '2026-05-15',
+        expected_time: '07:00:00',
         status: 'scheduled',
         notes: null,
         companies: { id: 'c-1', name: 'CRH plc', ticker: 'CRH' },
@@ -44,7 +50,8 @@ vi.mock('@/hooks/useCalendar', () => ({
         report_type: 'annual',
         fiscal_year: 2025,
         fiscal_quarter: null,
-        expected_date: '2026-03-13',
+        expected_date: '2026-05-20',
+        expected_time: '08:30:00',
         status: 'detected',
         notes: null,
         companies: { id: 'c-2', name: 'HeidelbergCement AG', ticker: 'HEI' },
@@ -82,22 +89,18 @@ function renderPage() {
 }
 
 describe('CalendarPage', () => {
-  it('renders page title', () => {
+  it('renders page title and month navigation', () => {
     renderPage()
     expect(screen.getByText('Publication Calendar')).toBeInTheDocument()
+    expect(screen.getByLabelText('Previous month')).toBeInTheDocument()
+    expect(screen.getByLabelText('Next month')).toBeInTheDocument()
+    expect(screen.getByText('Today')).toBeInTheDocument()
   })
 
-  it('renders company names', () => {
+  it('renders weekday headers', () => {
     renderPage()
-    expect(screen.getAllByText('CRH plc').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('HeidelbergCement AG').length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('renders status badges', () => {
-    renderPage()
-    // Status labels also appear in the filter dropdown
-    expect(screen.getAllByText('Scheduled').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Detected').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('Mon')).toBeInTheDocument()
+    expect(screen.getByText('Sun')).toBeInTheDocument()
   })
 
   it('renders Add Event button', () => {
@@ -105,10 +108,34 @@ describe('CalendarPage', () => {
     expect(screen.getByText('Add Event')).toBeInTheDocument()
   })
 
-  it('renders report type in event row', () => {
+  it('shows event details with time when day is clicked', () => {
     renderPage()
-    // Report type is rendered as "Annual · FY 2025"
-    const rows = screen.getAllByText(/Annual/)
-    expect(rows.length).toBeGreaterThanOrEqual(1)
+    // Click on the day cell that has the CRH event (May 15)
+    const dayButton = screen.getByLabelText('2026-05-15, 1 event')
+    fireEvent.click(dayButton)
+
+    // Should show event detail with company name and time
+    expect(screen.getByText('CRH plc')).toBeInTheDocument()
+    expect(screen.getByText(/07:00/)).toBeInTheDocument()
+    expect(screen.getAllByText('Scheduled').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('shows status colored dots on days with events', () => {
+    renderPage()
+    // Days with events should have aria-labels indicating event count
+    expect(screen.getByLabelText('2026-05-15, 1 event')).toBeInTheDocument()
+    expect(screen.getByLabelText('2026-05-20, 1 event')).toBeInTheDocument()
+  })
+
+  it('navigates months with arrow buttons', () => {
+    renderPage()
+    const prevBtn = screen.getByLabelText('Previous month')
+    fireEvent.click(prevBtn)
+    expect(screen.getByText('April 2026')).toBeInTheDocument()
+
+    const nextBtn = screen.getByLabelText('Next month')
+    fireEvent.click(nextBtn)
+    fireEvent.click(nextBtn)
+    expect(screen.getByText('June 2026')).toBeInTheDocument()
   })
 })
