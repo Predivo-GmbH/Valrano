@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@/test/test-utils'
+import { render, screen, waitFor } from '@/test/test-utils'
 import { MyCompanyPage } from '../MyCompanyPage'
 
 vi.mock('@/lib/supabase', () => ({
@@ -51,30 +51,14 @@ describe('MyCompanyPage', () => {
   it('shows empty state when no companies', async () => {
     render(<MyCompanyPage />)
     await waitFor(() => {
-      expect(screen.getByText('Add your company')).toBeInTheDocument()
+      expect(screen.getByText('No company configured')).toBeInTheDocument()
     })
   })
 
-  it('shows Add Company button', async () => {
+  it('shows upload guidance in empty state', async () => {
     render(<MyCompanyPage />)
     await waitFor(() => {
-      expect(screen.getByText('Add Company')).toBeInTheDocument()
+      expect(screen.getByText(/Upload your annual report/)).toBeInTheDocument()
     })
-  })
-
-  it('opens create dialog on button click', async () => {
-    render(<MyCompanyPage />)
-    await waitFor(() => {
-      fireEvent.click(screen.getByText('Add Company'))
-    })
-    expect(screen.getByText('Add Your Company')).toBeInTheDocument()
-  })
-
-  it('shows company name field in create dialog', async () => {
-    render(<MyCompanyPage />)
-    await waitFor(() => {
-      fireEvent.click(screen.getByText('Add Company'))
-    })
-    expect(screen.getByPlaceholderText('Start typing to search...')).toBeInTheDocument()
   })
 })
