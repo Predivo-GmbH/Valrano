@@ -986,16 +986,14 @@ function StepCompetitors({
     })
   }
 
-  // Helper: resolve DB id for a suggestion item
+  // Helper: resolve DB id for a suggestion item — only returns IDs already selected in this session
   const resolveDbId = (item: typeof unifiedSuggestions[number]) => {
-    if (item.source === 'report') {
-      const existing = (companies ?? []).find(
-        (c) => c.name.toLowerCase() === item.name.toLowerCase() ||
-          (item.ticker && c.ticker && c.ticker.toLowerCase() === item.ticker.toLowerCase()),
-      )
-      return existing?.id
+    // Never match against existing companies from other accounts
+    // Only return an ID if this suggestion was already added in this onboarding session
+    if (item.source === 'ai' && item.in_database && item.existing_id) {
+      return selectedIds.includes(item.existing_id) ? item.existing_id : undefined
     }
-    return item.in_database ? item.existing_id : undefined
+    return undefined
   }
 
   // Helper: add a suggestion to DB and select it
@@ -1177,33 +1175,24 @@ function StepCompetitors({
             value={search}
             onChange={setSearch}
             onSelect={(result) => void (async () => {
-              const existing = (companies ?? []).find(
-                (c) => c.name.toLowerCase() === result.name.toLowerCase()
-              )
-              if (existing) {
-                if (!selectedIds.includes(existing.id)) {
-                  onSelectedIdsChange([...selectedIds, existing.id])
-                }
-                toast.success(`${result.name} selected`)
+              // ALWAYS create a new company — never reuse existing records from other accounts
+              const { data: inserted, error } = await supabase
+                .from('companies')
+                .insert({
+                  name: result.name,
+                  ticker: result.ticker ?? null,
+                  sector: result.sector ?? null,
+                  country: result.country_code ?? null,
+                  reporting_currency: result.currency ?? 'CHF',
+                })
+                .select('id')
+                .single()
+              if (error) {
+                toast.error('Failed to add company')
               } else {
-                const { data: inserted, error } = await supabase
-                  .from('companies')
-                  .insert({
-                    name: result.name,
-                    ticker: result.ticker ?? null,
-                    sector: result.sector ?? null,
-                    country: result.country_code ?? null,
-                    reporting_currency: result.currency ?? 'CHF',
-                  })
-                  .select('id')
-                  .single()
-                if (error) {
-                  toast.error('Failed to add company')
-                } else {
-                  onSelectedIdsChange([...selectedIds, inserted.id])
-                  await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-                  toast.success(`${result.name} added`)
-                }
+                onSelectedIdsChange([...selectedIds, inserted.id])
+                await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                toast.success(`${result.name} added`)
               }
               setSearch('')
             })()}

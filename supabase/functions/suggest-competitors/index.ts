@@ -186,25 +186,14 @@ Focus on companies that are:
     }
 
     // ------------------------------------------------------------------
-    // 4. Match suggestions against existing companies in DB
+    // 4. Return suggestions — never match against existing companies
+    //    Each account must create its own company records for data isolation
     // ------------------------------------------------------------------
-    const { data: existingCompanies } = await adminClient
-      .from('companies')
-      .select('id, name, ticker, sector, is_active')
-
-    const matched = suggestions.map((s) => {
-      const match = (existingCompanies ?? []).find(
-        (c) =>
-          c.name.toLowerCase() === s.name.toLowerCase() ||
-          (s.ticker && c.ticker && c.ticker.toLowerCase() === s.ticker.toLowerCase()),
-      )
-      return {
-        ...s,
-        existing_id: match?.id ?? null,
-        existing_name: match?.name ?? null,
-        in_database: !!match,
-      }
-    })
+    const matched = suggestions.map((s) => ({
+      ...s,
+      existing_id: null,
+      in_database: false,
+    }))
 
     // ------------------------------------------------------------------
     // 5. Track usage
