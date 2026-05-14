@@ -989,8 +989,10 @@ function ComparisonTableView({
   userCompanyId,
   allCompanyIds,
   onUpload,
+  onCheckNow,
   onDelete,
   deletingCompanyId,
+  checkingEventId,
 }: {
   peerCards: PeerCardData[]
   userCompanyName: string | null
@@ -998,8 +1000,10 @@ function ComparisonTableView({
   userCompanyId: string | null
   allCompanyIds: string[]
   onUpload: (companyId: string) => void
+  onCheckNow: (eventId: string) => void
   onDelete: (companyId: string, companyName: string) => void
   deletingCompanyId: string | null
+  checkingEventId: string | null
 }) {
   // Fetch KPI values for all companies (peers + user's company if linked)
   const { data: kpiValues, isLoading: kpiLoading } = useKpiValues({
@@ -1181,33 +1185,53 @@ function ComparisonTableView({
                   {lastReportYear[row.companyId] ?? <span className="text-muted-foreground">--</span>}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  {!row.isUser && (
-                    <div className="flex items-center justify-end gap-1">
-                      <TooltipProvider delay={200}>
-                        <Tooltip>
-                          <TooltipTrigger
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                            onClick={() => onUpload(row.companyId)}
-                          >
-                            <Upload className="h-3.5 w-3.5" />
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">Upload Report</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger
-                            className={cn(
-                              'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors',
-                              deletingCompanyId === row.companyId && 'pointer-events-none opacity-50',
-                            )}
-                            onClick={() => onDelete(row.companyId, row.name)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">Remove peer</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  )}
+                  {!row.isUser && (() => {
+                    const peer = peerCards.find((p) => p.company.id === row.companyId)
+                    const nextEventId = peer?.nextEventId
+                    const monitoringStatus = peer?.monitoringStatus
+                    const showCheck = nextEventId && monitoringStatus && MONITORING_ACTIVE_STATUSES.includes(monitoringStatus)
+                    return (
+                      <div className="flex items-center justify-end gap-1">
+                        <TooltipProvider delay={200}>
+                          <Tooltip>
+                            <TooltipTrigger
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                              onClick={() => onUpload(row.companyId)}
+                            >
+                              <Upload className="h-3.5 w-3.5" />
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">Upload Report</TooltipContent>
+                          </Tooltip>
+                          {showCheck && (
+                            <Tooltip>
+                              <TooltipTrigger
+                                className={cn(
+                                  'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+                                  checkingEventId === nextEventId && 'pointer-events-none opacity-50',
+                                )}
+                                onClick={() => onCheckNow(nextEventId)}
+                              >
+                                <RefreshCw className={cn('h-3.5 w-3.5', checkingEventId === nextEventId && 'animate-spin')} />
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom">Check for new publication</TooltipContent>
+                            </Tooltip>
+                          )}
+                          <Tooltip>
+                            <TooltipTrigger
+                              className={cn(
+                                'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors',
+                                deletingCompanyId === row.companyId && 'pointer-events-none opacity-50',
+                              )}
+                              onClick={() => onDelete(row.companyId, row.name)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">Remove peer</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    )
+                  })()}
                 </td>
               </tr>
             )
@@ -1862,8 +1886,10 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
                 userCompanyId={userCompanyId}
                 allCompanyIds={allCompanyIds}
                 onUpload={handleUpload}
+                onCheckNow={handleCheckNow}
                 onDelete={handleDeletePeer}
                 deletingCompanyId={deletingCompanyId}
+                checkingEventId={checkingEventId}
               />
             )
           }
