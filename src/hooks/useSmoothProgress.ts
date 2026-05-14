@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 
 /**
- * Smooth progress animation hook with continuous asymptotic creep.
+ * Smooth progress animation hook with continuous exponential-decay creep.
  *
  * Takes a `milestone` percentage (the real progress from backend steps)
  * and returns a `displayProgress` that smoothly animates between milestones
@@ -9,11 +9,12 @@ import { useState, useEffect, useRef } from 'react'
  *
  * Behavior:
  * - When a new milestone arrives, display jumps to at least that value
- * - A continuous interval (every 200ms) creeps the display toward ceiling
- *   using asymptotic decay: each tick moves 3% of the remaining gap
- * - Ceiling = milestone + 25 (capped at 98) — enough headroom to fill long gaps
- * - The bar NEVER stops moving until milestone hits 100 or resets to 0
+ * - A continuous interval (every 200ms) creeps the display toward 98%
+ * - Creep rate decays exponentially with distance from the last milestone,
+ *   so progress starts fast then gradually slows — but NEVER stops
  * - Uses setInterval (not RAF) so it works even when tab is backgrounded
+ * - When milestone hits 100, display immediately goes to 100
+ * - When milestone resets to 0, display resets to 0
  */
 export function useSmoothProgress(milestone: number): number {
   const [display, setDisplay] = useState(0)
@@ -45,12 +46,17 @@ export function useSmoothProgress(milestone: number): number {
 
     intervalRef.current = setInterval(() => {
       setDisplay((prev) => {
-        const ceiling = Math.min(milestoneRef.current + 25, 98)
-        if (prev >= ceiling) return prev
-        // Asymptotic: 3% of remaining gap per tick, min 0.1
-        const remaining = ceiling - prev
-        const increment = Math.max(remaining * 0.03, 0.1)
-        return Math.min(prev + increment, ceiling)
+        const hardCeiling = 98
+        if (prev >= hardCeiling) return prev
+
+        // Exponential decay: rate drops as display moves further from milestone
+        // At milestone: full speed. 20% past milestone: ~37% speed. 40% past: ~14% speed.
+        const distFromMilestone = prev - milestoneRef.current
+        const decayFactor = Math.exp(-distFromMilestone / 20)
+        const remaining = hardCeiling - prev
+        // 2% of remaining * decay, with minimum 0.05 so bar never fully stops
+        const increment = Math.max(remaining * 0.02 * decayFactor, 0.05)
+        return Math.min(prev + increment, hardCeiling)
       })
     }, 200)
 
