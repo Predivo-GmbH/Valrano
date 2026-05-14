@@ -34,6 +34,7 @@ import {
   Sparkles,
   Check,
   Trash2,
+  X,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
