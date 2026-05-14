@@ -3,6 +3,8 @@ import { Helmet } from 'react-helmet-async'
 import { useParams, Link } from 'react-router-dom'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 import { useBenchmarkDocument, useUpdateDocumentStatus, useUpdateDocumentContent } from '@/hooks/useBenchmark'
+import { useCurrentWorkspace, useMyWorkspaceRole } from '@/hooks/useWorkspace'
+import { useAuth } from '@/hooks/useAuth'
 import type { DocumentStatus, EnhancedBenchmarkContentJson } from '@/types/database'
 import {
   ArrowLeft,
@@ -437,9 +439,17 @@ function formatVal(v: number | null | undefined): string {
 export function DocumentViewerPage() {
   const { id } = useParams<{ id: string }>()
   const { data: doc, isLoading } = useBenchmarkDocument(id)
+  const { user } = useAuth()
+  const { data: workspace } = useCurrentWorkspace()
+  const { data: myRole } = useMyWorkspaceRole(workspace?.id)
   const updateStatus = useUpdateDocumentStatus()
   const updateContent = useUpdateDocumentContent()
   const isEditable = doc?.status === 'draft' || doc?.status === 'in_review'
+
+  // Workspace owner = admin; reviewer/admin can approve/reject; editor+ can submit/revise
+  const isOwner = workspace?.owner_id === user?.id
+  const canApproveReject = isOwner || myRole === 'admin' || myRole === 'reviewer'
+  const canSubmitRevise = isOwner || myRole === 'admin' || myRole === 'reviewer' || myRole === 'editor'
 
   const [statusDialog, setStatusDialog] = useState<{ targetStatus: string; label: string } | null>(null)
   const [reviewNotes, setReviewNotes] = useState('')
@@ -447,14 +457,19 @@ export function DocumentViewerPage() {
   const handleStatusChange = useCallback(async (newStatus: string) => {
     if (!doc) return
     try {
-      await updateStatus.mutateAsync({ id: doc.id, status: newStatus })
+      await updateStatus.mutateAsync({
+        id: doc.id,
+        status: newStatus,
+        fromStatus: doc.status,
+        notes: reviewNotes.trim() || undefined,
+      })
       toast.success(`Status updated to ${STATUS_CONFIG[newStatus as DocumentStatus]?.label ?? newStatus}`)
       setStatusDialog(null)
       setReviewNotes('')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update status')
     }
-  }, [doc, updateStatus])
+  }, [doc, updateStatus, reviewNotes])
 
   const openStatusDialog = (targetStatus: string, label: string) => {
     setStatusDialog({ targetStatus, label })
@@ -584,8 +599,8 @@ export function DocumentViewerPage() {
         </div>
       </div>
 
-      {/* Approval workflow actions */}
-      {(doc.status === 'draft' || doc.status === 'in_review' || doc.status === 'rejected') && (
+      {/* Approval workflow actions — gated by workspace role */}
+      {(doc.status === 'draft' || doc.status === 'in_review' || doc.status === 'rejected') && (canSubmitRevise || canApproveReject) && (
         <div className="mb-8 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4">
           <div className="mr-auto flex items-center gap-2 text-[13px] text-muted-foreground">
             <TooltipProvider delay={200}>
@@ -594,13 +609,13 @@ export function DocumentViewerPage() {
                   <Info className="h-3.5 w-3.5" />
                 </TooltipTrigger>
                 <TooltipContent side="right" className="max-w-[260px]">
-                  <p className="text-xs">Workflow: Draft → In Review → Approved → Delivered. Reviewers can approve or reject. Rejected documents return to draft for revision.</p>
+                  <p className="text-xs">Workflow: Draft → In Review → Approved → Delivered. Reviewers and admins can approve or reject. Editors can submit and revise.</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
             <span>Change status:</span>
           </div>
-          {doc.status === 'draft' && (
+          {doc.status === 'draft' && canSubmitRevise && (
             <button
               onClick={() => handleStatusChange('in_review')}
               disabled={updateStatus.isPending}
@@ -610,7 +625,7 @@ export function DocumentViewerPage() {
               Submit for Review
             </button>
           )}
-          {doc.status === 'rejected' && (
+          {doc.status === 'rejected' && canSubmitRevise && (
             <button
               onClick={() => handleStatusChange('draft')}
               disabled={updateStatus.isPending}
@@ -620,7 +635,7 @@ export function DocumentViewerPage() {
               Revise (Back to Draft)
             </button>
           )}
-          {doc.status === 'in_review' && (
+          {doc.status === 'in_review' && canApproveReject && (
             <>
               <button
                 onClick={() => handleStatusChange('approved')}
@@ -639,6 +654,9 @@ export function DocumentViewerPage() {
                 Reject
               </button>
             </>
+          )}
+          {doc.status === 'in_review' && !canApproveReject && canSubmitRevise && (
+            <span className="text-[12px] text-muted-foreground italic">Waiting for reviewer or admin approval</span>
           )}
         </div>
       )}

@@ -40,7 +40,7 @@ CREATE POLICY "document_status_log_select" ON public.document_status_log
     document_id IN (
       SELECT id FROM public.benchmark_documents
       WHERE customer_company_id IN (
-        SELECT unnest(visible_company_ids_for_user(auth.uid()))
+        SELECT visible_company_ids_for_user(auth.uid())
       )
     )
   );

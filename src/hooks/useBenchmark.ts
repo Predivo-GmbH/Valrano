@@ -213,14 +213,34 @@ export function useGenerateBenchmark() {
 export function useUpdateDocumentStatus() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (params: { id: string; status: string }) => {
+    mutationFn: async (params: { id: string; status: string; fromStatus?: string; notes?: string }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
       const { data, error } = await supabase
         .from('benchmark_documents')
-        .update({ status: params.status })
+        .update({
+          status: params.status,
+          status_changed_by: user.id,
+          status_changed_at: new Date().toISOString(),
+          review_notes: params.notes || null,
+        })
         .eq('id', params.id)
         .select()
         .single()
       if (error) throw error
+
+      // Write to audit log
+      if (params.fromStatus) {
+        await supabase.from('document_status_log').insert({
+          document_id: params.id,
+          from_status: params.fromStatus,
+          to_status: params.status,
+          changed_by: user.id,
+          notes: params.notes || null,
+        })
+      }
+
       return data
     },
     onSuccess: () => {
