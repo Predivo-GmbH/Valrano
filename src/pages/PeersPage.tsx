@@ -10,7 +10,7 @@ import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
 import type { Company, ReportType, PublicationEventStatus } from '@/types/database'
 import { REPORT_TYPE_LABELS } from '@/lib/constants'
 import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
@@ -20,7 +20,6 @@ import {
   Plus,
   Upload,
   RefreshCw,
-  Eye,
   Building2,
   FileText,
   Loader2,
@@ -36,7 +35,6 @@ import {
   Trash2,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
@@ -270,6 +268,33 @@ function AddCompanyDialog({
         .single()
 
       if (error) throw error
+
+      // Add company to user's default peer group (or create one)
+      if (newCompany?.id) {
+        const { data: existingGroups } = await supabase
+          .from('peer_groups')
+          .select('id')
+          .order('created_at', { ascending: true })
+          .limit(1)
+
+        let pgId: string
+        if (existingGroups?.length) {
+          pgId = existingGroups[0].id
+        } else {
+          const { data: { user } } = await supabase.auth.getUser()
+          const { data: newPg, error: pgError } = await supabase
+            .from('peer_groups')
+            .insert({ name: 'Default', description: 'Auto-created peer group', owner_id: user?.id })
+            .select()
+            .single()
+          if (pgError) throw pgError
+          pgId = newPg.id
+        }
+
+        await supabase
+          .from('peer_group_members')
+          .upsert({ peer_group_id: pgId, company_id: newCompany.id }, { onConflict: 'peer_group_id,company_id' })
+      }
 
       // Non-blocking: auto-resolve IR URL for the new company
       if (newCompany?.id && !irUrl.trim()) {
@@ -704,14 +729,18 @@ function PeerCard({
   peer,
   onUpload,
   onCheckNow,
+  onDelete,
   isChecking,
+  isDeleting,
   totalKpiDefinitions,
   userSector,
 }: {
   peer: PeerCardData
   onUpload: (companyId: string) => void
   onCheckNow: (eventId: string) => void
+  onDelete: (companyId: string, companyName: string) => void
   isChecking: boolean
+  isDeleting: boolean
   totalKpiDefinitions: number
   userSector: string | null
 }) {
@@ -732,9 +761,9 @@ function PeerCard({
 
   return (
     <div className="card-premium rounded-xl border border-border bg-card p-3 sm:p-5 transition-colors hover:border-[var(--color-primary)]/30">
-      {/* Header: Company name + monitoring indicator */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
+      {/* Header: Company name (clickable) + actions */}
+      <div className="flex items-start justify-between gap-2">
+        <Link to={`/companies/${company.id}`} className="flex items-center gap-2.5 min-w-0 group">
           {(company.logo_url || companyLogoUrl(company.website_url)) ? (
             <img
               src={(company.logo_url || companyLogoUrl(company.website_url))!}
@@ -748,29 +777,68 @@ function PeerCard({
             </div>
           )}
           <div className="min-w-0">
-          <h3 className="text-[15px] font-semibold text-foreground truncate">
-            {company.name}
-          </h3>
-          {company.ticker && (
-            <span className="text-[11px] text-muted-foreground">
-              {company.ticker}{company.exchange ? ` · ${company.exchange}` : ''}
-            </span>
-          )}
+            <h3 className="text-[15px] font-semibold text-foreground truncate group-hover:text-[var(--color-accent)] transition-colors">
+              {company.name}
+            </h3>
+            {company.ticker && (
+              <span className="text-[11px] text-muted-foreground">
+                {company.ticker}{company.exchange ? ` · ${company.exchange}` : ''}
+              </span>
+            )}
           </div>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        </Link>
+        <div className="flex items-center gap-1 shrink-0">
           <span
             className={cn(
-              'h-2.5 w-2.5 rounded-full',
+              'h-2.5 w-2.5 rounded-full mr-1',
               isMonitoring
                 ? STATUS_COLORS[monitoringStatus ?? 'scheduled']
                 : 'bg-zinc-400',
               isMonitoring && (monitoringStatus === 'overdue' || monitoringStatus === 'due_today') && 'status-pulse',
             )}
           />
-          <span className="text-[11px] text-muted-foreground">
-            {isMonitoring ? 'Active' : 'Inactive'}
-          </span>
+          <TooltipProvider delay={200}>
+            <Tooltip>
+              <TooltipTrigger
+                className={cn(
+                  'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground',
+                  'hover:bg-accent hover:text-foreground transition-colors',
+                )}
+                onClick={() => onUpload(company.id)}
+              >
+                <Upload className="h-3.5 w-3.5" />
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Upload Report</TooltipContent>
+            </Tooltip>
+            {nextEventId && MONITORING_ACTIVE_STATUSES.includes(monitoringStatus!) && (
+              <Tooltip>
+                <TooltipTrigger
+                  className={cn(
+                    'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground',
+                    'hover:bg-accent hover:text-foreground transition-colors',
+                    isChecking && 'pointer-events-none opacity-50',
+                  )}
+                  onClick={() => onCheckNow(nextEventId)}
+                >
+                  <RefreshCw className={cn('h-3.5 w-3.5', isChecking && 'animate-spin')} />
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Check for new publication</TooltipContent>
+              </Tooltip>
+            )}
+            <Tooltip>
+              <TooltipTrigger
+                className={cn(
+                  'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground',
+                  'hover:bg-destructive/10 hover:text-destructive transition-colors',
+                  isDeleting && 'pointer-events-none opacity-50',
+                )}
+                onClick={() => onDelete(company.id, company.name)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Remove peer</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -856,36 +924,6 @@ function PeerCard({
           <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
             Same sector
           </span>
-        )}
-      </div>
-
-      {/* Action buttons */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Link
-          to={`/companies/${company.id}`}
-          className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'min-w-0')}
-        >
-          <Eye className="h-3.5 w-3.5" />
-          View Profile
-        </Link>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onUpload(company.id)}
-        >
-          <Upload className="h-3.5 w-3.5" />
-          Upload Report
-        </Button>
-        {nextEventId && MONITORING_ACTIVE_STATUSES.includes(monitoringStatus!) && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onCheckNow(nextEventId)}
-            disabled={isChecking}
-          >
-            <RefreshCw className={cn('h-3.5 w-3.5', isChecking && 'animate-spin')} />
-            Check Now
-          </Button>
         )}
       </div>
     </div>
@@ -1291,12 +1329,13 @@ function SuggestPeersSection({
   const handleAdd = async (s: SuggestedCompany) => {
     setAddingName(s.name)
     try {
+      let companyId: string
+
       if (s.in_database && s.existing_id) {
-        // Company already exists — no need to insert
-        toast.success(`"${s.name}" is already in your peer group`)
+        companyId = s.existing_id
       } else {
         const websiteUrl = s.website_domain ? `https://${s.website_domain}` : null
-        const { error } = await supabase
+        const { data: newCompany, error } = await supabase
           .from('companies')
           .insert({
             name: s.name,
@@ -1307,9 +1346,24 @@ function SuggestPeersSection({
           .select()
           .single()
         if (error) throw error
-        await queryClient.invalidateQueries({ queryKey: ['companies'] })
-        toast.success(`Added "${s.name}" to peer group`)
+        companyId = newCompany.id
       }
+
+      // Add to user's peer group
+      const { data: existingGroups } = await supabase
+        .from('peer_groups')
+        .select('id')
+        .order('created_at', { ascending: true })
+        .limit(1)
+
+      if (existingGroups?.length) {
+        await supabase
+          .from('peer_group_members')
+          .upsert({ peer_group_id: existingGroups[0].id, company_id: companyId }, { onConflict: 'peer_group_id,company_id' })
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['companies'] })
+      toast.success(`Added "${s.name}" to peer group`)
       setAddedNames((prev) => new Set(prev).add(s.name))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add company')
@@ -1541,11 +1595,43 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
     setUploadDialogOpen(true)
   }
 
+  const [checkingEventId, setCheckingEventId] = useState<string | null>(null)
+
   const handleCheckNow = (eventId: string) => {
+    setCheckingEventId(eventId)
     checkMutation.mutate(eventId, {
-      onSuccess: () => toast.success('Check completed'),
-      onError: (err) => toast.error(`Check failed: ${err.message}`),
+      onSuccess: () => { toast.success('Check completed'); setCheckingEventId(null) },
+      onError: (err) => { toast.error(`Check failed: ${err.message}`); setCheckingEventId(null) },
     })
+  }
+
+  const [deletingCompanyId, setDeletingCompanyId] = useState<string | null>(null)
+
+  const handleDeletePeer = async (companyId: string, companyName: string) => {
+    if (!confirm(`Remove "${companyName}" from your peer list? This will remove all associated data for this company.`)) return
+    setDeletingCompanyId(companyId)
+    try {
+      // Remove from all user's peer groups
+      const { data: userGroups } = await supabase
+        .from('peer_groups')
+        .select('id')
+      if (userGroups?.length) {
+        const groupIds = userGroups.map((g) => g.id)
+        const { error } = await supabase
+          .from('peer_group_members')
+          .delete()
+          .in('peer_group_id', groupIds)
+          .eq('company_id', companyId)
+        if (error) throw error
+      }
+      await queryClient.invalidateQueries({ queryKey: ['companies'] })
+      await queryClient.invalidateQueries({ queryKey: ['peer-groups'] })
+      toast.success(`Removed "${companyName}" from peers`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove peer')
+    } finally {
+      setDeletingCompanyId(null)
+    }
   }
 
   const handleAddPeer = () => {
@@ -1691,7 +1777,9 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
                         peer={peer}
                         onUpload={handleUpload}
                         onCheckNow={handleCheckNow}
-                        isChecking={checkMutation.isPending}
+                        onDelete={handleDeletePeer}
+                        isChecking={checkingEventId === peer.nextEventId}
+                        isDeleting={deletingCompanyId === peer.company.id}
                         totalKpiDefinitions={totalKpiDefinitions}
                         userSector={userSector}
                       />
@@ -1714,7 +1802,9 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
                         peer={peer}
                         onUpload={handleUpload}
                         onCheckNow={handleCheckNow}
-                        isChecking={checkMutation.isPending}
+                        onDelete={handleDeletePeer}
+                        isChecking={checkingEventId === peer.nextEventId}
+                        isDeleting={deletingCompanyId === peer.company.id}
                         totalKpiDefinitions={totalKpiDefinitions}
                         userSector={userSector}
                       />
