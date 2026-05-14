@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { BookOpen, Building2, Settings, Shield, ShieldCheck, User, Users } from 'lucide-react'
+import { BookOpen, Building2, FileBox, Settings, Shield, ShieldCheck, User, Users } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { SUPER_ADMIN_EMAIL } from '@/hooks/useSubscription'
 import { AccountPage } from './AccountPage'
@@ -11,6 +11,7 @@ import { BenchmarkRulesPage } from './BenchmarkRulesPage'
 import { ApprovalChainsPage } from './ApprovalChainsPage'
 import { TeamPage } from './TeamPage'
 import { AdminPage } from './AdminPage'
+import { CorporateTemplatesPage } from './CorporateTemplatesPage'
 
 const BASE_TABS = [
   { id: 'account', label: 'Account', icon: User },
@@ -19,6 +20,7 @@ const BASE_TABS = [
   { id: 'accounting', label: 'Accounting Profile', icon: BookOpen },
   { id: 'rules', label: 'Benchmark Rules', icon: Settings },
   { id: 'approvals', label: 'Approval Chains', icon: Shield },
+  { id: 'templates', label: 'Corporate Templates', icon: FileBox },
 ] as const
 
 const ADMIN_TAB = { id: 'admin' as const, label: 'Admin', icon: ShieldCheck }
@@ -97,6 +99,7 @@ export function SettingsPage() {
           {activeTab === 'accounting' && <AccountingProfilePage />}
           {activeTab === 'rules' && <BenchmarkRulesPage />}
           {activeTab === 'approvals' && <ApprovalChainsPage />}
+          {activeTab === 'templates' && <CorporateTemplatesPage />}
           {activeTab === 'admin' && isSuperAdmin && <AdminPage />}
         </div>
       </div>

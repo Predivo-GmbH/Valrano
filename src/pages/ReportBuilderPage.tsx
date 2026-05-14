@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Loader2,
   Pencil,
+  Presentation,
 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -32,6 +33,11 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { cn } from '@/lib/utils'
+import {
+  useCorporateTemplates,
+  useGenerateFromTemplate,
+  useDownloadExport,
+} from '@/hooks/useCorporateTemplates'
 
 // ---------------------------------------------------------------------------
 // Tab filter type
@@ -343,9 +349,36 @@ function CustomReportCard({
 }) {
   const generateMutation = useGenerateReport()
   const deleteMutation = useDeleteReport()
+  const generateFromTemplate = useGenerateFromTemplate()
+  const downloadExport = useDownloadExport()
+  const { data: corporateTemplates } = useCorporateTemplates()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showTemplateSelect, setShowTemplateSelect] = useState(false)
   const status = REPORT_STATUS_CONFIG[report.status]
   const StatusIcon = status.icon
+
+  const readyTemplates = (corporateTemplates ?? []).filter((t) => t.status === 'ready')
+
+  const handleExportWithTemplate = async (templateId: string) => {
+    setShowTemplateSelect(false)
+    try {
+      const res = await generateFromTemplate.mutateAsync({
+        template_id: templateId,
+        report_id: report.id,
+      })
+      const blob = await downloadExport.mutateAsync(res.output_path)
+      const tpl = readyTemplates.find((t) => t.id === templateId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${report.title}.${tpl?.file_format ?? 'pptx'}`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Branded report downloaded')
+    } catch (err) {
+      toast.error(`Export failed: ${(err as Error).message}`)
+    }
+  }
 
   return (
     <div className="card-premium rounded-xl border border-border bg-card p-5 transition-colors hover:bg-card/80">
@@ -380,7 +413,7 @@ function CustomReportCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 relative">
           {report.status === 'ready' && (
             <>
               <Button variant="outline" size="sm" onClick={onView}>
@@ -391,6 +424,37 @@ function CustomReportCard({
                 <Download className="h-3.5 w-3.5" />
                 Export PDF
               </Button>
+              {readyTemplates.length > 0 && (
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowTemplateSelect(!showTemplateSelect)}
+                    disabled={generateFromTemplate.isPending}
+                  >
+                    {generateFromTemplate.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Presentation className="h-3.5 w-3.5" />
+                    )}
+                    Branded
+                  </Button>
+                  {showTemplateSelect && (
+                    <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-border bg-card p-1 shadow-lg">
+                      {readyTemplates.map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[12px] text-foreground hover:bg-muted"
+                          onClick={() => handleExportWithTemplate(tpl.id)}
+                        >
+                          <Presentation className="h-3.5 w-3.5 text-[var(--color-accent)]" />
+                          {tpl.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
           {report.status === 'draft' && (
