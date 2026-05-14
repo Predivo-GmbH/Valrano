@@ -56,6 +56,7 @@ vi.mock('@/hooks/useCalendar', () => ({
   }),
   useCreatePublicationEvent: () => ({ mutate: vi.fn() }),
   useDeletePublicationEvent: () => ({ mutate: vi.fn() }),
+  useUpdatePublicationEvent: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useCheckPublication: () => ({ mutate: vi.fn(), isPending: false }),
   useCompanies: () => ({
     data: [

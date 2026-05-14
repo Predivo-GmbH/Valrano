@@ -1,10 +1,10 @@
 import { useState, useMemo, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Plus, RefreshCw, ExternalLink, Trash2, Eye, Sparkles, Loader2, Globe, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CalendarDays, Plus, RefreshCw, ExternalLink, Trash2, Eye, Sparkles, Loader2, Globe, ChevronLeft, ChevronRight, List, Clock, Check, X } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEvent, useCheckPublication } from '@/hooks/useCalendar'
+import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEvent, useCheckPublication, useUpdatePublicationEvent } from '@/hooks/useCalendar'
 import { useCompanies } from '@/hooks/useData'
 import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -85,6 +85,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterCompany, setFilterCompany] = useState<string>('all')
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [viewMode, setViewMode] = useState<'calendar' | 'upcoming'>('calendar')
 
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
@@ -98,9 +99,103 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const { data: companies } = useCompanies()
   const checkMutation = useCheckPublication()
   const deleteMutation = useDeletePublicationEvent()
+  const updateMutation = useUpdatePublicationEvent()
+  const suggestDatesMutation = useSuggestDates()
   const [deleteEventId, setDeleteEventId] = useState<string | null>(null)
   const [checkingEventId, setCheckingEventId] = useState<string | null>(null)
   const [infoBannerOpen, setInfoBannerOpen] = useState(false)
+
+  // Inline time editing
+  const [editingTimeEventId, setEditingTimeEventId] = useState<string | null>(null)
+  const [editTimeValue, setEditTimeValue] = useState('')
+
+  // AI suggest state
+  const [suggestingEventId, setSuggestingEventId] = useState<string | null>(null)
+  const [bulkSuggesting, setBulkSuggesting] = useState(false)
+
+  // Upcoming events (sorted from today forward)
+  const upcomingEvents = useMemo(() => {
+    if (!events) return []
+    return events
+      .filter((e) => e.expected_date >= todayStr && e.status !== 'cancelled')
+      .sort((a, b) => {
+        const dateDiff = a.expected_date.localeCompare(b.expected_date)
+        if (dateDiff !== 0) return dateDiff
+        return (a.expected_time ?? '').localeCompare(b.expected_time ?? '')
+      })
+  }, [events, todayStr])
+
+  // Count events missing time
+  const missingTimeCount = useMemo(() => {
+    if (!events) return 0
+    return events.filter((e) => !e.expected_time && e.status !== 'cancelled').length
+  }, [events])
+
+  // Inline time save
+  function handleTimeSave(eventId: string) {
+    if (!editTimeValue) return
+    updateMutation.mutate(
+      { id: eventId, expected_time: editTimeValue + ':00' },
+      {
+        onSuccess: () => { toast.success('Time updated'); setEditingTimeEventId(null) },
+        onError: (err) => toast.error(`Failed to update time: ${err.message}`),
+      },
+    )
+  }
+
+  // AI suggest time for one event
+  function handleSuggestTime(ev: { id: string; company_id: string; report_type: string; fiscal_year: number }) {
+    const companyName = companies?.find((c) => c.id === ev.company_id)?.name ?? ''
+    setSuggestingEventId(ev.id)
+    suggestDatesMutation.mutate(
+      { company_id: ev.company_id, company_name: companyName, report_type: ev.report_type, fiscal_year: ev.fiscal_year },
+      {
+        onSuccess: (data) => {
+          const time = data.suggestion.suggested_time
+          if (time) {
+            updateMutation.mutate(
+              { id: ev.id, expected_time: time },
+              {
+                onSuccess: () => { toast.success(`Time set to ${time.slice(0, 5)} (${data.suggestion.source})`); setSuggestingEventId(null) },
+                onError: () => setSuggestingEventId(null),
+              },
+            )
+          } else {
+            toast.info('AI could not determine a time for this event')
+            setSuggestingEventId(null)
+          }
+        },
+        onError: (err) => { toast.error(`AI suggestion failed: ${err.message}`); setSuggestingEventId(null) },
+      },
+    )
+  }
+
+  // Bulk suggest times for all events without a time
+  async function handleBulkSuggest() {
+    const noTimeEvents = (events ?? []).filter((e) => !e.expected_time && e.status !== 'cancelled')
+    if (noTimeEvents.length === 0) { toast.info('All events already have times set'); return }
+    setBulkSuggesting(true)
+    let successCount = 0
+    for (const ev of noTimeEvents) {
+      try {
+        const companyName = companies?.find((c) => c.id === ev.company_id)?.name ?? ''
+        const data = await suggestDatesMutation.mutateAsync({
+          company_id: ev.company_id,
+          company_name: companyName,
+          report_type: ev.report_type,
+          fiscal_year: ev.fiscal_year,
+        })
+        if (data.suggestion.suggested_time) {
+          await updateMutation.mutateAsync({ id: ev.id, expected_time: data.suggestion.suggested_time })
+          successCount++
+        }
+      } catch {
+        // continue with next event
+      }
+    }
+    setBulkSuggesting(false)
+    toast.success(`Set times for ${successCount}/${noTimeEvents.length} events`)
+  }
 
   // Map events by date for calendar dot rendering
   const eventsByDate = useMemo(() => {
@@ -210,7 +305,42 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
             </SelectContent>
           </Select>
 
-          <div className="ml-auto">
+          {/* View toggle */}
+          <div className="flex rounded-lg border border-border bg-[var(--color-bg-tertiary)] p-0.5">
+            <button
+              type="button"
+              onClick={() => setViewMode('calendar')}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                viewMode === 'calendar' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              Calendar
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('upcoming')}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                viewMode === 'upcoming' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <List className="h-3.5 w-3.5" />
+              Upcoming
+            </button>
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            {missingTimeCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkSuggest}
+                disabled={bulkSuggesting}
+              >
+                {bulkSuggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                Suggest All Times ({missingTimeCount})
+              </Button>
+            )}
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4" />
               Add Event
@@ -218,11 +348,112 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
           </div>
         </div>
 
-        {/* Calendar Grid */}
+        {/* Calendar Grid or Upcoming List */}
         {isLoading ? (
           <CardSkeleton />
+        ) : viewMode === 'upcoming' ? (
+          /* ============ Upcoming View ============ */
+          <div className="space-y-2">
+            {upcomingEvents.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card p-12 text-center">
+                <CalendarDays className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-semibold text-foreground">No upcoming events</h3>
+                <p className="mt-2 text-sm text-muted-foreground">All events are in the past or there are none scheduled.</p>
+              </div>
+            ) : (
+              upcomingEvents.map((ev) => {
+                const company = ev.companies as { id: string; name: string; ticker: string | null; logo_url: string | null; website_url: string | null } | undefined
+                const timeStr = ev.expected_time ? ev.expected_time.slice(0, 5) : null
+                const isEditingTime = editingTimeEventId === ev.id
+                const isSuggesting = suggestingEventId === ev.id
+
+                return (
+                  <div
+                    key={ev.id}
+                    className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-[var(--color-bg-tertiary)]"
+                  >
+                    {/* Date */}
+                    <div className="sm:w-24 shrink-0 text-xs text-muted-foreground">
+                      {new Date(ev.expected_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+
+                    {/* Time — inline editable */}
+                    <div className="sm:w-28 shrink-0">
+                      {isEditingTime ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="time"
+                            value={editTimeValue}
+                            onChange={(e) => setEditTimeValue(e.target.value)}
+                            className="h-7 w-24 rounded border border-border bg-background px-2 text-xs text-foreground"
+                            autoFocus
+                          />
+                          <button type="button" onClick={() => handleTimeSave(ev.id)} className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                          <button type="button" onClick={() => setEditingTimeEventId(null)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : timeStr ? (
+                        <button
+                          type="button"
+                          onClick={() => { setEditingTimeEventId(ev.id); setEditTimeValue(timeStr) }}
+                          className="text-sm font-semibold text-foreground hover:text-[var(--color-accent)] transition-colors"
+                        >
+                          {timeStr} <span className="text-[11px] font-normal text-muted-foreground">CET</span>
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => { setEditingTimeEventId(ev.id); setEditTimeValue('07:00') }}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-[var(--color-accent)] transition-colors"
+                          >
+                            <Clock className="h-3 w-3" />
+                            Set time
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSuggestTime(ev)}
+                            disabled={isSuggesting}
+                            title="Suggest time with AI"
+                            className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 disabled:opacity-50"
+                          >
+                            {isSuggesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Status dot + Logo + Company + Report Type */}
+                    <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_COLORS[ev.status]}`} />
+                      <CompanyLogo logoUrl={company?.logo_url} websiteUrl={company?.website_url} name={company?.name} size="sm" className="mt-0.5" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground">{company?.name ?? 'Unknown'}</span>
+                          {company?.ticker && <span className="text-xs text-muted-foreground">({company.ticker})</span>}
+                        </div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {REPORT_TYPE_LABELS[ev.report_type]} · FY {ev.fiscal_year}
+                          {ev.fiscal_quarter ? ` Q${ev.fiscal_quarter}` : ''}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Status badge */}
+                    <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[ev.status]}`}>
+                      {STATUS_LABELS[ev.status]}
+                    </span>
+                  </div>
+                )
+              })
+            )}
+          </div>
         ) : (
           <>
+            {/* ============ Calendar View ============ */}
             {/* Month Navigation */}
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -331,18 +562,60 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                     {selectedDayEvents.map((ev) => {
                       const company = ev.companies as { id: string; name: string; ticker: string | null; logo_url: string | null; website_url: string | null } | undefined
                       const timeStr = ev.expected_time ? ev.expected_time.slice(0, 5) : null
+                      const isEditingTime = editingTimeEventId === ev.id
+                      const isSuggesting = suggestingEventId === ev.id
 
                       return (
                         <div
                           key={ev.id}
                           className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-[var(--color-bg-tertiary)]"
                         >
-                          {/* Time */}
-                          <div className="sm:w-20 shrink-0">
-                            {timeStr ? (
-                              <div className="text-sm font-semibold text-foreground">{timeStr} <span className="text-[11px] font-normal text-muted-foreground">CET</span></div>
+                          {/* Time — inline editable */}
+                          <div className="sm:w-28 shrink-0">
+                            {isEditingTime ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="time"
+                                  value={editTimeValue}
+                                  onChange={(e) => setEditTimeValue(e.target.value)}
+                                  className="h-7 w-24 rounded border border-border bg-background px-2 text-xs text-foreground"
+                                  autoFocus
+                                />
+                                <button type="button" onClick={() => handleTimeSave(ev.id)} className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
+                                  <Check className="h-3.5 w-3.5" />
+                                </button>
+                                <button type="button" onClick={() => setEditingTimeEventId(null)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : timeStr ? (
+                              <button
+                                type="button"
+                                onClick={() => { setEditingTimeEventId(ev.id); setEditTimeValue(timeStr) }}
+                                className="text-sm font-semibold text-foreground hover:text-[var(--color-accent)] transition-colors"
+                              >
+                                {timeStr} <span className="text-[11px] font-normal text-muted-foreground">CET</span>
+                              </button>
                             ) : (
-                              <div className="text-xs text-muted-foreground">No time set</div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => { setEditingTimeEventId(ev.id); setEditTimeValue('07:00') }}
+                                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-[var(--color-accent)] transition-colors"
+                                >
+                                  <Clock className="h-3 w-3" />
+                                  Set time
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSuggestTime(ev)}
+                                  disabled={isSuggesting}
+                                  title="Suggest time with AI"
+                                  className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 disabled:opacity-50"
+                                >
+                                  {isSuggesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                </button>
+                              </div>
                             )}
                           </div>
 
