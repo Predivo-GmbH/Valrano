@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils'
 import {
   useCorporateTemplates,
   useGenerateFromTemplate,
+  useGenerateFromGoogleTemplate,
   useDownloadExport,
 } from '@/hooks/useCorporateTemplates'
 
@@ -350,6 +351,7 @@ function CustomReportCard({
   const generateMutation = useGenerateReport()
   const deleteMutation = useDeleteReport()
   const generateFromTemplate = useGenerateFromTemplate()
+  const generateFromGoogle = useGenerateFromGoogleTemplate()
   const downloadExport = useDownloadExport()
   const { data: corporateTemplates } = useCorporateTemplates()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -357,21 +359,26 @@ function CustomReportCard({
   const status = REPORT_STATUS_CONFIG[report.status]
   const StatusIcon = status.icon
 
-  const readyTemplates = (corporateTemplates ?? []).filter((t) => t.status === 'ready')
+  const readyTemplates = (corporateTemplates ?? []).filter(
+    (t) => t.status === 'ready' || t.status === 'google_linked',
+  )
 
   const handleExportWithTemplate = async (templateId: string) => {
     setShowTemplateSelect(false)
     try {
-      const res = await generateFromTemplate.mutateAsync({
-        template_id: templateId,
-        report_id: report.id,
-      })
-      const blob = await downloadExport.mutateAsync(res.output_path)
       const tpl = readyTemplates.find((t) => t.id === templateId)
+      const isGoogle = tpl?.file_format === 'gslides' || tpl?.file_format === 'gsheets'
+
+      const res = isGoogle
+        ? await generateFromGoogle.mutateAsync({ template_id: templateId, report_id: report.id })
+        : await generateFromTemplate.mutateAsync({ template_id: templateId, report_id: report.id })
+
+      const blob = await downloadExport.mutateAsync(res.output_path)
+      const ext = isGoogle ? 'pdf' : (tpl?.file_format ?? 'pptx')
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${report.title}.${tpl?.file_format ?? 'pptx'}`
+      a.download = `${report.title}.${ext}`
       a.click()
       URL.revokeObjectURL(url)
       toast.success('Branded report downloaded')
@@ -430,9 +437,9 @@ function CustomReportCard({
                     variant="outline"
                     size="sm"
                     onClick={() => setShowTemplateSelect(!showTemplateSelect)}
-                    disabled={generateFromTemplate.isPending}
+                    disabled={generateFromTemplate.isPending || generateFromGoogle.isPending}
                   >
-                    {generateFromTemplate.isPending ? (
+                    {(generateFromTemplate.isPending || generateFromGoogle.isPending) ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
                       <Presentation className="h-3.5 w-3.5" />

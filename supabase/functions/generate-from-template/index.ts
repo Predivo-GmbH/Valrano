@@ -109,23 +109,53 @@ serve(async (req: Request) => {
     const arrayBuffer = await fileData.arrayBuffer()
     const zip = await JSZip.loadAsync(arrayBuffer)
 
-    // Replace placeholders in all XML files
-    for (const [path, file] of Object.entries(zip.files)) {
-      if (path.endsWith('.xml') || path.endsWith('.xml.rels')) {
-        let content = await (file as JSZip.JSZipObject).async('string')
+    // For .xlsx: handle sharedStrings.xml (where cell text lives) + inline strings
+    // For .pptx: replace across all XML files (slides, layouts, masters)
+    if (template.file_format === 'xlsx') {
+      // SharedStrings.xml holds most cell text in Excel
+      const sharedStrings = zip.file('xl/sharedStrings.xml')
+      if (sharedStrings) {
+        let content = await sharedStrings.async('string')
         let modified = false
-
         for (const [key, value] of Object.entries(replacementData)) {
-          // Handle both clean and XML-split placeholders
           const pattern = `{{${key}}}`
           if (content.includes(pattern)) {
             content = content.replaceAll(pattern, escapeXml(String(value)))
             modified = true
           }
         }
+        if (modified) zip.file('xl/sharedStrings.xml', content)
+      }
 
-        if (modified) {
-          zip.file(path, content)
+      // Also replace in worksheet inline strings and header/footer
+      for (const [path, file] of Object.entries(zip.files)) {
+        if (path.startsWith('xl/worksheets/') && path.endsWith('.xml')) {
+          let content = await (file as JSZip.JSZipObject).async('string')
+          let modified = false
+          for (const [key, value] of Object.entries(replacementData)) {
+            const pattern = `{{${key}}}`
+            if (content.includes(pattern)) {
+              content = content.replaceAll(pattern, escapeXml(String(value)))
+              modified = true
+            }
+          }
+          if (modified) zip.file(path, content)
+        }
+      }
+    } else {
+      // .pptx: replace in all XML files
+      for (const [path, file] of Object.entries(zip.files)) {
+        if (path.endsWith('.xml') || path.endsWith('.xml.rels')) {
+          let content = await (file as JSZip.JSZipObject).async('string')
+          let modified = false
+          for (const [key, value] of Object.entries(replacementData)) {
+            const pattern = `{{${key}}}`
+            if (content.includes(pattern)) {
+              content = content.replaceAll(pattern, escapeXml(String(value)))
+              modified = true
+            }
+          }
+          if (modified) zip.file(path, content)
         }
       }
     }

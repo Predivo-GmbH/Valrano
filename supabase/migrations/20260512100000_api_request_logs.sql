@@ -13,4 +13,4 @@ create table if not exists api_request_logs (
 alter table api_request_logs enable row level security;
 
 -- No user-facing RLS needed — only accessed via service role from BackOffice
-create index idx_api_request_logs_service_created on api_request_logs(service, created_at);
+create index if not exists idx_api_request_logs_service_created on api_request_logs(service, created_at);

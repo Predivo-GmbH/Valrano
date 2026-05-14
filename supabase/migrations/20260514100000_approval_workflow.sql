@@ -34,17 +34,23 @@ CREATE INDEX IF NOT EXISTS idx_document_status_log_document_id
 -- RLS
 ALTER TABLE public.document_status_log ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "document_status_log_select" ON public.document_status_log
-  FOR SELECT TO authenticated
-  USING (
-    document_id IN (
-      SELECT id FROM public.benchmark_documents
-      WHERE customer_company_id IN (
-        SELECT visible_company_ids_for_user(auth.uid())
+DO $$ BEGIN
+  CREATE POLICY "document_status_log_select" ON public.document_status_log
+    FOR SELECT TO authenticated
+    USING (
+      document_id IN (
+        SELECT id FROM public.benchmark_documents
+        WHERE customer_company_id IN (
+          SELECT visible_company_ids_for_user(auth.uid())
+        )
       )
-    )
-  );
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "document_status_log_insert" ON public.document_status_log
-  FOR INSERT TO authenticated
-  WITH CHECK (changed_by = auth.uid());
+DO $$ BEGIN
+  CREATE POLICY "document_status_log_insert" ON public.document_status_log
+    FOR INSERT TO authenticated
+    WITH CHECK (changed_by = auth.uid());
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

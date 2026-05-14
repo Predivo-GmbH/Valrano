@@ -57,11 +57,13 @@ CREATE INDEX idx_generated_exports_user ON generated_exports(user_id);
 CREATE INDEX idx_generated_exports_template ON generated_exports(template_id);
 
 -- ---------------------------------------------------------------------------
--- Triggers
+-- Extension + Triggers
 -- ---------------------------------------------------------------------------
+CREATE EXTENSION IF NOT EXISTS moddatetime SCHEMA extensions;
+
 CREATE TRIGGER set_corporate_templates_updated_at
   BEFORE UPDATE ON corporate_templates
-  FOR EACH ROW EXECUTE FUNCTION moddatetime(updated_at);
+  FOR EACH ROW EXECUTE FUNCTION extensions.moddatetime(updated_at);
 
 -- ---------------------------------------------------------------------------
 -- RLS

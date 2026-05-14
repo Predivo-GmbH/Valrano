@@ -12,17 +12,23 @@ create table if not exists processing_status (
 alter table processing_status enable row level security;
 
 -- Users can read their own processing status (via report ownership)
-create policy "Users can read processing status for their reports"
-  on processing_status for select
-  using (
-    report_id in (
-      select r.id from reports r
-      join my_companies mc on mc.company_id = r.company_id
-      where mc.user_id = auth.uid()
-    )
-  );
+DO $$ BEGIN
+  CREATE POLICY "Users can read processing status for their reports"
+    ON processing_status FOR SELECT
+    USING (
+      report_id IN (
+        SELECT r.id FROM reports r
+        JOIN my_companies mc ON mc.company_id = r.company_id
+        WHERE mc.user_id = auth.uid()
+      )
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Enable Realtime for this table
-alter publication supabase_realtime add table processing_status;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE processing_status;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-create index idx_processing_status_report on processing_status(report_id, created_at);
+create index if not exists idx_processing_status_report on processing_status(report_id, created_at);

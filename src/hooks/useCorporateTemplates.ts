@@ -11,14 +11,26 @@ export interface CorporateTemplate {
   name: string
   description: string | null
   file_format: 'pptx' | 'xlsx' | 'gslides' | 'gsheets'
-  storage_path: string
+  storage_path: string | null
   file_size_bytes: number | null
   placeholders: string[]
   placeholder_mapping: Record<string, string>
-  status: 'uploaded' | 'parsing' | 'ready' | 'error'
+  status: 'uploaded' | 'parsing' | 'ready' | 'error' | 'google_linked'
   error_message: string | null
   slide_count: number | null
   thumbnail_path: string | null
+  google_file_id: string | null
+  google_file_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface GoogleConnection {
+  id: string
+  user_id: string
+  google_email: string
+  token_expires_at: string
+  scopes: string[]
   created_at: string
   updated_at: string
 }
@@ -29,7 +41,7 @@ export interface GeneratedExport {
   template_id: string
   custom_report_id: string | null
   output_path: string | null
-  output_format: 'pptx' | 'xlsx' | 'pdf'
+  output_format: 'pptx' | 'xlsx' | 'pdf' | 'gslides_pdf' | 'gsheets_pdf'
   data_snapshot: Record<string, string>
   status: 'pending' | 'generating' | 'ready' | 'error'
   error_message: string | null
@@ -239,4 +251,122 @@ export function useDownloadExport() {
       return data
     },
   })
+}
+
+// ---------------------------------------------------------------------------
+// Google Workspace
+// ---------------------------------------------------------------------------
+
+export function useGoogleConnection() {
+  return useQuery({
+    queryKey: ['google-connection'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('google_connections')
+        .select('id, user_id, google_email, token_expires_at, scopes, created_at, updated_at')
+        .maybeSingle()
+      if (error) throw error
+      return data as GoogleConnection | null
+    },
+  })
+}
+
+export function useConnectGoogle() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('google-auth-url')
+      if (error) throw error
+      return data as { url: string }
+    },
+  })
+}
+
+export function useDisconnectGoogle() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('google_connections')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000') // delete all for current user (RLS scoped)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['google-connection'] })
+    },
+  })
+}
+
+export function useAddGoogleTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (params: {
+      name: string
+      description?: string
+      fileUrl: string
+      fileFormat: 'gslides' | 'gsheets'
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+
+      // Extract file ID from Google URL
+      const fileId = extractGoogleFileId(params.fileUrl)
+      if (!fileId) throw new Error('Invalid Google Slides/Sheets URL')
+
+      const { data, error } = await supabase
+        .from('corporate_templates')
+        .insert({
+          user_id: user.id,
+          name: params.name,
+          description: params.description ?? null,
+          file_format: params.fileFormat,
+          storage_path: null,
+          google_file_id: fileId,
+          google_file_url: params.fileUrl,
+          status: 'google_linked',
+          placeholders: [],
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as CorporateTemplate
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['corporate-templates'] })
+    },
+  })
+}
+
+export function useGenerateFromGoogleTemplate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (params: {
+      template_id: string
+      data?: Record<string, string>
+      report_id?: string
+    }) => {
+      const { data, error } = await supabase.functions.invoke('generate-from-google-template', {
+        body: params,
+      })
+      if (error) throw error
+      return data as {
+        export_id: string
+        output_path: string
+        placeholders_replaced: number
+        status: string
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['generated-exports'] })
+    },
+  })
+}
+
+function extractGoogleFileId(url: string): string | null {
+  // Handles URLs like:
+  // https://docs.google.com/presentation/d/FILE_ID/edit
+  // https://docs.google.com/spreadsheets/d/FILE_ID/edit
+  const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/)
+  return match?.[1] ?? null
 }
