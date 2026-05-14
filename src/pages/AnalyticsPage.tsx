@@ -1,7 +1,8 @@
 import { useState, useMemo, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { shortKpiLabel } from '@/lib/kpi-labels'
+import { cn } from '@/lib/utils'
 import {
   TrendingUp,
   TrendingDown,
@@ -10,8 +11,10 @@ import {
   Table2,
   ScatterChart as ScatterIcon,
   Grid3X3,
+  Building2,
 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   LineChart,
   Line,
@@ -573,28 +576,53 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
     <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
       <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }}>
         <thead>
-          <tr className="border-b border-border">
-            <th className="sticky left-0 bg-card px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground" style={{ width: '160px' }}>
+          <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
+            <th className="sticky left-0 z-10 bg-[var(--color-bg-tertiary)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground" style={{ width: '180px' }}>
               Company
             </th>
             {visibleKpis.map((kpi) => (
-              <th key={kpi.code} className="px-2 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {shortKpiLabel(kpi.name)}
+              <th key={kpi.code} className="px-3 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                <TooltipProvider delay={200}>
+                  <UiTooltip>
+                    <TooltipTrigger className="cursor-help">
+                      {shortKpiLabel(kpi.name)}
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p className="text-xs font-medium">{kpi.name}</p>
+                      {kpi.unit && <p className="text-xs text-muted-foreground">Unit: {kpi.unit}</p>}
+                    </TooltipContent>
+                  </UiTooltip>
+                </TooltipProvider>
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {data.companies.map((company) => (
-            <tr key={company.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
-              <td className="sticky left-0 bg-card px-3 py-3 font-medium text-foreground truncate" style={{ width: '160px' }}>
-                {company.name}
+          {data.companies.map((company, idx) => (
+            <tr
+              key={company.id}
+              className={cn(
+                'border-b border-border/50 last:border-0 transition-colors hover:bg-[var(--color-accent)]/5',
+                idx % 2 === 1 && 'bg-[var(--color-bg-tertiary)]/30',
+              )}
+            >
+              <td className="sticky left-0 z-10 bg-card px-4 py-3" style={{ width: '180px' }}>
+                <Link to={`/companies/${company.id}`} className="flex items-center gap-2 group min-w-0">
+                  <div className="flex h-5 w-5 items-center justify-center rounded border border-border/50 bg-[var(--color-bg-tertiary)] shrink-0">
+                    <Building2 className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <span className="font-medium text-foreground truncate group-hover:text-[var(--color-accent)] transition-colors">
+                    {company.name}
+                  </span>
+                </Link>
               </td>
               {visibleKpis.map((kpi) => {
                 const val = lookup.get(company.id)?.get(kpi.code)
                 return (
-                  <td key={kpi.code} className="px-2 py-3 text-right tabular-nums text-foreground">
-                    {val !== null && val !== undefined ? val.toLocaleString() : '\u2014'}
+                  <td key={kpi.code} className="px-3 py-3 text-right tabular-nums text-foreground">
+                    {val !== null && val !== undefined
+                      ? val.toLocaleString(undefined, { maximumFractionDigits: 1 })
+                      : <span className="text-muted-foreground/50">—</span>}
                   </td>
                 )
               })}
@@ -738,13 +766,23 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
       <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
         <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }}>
           <thead>
-            <tr className="border-b border-border">
-              <th className="sticky left-0 bg-card px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground" style={{ width: '160px' }}>
+            <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
+              <th className="sticky left-0 z-10 bg-[var(--color-bg-tertiary)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground" style={{ width: '180px' }}>
                 Company
               </th>
               {visibleKpis.map((kpi) => (
-                <th key={kpi.code} className="px-1 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {shortKpiLabel(kpi.name)}
+                <th key={kpi.code} className="px-1 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                  <TooltipProvider delay={200}>
+                    <UiTooltip>
+                      <TooltipTrigger className="cursor-help">
+                        {shortKpiLabel(kpi.name)}
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs font-medium">{kpi.name}</p>
+                        {kpi.unit && <p className="text-xs text-muted-foreground">Unit: {kpi.unit}</p>}
+                      </TooltipContent>
+                    </UiTooltip>
+                  </TooltipProvider>
                 </th>
               ))}
             </tr>
@@ -752,26 +790,44 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
           <tbody>
             {data.companies.map((company) => (
               <tr key={company.id} className="border-b border-border/50 last:border-0">
-                <td className="sticky left-0 bg-card px-3 py-3 font-medium text-foreground truncate" style={{ width: '160px' }}>
-                  {company.name}
+                <td className="sticky left-0 z-10 bg-card px-4 py-3" style={{ width: '180px' }}>
+                  <Link to={`/companies/${company.id}`} className="flex items-center gap-2 group min-w-0">
+                    <div className="flex h-5 w-5 items-center justify-center rounded border border-border/50 bg-[var(--color-bg-tertiary)] shrink-0">
+                      <Building2 className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                    <span className="font-medium text-foreground truncate group-hover:text-[var(--color-accent)] transition-colors">
+                      {company.name}
+                    </span>
+                  </Link>
                 </td>
                 {visibleKpis.map((kpi) => {
                   const cell = lookup.get(company.id)?.get(kpi.code)
                   if (!cell || cell.value === null) {
-                    return <td key={kpi.code} className="px-1 py-2 text-center text-muted-foreground">{'\u2014'}</td>
+                    return <td key={kpi.code} className="px-1 py-2 text-center text-muted-foreground/50">—</td>
                   }
                   return (
                     <td key={kpi.code} className="px-1 py-2 text-center">
-                      <div
-                        className="mx-auto flex h-9 items-center justify-center rounded-md text-[11px] font-medium tabular-nums"
-                        style={{
-                          backgroundColor: getHeatColor(cell.percentile),
-                          color: 'var(--color-foreground)',
-                        }}
-                        title={`P${cell.percentile} \u2014 ${cell.value.toLocaleString()}`}
-                      >
-                        {cell.value.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 1 } as Intl.NumberFormatOptions)}
-                      </div>
+                      <TooltipProvider delay={100}>
+                        <UiTooltip>
+                          <TooltipTrigger asChild>
+                            <div
+                              className="mx-auto flex h-9 items-center justify-center rounded-lg text-[11px] font-semibold tabular-nums cursor-default border border-transparent hover:border-[var(--color-accent)]/30 transition-colors"
+                              style={{
+                                backgroundColor: getHeatColor(cell.percentile),
+                                color: getHeatTextColor(cell.percentile),
+                              }}
+                            >
+                              {cell.value.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 1 } as Intl.NumberFormatOptions)}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p className="text-xs font-medium">{kpi.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Value: {cell.value.toLocaleString()} · Percentile: P{cell.percentile}
+                            </p>
+                          </TooltipContent>
+                        </UiTooltip>
+                      </TooltipProvider>
                     </td>
                   )
                 })}
@@ -781,15 +837,17 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
         </table>
       </div>
 
-      {/* Legend */}
+      {/* Legend — smooth gradient bar */}
       <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
-        <span>Weak (P0)</span>
-        <div className="flex h-4">
-          {[0, 20, 40, 60, 80, 100].map((p) => (
-            <div key={p} className="h-full w-8" style={{ backgroundColor: getHeatColor(p) }} />
-          ))}
+        <span className="text-[var(--color-signal-red)]">Weak (P0)</span>
+        <div className="flex h-3 rounded-full overflow-hidden border border-border/50">
+          <div className="w-10" style={{ backgroundColor: 'rgba(239, 68, 68, 0.25)' }} />
+          <div className="w-10" style={{ backgroundColor: 'rgba(239, 68, 68, 0.12)' }} />
+          <div className="w-10" style={{ backgroundColor: 'rgba(156, 163, 175, 0.10)' }} />
+          <div className="w-10" style={{ backgroundColor: 'rgba(34, 197, 94, 0.12)' }} />
+          <div className="w-10" style={{ backgroundColor: 'rgba(34, 197, 94, 0.25)' }} />
         </div>
-        <span>Strong (P100)</span>
+        <span className="text-[var(--color-signal-green)]">Strong (P100)</span>
       </div>
     </div>
   )
@@ -800,10 +858,17 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
 // ---------------------------------------------------------------------------
 
 function getHeatColor(percentile: number): string {
-  if (percentile >= 80) return 'var(--color-signal-green)'
+  // Smooth gradient: red → amber → neutral → green
+  if (percentile >= 80) return 'rgba(34, 197, 94, 0.25)' // green
+  if (percentile >= 60) return 'rgba(34, 197, 94, 0.12)' // light green
+  if (percentile >= 40) return 'rgba(156, 163, 175, 0.10)' // neutral gray
+  if (percentile >= 20) return 'rgba(239, 68, 68, 0.12)' // light red
+  return 'rgba(239, 68, 68, 0.25)' // red
+}
+
+function getHeatTextColor(percentile: number): string {
   if (percentile >= 60) return 'var(--color-signal-green)'
-  if (percentile >= 40) return 'var(--color-muted)'
-  if (percentile >= 20) return 'var(--color-signal-red)'
+  if (percentile >= 40) return 'var(--color-foreground)'
   return 'var(--color-signal-red)'
 }
 

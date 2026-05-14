@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { Newspaper, RefreshCw, ExternalLink, TrendingUp, TrendingDown, Minus, Search, Filter } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { PremiumSelect } from '@/components/ui/premium-select'
 import { useAllNews, useFetchNews } from '@/hooks/useNews'
 import { useCompanies } from '@/hooks/useData'
@@ -270,9 +271,16 @@ export default function NewsPage() {
                   >
                     <div className="flex items-start gap-3">
                       {/* Sentiment indicator */}
-                      <div className={`mt-0.5 flex-shrink-0 ${SENTIMENT_COLOR[article.sentiment ?? 'neutral']}`}>
-                        <SentimentIcon className="h-4 w-4" />
-                      </div>
+                      <TooltipProvider delay={200}>
+                        <Tooltip>
+                          <TooltipTrigger className={`mt-0.5 flex-shrink-0 cursor-help ${SENTIMENT_COLOR[article.sentiment ?? 'neutral']}`}>
+                            <SentimentIcon className="h-4 w-4" />
+                          </TooltipTrigger>
+                          <TooltipContent side="left">
+                            <p className="text-xs capitalize">{article.sentiment ?? 'neutral'} sentiment</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
 
                       <div className="flex-1 min-w-0">
                         {/* Title + link */}
@@ -285,15 +293,24 @@ export default function NewsPage() {
                           >
                             {article.title}
                           </a>
-                          <a
-                            href={article.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={`Open ${article.title} in new tab`}
-                            className="flex min-h-[44px] min-w-[44px] flex-shrink-0 items-center justify-center text-[var(--color-muted-foreground)] hover:text-[var(--color-accent)] transition-colors"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
+                          <TooltipProvider delay={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <a
+                                  href={article.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  aria-label={`Open ${article.title} in new tab`}
+                                  className="flex min-h-[44px] min-w-[44px] flex-shrink-0 items-center justify-center text-[var(--color-muted-foreground)] hover:text-[var(--color-accent)] transition-colors"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              </TooltipTrigger>
+                              <TooltipContent side="left">
+                                <p className="text-xs">Open article in new tab</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                         {/* Source domain + author */}
                         <div className="mt-0.5 flex items-center gap-2 text-[10px] text-[var(--color-muted-foreground)]">
@@ -344,9 +361,16 @@ export default function NewsPage() {
 
                           {/* Relevance score */}
                           {article.relevance_score != null && article.relevance_score >= 0.8 && (
-                            <span className="text-xs text-[var(--color-accent)]">
-                              {Math.round(article.relevance_score * 100)}% relevant
-                            </span>
+                            <TooltipProvider delay={200}>
+                              <Tooltip>
+                                <TooltipTrigger className="cursor-help text-xs text-[var(--color-accent)]">
+                                  {Math.round(article.relevance_score * 100)}% relevant
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p className="text-xs">AI-assessed relevance to your benchmarking scope</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                         </div>
                       </div>

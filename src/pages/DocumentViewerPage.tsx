@@ -20,9 +20,11 @@ import {
   BookOpen,
   ShieldCheck,
   ShieldAlert,
+  Info,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 // ---------------------------------------------------------------------------
 // Status config
@@ -164,9 +166,21 @@ function DocumentContent({ content, triggerName, customerName, editable = false,
 
       {/* Key Findings */}
       <div>
-        <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-          Key Findings
-        </h2>
+        <div className="flex items-center gap-2 mb-3">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+            Key Findings
+          </h2>
+          <TooltipProvider delay={200}>
+            <Tooltip>
+              <TooltipTrigger className="cursor-help">
+                <Info className="h-3.5 w-3.5 text-muted-foreground/60" />
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-[280px]">
+                <p className="text-xs">The most significant insights from comparing financial performance between the two companies.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <ul className="space-y-2">
           {content.key_findings.map((finding, i) => (
             <li key={i} className="flex items-start gap-3">
@@ -264,6 +278,16 @@ function DocumentContent({ content, triggerName, customerName, editable = false,
             <h2 className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[var(--color-signal-red)]">
               Risk Flags
             </h2>
+            <TooltipProvider delay={200}>
+              <Tooltip>
+                <TooltipTrigger className="cursor-help">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground/60" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[280px]">
+                  <p className="text-xs">AI-identified risks and concerns found in the benchmark comparison. Critical flags may require manual review.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <ul className="space-y-1.5">
             {content.risk_flags.map((flag, i) => (
@@ -284,40 +308,50 @@ function DocumentContent({ content, triggerName, customerName, editable = false,
             <h2 className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Accounting Differences
             </h2>
+            <TooltipProvider delay={200}>
+              <Tooltip>
+                <TooltipTrigger className="cursor-help">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground/60" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[280px]">
+                  <p className="text-xs">Differences in how each company defines and calculates key metrics. Values are adjusted to ensure like-for-like comparison.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <p className="mb-3 text-[12px] text-muted-foreground">
             The following accounting policy differences affect comparability. Values have been adjusted to {customerName}'s framework where possible.
           </p>
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="table-premium w-full min-w-max border-collapse text-[13px]">
-              <thead>
-                <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">KPI</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">{customerName} Policy</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">{triggerName} Policy</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Adjustment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {content.accounting_comparisons.map((ac, i) => (
-                  <tr key={i} className="border-b border-border last:border-0 hover:bg-[var(--color-bg-tertiary)] transition-colors">
-                    <td className="px-4 py-3 font-medium text-foreground">{ac.kpi_name}</td>
-                    <td className="px-4 py-3 text-[12px] text-muted-foreground">{ac.your_policy}</td>
-                    <td className="px-4 py-3 text-[12px] text-muted-foreground">{ac.competitor_policy}</td>
-                    <td className={cn(
-                      'px-4 py-3 text-right tabular-nums font-medium',
-                      ac.adjustment_amount && ac.adjustment_amount < 0
+          <div className="grid gap-3">
+            {content.accounting_comparisons.map((ac, i) => (
+              <div key={i} className="rounded-lg border border-border bg-[var(--color-bg-tertiary)]/30 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[13px] font-semibold text-foreground">{ac.kpi_name}</h3>
+                  {ac.adjustment_amount && (
+                    <span className={cn(
+                      'text-[12px] font-semibold tabular-nums',
+                      ac.adjustment_amount < 0
                         ? 'text-[var(--color-signal-red)]'
                         : 'text-[var(--color-signal-green)]',
                     )}>
-                      {ac.adjustment_amount
-                        ? `${ac.adjustment_amount > 0 ? '+' : ''}${formatVal(ac.adjustment_amount)}`
-                        : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      {ac.adjustment_amount > 0 ? '+' : ''}{formatVal(ac.adjustment_amount)}
+                    </span>
+                  )}
+                </div>
+                <div className="grid gap-1.5">
+                  <div className="flex items-start gap-2 text-[12px]">
+                    <span className="text-muted-foreground shrink-0 w-20 font-medium">{customerName}:</span>
+                    <span className="text-foreground/80">{ac.your_policy}</span>
+                  </div>
+                  {ac.competitor_policy && (
+                    <div className="flex items-start gap-2 text-[12px]">
+                      <span className="text-muted-foreground shrink-0 w-20 font-medium">{triggerName}:</span>
+                      <span className="text-foreground/80">{ac.competitor_policy}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -330,6 +364,16 @@ function DocumentContent({ content, triggerName, customerName, editable = false,
             <h2 className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Sources & Confidence
             </h2>
+            <TooltipProvider delay={200}>
+              <Tooltip>
+                <TooltipTrigger className="cursor-help">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground/60" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[280px]">
+                  <p className="text-xs">Where each data point was extracted from, with the AI's confidence level in the accuracy of extraction.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {content.source_citations.map((sc, i) => {
