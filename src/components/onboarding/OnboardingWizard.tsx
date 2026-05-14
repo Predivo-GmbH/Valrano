@@ -893,29 +893,36 @@ function StepCompetitors({
     finally { setAddingIdx(null) }
   }
 
-  // Check if a report suggestion is already added (match by name against selected companies)
-  const isAlreadyAdded = (item: typeof reportSuggestionItems[number]) => {
+  // Resolve DB id for a report suggestion by matching name against companies in DB
+  const resolveDbId = (item: typeof reportSuggestionItems[number]) => {
     const allCompanies = companies ?? []
-    return selectedIds.some((id) => {
-      const c = allCompanies.find((co) => co.id === id)
-      return c && c.name.toLowerCase() === item.name.toLowerCase()
-    })
+    const match = allCompanies.find((c) => c.name.toLowerCase() === item.name.toLowerCase())
+    return match?.id
   }
 
-  // Render a report suggestion card
+  // Render a report suggestion card — toggleable (click to select/deselect), blue accent
   const renderSuggestionCard = (item: typeof reportSuggestionItems[number], idx: number) => {
+    const dbId = resolveDbId(item)
+    const isSelected = dbId ? selectedIds.includes(dbId) : false
     const isAdding = addingIdx === item.originalIdx
-    const alreadyAdded = isAlreadyAdded(item)
+
+    const handleClick = () => {
+      if (dbId) {
+        toggleCompany(dbId)
+      } else {
+        addAndSelect(item)
+      }
+    }
 
     return (
       <button
         key={`report-${idx}`}
-        onClick={() => !alreadyAdded && addAndSelect(item)}
-        disabled={isAdding || alreadyAdded}
+        onClick={handleClick}
+        disabled={isAdding}
         className={cn(
           'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
-          alreadyAdded
-            ? 'border-emerald-500/40 bg-emerald-500/5'
+          isSelected
+            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
             : 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50',
           isAdding && 'opacity-60',
         )}
@@ -923,25 +930,25 @@ function StepCompetitors({
         <div
           className={cn(
             'flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0',
-            alreadyAdded
-              ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400'
+            isSelected
+              ? 'bg-[var(--color-accent)] text-white'
               : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
           )}
         >
-          {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : alreadyAdded ? <Check className="h-4 w-4" /> : item.name.slice(0, 2).toUpperCase()}
+          {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : isSelected ? <Check className="h-4 w-4" /> : item.name.slice(0, 2).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-medium text-foreground truncate">{item.name}</p>
           <p className="text-[11px] text-muted-foreground">
-            {alreadyAdded
-              ? 'Added to peer group'
-              : [item.ticker, item.context].filter(Boolean).join(' · ')}
+            {[item.ticker, item.context].filter(Boolean).join(' · ')}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {!isAdding && !alreadyAdded && (
+          {isSelected ? (
+            <span className="text-[10px] text-muted-foreground">✕</span>
+          ) : !isAdding ? (
             <span className="text-[10px] text-[var(--color-accent)] font-medium">+ Add</span>
-          )}
+          ) : null}
         </div>
       </button>
     )
@@ -970,7 +977,7 @@ function StepCompetitors({
         </div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           {reportSuggestionItems.length > 0
-            ? 'These companies were mentioned as competitors or peers in your report. Companies with a green check are already in your peer group.'
+            ? 'These companies were explicitly mentioned as competitors or peers in your uploaded report. Click to add them to your peer group.'
             : 'No competitors were explicitly named in your report. Use manual search below to add them.'}
         </p>
         {reportSuggestionItems.length > 0 && (
