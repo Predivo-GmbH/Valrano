@@ -48,7 +48,6 @@ export function OnboardingWizard() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { status } = useOnboarding()
-  const { data: primaryCompany } = usePrimaryCompany()
   const { data: peerGroups } = usePeerGroups()
   const { data: existingEvents } = usePublicationEvents()
   const [currentStep, setCurrentStep] = useState(0)
