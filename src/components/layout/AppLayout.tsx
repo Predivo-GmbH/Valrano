@@ -171,8 +171,8 @@ export function AppLayout() {
                     <button
                       role="menuitem"
                       onClick={async () => {
-                        try { await signOut() } catch { /* ignore */ }
                         navigate('/')
+                        try { await signOut() } catch { /* ignore */ }
                       }}
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
                     >
@@ -220,8 +220,8 @@ export function AppLayout() {
                   <button
                     onClick={async () => {
                       setMobileNavOpen(false)
-                      try { await signOut() } catch { /* ignore */ }
                       navigate('/')
+                      try { await signOut() } catch { /* ignore */ }
                     }}
                     className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium text-muted-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)] hover:text-foreground min-h-[44px]"
                   >
