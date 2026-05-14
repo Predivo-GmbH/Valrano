@@ -176,11 +176,171 @@ async function classifyArticles(
 
 // ── Fetch news for a single source ───────────────────────────────────────────
 
+async function fetchFromIrPage(
+  source: { id: string; source_url: string; source_name: string },
+  companyId: string,
+  companyName: string
+): Promise<number> {
+  const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY')
+  if (!firecrawlApiKey) return 0
+  if (!isPublicUrl(source.source_url)) return 0
+
+  try {
+    // Scrape the IR page for press releases
+    const resp = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${firecrawlApiKey}`,
+      },
+      body: JSON.stringify({
+        url: source.source_url,
+        formats: ['markdown'],
+        onlyMainContent: true,
+        timeout: 15000,
+      }),
+      signal: AbortSignal.timeout(20000),
+    })
+
+    if (!resp.ok) {
+      console.error(`Firecrawl scrape failed for ${source.source_name}: ${resp.status}`)
+      return 0
+    }
+
+    const data = await resp.json()
+    const markdown = data.data?.markdown ?? ''
+    if (!markdown || markdown.length < 100) return 0
+
+    // Log Firecrawl usage
+    await admin.from('api_request_logs').insert({
+      service: 'firecrawl',
+      endpoint: '/v1/scrape',
+      call_count: 1,
+      edge_function: 'fetch-company-news',
+    }).catch(() => {})
+
+    // Use Gemini to extract press releases from the IR page content
+    const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY')
+    if (!geminiApiKey) return 0
+
+    const extractResp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: `Extract press releases, ad-hoc announcements, and news items from this investor relations page for "${companyName}".\n\nPage content:\n${markdown.slice(0, 10000)}\n\nReturn ONLY a JSON array of objects with: {title: string, date: string (ISO date or null), url: string (full URL or empty), snippet: string (1-2 sentence summary)}. Maximum 20 items. If no items found, return [].` }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string' },
+                  date: { type: 'string' },
+                  url: { type: 'string' },
+                  snippet: { type: 'string' },
+                },
+                required: ['title', 'snippet'],
+              },
+            },
+            temperature: 0,
+          },
+        }),
+        signal: AbortSignal.timeout(15000),
+      },
+    )
+
+    if (!extractResp.ok) return 0
+
+    const geminiJson = await extractResp.json()
+    await logAnthropicUsage('BenchmarkSignal', 'fetch-company-news-ir', {
+      model: 'gemini-2.5-flash',
+      usage: {
+        input_tokens: geminiJson.usageMetadata?.promptTokenCount ?? 0,
+        output_tokens: geminiJson.usageMetadata?.candidatesTokenCount ?? 0,
+      },
+    })
+
+    const text = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!text) return 0
+
+    const extracted = JSON.parse(text) as Array<{ title: string; date?: string; url?: string; snippet?: string }>
+    if (!Array.isArray(extracted) || extracted.length === 0) return 0
+
+    // Build items for dedup + insert
+    const items: RssItem[] = extracted.map(e => ({
+      title: e.title,
+      url: e.url || `${source.source_url}#${encodeURIComponent(e.title.slice(0, 50))}`,
+      published_at: e.date ? new Date(e.date).toISOString() : null,
+      snippet: e.snippet ?? '',
+      source_name: source.source_name,
+    }))
+
+    // Deduplicate
+    const urls = items.map(i => i.url)
+    const { data: existing } = await admin
+      .from('company_news')
+      .select('url')
+      .eq('company_id', companyId)
+      .in('url', urls)
+    const existingUrls = new Set((existing ?? []).map(e => e.url))
+    const newItems = items.filter(i => !existingUrls.has(i.url))
+    if (newItems.length === 0) return 0
+
+    // Classify
+    const classifications = await classifyArticles(
+      newItems.map(i => ({ title: i.title, snippet: i.snippet })),
+      companyName
+    )
+
+    // Insert with ir_page source tag
+    const rows = newItems.map((item, i) => ({
+      company_id: companyId,
+      source_id: source.id,
+      title: item.title,
+      url: item.url,
+      published_at: item.published_at,
+      snippet: item.snippet,
+      language: 'en',
+      sentiment: classifications[i]?.sentiment ?? 'neutral',
+      relevance_score: Math.max(classifications[i]?.relevance_score ?? 0.8, 0.8), // IR page content is always highly relevant
+      topics: classifications[i]?.topics ?? [],
+      ai_summary: classifications[i]?.ai_summary ?? '',
+      is_relevant: true,
+    }))
+
+    const { error } = await admin
+      .from('company_news')
+      .upsert(rows, { onConflict: 'company_id,url', ignoreDuplicates: true })
+
+    if (error) {
+      console.error('IR page insert error:', error.message)
+      return 0
+    }
+
+    await admin.from('news_sources')
+      .update({ last_fetched_at: new Date().toISOString() })
+      .eq('id', source.id)
+
+    return newItems.length
+  } catch (err) {
+    console.error(`IR page fetch error for ${source.source_name}:`, (err as Error).message)
+    return 0
+  }
+}
+
 async function fetchFromSource(
   source: { id: string; source_url: string; source_type: string; source_name: string },
   companyId: string,
   companyName: string
 ): Promise<number> {
+  // Route to IR page scraper for ir_page sources
+  if (source.source_type === 'ir_page') {
+    return fetchFromIrPage(source, companyId, companyName)
+  }
+
   let items: RssItem[] = []
 
   try {
@@ -263,30 +423,54 @@ async function fetchFromSource(
 async function ensureSourcesExist(companyId: string, companyName: string, ticker?: string) {
   const { data: existing } = await admin
     .from('news_sources')
-    .select('id')
+    .select('id, source_type')
     .eq('company_id', companyId)
-    .limit(1)
 
-  if (existing && existing.length > 0) return // already has sources
+  const existingTypes = new Set((existing ?? []).map(e => e.source_type))
 
-  // Build Google News RSS query: "Company Name" OR "TICKER"
-  const parts = [`"${companyName}"`]
-  if (ticker) parts.push(`"${ticker}"`)
-  const query = parts.join(' OR ')
-  const encodedQuery = encodeURIComponent(query)
+  const toInsert: Array<{
+    company_id: string; source_type: string; source_url: string;
+    source_name: string; search_query?: string; fetch_interval_hours: number
+  }> = []
 
-  const sources = [
-    {
+  // Google News RSS source
+  if (!existingTypes.has('google_news_rss')) {
+    const parts = [`"${companyName}"`]
+    if (ticker) parts.push(`"${ticker}"`)
+    const query = parts.join(' OR ')
+    const encodedQuery = encodeURIComponent(query)
+    toInsert.push({
       company_id: companyId,
       source_type: 'google_news_rss',
       source_url: `https://news.google.com/rss/search?q=${encodedQuery}&hl=en&gl=US&ceid=US:en`,
       source_name: `Google News — ${companyName}`,
       search_query: query,
       fetch_interval_hours: 6,
-    },
-  ]
+    })
+  }
 
-  await admin.from('news_sources').insert(sources)
+  // IR page source — scrape press releases from investor relations page
+  if (!existingTypes.has('ir_page')) {
+    const { data: company } = await admin
+      .from('companies')
+      .select('ir_page_url')
+      .eq('id', companyId)
+      .single()
+
+    if (company?.ir_page_url && isPublicUrl(company.ir_page_url)) {
+      toInsert.push({
+        company_id: companyId,
+        source_type: 'ir_page',
+        source_url: company.ir_page_url,
+        source_name: `IR Page — ${companyName}`,
+        fetch_interval_hours: 12,
+      })
+    }
+  }
+
+  if (toInsert.length > 0) {
+    await admin.from('news_sources').insert(toInsert)
+  }
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useParams, Link } from 'react-router-dom'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
@@ -25,6 +25,8 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 // ---------------------------------------------------------------------------
 // Status config
@@ -439,14 +441,24 @@ export function DocumentViewerPage() {
   const updateContent = useUpdateDocumentContent()
   const isEditable = doc?.status === 'draft' || doc?.status === 'in_review'
 
-  const handleStatusChange = async (newStatus: string) => {
+  const [statusDialog, setStatusDialog] = useState<{ targetStatus: string; label: string } | null>(null)
+  const [reviewNotes, setReviewNotes] = useState('')
+
+  const handleStatusChange = useCallback(async (newStatus: string, notes?: string) => {
     if (!doc) return
     try {
       await updateStatus.mutateAsync({ id: doc.id, status: newStatus })
-      toast.success(`Status updated to ${newStatus}`)
+      toast.success(`Status updated to ${STATUS_CONFIG[newStatus as DocumentStatus]?.label ?? newStatus}`)
+      setStatusDialog(null)
+      setReviewNotes('')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update status')
     }
+  }, [doc, updateStatus])
+
+  const openStatusDialog = (targetStatus: string, label: string) => {
+    setStatusDialog({ targetStatus, label })
+    setReviewNotes('')
   }
 
   const handlePrint = () => {
@@ -572,20 +584,40 @@ export function DocumentViewerPage() {
         </div>
       </div>
 
-      {/* Approval actions (Sprint 7 will expand this) */}
-      {(doc.status === 'draft' || doc.status === 'in_review') && (
-        <div className="mb-8 flex flex-wrap gap-2 rounded-lg border border-border bg-card p-4">
-          <span className="mr-auto self-center text-[13px] text-muted-foreground">
-            Change status:
-          </span>
+      {/* Approval workflow actions */}
+      {(doc.status === 'draft' || doc.status === 'in_review' || doc.status === 'rejected') && (
+        <div className="mb-8 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-4">
+          <div className="mr-auto flex items-center gap-2 text-[13px] text-muted-foreground">
+            <TooltipProvider delay={200}>
+              <Tooltip>
+                <TooltipTrigger className="cursor-help">
+                  <Info className="h-3.5 w-3.5" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[260px]">
+                  <p className="text-xs">Workflow: Draft → In Review → Approved → Delivered. Reviewers can approve or reject. Rejected documents return to draft for revision.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <span>Change status:</span>
+          </div>
           {doc.status === 'draft' && (
             <button
               onClick={() => handleStatusChange('in_review')}
               disabled={updateStatus.isPending}
-              className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-signal-amber)]/10 px-4 py-2 text-[13px] font-medium text-[var(--color-signal-amber)] transition-all duration-200 hover:bg-[var(--color-signal-amber)]/20 disabled:opacity-40"
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-[var(--color-signal-amber)]/10 px-4 py-2 text-[13px] font-medium text-[var(--color-signal-amber)] transition-all duration-200 hover:bg-[var(--color-signal-amber)]/20 disabled:opacity-40"
             >
-              {updateStatus.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+              {updateStatus.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
               Submit for Review
+            </button>
+          )}
+          {doc.status === 'rejected' && (
+            <button
+              onClick={() => handleStatusChange('draft')}
+              disabled={updateStatus.isPending}
+              className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-muted px-4 py-2 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-muted/80 disabled:opacity-40"
+            >
+              {updateStatus.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+              Revise (Back to Draft)
             </button>
           )}
           {doc.status === 'in_review' && (
@@ -593,22 +625,59 @@ export function DocumentViewerPage() {
               <button
                 onClick={() => handleStatusChange('approved')}
                 disabled={updateStatus.isPending}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-signal-green)]/10 px-4 py-2 text-[13px] font-medium text-[var(--color-signal-green)] transition-all duration-200 hover:bg-[var(--color-signal-green)]/20 disabled:opacity-40"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-[var(--color-signal-green)]/10 px-4 py-2 text-[13px] font-medium text-[var(--color-signal-green)] transition-all duration-200 hover:bg-[var(--color-signal-green)]/20 disabled:opacity-40"
               >
-                {updateStatus.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                {updateStatus.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                 Approve
               </button>
               <button
-                onClick={() => handleStatusChange('rejected')}
+                onClick={() => openStatusDialog('rejected', 'Reject')}
                 disabled={updateStatus.isPending}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-signal-red)]/10 px-4 py-2 text-[13px] font-medium text-[var(--color-signal-red)] transition-all duration-200 hover:bg-[var(--color-signal-red)]/20 disabled:opacity-40"
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-[var(--color-signal-red)]/10 px-4 py-2 text-[13px] font-medium text-[var(--color-signal-red)] transition-all duration-200 hover:bg-[var(--color-signal-red)]/20 disabled:opacity-40"
               >
+                <XCircle className="h-3.5 w-3.5" />
                 Reject
               </button>
             </>
           )}
         </div>
       )}
+
+      {/* Status change dialog with notes */}
+      <Dialog open={!!statusDialog} onOpenChange={(o) => { if (!o) setStatusDialog(null) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{statusDialog?.label} Document</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-[13px] text-muted-foreground">
+              {statusDialog?.targetStatus === 'rejected'
+                ? 'Please provide a reason for rejecting this document. The author will be able to revise and resubmit.'
+                : 'Add optional notes for this status change.'}
+            </p>
+            <textarea
+              value={reviewNotes}
+              onChange={(e) => setReviewNotes(e.target.value)}
+              placeholder={statusDialog?.targetStatus === 'rejected' ? 'Reason for rejection...' : 'Notes (optional)...'}
+              rows={3}
+              className="w-full rounded-lg border border-border bg-[var(--color-bg-tertiary)] px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50"
+            />
+          </div>
+          <DialogFooter className="mt-4 gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setStatusDialog(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant={statusDialog?.targetStatus === 'rejected' ? 'destructive' : 'default'}
+              onClick={() => handleStatusChange(statusDialog!.targetStatus, reviewNotes)}
+              disabled={updateStatus.isPending || (statusDialog?.targetStatus === 'rejected' && !reviewNotes.trim())}
+            >
+              {updateStatus.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {statusDialog?.label}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit hint */}
       {isEditable && (
