@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 
 /**
- * Smooth progress animation hook.
+ * Smooth progress animation hook with continuous asymptotic creep.
  *
  * Takes a `milestone` percentage (the real progress from backend steps)
  * and returns a `displayProgress` that smoothly animates between milestones
@@ -9,46 +9,58 @@ import { useState, useEffect, useRef } from 'react'
  *
  * Behavior:
  * - When a new milestone arrives, display jumps to at least that value
- * - Between milestones, display slowly creeps upward (+1% every ~2s)
- * - Creep is capped at milestone + 12% to avoid overshooting the next step
- * - When milestone hits 100, display immediately goes to 100
- * - When milestone resets to 0, display resets to 0
+ * - A continuous interval (every 200ms) creeps the display toward ceiling
+ *   using asymptotic decay: each tick moves 3% of the remaining gap
+ * - Ceiling = milestone + 25 (capped at 98) — enough headroom to fill long gaps
+ * - The bar NEVER stops moving until milestone hits 100 or resets to 0
+ * - Uses setInterval (not RAF) so it works even when tab is backgrounded
  */
 export function useSmoothProgress(milestone: number): number {
   const [display, setDisplay] = useState(0)
-  const milestoneRef = useRef(milestone)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const milestoneRef = useRef(0)
 
-  // When milestone changes, ensure display is at least at milestone
+  // Snap display on milestone change
   useEffect(() => {
     milestoneRef.current = milestone
     if (milestone >= 100) {
       setDisplay(100)
-      return
-    }
-    if (milestone <= 0) {
+    } else if (milestone <= 0) {
       setDisplay(0)
-      return
+    } else {
+      setDisplay((prev) => Math.max(prev, milestone))
     }
-    // Jump display to milestone if behind
-    setDisplay((prev) => Math.max(prev, milestone))
   }, [milestone])
 
-  // Slow creep timer — always running when active (0 < milestone < 100)
+  // Continuous creep — runs while 0 < milestone < 100
   const isActive = milestone > 0 && milestone < 100
   useEffect(() => {
-    if (!isActive) return
+    if (!isActive) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      return
+    }
 
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       setDisplay((prev) => {
-        // Don't creep past milestone + 12, and never past 98
-        const ceiling = Math.min(milestoneRef.current + 12, 98)
+        const ceiling = Math.min(milestoneRef.current + 25, 98)
         if (prev >= ceiling) return prev
-        return prev + 1
+        // Asymptotic: 3% of remaining gap per tick, min 0.1
+        const remaining = ceiling - prev
+        const increment = Math.max(remaining * 0.03, 0.1)
+        return Math.min(prev + increment, ceiling)
       })
-    }, 2000)
+    }, 200)
 
-    return () => clearInterval(interval)
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
   }, [isActive])
 
-  return display
+  return Math.round(display)
 }
