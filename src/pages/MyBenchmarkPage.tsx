@@ -127,7 +127,7 @@ export function MyBenchmarkPage() {
 
           <Select value={peerGroupId} onValueChange={(v) => v && setPeerGroupId(v)}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Auto (sector match)" />
+              <SelectValue placeholder="Auto (sector match)">{peerGroupId ? (peerGroups ?? []).find((pg) => pg.id === peerGroupId)?.name ?? 'Auto (sector match)' : 'Auto (sector match)'}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Auto (sector match)</SelectItem>

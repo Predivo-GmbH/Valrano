@@ -813,7 +813,7 @@ export function CompanyProfilePage() {
         <div className="mb-6 card-premium rounded-xl border border-border bg-card">
           <div className="hidden sm:grid grid-cols-[180px_1fr_1fr_40px] gap-2 border-b border-border px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
             <span>Policy Area</span>
-            <span>Your Company</span>
+            <span>{primaryCompany?.name ?? 'Your Company'}</span>
             <span>Peer</span>
             <span className="text-center">Match</span>
           </div>
@@ -833,7 +833,7 @@ export function CompanyProfilePage() {
                 >
                   <span className="text-[13px] font-medium text-foreground">{label}</span>
                   <div>
-                    <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground sm:hidden">Your Company</span>
+                    <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground sm:hidden">{primaryCompany?.name ?? 'Your Company'}</span>
                     <span className="text-[12px] text-muted-foreground line-clamp-2">
                       {hasMyData ? myDesc : (
                         <span className="italic text-muted-foreground/50">Not set</span>
@@ -895,7 +895,7 @@ export function CompanyProfilePage() {
               <div className="grid grid-cols-[1fr_100px_100px_90px_100px] gap-2 border-b border-border px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                 <span>KPI Name</span>
                 <span className="text-right">This Company</span>
-                <span className="text-right">Your Company</span>
+                <span className="text-right">{primaryCompany?.name ?? 'Your Company'}</span>
                 <span className="text-right">Difference</span>
                 <span className="text-right">Signal</span>
               </div>
@@ -1035,7 +1035,7 @@ export function CompanyProfilePage() {
         {/* ============================================================= */}
         {hasRadarData && (
           <>
-            <SectionHeader icon={Target} title="Profile Comparison" subtitle="Peer vs Your Company" />
+            <SectionHeader icon={Target} title="Profile Comparison" subtitle={`Peer vs ${primaryCompany?.name ?? 'Your Company'}`} />
             <div className="mb-6 card-premium card-accent-top rounded-xl border border-border bg-card p-5">
               <div className="mx-auto h-[300px] max-w-[480px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -1052,7 +1052,7 @@ export function CompanyProfilePage() {
                       axisLine={false}
                     />
                     <Radar
-                      name="Your Company"
+                      name={primaryCompany?.name ?? 'Your Company'}
                       dataKey="you"
                       stroke="var(--color-accent)"
                       fill="var(--color-accent)"
@@ -1081,7 +1081,7 @@ export function CompanyProfilePage() {
               <div className="mt-2 flex items-center justify-center gap-6 text-[12px]">
                 <span className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-accent)]" />
-                  Your Company
+                  {primaryCompany?.name ?? 'Your Company'}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="h-2.5 w-2.5 rounded-full bg-[var(--color-signal-amber)]" />

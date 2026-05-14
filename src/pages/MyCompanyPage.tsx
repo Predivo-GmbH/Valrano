@@ -12,7 +12,7 @@ import {
   useMyCompanyKpis,
   useUpsertMyCompanyKpis,
 } from '@/hooks/useMyCompany'
-import { useKpiDefinitions } from '@/hooks/useData'
+import { useKpiDefinitions, useCompanies } from '@/hooks/useData'
 import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -23,6 +23,12 @@ import { REPORT_TYPE_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { ReportType } from '@/types/database'
 
+
+function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
+  if (!websiteUrl) return null
+  const domain = websiteUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '')
+  return `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
+}
 
 const SECTORS = [
   'Construction & Materials',
@@ -41,6 +47,7 @@ const SECTORS = [
 export function MyCompanyPage() {
   const navigate = useNavigate()
   const { data: companies, isLoading } = useMyCompanies()
+  const { data: allCompanies } = useCompanies()
   const [showCreate, setShowCreate] = useState(false)
   const [editingKpis, setEditingKpis] = useState<string | null>(null)
   const [uploadCompanyId, setUploadCompanyId] = useState<string | null>(null)
@@ -84,6 +91,7 @@ export function MyCompanyPage() {
               <CompanyCard
                 key={company.id}
                 company={company}
+                logoUrl={(() => { const c = allCompanies?.find((ac) => ac.id === company.company_id); return c?.logo_url || companyLogoUrl(c?.website_url) })()}
                 isEditingKpis={editingKpis === company.id}
                 onEditKpis={() => setEditingKpis(editingKpis === company.id ? null : company.id)}
                 onUpload={() => setUploadCompanyId(company.company_id)}
@@ -121,11 +129,13 @@ export function MyCompanyPage() {
 
 function CompanyCard({
   company,
+  logoUrl,
   isEditingKpis,
   onEditKpis,
   onUpload,
 }: {
   company: { id: string; company_id: string | null; name: string; sector: string | null; country: string | null; reporting_currency: string | null; headcount: number | null; is_primary: boolean }
+  logoUrl?: string | null
   isEditingKpis: boolean
   onEditKpis: () => void
   onUpload: () => void
@@ -134,7 +144,10 @@ function CompanyCard({
     <div className="rounded-xl border border-border bg-card p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+          {logoUrl ? (
+            <img src={logoUrl} alt={company.name} className="h-10 w-10 rounded-lg object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden') }} />
+          ) : null}
+          <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-primary)]/10 text-[var(--color-primary)]', logoUrl && 'hidden')}>
             <Building2 className="h-5 w-5" />
           </div>
           <div>
@@ -546,7 +559,7 @@ function UploadReportDialog({
             </Label>
             <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                <SelectValue />
+                <SelectValue>{REPORT_TYPE_LABELS[reportType]}</SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-lg border-border bg-card text-[13px]">
                 {(Object.entries(REPORT_TYPE_LABELS) as [ReportType, string][]).map(([k, label]) => (
@@ -578,7 +591,7 @@ function UploadReportDialog({
                 </Label>
                 <Select value={String(fiscalQuarter)} onValueChange={(v) => setFiscalQuarter(Number(v))}>
                   <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                    <SelectValue />
+                    <SelectValue>Q{fiscalQuarter}</SelectValue>
                   </SelectTrigger>
                   <SelectContent className="rounded-lg border-border bg-card text-[13px]">
                     {[1, 2, 3, 4].map((q) => (

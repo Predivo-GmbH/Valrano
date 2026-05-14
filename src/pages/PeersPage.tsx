@@ -33,7 +33,10 @@ import {
   ArrowDownRight,
   Sparkles,
   Check,
+  Trash2,
 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Link } from 'react-router-dom'
@@ -559,7 +562,7 @@ function UploadReportDialog({
             </Label>
             <Select value={companies.some((c) => c.id === companyId) ? companyId : undefined} onValueChange={(v) => v && setCompanyId(v)}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                <SelectValue placeholder="Select company" />
+                <SelectValue placeholder="Select company">{(() => { const c = companies.find((c) => c.id === companyId); return c ? `${c.name}${c.ticker ? ` (${c.ticker})` : ''}` : 'Select company' })()}</SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-lg border-border bg-card text-[13px]">
                 {companies.map((c) => (
@@ -578,7 +581,7 @@ function UploadReportDialog({
             </Label>
             <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                <SelectValue />
+                <SelectValue>{REPORT_TYPE_LABELS[reportType]}</SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-lg border-border bg-card text-[13px]">
                 {(Object.entries(REPORT_TYPE_LABELS) as [ReportType, string][]).map(([k, label]) => (
@@ -610,7 +613,7 @@ function UploadReportDialog({
                 </Label>
                 <Select value={String(fiscalQuarter)} onValueChange={(v) => setFiscalQuarter(Number(v))}>
                   <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                    <SelectValue />
+                    <SelectValue>Q{fiscalQuarter}</SelectValue>
                   </SelectTrigger>
                   <SelectContent className="rounded-lg border-border bg-card text-[13px]">
                     {[1, 2, 3, 4].map((q) => (

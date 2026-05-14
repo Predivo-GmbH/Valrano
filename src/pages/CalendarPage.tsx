@@ -112,7 +112,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <Select value={filterStatus} onValueChange={(v) => v && setFilterStatus(v)}>
             <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="All statuses" />
+              <SelectValue placeholder="All statuses">{filterStatus === 'all' ? 'All statuses' : STATUS_LABELS[filterStatus as keyof typeof STATUS_LABELS] ?? filterStatus}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
@@ -124,7 +124,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
 
           <Select value={filterCompany} onValueChange={(v) => v && setFilterCompany(v)}>
             <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="All companies" />
+              <SelectValue placeholder="All companies">{filterCompany === 'all' ? 'All companies' : (companies ?? []).find((c) => c.id === filterCompany)?.name ?? 'All companies'}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All companies</SelectItem>
@@ -454,7 +454,7 @@ function CreateEventDialog({
               <label htmlFor="event-report-type" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Report Type</label>
               <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)}>
                 <SelectTrigger id="event-report-type" className="w-full">
-                  <SelectValue />
+                  <SelectValue>{REPORT_TYPE_LABELS[reportType]}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(REPORT_TYPE_LABELS).map(([k, v]) => (

@@ -173,9 +173,9 @@ export function AnalyticsPage() {
         {/* Filters */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
           {/* Peer group filter — shared across all tabs */}
-          <Select value={selectedPeerGroup} onValueChange={(v) => v && setSelectedPeerGroup(v)}>
+          <Select value={selectedPeerGroup} onValueChange={(v) => setSelectedPeerGroup(v ?? '')}>
             <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="All Companies" />
+              <SelectValue placeholder="All Companies">{selectedPeerGroup ? (peerGroups ?? []).find((pg) => pg.id === selectedPeerGroup)?.name ?? 'All Companies' : 'All Companies'}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">All Companies</SelectItem>
@@ -190,7 +190,7 @@ export function AnalyticsPage() {
             <>
               <Select value={selectedKpi} onValueChange={(v) => v && setSelectedKpi(v)}>
                 <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="All KPIs" />
+                  <SelectValue placeholder="All KPIs">{selectedKpi ? (kpiDefs ?? []).find((k) => k.code === selectedKpi)?.name ?? 'All KPIs' : 'All KPIs'}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All KPIs</SelectItem>
@@ -268,7 +268,7 @@ export function AnalyticsPage() {
               </Select>
               <Select value={xKpi} onValueChange={(v) => v && setXKpi(v)}>
                 <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="X Axis KPI..." />
+                  <SelectValue placeholder="X Axis KPI...">{xKpi ? (kpiDefs ?? []).find((k) => k.code === xKpi)?.name ?? 'X Axis KPI...' : 'X Axis KPI...'}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">X Axis KPI...</SelectItem>
@@ -280,7 +280,7 @@ export function AnalyticsPage() {
               <span className="text-[13px] text-muted-foreground">vs</span>
               <Select value={yKpi} onValueChange={(v) => v && setYKpi(v)}>
                 <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Y Axis KPI..." />
+                  <SelectValue placeholder="Y Axis KPI...">{yKpi ? (kpiDefs ?? []).find((k) => k.code === yKpi)?.name ?? 'Y Axis KPI...' : 'Y Axis KPI...'}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Y Axis KPI...</SelectItem>

@@ -544,7 +544,7 @@ function CreateReportDialog({ open, onClose }: { open: boolean; onClose: () => v
             <label htmlFor="report-template" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Template</label>
             <Select value={templateId} onValueChange={(v) => v && setTemplateId(v)}>
               <SelectTrigger id="report-template" className="w-full">
-                <SelectValue placeholder="Custom (no template)" />
+                <SelectValue placeholder="Custom (no template)">{templateId ? (templates ?? []).find((t) => t.id === templateId)?.name ?? 'Custom (no template)' : 'Custom (no template)'}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">Custom (no template)</SelectItem>
@@ -573,7 +573,7 @@ function CreateReportDialog({ open, onClose }: { open: boolean; onClose: () => v
               <label htmlFor="report-peer-group" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Peer Group</label>
               <Select value={peerGroupId} onValueChange={(v) => v && setPeerGroupId(v)}>
                 <SelectTrigger id="report-peer-group" className="w-full">
-                  <SelectValue placeholder="All Companies" />
+                  <SelectValue placeholder="All Companies">{peerGroupId ? (peerGroups ?? []).find((pg) => pg.id === peerGroupId)?.name ?? 'All Companies' : 'All Companies'}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All Companies</SelectItem>

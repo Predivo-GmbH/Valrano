@@ -488,7 +488,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
             <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Focus</span>
             <Select value={focus} onValueChange={(v) => setFocus(v as InsightFocus)}>
               <SelectTrigger className="h-7 w-[120px] rounded-md border-border bg-[var(--color-bg-tertiary)] text-[11px]">
-                <SelectValue />
+                <SelectValue>{FOCUS_OPTIONS.find((o) => o.value === focus)?.label}</SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-lg border-border bg-card text-[11px]">
                 {FOCUS_OPTIONS.map((o) => (
@@ -501,7 +501,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
             <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Time Range</span>
             <Select value={timeRange} onValueChange={(v) => setTimeRange(v as InsightTimeRange)}>
               <SelectTrigger className="h-7 w-[100px] rounded-md border-border bg-[var(--color-bg-tertiary)] text-[11px]">
-                <SelectValue />
+                <SelectValue>{TIME_RANGE_OPTIONS.find((o) => o.value === timeRange)?.label}</SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-lg border-border bg-card text-[11px]">
                 {TIME_RANGE_OPTIONS.map((o) => (
@@ -514,7 +514,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
             <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Report Type</span>
             <Select value={reportType} onValueChange={(v) => setReportType(v as InsightReportType)}>
               <SelectTrigger className="h-7 w-[130px] rounded-md border-border bg-[var(--color-bg-tertiary)] text-[11px]">
-                <SelectValue />
+                <SelectValue>{REPORT_TYPE_OPTIONS.find((o) => o.value === reportType)?.label}</SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-lg border-border bg-card text-[11px]">
                 {REPORT_TYPE_OPTIONS.map((o) => (
@@ -1140,7 +1140,7 @@ export function DashboardPage() {
           onValueChange={(v) => { if (v) setFiscalYear(Number(v)) }}
         >
           <SelectTrigger className="w-[120px] rounded-lg border-border bg-card text-[13px] text-foreground">
-            <SelectValue />
+            <SelectValue>FY {effectiveYear}</SelectValue>
           </SelectTrigger>
           <SelectContent align="end" className="rounded-lg border-border bg-card text-[13px]">
             {availableYears.map((y) => (
@@ -1311,7 +1311,7 @@ export function DashboardPage() {
             <TooltipTrigger className="text-[15px] font-semibold text-foreground mb-3 cursor-default bg-transparent border-none p-0 w-fit">
               Performance Snapshot
             </TooltipTrigger>
-            <TooltipContent>Your company's key KPIs and where they rank among peers.</TooltipContent>
+            <TooltipContent>{primaryCompanyName ? `${primaryCompanyName}'s key KPIs and where they rank among peers.` : 'Your company\'s key KPIs and where they rank among peers.'}</TooltipContent>
           </Tooltip>
           <div className="flex gap-3 overflow-x-auto pb-2">
             {performanceKpis.map((kpi) => (

@@ -261,7 +261,7 @@ function UploadReportDialog({
             </Label>
             <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                <SelectValue />
+                <SelectValue>{REPORT_TYPE_LABELS[reportType]}</SelectValue>
               </SelectTrigger>
               <SelectContent className="rounded-lg border-border bg-card text-[13px]">
                 {(Object.entries(REPORT_TYPE_LABELS) as [ReportType, string][]).map(([k, label]) => (
@@ -293,7 +293,7 @@ function UploadReportDialog({
                 </Label>
                 <Select value={String(fiscalQuarter)} onValueChange={(v) => setFiscalQuarter(Number(v))}>
                   <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                    <SelectValue />
+                    <SelectValue>Q{fiscalQuarter}</SelectValue>
                   </SelectTrigger>
                   <SelectContent className="rounded-lg border-border bg-card text-[13px]">
                     {[1, 2, 3, 4].map((q) => (
