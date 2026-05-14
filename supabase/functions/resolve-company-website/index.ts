@@ -11,14 +11,21 @@ function stripLegalSuffix(name: string): string {
 
 /**
  * Use Claude Haiku to verify/correct a company website URL.
- * Returns the correct corporate website if Brandfetch returned a wrong one.
+ * Now includes sector/industry context for disambiguation.
  */
 async function verifyWebsiteWithLLM(
   companyName: string,
   brandfetchDomain: string | null,
-): Promise<{ domain: string; confidence: number; reasoning: string } | null> {
+  sectorContext: string | null,
+): Promise<{ domain: string; confidence: number; reasoning: string; is_sector_match: boolean } | null> {
   const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!anthropicApiKey) return null
+
+  const contextBlock = sectorContext
+    ? `\n\nIMPORTANT CONTEXT: ${sectorContext}
+The correct website MUST be for a company operating in this sector.
+If "${companyName}" is ambiguous (e.g., could match companies in different industries), you MUST choose the one matching the sector context above. If no match exists in the correct sector, return confidence 0.`
+    : ''
 
   const prompt = brandfetchDomain
     ? `Company name: "${companyName}"
@@ -30,12 +37,12 @@ If not, what is the correct corporate website domain?
 Consider:
 - Companies may have rebranded (e.g. HeidelbergCement → Heidelberg Materials)
 - Subsidiary/product domains are NOT the corporate website
-- The correct answer is the domain where you'd find annual reports and investor relations`
+- The correct answer is the domain where you'd find annual reports and investor relations${contextBlock}`
     : `Company name: "${companyName}"
 A brand search API returned no results for this company.
 
 What is the correct MAIN CORPORATE website domain for "${companyName}"?
-The correct answer is the domain where you'd find annual reports and investor relations.`
+The correct answer is the domain where you'd find annual reports and investor relations.${contextBlock}`
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -62,14 +69,18 @@ The correct answer is the domain where you'd find annual reports and investor re
                 type: 'number',
                 minimum: 0,
                 maximum: 1,
-                description: '0-1 confidence. 0.9+ if well-known company. 0.5-0.8 if uncertain.',
+                description: '0-1 confidence. 0.95+ for well-known public companies. 0.8-0.94 for less well-known. Below 0.8 if uncertain.',
+              },
+              is_sector_match: {
+                type: 'boolean',
+                description: 'true if the company at this domain operates in (or has a major division in) the same sector/industry as described in the context. Conglomerates with a significant presence in the target sector count as true. false only if the company has NO meaningful operations in the described sector.',
               },
               reasoning: {
                 type: 'string',
                 description: 'Brief explanation (1 sentence)',
               },
             },
-            required: ['correct_domain', 'confidence', 'reasoning'],
+            required: ['correct_domain', 'confidence', 'is_sector_match', 'reasoning'],
           },
         }],
         tool_choice: { type: 'tool', name: 'verify_website' },
@@ -88,6 +99,7 @@ The correct answer is the domain where you'd find annual reports and investor re
     return {
       domain: toolBlock.input.correct_domain.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, ''),
       confidence: toolBlock.input.confidence ?? 0.5,
+      is_sector_match: toolBlock.input.is_sector_match ?? false,
       reasoning: toolBlock.input.reasoning ?? '',
     }
   } catch (e) {
@@ -98,12 +110,12 @@ The correct answer is the domain where you'd find annual reports and investor re
 
 /**
  * Get a reliable logo URL for a company domain.
- * Uses Google's favicon service (always available, no auth needed, 128px).
- * Also tries Brandfetch icon if available.
+ * Uses Google's favicon service as primary (always correct for the domain).
+ * Brandfetch icon only used if domain matches what Brandfetch returned.
  */
-function getLogoUrl(domain: string, brandfetchIcon: string | null): string {
-  // Brandfetch search result icon is highest quality when available
-  if (brandfetchIcon) return brandfetchIcon
+function getLogoUrl(domain: string, brandfetchDomain: string | null, brandfetchIcon: string | null): string {
+  // Only use Brandfetch icon if the domain matches what Brandfetch searched
+  if (brandfetchIcon && brandfetchDomain === domain) return brandfetchIcon
   // Google's gstatic favicon service: reliable, high-res, no auth needed
   return `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`
 }
@@ -115,7 +127,12 @@ Deno.serve(async (req: Request) => {
 
   try {
     const { adminClient, user } = await authenticateRequest(req)
-    const { name, company_id } = await req.json() as { name: string; company_id?: string }
+    const { name, company_id, sector, industry_context } = await req.json() as {
+      name: string
+      company_id?: string
+      sector?: string
+      industry_context?: string
+    }
 
     if (!name || name.trim().length < 2) {
       return jsonResponse({ error: 'Company name is required (min 2 chars)' }, 400)
@@ -124,6 +141,37 @@ Deno.serve(async (req: Request) => {
     const brandfetchClientId = Deno.env.get('BRANDFETCH_CLIENT_ID')
     if (!brandfetchClientId) {
       return jsonResponse({ error: 'Brandfetch not configured' }, 500)
+    }
+
+    // --- Step 0: Build sector context ---
+    let sectorContext = industry_context || null
+
+    if (!sectorContext && company_id) {
+      // Load the user's primary company to get sector context
+      const { data: myCompanies } = await adminClient
+        .from('my_companies')
+        .select('companies(name, sector)')
+        .eq('user_id', user.id)
+        .eq('is_primary', true)
+        .limit(1)
+
+      const primaryCompany = myCompanies?.[0]?.companies as { name: string; sector: string | null } | null
+
+      if (primaryCompany) {
+        // Also try accounting profile for richer context
+        const { data: profile } = await adminClient
+          .from('accounting_profiles')
+          .select('company_name, policies')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        const sectorStr = sector || primaryCompany.sector || ''
+        const profileIndustry = profile?.policies?.industry || ''
+
+        sectorContext = `This company "${name}" is a competitor/peer of "${primaryCompany.name}"${sectorStr ? ` in the ${sectorStr} industry` : ''}${profileIndustry ? ` (specifically: ${profileIndustry})` : ''}. The peer group contains companies that compete in the same markets as ${primaryCompany.name}.`
+      }
+    } else if (!sectorContext && sector) {
+      sectorContext = `This company "${name}" operates in the ${sector} industry.`
     }
 
     // --- Step 1: Brandfetch search ---
@@ -150,39 +198,57 @@ Deno.serve(async (req: Request) => {
     const brandfetchDomain = results.length > 0 ? results[0].domain : null
     const brandfetchIcon = results.length > 0 ? results[0].icon : null
 
-    // --- Step 2: LLM verification ---
-    // Always verify with Claude to catch rebrands and wrong matches
-    const llmResult = await verifyWebsiteWithLLM(name.trim(), brandfetchDomain)
+    // --- Step 2: LLM verification with sector context ---
+    const llmResult = await verifyWebsiteWithLLM(name.trim(), brandfetchDomain, sectorContext)
 
-    // Use LLM result if confident, otherwise fall back to Brandfetch
+    // Use LLM result only if confident AND sector matches (when context provided)
     let finalDomain: string | null
     let source: string
 
-    if (llmResult && llmResult.confidence >= 0.7) {
-      finalDomain = llmResult.domain
-      source = brandfetchDomain === llmResult.domain ? 'brandfetch_verified' : 'llm_corrected'
-      if (source === 'llm_corrected') {
-        console.log(`LLM corrected domain: ${brandfetchDomain} → ${llmResult.domain} (${llmResult.reasoning})`)
+    const MIN_CONFIDENCE = 0.85
+
+    if (llmResult && llmResult.confidence >= MIN_CONFIDENCE) {
+      // Sector mismatch is a warning, not an automatic rejection.
+      // Only reject if confidence is below 0.9 AND sector doesn't match.
+      // High-confidence results (>=0.9) are kept even with sector mismatch
+      // (conglomerates like Bouygues/Vinci operate across sectors).
+      if (sectorContext && !llmResult.is_sector_match && llmResult.confidence < 0.9) {
+        console.log(`Sector mismatch rejected (conf=${llmResult.confidence}): "${name}" → ${llmResult.domain} (${llmResult.reasoning})`)
+        finalDomain = null
+        source = 'sector_mismatch_rejected'
+      } else {
+        finalDomain = llmResult.domain
+        source = brandfetchDomain === llmResult.domain ? 'brandfetch_verified' : 'llm_corrected'
+        if (source === 'llm_corrected') {
+          console.log(`LLM corrected domain: ${brandfetchDomain} → ${llmResult.domain} (${llmResult.reasoning})`)
+        }
+        if (sectorContext && !llmResult.is_sector_match) {
+          console.log(`Sector mismatch accepted (high confidence ${llmResult.confidence}): "${name}" → ${llmResult.domain}`)
+        }
       }
-    } else if (brandfetchDomain) {
-      finalDomain = brandfetchDomain
-      source = 'brandfetch_unverified'
     } else if (llmResult) {
-      finalDomain = llmResult.domain
-      source = 'llm_low_confidence'
+      // Low confidence — still use if Brandfetch agrees (regardless of sector context)
+      if (brandfetchDomain && brandfetchDomain === llmResult.domain) {
+        finalDomain = brandfetchDomain
+        source = 'brandfetch_llm_agree_low_confidence'
+      } else {
+        console.log(`Low confidence rejected: "${name}" → ${llmResult.domain} (conf=${llmResult.confidence}, reason=${llmResult.reasoning})`)
+        finalDomain = null
+        source = 'low_confidence_rejected'
+      }
     } else {
       finalDomain = null
       source = 'none'
     }
 
     if (!finalDomain) {
-      return jsonResponse({ website_url: null, domain: null, source }, 200)
+      return jsonResponse({ website_url: null, domain: null, logo_url: null, source }, 200)
     }
 
     const website_url = `https://${finalDomain}`
 
-    // --- Step 3: Get logo URL ---
-    const logo_url = getLogoUrl(finalDomain, brandfetchIcon)
+    // --- Step 3: Get logo URL (only use Brandfetch icon if domain matches) ---
+    const logo_url = getLogoUrl(finalDomain, brandfetchDomain, brandfetchIcon)
 
     // --- Step 4: Update company record ---
     if (company_id) {
