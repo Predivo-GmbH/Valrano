@@ -222,10 +222,12 @@ export function useDeleteCorporateTemplate() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (template: CorporateTemplate) => {
-      // Delete storage file
-      await supabase.storage
-        .from('corporate-templates')
-        .remove([template.storage_path])
+      // Delete storage file (only for uploaded templates, not Google-linked)
+      if (template.storage_path) {
+        await supabase.storage
+          .from('corporate-templates')
+          .remove([template.storage_path])
+      }
 
       // Delete DB record (cascades to generated_exports)
       const { error } = await supabase
