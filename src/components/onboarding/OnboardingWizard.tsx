@@ -23,8 +23,7 @@ import { useAccountingProfile, useAnalyzeAccountingProfile } from '@/hooks/useAc
 import { useCreateMyCompany, usePrimaryCompany } from '@/hooks/useMyCompany'
 import { useUploadReport } from '@/hooks/useExtraction'
 import { useCreatePublicationEvent, usePublicationEvents } from '@/hooks/useCalendar'
-import { useSuggestDates, useSuggestCompetitors } from '@/hooks/useAiSuggestions'
-import type { CompetitorSuggestion } from '@/hooks/useAiSuggestions'
+import { useSuggestDates } from '@/hooks/useAiSuggestions'
 import { dismissOnboarding, useOnboarding } from '@/hooks/useOnboarding'
 import { useSmoothProgress } from '@/hooks/useSmoothProgress'
 import { CompanyAutocomplete } from '@/components/company-autocomplete'
@@ -71,7 +70,6 @@ export function OnboardingWizard() {
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
   const selectedCompanyIdsRef = useRef(selectedCompanyIds)
   useEffect(() => { selectedCompanyIdsRef.current = selectedCompanyIds }, [selectedCompanyIds])
-  const [aiSuggestions, setAiSuggestions] = useState<CompetitorSuggestion[]>([])
   const [reportCompetitors, setReportCompetitors] = useState<Array<{ name: string; ticker?: string; context?: string }>>([])
   const [competitorsConfirmed, setCompetitorsConfirmed] = useState(false)
 
@@ -346,8 +344,6 @@ export function OnboardingWizard() {
             selectedIds={selectedCompanyIds}
             onSelectedIdsChange={setSelectedCompanyIds}
             myCompanyName={primaryCompany?.name ?? ''}
-            aiSuggestions={aiSuggestions}
-            onAiSuggestionsChange={setAiSuggestions}
             reportCompetitors={reportCompetitors}
           />
         )}
@@ -843,22 +839,17 @@ function StepCompetitors({
   selectedIds,
   onSelectedIdsChange,
   myCompanyName,
-  aiSuggestions,
-  onAiSuggestionsChange,
   reportCompetitors,
 }: {
   selectedIds: string[]
   onSelectedIdsChange: (ids: string[]) => void
   myCompanyName: string
-  aiSuggestions: CompetitorSuggestion[]
-  onAiSuggestionsChange: (suggestions: CompetitorSuggestion[]) => void
   reportCompetitors: Array<{ name: string; ticker?: string; context?: string }>
 }) {
   const { data: companies, isLoading } = useAllCompanies()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [addingIdx, setAddingIdx] = useState<number | null>(null)
-  const suggestCompetitors = useSuggestCompetitors()
 
   const toggleCompany = (id: string) => {
     if (selectedIds.includes(id)) {
@@ -866,80 +857,6 @@ function StepCompetitors({
     } else {
       onSelectedIdsChange([...selectedIds, id])
     }
-  }
-
-  const handleAddSuggestion = async (suggestion: CompetitorSuggestion, idx: number) => {
-    setAddingIdx(idx)
-    try {
-      const { data: inserted, error } = await supabase
-        .from('companies')
-        .insert({
-          name: suggestion.name,
-          ticker: suggestion.ticker ?? null,
-          sector: suggestion.sector ?? null,
-          website_url: suggestion.website_domain ? `https://${suggestion.website_domain}` : null,
-        })
-        .select('id')
-        .single()
-      if (error) {
-        toast.error(`Failed to add ${suggestion.name}`)
-        return
-      }
-      // Auto-resolve website if not already set from suggestion
-      if (!suggestion.website_domain) {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (!session) return
-          fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`,
-                'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-              },
-              body: JSON.stringify({ name: suggestion.name, company_id: inserted.id }),
-            },
-          ).catch(() => {})
-        })
-      }
-      // Update suggestion to reflect it's now in DB
-      onAiSuggestionsChange(
-        aiSuggestions.map((s, i) =>
-          i === idx ? { ...s, existing_id: inserted.id, in_database: true } : s,
-        ),
-      )
-      onSelectedIdsChange([...selectedIds, inserted.id])
-      await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-      toast.success(`${suggestion.name} added and selected`)
-    } catch {
-      toast.error(`Failed to add ${suggestion.name}`)
-    } finally {
-      setAddingIdx(null)
-    }
-  }
-
-  const handleAiSuggest = () => {
-    if (!myCompanyName) {
-      toast.error('Set up your company name in Step 1 first')
-      return
-    }
-    const reportNames = reportCompetitors.map((rc) => rc.name)
-    suggestCompetitors.mutate(
-      { company_name: myCompanyName, exclude_names: reportNames },
-      {
-        onSuccess: (data) => {
-          // Filter out any suggestions that duplicate report-found competitors
-          const reportNamesLower = new Set(reportNames.map((n) => n.toLowerCase()))
-          const filtered = data.suggestions.filter(
-            (s) => !reportNamesLower.has(s.name.toLowerCase()),
-          )
-          onAiSuggestionsChange(filtered)
-          toast.success(`Found ${data.suggestions.length} competitor suggestions`)
-        },
-        onError: (err) => toast.error(err.message),
-      },
-    )
   }
 
   if (isLoading) {
@@ -950,138 +867,70 @@ function StepCompetitors({
     )
   }
 
-  // Build unified suggestion list: report competitors first, then AI suggestions
-  const unifiedSuggestions: Array<{
+  // Build report suggestion list
+  const reportSuggestionItems: Array<{
     name: string
     ticker?: string
-    sector?: string
     context?: string
-    reasoning?: string
-    source: 'report' | 'ai'
-    existing_id?: string | null
-    in_database?: boolean
     originalIdx: number
-  }> = []
+  }> = reportCompetitors.map((rc, i) => ({
+    name: rc.name,
+    ticker: rc.ticker,
+    context: rc.context,
+    originalIdx: -(i + 1),
+  }))
 
-  for (let i = 0; i < reportCompetitors.length; i++) {
-    const rc = reportCompetitors[i]
-    unifiedSuggestions.push({
-      name: rc.name,
-      ticker: rc.ticker,
-      context: rc.context,
-      source: 'report',
-      originalIdx: -(i + 1), // negative index for report competitors
-    })
-  }
-
-  for (let i = 0; i < aiSuggestions.length; i++) {
-    const s = aiSuggestions[i]
-    unifiedSuggestions.push({
-      name: s.name,
-      ticker: s.ticker ?? undefined,
-      sector: s.sector ?? undefined,
-      reasoning: s.reasoning ?? undefined,
-      source: 'ai',
-      existing_id: s.existing_id,
-      in_database: s.in_database,
-      originalIdx: i,
-    })
-  }
-
-  // Helper: resolve DB id for a suggestion item — only returns IDs already selected in this session
-  const resolveDbId = (item: typeof unifiedSuggestions[number]) => {
-    // Never match against existing companies from other accounts
-    // Only return an ID if this suggestion was already added in this onboarding session
-    if (item.source === 'ai' && item.in_database && item.existing_id) {
-      return selectedIds.includes(item.existing_id) ? item.existing_id : undefined
-    }
-    return undefined
-  }
-
-  // Helper: add a suggestion to DB and select it
-  const addAndSelect = async (item: typeof unifiedSuggestions[number]) => {
+  // Helper: add a report suggestion to DB and select it
+  const addAndSelect = async (item: typeof reportSuggestionItems[number]) => {
     setAddingIdx(item.originalIdx)
     try {
-      if (item.source === 'report') {
-        const { data: inserted, error } = await supabase
-          .from('companies')
-          .insert({ name: item.name, ticker: item.ticker ?? null })
-          .select('id')
-          .single()
-        if (error) { toast.error(`Failed to add ${item.name}`); return }
-        onSelectedIdsChange([...selectedIds, inserted.id])
-        await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-        toast.success(`${item.name} added`)
-      } else {
-        await handleAddSuggestion(aiSuggestions[item.originalIdx], item.originalIdx)
-      }
+      const { data: inserted, error } = await supabase
+        .from('companies')
+        .insert({ name: item.name, ticker: item.ticker ?? null })
+        .select('id')
+        .single()
+      if (error) { toast.error(`Failed to add ${item.name}`); return }
+      onSelectedIdsChange([...selectedIds, inserted.id])
+      await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+      toast.success(`${item.name} added`)
     } catch { toast.error(`Failed to add ${item.name}`) }
     finally { setAddingIdx(null) }
   }
 
-  // Render a suggestion card
-  const renderSuggestionCard = (item: typeof unifiedSuggestions[number], idx: number) => {
-    const dbId = resolveDbId(item)
-    const isSelected = dbId ? selectedIds.includes(dbId) : false
+  // Render a report suggestion card
+  const renderSuggestionCard = (item: typeof reportSuggestionItems[number], idx: number) => {
     const isAdding = addingIdx === item.originalIdx
-
-    const handleClick = () => {
-      if (dbId) {
-        toggleCompany(dbId)
-      } else {
-        addAndSelect(item)
-      }
-    }
 
     return (
       <button
-        key={`${item.source}-${idx}`}
-        onClick={handleClick}
+        key={`report-${idx}`}
+        onClick={() => addAndSelect(item)}
         disabled={isAdding}
         className={cn(
           'flex items-center gap-3 rounded-lg border p-3 text-left transition-all',
-          isSelected
-            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/5'
-            : 'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50',
+          'border-border hover:border-border/80 hover:bg-[var(--color-bg-tertiary)]/50',
           isAdding && 'opacity-60',
         )}
       >
         <div
-          className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0',
-            isSelected
-              ? 'bg-[var(--color-accent)] text-white'
-              : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
-          )}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0 bg-[var(--color-bg-tertiary)] text-muted-foreground"
         >
-          {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : isSelected ? <Check className="h-4 w-4" /> : item.name.slice(0, 2).toUpperCase()}
+          {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : item.name.slice(0, 2).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-medium text-foreground truncate">{item.name}</p>
           <p className="text-[11px] text-muted-foreground">
-            {item.source === 'report'
-              ? [item.ticker, item.context].filter(Boolean).join(' · ')
-              : [item.ticker, item.sector].filter(Boolean).join(' · ')}
+            {[item.ticker, item.context].filter(Boolean).join(' · ')}
           </p>
-          {item.reasoning && (
-            <p className="text-[10px] text-muted-foreground/70 mt-0.5 line-clamp-1">
-              {item.reasoning}
-            </p>
-          )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {isSelected ? (
-            <span className="text-[10px] text-muted-foreground">✕</span>
-          ) : !isAdding ? (
+          {!isAdding && (
             <span className="text-[10px] text-[var(--color-accent)] font-medium">+ Add</span>
-          ) : null}
+          )}
         </div>
       </button>
     )
   }
-
-  const reportSuggestions = unifiedSuggestions.filter((s) => s.source === 'report')
-  const aiSuggestionItems = unifiedSuggestions.filter((s) => s.source === 'ai')
   const selectedCompanies = (companies ?? []).filter((c) => selectedIds.includes(c.id))
 
   return (
@@ -1089,7 +938,7 @@ function StepCompetitors({
       <div>
         <h2 className="text-[22px] font-semibold text-foreground">Add Your Competitors</h2>
         <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
-          Build your peer group for benchmarking. Add competitors from three sources:
+          Build your peer group for benchmarking. Add competitors from your report or search manually.
         </p>
       </div>
 
@@ -1101,67 +950,22 @@ function StepCompetitors({
           </div>
           <h3 className="text-[13px] font-semibold text-foreground">From your annual report</h3>
           <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-            {reportSuggestions.length} found
+            {reportSuggestionItems.length} found
           </span>
         </div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          {reportSuggestions.length > 0
+          {reportSuggestionItems.length > 0
             ? 'These companies were explicitly mentioned as competitors or peers in your uploaded report. Click to add them to your peer group.'
-            : 'No competitors were explicitly named in your report. Use AI discovery or manual search below.'}
+            : 'No competitors were explicitly named in your report. Use manual search below to add them.'}
         </p>
-        {reportSuggestions.length > 0 && (
+        {reportSuggestionItems.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {reportSuggestions.map((item, idx) => renderSuggestionCard(item, idx))}
+            {reportSuggestionItems.map((item, idx) => renderSuggestionCard(item, idx))}
           </div>
         )}
       </div>
 
-      {/* ── Section 2: AI-discovered competitors ── */}
-      <div className="rounded-xl border border-border p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--color-accent)]/10">
-              <Sparkles className="h-3.5 w-3.5 text-[var(--color-accent)]" />
-            </div>
-            <h3 className="text-[13px] font-semibold text-foreground">AI-discovered competitors</h3>
-            {aiSuggestionItems.length > 0 && (
-              <span className="rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
-                {aiSuggestionItems.length} found
-              </span>
-            )}
-          </div>
-          <button
-            onClick={handleAiSuggest}
-            disabled={suggestCompetitors.isPending || !myCompanyName}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-[12px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {suggestCompetitors.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5" />
-            )}
-            {suggestCompetitors.isPending
-              ? 'Searching...'
-              : aiSuggestionItems.length > 0
-              ? 'Find more'
-              : 'Discover competitors'}
-          </button>
-        </div>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          {aiSuggestionItems.length > 0
-            ? `AI analyzed ${myCompanyName}'s industry and found these competitors. Click to add them.`
-            : myCompanyName
-            ? `Click "Discover competitors" to let AI find companies in the same industry as ${myCompanyName}.`
-            : 'Set up your company name in Step 1, then use AI to discover competitors automatically.'}
-        </p>
-        {aiSuggestionItems.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {aiSuggestionItems.map((item, idx) => renderSuggestionCard(item, idx))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Section 3: Manual search ── */}
+      {/* ── Section 2: Manual search ── */}
       <div className="rounded-xl border border-border p-4 space-y-3">
         <div className="flex items-center gap-2">
           <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500/10">
@@ -1207,7 +1011,6 @@ function StepCompetitors({
       {/* ── Selected peer group summary ── */}
       {selectedCompanies.length > 0 && (() => {
         const reportNames = new Set(reportCompetitors.map((rc) => rc.name.toLowerCase()))
-        const aiNames = new Set(aiSuggestions.map((s) => s.name.toLowerCase()))
         return (
           <div className="rounded-xl border-2 border-[var(--color-accent)]/30 bg-[var(--color-accent)]/3 p-4 space-y-3">
             <div className="flex items-center gap-2">
@@ -1219,7 +1022,7 @@ function StepCompetitors({
             <div className="flex flex-wrap gap-2">
               {selectedCompanies.map((company) => {
                 const nameLower = company.name.toLowerCase()
-                const source = reportNames.has(nameLower) ? 'report' : aiNames.has(nameLower) ? 'AI' : 'manual'
+                const source = reportNames.has(nameLower) ? 'report' : 'manual'
                 return (
                   <button
                     key={company.id}
@@ -1228,9 +1031,7 @@ function StepCompetitors({
                   >
                     <span className={cn(
                       'inline-block h-1.5 w-1.5 rounded-full',
-                      source === 'report' ? 'bg-emerald-500'
-                        : source === 'AI' ? 'bg-[var(--color-accent)]'
-                        : 'bg-amber-500',
+                      source === 'report' ? 'bg-emerald-500' : 'bg-amber-500',
                     )} />
                     {company.name}
                     <span className="text-muted-foreground group-hover:text-red-500 transition-colors">✕</span>
@@ -1240,7 +1041,6 @@ function StepCompetitors({
             </div>
             <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" /> from report</span>
-              <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" /> AI-discovered</span>
               <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" /> manually added</span>
             </div>
           </div>
