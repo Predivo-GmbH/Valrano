@@ -49,6 +49,8 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const checkMutation = useCheckPublication()
   const deleteMutation = useDeletePublicationEvent()
   const [deleteEventId, setDeleteEventId] = useState<string | null>(null)
+  const [checkingEventId, setCheckingEventId] = useState<string | null>(null)
+  const [infoBannerOpen, setInfoBannerOpen] = useState(false)
 
   // Group events by month
   const groupedByMonth = (events ?? []).reduce<Record<string, typeof events>>((acc, ev) => {
@@ -71,41 +73,48 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
         </div>
       )}
 
-        {/* Automation Info Banner */}
-        <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
+        {/* Automation Info Banner — collapsible */}
+        <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/5">
+          <button
+            type="button"
+            onClick={() => setInfoBannerOpen((o) => !o)}
+            className="flex w-full items-center gap-3 p-4 text-left min-h-[44px]"
+          >
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
               <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Automated Monitoring</h3>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            <span className="flex-1 text-sm font-semibold text-foreground">Automated Monitoring</span>
+            <svg className={`h-4 w-4 text-muted-foreground transition-transform ${infoBannerOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          </button>
+          {infoBannerOpen && (
+            <div className="px-4 pb-4 pl-12">
+              <p className="text-xs leading-relaxed text-muted-foreground">
                 The system automatically checks for new publications based on the expected date and time you set.
                 Monitoring intensifies as the expected time approaches:
               </p>
               <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-400/60" />
-                  <span><strong className="text-foreground">3 days to 1 hour before</strong> — checked every 6 hours (safety net)</span>
+                  <span><strong className="text-foreground">3 days to 1 hour before</strong> — every 6 hours</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-green-400" />
-                  <span><strong className="text-foreground">1 hour before to 30 min after</strong> — checked every 2 minutes (peak window)</span>
+                  <span><strong className="text-foreground">1 hour before to 30 min after</strong> — every 2 minutes (peak)</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400/60" />
-                  <span><strong className="text-foreground">30 min to 4 hours after</strong> — checked every 5 minutes</span>
+                  <span><strong className="text-foreground">30 min to 4 hours after</strong> — every 5 minutes</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-zinc-400/60" />
-                  <span><strong className="text-foreground">4+ hours overdue</strong> — gradually reduces to every 30 min, then hourly</span>
+                  <span><strong className="text-foreground">4+ hours overdue</strong> — every 30 min, then hourly</span>
                 </li>
               </ul>
               <p className="mt-2 text-xs text-muted-foreground">
-                Once detected, the report is automatically downloaded, KPIs extracted, normalized to CHF, and a benchmark document is generated — no manual action needed.
+                Once detected, the report is automatically downloaded, KPIs extracted, normalized to CHF, and a benchmark document is generated.
               </p>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Filters + Actions */}
@@ -223,16 +232,18 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                aria-label="Check now"
+                                aria-label="Check IR page for new publication"
+                                title="Check IR page now for new publications"
                                 onClick={() => {
+                                  setCheckingEventId(ev.id)
                                   checkMutation.mutate(ev.id, {
-                                    onSuccess: () => toast.success('Check completed'),
-                                    onError: (err) => toast.error(`Check failed: ${err.message}`),
+                                    onSuccess: () => { toast.success('Check completed'); setCheckingEventId(null) },
+                                    onError: (err) => { toast.error(`Check failed: ${err.message}`); setCheckingEventId(null) },
                                   })
                                 }}
-                                disabled={checkMutation.isPending}
+                                disabled={checkingEventId === ev.id}
                               >
-                                <RefreshCw className={`h-3.5 w-3.5 ${checkMutation.isPending ? 'animate-spin' : ''}`} />
+                                <RefreshCw className={`h-3.5 w-3.5 ${checkingEventId === ev.id ? 'animate-spin' : ''}`} />
                               </Button>
                             )}
                             {ev.report_id && (

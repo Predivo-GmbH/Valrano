@@ -1,4 +1,3 @@
-import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
@@ -17,7 +16,7 @@ const TIER_LIMITS: Record<string, number> = {
   enterprise: 999,
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(req) })
   }

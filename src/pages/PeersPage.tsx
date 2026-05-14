@@ -150,6 +150,7 @@ function AddCompanyDialog({
   const [sector, setSector] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [isResolvingWebsite, setIsResolvingWebsite] = useState(false)
+  const [isEnriching, setIsEnriching] = useState(false)
   const [irUrl, setIrUrl] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [nameError, setNameError] = useState(false)
@@ -184,6 +185,35 @@ function AddCompanyDialog({
     }
   }
 
+  const enrichCompany = async (companyName: string, wikidataId?: string | null) => {
+    setIsEnriching(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/enrich-company`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ name: companyName, wikidata_id: wikidataId }),
+        },
+      )
+      if (!res.ok) return
+      const data = await res.json() as { ticker: string | null; exchange: string | null; sector: string | null }
+      if (data.ticker) setTicker(data.ticker)
+      if (data.exchange) setExchange(data.exchange)
+      if (data.sector) setSector(data.sector)
+    } catch {
+      // Silently fail — user can enter manually
+    } finally {
+      setIsEnriching(false)
+    }
+  }
+
   const handleCompanyAutoSelect = (company: CompanyResult) => {
     setName(company.name)
     if (company.sector) {
@@ -196,8 +226,9 @@ function AddCompanyDialog({
       if (match) setSector(match)
     }
     setNameError(false)
-    // Auto-resolve website URL from company name
+    // Auto-resolve website URL and enrich ticker/exchange/sector in parallel
     resolveWebsite(company.name)
+    enrichCompany(company.name, company.uid)
   }
 
   const resetForm = () => {
@@ -363,7 +394,7 @@ function AddCompanyDialog({
               )}
             />
             <p className="text-[10px] text-muted-foreground">
-              Type 3+ letters to search company registers
+              Type 3+ letters to search — ticker, exchange, sector & website auto-filled
             </p>
             {nameError && (
               <p className="text-[11px] text-[var(--color-destructive)]">Company name is required</p>
@@ -375,12 +406,18 @@ function AddCompanyDialog({
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Ticker
             </Label>
-            <Input
-              value={ticker}
-              onChange={(e) => setTicker(e.target.value.toUpperCase())}
-              placeholder="e.g. HOLN"
-              className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
-            />
+            <div className="relative">
+              <Input
+                value={ticker}
+                onChange={(e) => setTicker(e.target.value.toUpperCase())}
+                placeholder={isEnriching ? 'Looking up...' : 'e.g. HOLN'}
+                className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground pr-10"
+                disabled={isEnriching}
+              />
+              {isEnriching && (
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              )}
+            </div>
           </div>
 
           {/* Exchange */}
@@ -388,9 +425,9 @@ function AddCompanyDialog({
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Exchange
             </Label>
-            <Select value={exchange} onValueChange={(v) => v && setExchange(v)}>
+            <Select value={exchange} onValueChange={(v) => v && setExchange(v)} disabled={isEnriching}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                <SelectValue placeholder="Select exchange" />
+                <SelectValue placeholder={isEnriching ? 'Looking up...' : 'Select exchange'} />
               </SelectTrigger>
               <SelectContent className="rounded-lg border-border bg-card text-[13px]">
                 {EXCHANGE_OPTIONS.map((ex) => (
@@ -405,9 +442,9 @@ function AddCompanyDialog({
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Sector
             </Label>
-            <Select value={sector} onValueChange={(v) => v && setSector(v)}>
+            <Select value={sector} onValueChange={(v) => v && setSector(v)} disabled={isEnriching}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                <SelectValue placeholder="Select sector" />
+                <SelectValue placeholder={isEnriching ? 'Looking up...' : 'Select sector'} />
               </SelectTrigger>
               <SelectContent className="rounded-lg border-border bg-card text-[13px]">
                 {SECTOR_OPTIONS.map((s) => (
