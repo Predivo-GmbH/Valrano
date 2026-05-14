@@ -343,7 +343,6 @@ export function OnboardingWizard() {
           <StepCompetitors
             selectedIds={selectedCompanyIds}
             onSelectedIdsChange={setSelectedCompanyIds}
-            myCompanyName={primaryCompany?.name ?? ''}
             reportCompetitors={reportCompetitors}
           />
         )}
@@ -838,12 +837,10 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
 function StepCompetitors({
   selectedIds,
   onSelectedIdsChange,
-  myCompanyName,
   reportCompetitors,
 }: {
   selectedIds: string[]
   onSelectedIdsChange: (ids: string[]) => void
-  myCompanyName: string
   reportCompetitors: Array<{ name: string; ticker?: string; context?: string }>
 }) {
   const { data: companies, isLoading } = useAllCompanies()
