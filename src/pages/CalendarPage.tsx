@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Plus, RefreshCw, ExternalLink, Trash2, Eye, Sparkles, Loader2, Globe } from 'lucide-react'
+import { CalendarDays, Plus, RefreshCw, ExternalLink, Trash2, Eye, Sparkles, Loader2, Globe, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEvent, useCheckPublication } from '@/hooks/useCalendar'
@@ -35,11 +35,60 @@ const STATUS_LABELS: Record<PublicationEventStatus, string> = {
   cancelled: 'Cancelled',
 }
 
+const STATUS_DOT_COLORS: Record<PublicationEventStatus, string> = {
+  scheduled: 'bg-[var(--color-financial-blue)]',
+  due_today: 'bg-[var(--color-signal-amber)]',
+  overdue: 'bg-[var(--color-signal-red)]',
+  detected: 'bg-[var(--color-signal-green)]',
+  ingested: 'bg-[var(--color-signal-amber)]',
+  benchmark_ready: 'bg-[var(--color-accent)]',
+  cancelled: 'bg-zinc-400',
+}
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function getMonthDays(year: number, month: number) {
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  // Monday = 0, Sunday = 6
+  let startOffset = firstDay.getDay() - 1
+  if (startOffset < 0) startOffset = 6
+
+  const days: Array<{ date: string; day: number; isCurrentMonth: boolean }> = []
+
+  // Previous month padding
+  for (let i = startOffset - 1; i >= 0; i--) {
+    const d = new Date(year, month, -i)
+    days.push({ date: d.toISOString().slice(0, 10), day: d.getDate(), isCurrentMonth: false })
+  }
+
+  // Current month
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    days.push({ date: dateStr, day: d, isCurrentMonth: true })
+  }
+
+  // Next month padding (fill to complete last week)
+  const remainder = days.length % 7
+  if (remainder > 0) {
+    for (let d = 1; d <= 7 - remainder; d++) {
+      const date = new Date(year, month + 1, d)
+      days.push({ date: date.toISOString().slice(0, 10), day: d, isCurrentMonth: false })
+    }
+  }
+
+  return days
+}
 
 export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterCompany, setFilterCompany] = useState<string>('all')
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+
+  const today = new Date()
+  const todayStr = today.toISOString().slice(0, 10)
+  const [currentMonth, setCurrentMonth] = useState({ year: today.getFullYear(), month: today.getMonth() })
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const { data: events, isLoading } = usePublicationEvents({
     status: filterStatus === 'all' ? undefined : filterStatus,
@@ -52,15 +101,32 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const [checkingEventId, setCheckingEventId] = useState<string | null>(null)
   const [infoBannerOpen, setInfoBannerOpen] = useState(false)
 
-  // Group events by month
-  const groupedByMonth = (events ?? []).reduce<Record<string, typeof events>>((acc, ev) => {
-    const month = ev.expected_date.slice(0, 7) // YYYY-MM
-    if (!acc[month]) acc[month] = []
-    acc[month]!.push(ev)
-    return acc
-  }, {})
+  // Map events by date for calendar dot rendering
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, typeof events> = {}
+    for (const ev of events ?? []) {
+      if (!map[ev.expected_date]) map[ev.expected_date] = []
+      map[ev.expected_date]!.push(ev)
+    }
+    return map
+  }, [events])
 
-  const sortedMonths = Object.keys(groupedByMonth).sort()
+  const monthDays = useMemo(() => getMonthDays(currentMonth.year, currentMonth.month), [currentMonth])
+
+  const monthLabel = new Date(currentMonth.year, currentMonth.month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+
+  const selectedDayEvents = selectedDate ? (eventsByDate[selectedDate] ?? []) : []
+
+  function goToPrevMonth() {
+    setCurrentMonth((m) => m.month === 0 ? { year: m.year - 1, month: 11 } : { year: m.year, month: m.month - 1 })
+  }
+  function goToNextMonth() {
+    setCurrentMonth((m) => m.month === 11 ? { year: m.year + 1, month: 0 } : { year: m.year, month: m.month + 1 })
+  }
+  function goToToday() {
+    setCurrentMonth({ year: today.getFullYear(), month: today.getMonth() })
+    setSelectedDate(todayStr)
+  }
 
   const content = (
     <>
@@ -151,35 +217,118 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
           </div>
         </div>
 
-        {/* Timeline */}
+        {/* Calendar Grid */}
         {isLoading ? (
           <CardSkeleton />
-        ) : sortedMonths.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center">
-            <CalendarDays className="mx-auto h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-semibold text-foreground">No publication events</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Add competitor publication dates to start monitoring.
-            </p>
-            <Button variant="outline" onClick={() => setShowCreateDialog(true)} className="mt-4">
-              <Plus className="h-4 w-4" />
-              Add First Event
-            </Button>
-          </div>
         ) : (
-          <div className="space-y-8">
-            {sortedMonths.map((month) => {
-              const monthDate = new Date(month + '-01')
-              const monthLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-              return (
-                <div key={month}>
-                  <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                    {monthLabel}
-                  </h2>
-                  <div className="space-y-3">
-                    {groupedByMonth[month]!.map((ev) => {
+          <>
+            {/* Month Navigation */}
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={goToPrevMonth}
+                  aria-label="Previous month"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <h2 className="min-w-[160px] text-center text-base font-semibold text-foreground">{monthLabel}</h2>
+                <button
+                  type="button"
+                  onClick={goToNextMonth}
+                  aria-label="Next month"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              <Button variant="outline" size="sm" onClick={goToToday}>Today</Button>
+            </div>
+
+            {/* Weekday Headers */}
+            <div className="grid grid-cols-7 rounded-t-xl border border-b-0 border-border bg-card">
+              {WEEKDAYS.map((day) => (
+                <div key={day} className="px-1 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Day Grid */}
+            <div className="grid grid-cols-7 rounded-b-xl border border-border bg-card">
+              {monthDays.map(({ date, day, isCurrentMonth }, idx) => {
+                const dayEvents = eventsByDate[date] ?? []
+                const isToday = date === todayStr
+                const isSelected = date === selectedDate
+                const hasEvents = dayEvents.length > 0
+
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedDate(isSelected ? null : date)}
+                    className={`relative flex min-h-[72px] sm:min-h-[84px] flex-col items-start p-1.5 sm:p-2 text-left transition-colors border-t border-r border-border ${
+                      idx % 7 === 0 ? '' : ''
+                    } ${idx < 7 ? 'border-t-0' : ''} ${(idx + 1) % 7 === 0 ? 'border-r-0' : ''} ${
+                      isSelected
+                        ? 'bg-[var(--color-accent)]/10 ring-1 ring-inset ring-[var(--color-accent)]/40'
+                        : hasEvents
+                          ? 'hover:bg-[var(--color-bg-tertiary)]'
+                          : 'hover:bg-[var(--color-bg-tertiary)]/50'
+                    } ${!isCurrentMonth ? 'opacity-35' : ''}`}
+                    aria-label={`${date}${hasEvents ? `, ${dayEvents.length} event${dayEvents.length > 1 ? 's' : ''}` : ''}`}
+                  >
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
+                        isToday
+                          ? 'bg-[var(--color-accent)] text-white'
+                          : 'text-foreground'
+                      }`}
+                    >
+                      {day}
+                    </span>
+                    {hasEvents && (
+                      <div className="mt-auto flex flex-wrap gap-1 pt-1">
+                        {dayEvents.slice(0, 4).map((ev) => (
+                          <span
+                            key={ev.id}
+                            className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT_COLORS[ev.status]}`}
+                            title={`${(ev.companies as { name: string } | undefined)?.name ?? 'Unknown'} — ${STATUS_LABELS[ev.status]}`}
+                          />
+                        ))}
+                        {dayEvents.length > 4 && (
+                          <span className="text-[9px] leading-none text-muted-foreground">+{dayEvents.length - 4}</span>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Selected Day Events */}
+            {selectedDate && (
+              <div className="mt-4">
+                <h3 className="mb-3 text-sm font-semibold text-foreground">
+                  {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  {' '}
+                  <span className="font-normal text-muted-foreground">
+                    ({selectedDayEvents.length} event{selectedDayEvents.length !== 1 ? 's' : ''})
+                  </span>
+                </h3>
+                {selectedDayEvents.length === 0 ? (
+                  <div className="rounded-xl border border-border bg-card p-6 text-center">
+                    <p className="text-sm text-muted-foreground">No events on this day.</p>
+                    <Button variant="outline" size="sm" onClick={() => setShowCreateDialog(true)} className="mt-3">
+                      <Plus className="h-3.5 w-3.5" />
+                      Add Event
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedDayEvents.map((ev) => {
                       const company = ev.companies as { id: string; name: string; ticker: string | null } | undefined
-                      const dateStr = new Date(ev.expected_date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
                       const timeStr = ev.expected_time ? ev.expected_time.slice(0, 5) : null
 
                       return (
@@ -187,26 +336,32 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                           key={ev.id}
                           className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-[var(--color-bg-tertiary)]"
                         >
-                          {/* Date + Time */}
-                          <div className="sm:w-28 shrink-0">
-                            <div className="text-sm font-medium text-foreground">{dateStr}</div>
-                            {timeStr && <div className="text-[11px] text-muted-foreground">{timeStr} CET</div>}
+                          {/* Time */}
+                          <div className="sm:w-20 shrink-0">
+                            {timeStr ? (
+                              <div className="text-sm font-semibold text-foreground">{timeStr} <span className="text-[11px] font-normal text-muted-foreground">CET</span></div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground">No time set</div>
+                            )}
                           </div>
 
-                          {/* Company + Report Type */}
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-foreground">
-                                {company?.name ?? 'Unknown'}
-                              </span>
-                              {company?.ticker && (
-                                <span className="text-xs text-muted-foreground">({company.ticker})</span>
-                              )}
-                            </div>
-                            <div className="mt-0.5 text-xs text-muted-foreground">
-                              {REPORT_TYPE_LABELS[ev.report_type]} · FY {ev.fiscal_year}
-                              {ev.fiscal_quarter ? ` Q${ev.fiscal_quarter}` : ''}
-                              {ev.notes && ` · ${ev.notes}`}
+                          {/* Status dot + Company + Report Type */}
+                          <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_COLORS[ev.status]}`} />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-foreground">
+                                  {company?.name ?? 'Unknown'}
+                                </span>
+                                {company?.ticker && (
+                                  <span className="text-xs text-muted-foreground">({company.ticker})</span>
+                                )}
+                              </div>
+                              <div className="mt-0.5 text-xs text-muted-foreground">
+                                {REPORT_TYPE_LABELS[ev.report_type]} · FY {ev.fiscal_year}
+                                {ev.fiscal_quarter ? ` Q${ev.fiscal_quarter}` : ''}
+                                {ev.notes && ` · ${ev.notes}`}
+                              </div>
                             </div>
                           </div>
 
@@ -268,10 +423,25 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                       )
                     })}
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                )}
+              </div>
+            )}
+
+            {/* No events at all — prompt */}
+            {(events ?? []).length === 0 && !selectedDate && (
+              <div className="mt-6 rounded-xl border border-border bg-card p-12 text-center">
+                <CalendarDays className="mx-auto h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-semibold text-foreground">No publication events</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Add competitor publication dates to start monitoring.
+                </p>
+                <Button variant="outline" onClick={() => setShowCreateDialog(true)} className="mt-4">
+                  <Plus className="h-4 w-4" />
+                  Add First Event
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
         {/* Create Dialog */}

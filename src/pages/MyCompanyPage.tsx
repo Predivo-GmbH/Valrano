@@ -56,13 +56,13 @@ export function MyCompanyPage() {
 
   return (
     <>
-      <Helmet><title>My Company - BenchmarkSignal</title></Helmet>
+      <Helmet><title>{primaryCompany?.name ?? 'My Company'} - BenchmarkSignal</title></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">My Company</h1>
+            <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">{primaryCompany?.name ?? 'My Company'}</h1>
             <p className="mt-1 text-[13px] text-muted-foreground">
-              Enter your company data to benchmark against peers.
+              {primaryCompany ? `Manage ${primaryCompany.name}'s data and benchmark against peers.` : 'Enter your company data to benchmark against peers.'}
             </p>
           </div>
           {primaryCompany && (

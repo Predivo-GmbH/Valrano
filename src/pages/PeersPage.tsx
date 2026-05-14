@@ -203,10 +203,11 @@ function AddCompanyDialog({
         },
       )
       if (!res.ok) return
-      const data = await res.json() as { ticker: string | null; exchange: string | null; sector: string | null }
+      const data = await res.json() as { ticker: string | null; exchange: string | null; sector: string | null; ir_url: string | null }
       if (data.ticker) setTicker(data.ticker)
       if (data.exchange) setExchange(data.exchange)
       if (data.sector) setSector(data.sector)
+      if (data.ir_url) setIrUrl(data.ir_url)
     } catch {
       // Silently fail — user can enter manually
     } finally {
@@ -239,6 +240,7 @@ function AddCompanyDialog({
     setWebsiteUrl('')
     setIrUrl('')
     setNameError(false)
+    setIsEnriching(false)
   }
 
   const handleOpenChange = (o: boolean) => {
@@ -963,6 +965,15 @@ function PeerCard({
           </span>
         )}
       </div>
+
+      {/* View Details link */}
+      <Link
+        to={`/companies/${company.id}`}
+        className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-border py-1.5 text-[12px] font-medium text-muted-foreground transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/5"
+      >
+        View Details
+        <ArrowUpRight className="h-3 w-3" />
+      </Link>
     </div>
   )
 }
@@ -977,12 +988,18 @@ function ComparisonTableView({
   userCompanySector,
   userCompanyId,
   allCompanyIds,
+  onUpload,
+  onDelete,
+  deletingCompanyId,
 }: {
   peerCards: PeerCardData[]
   userCompanyName: string | null
   userCompanySector: string | null
   userCompanyId: string | null
   allCompanyIds: string[]
+  onUpload: (companyId: string) => void
+  onDelete: (companyId: string, companyName: string) => void
+  deletingCompanyId: string | null
 }) {
   // Fetch KPI values for all companies (peers + user's company if linked)
   const { data: kpiValues, isLoading: kpiLoading } = useKpiValues({
@@ -1099,7 +1116,7 @@ function ComparisonTableView({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card">
-      <table className="w-full min-w-[700px] text-[13px]">
+      <table className="w-full min-w-[800px] text-[13px]">
         <thead>
           <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
             <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
@@ -1116,37 +1133,85 @@ function ComparisonTableView({
             <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Last Report
             </th>
+            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.companyId}
-              className={cn(
-                'border-b border-border last:border-b-0 transition-colors hover:bg-[var(--color-bg-tertiary)]/50',
-                row.isUser && 'border-l-2 border-l-[var(--color-accent)] bg-[var(--color-accent)]/5',
-              )}
-            >
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-foreground">{row.name}</span>
-                  {row.isUser && (
-                    <span className="rounded-full bg-[var(--color-accent)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
-                      You
-                    </span>
-                  )}
-                </div>
-              </td>
-              {TABLE_KPI_CODES.map((code) => (
-                <td key={code} className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
-                  {renderCellValue(row.companyId, code, row.isUser)}
+          {rows.map((row) => {
+            const peer = peerCards.find((p) => p.company.id === row.companyId)
+            const logoSrc = peer?.company.logo_url || companyLogoUrl(peer?.company.website_url)
+            return (
+              <tr
+                key={row.companyId}
+                className={cn(
+                  'border-b border-border last:border-b-0 transition-colors hover:bg-[var(--color-bg-tertiary)]/50',
+                  row.isUser && 'border-l-2 border-l-[var(--color-accent)] bg-[var(--color-accent)]/5',
+                )}
+              >
+                <td className="px-4 py-3">
+                  <Link to={`/companies/${row.companyId}`} className="flex items-center gap-2.5 group">
+                    {logoSrc ? (
+                      <img
+                        src={logoSrc}
+                        alt=""
+                        className="h-6 w-6 rounded border border-border/50 bg-white object-contain p-0.5 shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="flex h-6 w-6 items-center justify-center rounded border border-border/50 bg-[var(--color-bg-tertiary)] shrink-0">
+                        <Building2 className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    )}
+                    <span className="font-medium text-foreground group-hover:text-[var(--color-accent)] transition-colors">{row.name}</span>
+                    {row.isUser && (
+                      <span className="rounded-full bg-[var(--color-accent)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
+                        You
+                      </span>
+                    )}
+                  </Link>
                 </td>
-              ))}
-              <td className="px-4 py-3 text-right tabular-nums text-foreground">
-                {lastReportYear[row.companyId] ?? <span className="text-muted-foreground">--</span>}
-              </td>
-            </tr>
-          ))}
+                {TABLE_KPI_CODES.map((code) => (
+                  <td key={code} className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
+                    {renderCellValue(row.companyId, code, row.isUser)}
+                  </td>
+                ))}
+                <td className="px-4 py-3 text-right tabular-nums text-foreground">
+                  {lastReportYear[row.companyId] ?? <span className="text-muted-foreground">--</span>}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {!row.isUser && (
+                    <div className="flex items-center justify-end gap-1">
+                      <TooltipProvider delay={200}>
+                        <Tooltip>
+                          <TooltipTrigger
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                            onClick={() => onUpload(row.companyId)}
+                          >
+                            <Upload className="h-3.5 w-3.5" />
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">Upload Report</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors',
+                              deletingCompanyId === row.companyId && 'pointer-events-none opacity-50',
+                            )}
+                            onClick={() => onDelete(row.companyId, row.name)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">Remove peer</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
@@ -1643,9 +1708,16 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
   }
 
   const [deletingCompanyId, setDeletingCompanyId] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
 
-  const handleDeletePeer = async (companyId: string, companyName: string) => {
-    if (!confirm(`Remove "${companyName}" from your peer list? This will remove all associated data for this company.`)) return
+  const handleDeletePeer = (companyId: string, companyName: string) => {
+    setDeleteConfirm({ id: companyId, name: companyName })
+  }
+
+  const confirmDeletePeer = async () => {
+    if (!deleteConfirm) return
+    const { id: companyId, name: companyName } = deleteConfirm
+    setDeleteConfirm(null)
     setDeletingCompanyId(companyId)
     try {
       // Remove from all user's peer groups
@@ -1789,6 +1861,9 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
                 userCompanySector={userSector}
                 userCompanyId={userCompanyId}
                 allCompanyIds={allCompanyIds}
+                onUpload={handleUpload}
+                onDelete={handleDeletePeer}
+                deletingCompanyId={deletingCompanyId}
               />
             )
           }
@@ -1866,6 +1941,27 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
         companies={companies ?? []}
         preselectedCompanyId={uploadCompanyId}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(o) => { if (!o) setDeleteConfirm(null) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remove Peer</DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] text-muted-foreground">
+            Are you sure you want to remove <span className="font-semibold text-foreground">{deleteConfirm?.name}</span> from your peer list? This will remove all associated data for this company.
+          </p>
+          <DialogFooter className="mt-4 gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeletePeer}>
+              <Trash2 className="h-4 w-4" />
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

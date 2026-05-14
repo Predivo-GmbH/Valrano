@@ -222,18 +222,22 @@ const ENRICH_SCHEMA = {
       type: 'boolean',
       description: 'Whether the company is publicly traded on a stock exchange.',
     },
+    ir_page_url: {
+      type: 'string',
+      description: 'Investor relations page URL (e.g. "https://www.holcim.com/investors"). Empty string if unknown or private company.',
+    },
     confidence: {
       type: 'number',
       description: 'Overall confidence 0-1.',
     },
   },
-  required: ['ticker', 'exchange', 'sector', 'is_public', 'confidence'],
+  required: ['ticker', 'exchange', 'sector', 'is_public', 'ir_page_url', 'confidence'],
 } as const
 
 async function enrichWithGemini(
   companyName: string,
   partialData: { ticker?: string | null; exchange?: string | null; sector?: string | null },
-): Promise<{ ticker: string | null; exchange: string | null; sector: string | null; confidence: number } | null> {
+): Promise<{ ticker: string | null; exchange: string | null; sector: string | null; ir_url: string | null; confidence: number } | null> {
   const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY')
   if (!geminiApiKey) return null
 
@@ -245,14 +249,15 @@ async function enrichWithGemini(
   const prompt = `Company: "${companyName}"
 ${knownFields.length ? knownFields.join('\n') : 'No data available yet.'}
 
-Identify or confirm the stock ticker, exchange, and business sector for this company.
+Identify or confirm the stock ticker, exchange, business sector, and investor relations page URL for this company.
 
 Rules:
 - If the company is not publicly traded, set ticker to empty string and is_public to false
 - For exchange, use one of: ${EXCHANGE_OPTIONS.join(', ')}
 - For sector, use one of: ${SECTOR_OPTIONS.join(', ')}
 - Be precise with tickers (e.g. Holcim = "HOLN", not "HLN")
-- Swiss companies are typically on SIX`
+- Swiss companies are typically on SIX
+- For ir_page_url, provide the main investor relations landing page (e.g. https://www.holcim.com/investors). Empty string if unknown.`
 
   try {
     const resp = await fetch(
@@ -299,6 +304,7 @@ Rules:
       exchange: string
       sector: string
       is_public: boolean
+      ir_page_url: string
       confidence: number
     }
 
@@ -306,6 +312,7 @@ Rules:
       ticker: result.is_public && result.ticker ? result.ticker : null,
       exchange: result.is_public && result.exchange ? result.exchange : null,
       sector: result.sector || null,
+      ir_url: result.ir_page_url || null,
       confidence: result.confidence ?? 0.5,
     }
   } catch (err) {
@@ -342,7 +349,7 @@ Deno.serve(async (req: Request) => {
 
     // Step 2: If any field is missing, use Gemini Flash
     const needsGemini = !wikiTicker || !wikiExchange || !wikiSector
-    let geminiResult: { ticker: string | null; exchange: string | null; sector: string | null; confidence: number } | null = null
+    let geminiResult: { ticker: string | null; exchange: string | null; sector: string | null; ir_url: string | null; confidence: number } | null = null
 
     if (needsGemini) {
       geminiResult = await enrichWithGemini(companyName, {
@@ -353,10 +360,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // Merge: prefer Wikidata (structured), fill gaps with Gemini
-    const result: EnrichResult = {
+    const result = {
       ticker: wikiTicker || geminiResult?.ticker || null,
       exchange: wikiExchange || geminiResult?.exchange || null,
       sector: wikiSector || geminiResult?.sector || null,
+      ir_url: geminiResult?.ir_url || null,
       confidence: wikiTicker ? 0.95 : (geminiResult?.confidence ?? 0.5),
       source: wikiTicker && geminiResult ? 'combined' : wikiTicker ? 'wikidata' : 'gemini',
     }
