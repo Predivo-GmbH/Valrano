@@ -109,15 +109,16 @@ The correct answer is the domain where you'd find annual reports and investor re
 }
 
 /**
- * Get a reliable logo URL for a company domain.
- * Uses Google's favicon service as primary (always correct for the domain).
- * Brandfetch icon only used if domain matches what Brandfetch returned.
+ * Get a logo URL for a company domain.
+ * Uses Brandfetch CDN icon if available, otherwise Brandfetch CDN URL format
+ * (the frontend CompanyLogo component handles fallback to Building2 icon on error).
  */
 function getLogoUrl(domain: string, brandfetchDomain: string | null, brandfetchIcon: string | null): string {
-  // Only use Brandfetch icon if the domain matches what Brandfetch searched
+  // Use Brandfetch icon if domain matches
   if (brandfetchIcon && brandfetchDomain === domain) return brandfetchIcon
-  // Google's gstatic favicon service: reliable, high-res, no auth needed
-  return `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`
+  // Use Brandfetch CDN URL — frontend handles 404/redirect gracefully
+  const clientId = Deno.env.get('BRANDFETCH_CLIENT_ID') || '1idRDjMi84k4oQP5jUq'
+  return `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=${clientId}`
 }
 
 Deno.serve(async (req: Request) => {

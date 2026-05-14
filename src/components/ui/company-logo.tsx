@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const BRANDFETCH_CLIENT_ID = '1idRDjMi84k4oQP5jUq'
+export const BRANDFETCH_CLIENT_ID = '1idRDjMi84k4oQP5jUq'
 
 /** Build a Brandfetch Logo CDN URL from a full website URL (free 500K/mo). */
 export function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
@@ -32,14 +33,15 @@ const SIZE_MAP = {
 export function CompanyLogo({ logoUrl, websiteUrl, name, size = 'sm', className }: CompanyLogoProps) {
   const src = logoUrl || companyLogoUrl(websiteUrl)
   const { container, icon } = SIZE_MAP[size]
+  const [failed, setFailed] = useState(false)
 
-  if (src) {
+  if (src && !failed) {
     return (
       <img
         src={src}
         alt={name ? `${name} logo` : ''}
         className={cn(container, 'rounded border border-border/50 bg-white object-contain p-0.5 shrink-0', className)}
-        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+        onError={() => setFailed(true)}
       />
     )
   }

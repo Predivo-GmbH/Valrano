@@ -32,6 +32,7 @@ import {
   Sparkles,
   Loader2,
   Info,
+  Pencil,
 } from 'lucide-react'
 import {
   RadarChart,
@@ -558,15 +559,40 @@ export function CompanyProfilePage() {
               {/* Links */}
               <div className="mt-3 flex flex-wrap gap-2">
                 {company.website_url ? (
-                  <a
-                    href={company.website_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <Globe className="h-3.5 w-3.5" /> Website{' '}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <>
+                    <a
+                      href={company.website_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <Globe className="h-3.5 w-3.5" /> Website{' '}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                    <button
+                      type="button"
+                      title="Edit website URL"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2 py-1.5 text-[12px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                      onClick={async () => {
+                        const url = window.prompt('Enter correct website URL:', company.website_url ?? '')
+                        if (!url?.trim() || url.trim() === company.website_url) return
+                        let parsed: URL
+                        try { parsed = new URL(url.trim()) } catch {
+                          window.alert('Invalid URL. Please include https:// (e.g. https://www.buzzi.com)')
+                          return
+                        }
+                        const domain = parsed.hostname.replace(/^www\./, '')
+                        const logoUrl = `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
+                        await supabase.from('companies').update({
+                          website_url: url.trim(),
+                          logo_url: logoUrl,
+                        }).eq('id', company.id)
+                        queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                      }}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  </>
                 ) : (
                   <button
                     type="button"
@@ -595,20 +621,24 @@ export function CompanyProfilePage() {
                         if (data.website_url) {
                           queryClient.invalidateQueries({ queryKey: ['companies-all'] })
                         } else {
-                          // Fallback: prompt for manual entry
                           const url = window.prompt('Could not auto-detect. Enter website URL:')
                           if (url?.trim()) {
-                            try { new URL(url.trim()) } catch { return }
-                            await supabase.from('companies').update({ website_url: url.trim() }).eq('id', company.id)
+                            let parsed: URL
+                            try { parsed = new URL(url.trim()) } catch { return }
+                            const domain = parsed.hostname.replace(/^www\./, '')
+                            const logoUrl = `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
+                            await supabase.from('companies').update({ website_url: url.trim(), logo_url: logoUrl }).eq('id', company.id)
                             queryClient.invalidateQueries({ queryKey: ['companies-all'] })
                           }
                         }
                       } catch {
-                        // Fallback: manual prompt
                         const url = window.prompt('Enter website URL (e.g. https://www.holcim.com):')
                         if (url?.trim()) {
-                          try { new URL(url.trim()) } catch { return }
-                          await supabase.from('companies').update({ website_url: url.trim() }).eq('id', company.id)
+                          let parsed: URL
+                          try { parsed = new URL(url.trim()) } catch { return }
+                          const domain = parsed.hostname.replace(/^www\./, '')
+                          const logoUrl = `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
+                          await supabase.from('companies').update({ website_url: url.trim(), logo_url: logoUrl }).eq('id', company.id)
                           queryClient.invalidateQueries({ queryKey: ['companies-all'] })
                         }
                       }
