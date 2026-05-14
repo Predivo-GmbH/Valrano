@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
+import { companyLogoUrl } from '@/components/ui/company-logo'
 import {
   Plus,
   Upload,
@@ -45,16 +46,7 @@ import { ReviewPage } from './ReviewPage'
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Company logo via Brandfetch Logo CDN (free 500K/mo) */
-function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
-  if (!websiteUrl) return null
-  try {
-    const domain = new URL(websiteUrl).hostname.replace(/^www\./, '')
-    return `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
-  } catch {
-    return null
-  }
-}
+// companyLogoUrl + CompanyLogo imported from '@/components/ui/company-logo'
 
 // ---------------------------------------------------------------------------
 // Constants

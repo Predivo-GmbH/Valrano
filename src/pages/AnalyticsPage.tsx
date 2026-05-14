@@ -11,8 +11,8 @@ import {
   Table2,
   ScatterChart as ScatterIcon,
   Grid3X3,
-  Building2,
 } from 'lucide-react'
+import { CompanyLogo } from '@/components/ui/company-logo'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -553,6 +553,7 @@ function TrendsPanel({
 
 function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYear: number }) {
   const { data, isLoading } = usePivotData({ companyIds, fiscalYear })
+  const { data: allCompanies } = useCompanies()
 
   if (isLoading) return <PageSkeleton />
   if (!data || data.cells.length === 0) {
@@ -606,14 +607,14 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
               )}
             >
               <td className="sticky left-0 z-10 bg-card px-4 py-3" style={{ width: '180px' }}>
+                {(() => { const full = allCompanies?.find(c => c.id === company.id); return (
                 <Link to={`/companies/${company.id}`} className="flex items-center gap-2 group min-w-0">
-                  <div className="flex h-5 w-5 items-center justify-center rounded border border-border/50 bg-[var(--color-bg-tertiary)] shrink-0">
-                    <Building2 className="h-3 w-3 text-muted-foreground" />
-                  </div>
+                  <CompanyLogo logoUrl={full?.logo_url} websiteUrl={full?.website_url} name={company.name} size="xs" />
                   <span className="font-medium text-foreground truncate group-hover:text-[var(--color-accent)] transition-colors">
                     {company.name}
                   </span>
                 </Link>
+                ) })()}
               </td>
               {visibleKpis.map((kpi) => {
                 const val = lookup.get(company.id)?.get(kpi.code)
@@ -741,6 +742,7 @@ function ScatterPanel({
 
 function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYear: number }) {
   const { data, isLoading } = useHeatmapData({ companyIds, fiscalYear })
+  const { data: allCompanies } = useCompanies()
 
   if (isLoading) return <PageSkeleton />
   if (!data || data.cells.length === 0) {
@@ -786,13 +788,13 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
             </tr>
           </thead>
           <tbody>
-            {data.companies.map((company) => (
+            {data.companies.map((company) => {
+              const full = allCompanies?.find(c => c.id === company.id)
+              return (
               <tr key={company.id} className="border-b border-border/50 last:border-0">
                 <td className="sticky left-0 z-10 bg-card px-4 py-3" style={{ width: '180px' }}>
                   <Link to={`/companies/${company.id}`} className="flex items-center gap-2 group min-w-0">
-                    <div className="flex h-5 w-5 items-center justify-center rounded border border-border/50 bg-[var(--color-bg-tertiary)] shrink-0">
-                      <Building2 className="h-3 w-3 text-muted-foreground" />
-                    </div>
+                    <CompanyLogo logoUrl={full?.logo_url} websiteUrl={full?.website_url} name={company.name} size="xs" />
                     <span className="font-medium text-foreground truncate group-hover:text-[var(--color-accent)] transition-colors">
                       {company.name}
                     </span>
@@ -828,7 +830,8 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
                   )
                 })}
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>

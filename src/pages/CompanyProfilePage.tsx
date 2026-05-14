@@ -50,6 +50,7 @@ import { useSuggestDates } from '@/hooks/useAiSuggestions'
 import { supabase } from '@/lib/supabase'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 import { cn } from '@/lib/utils'
+import { companyLogoUrl } from '@/components/ui/company-logo'
 import type {
   KpiCategory,
   CompanyNews,
@@ -111,16 +112,7 @@ const SENTIMENT_STYLES: Record<string, string> = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Company logo via Brandfetch Logo CDN (free 500K/mo) */
-function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
-  if (!websiteUrl) return null
-  try {
-    const domain = new URL(websiteUrl).hostname.replace(/^www\./, '')
-    return `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
-  } catch {
-    return null
-  }
-}
+// companyLogoUrl imported from '@/components/ui/company-logo'
 
 function formatValue(value: number | null | undefined, unitType?: string): string {
   if (value == null) return '--'

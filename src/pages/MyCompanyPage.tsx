@@ -18,14 +18,8 @@ import { Input } from '@/components/ui/input'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { REPORT_TYPE_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+import { companyLogoUrl } from '@/components/ui/company-logo'
 import type { ReportType } from '@/types/database'
-
-
-function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
-  if (!websiteUrl) return null
-  const domain = websiteUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '')
-  return `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
-}
 
 
 export function MyCompanyPage() {

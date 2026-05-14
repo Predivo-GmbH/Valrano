@@ -37,6 +37,7 @@ import type { KpiValueWithJoins, SortConfig, KpiSnapshotCardProps } from '@/comp
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { CompanyLogo } from '@/components/ui/company-logo'
 import {
   Upload,
   Building2,
@@ -1266,7 +1267,8 @@ export function DashboardPage() {
           </div>
           <div className="card-premium rounded-xl border border-border bg-card overflow-hidden">
             {upcomingEvents.map((event, i) => {
-              const companyName = (event as unknown as { companies: Company }).companies?.name ?? 'Unknown'
+              const eventCompany = (event as unknown as { companies: Company }).companies
+              const companyName = eventCompany?.name ?? 'Unknown'
               const isOverdue = event.status === 'overdue'
               const isDueToday = event.status === 'due_today'
               return (
@@ -1277,6 +1279,7 @@ export function DashboardPage() {
                   }`}
                 >
                   <div className={`flex-shrink-0 h-2 w-2 rounded-full ${getEventStatusDot(event.status)} ${isOverdue || isDueToday ? 'status-pulse' : ''}`} />
+                  <CompanyLogo logoUrl={eventCompany?.logo_url} websiteUrl={eventCompany?.website_url} name={companyName} size="xs" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-[13px] font-medium text-foreground truncate">{companyName}</span>
@@ -1530,10 +1533,11 @@ export function DashboardPage() {
                                 : 'bg-[var(--color-bg-tertiary)]/10 hover:bg-[var(--color-bg-tertiary)]/30'
                             }`}
                           >
-                            {/* Company name — sticky, no avatar */}
+                            {/* Company name — sticky */}
                             <td className={`sticky left-0 z-20 bg-card px-3 py-2 after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/30 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.3)] ${isPrimary ? 'border-l-2 border-l-[var(--color-accent)]' : ''}`} style={{ width: '180px' }}>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5">
+                                  <CompanyLogo logoUrl={company.logo_url} websiteUrl={company.website_url} name={company.name} size="xs" />
                                   <Link
                                     to={`/companies/${company.id}`}
                                     className="text-[12px] font-medium text-foreground truncate max-w-[100px] md:max-w-[140px] hover:text-[var(--color-accent)] hover:underline transition-colors"

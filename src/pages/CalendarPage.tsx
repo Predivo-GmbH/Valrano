@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
+import { CompanyLogo } from '@/components/ui/company-logo'
 
 const STATUS_COLORS: Record<PublicationEventStatus, string> = {
   scheduled: 'bg-[var(--color-financial-blue)]/15 text-[var(--color-financial-blue)] border-[var(--color-financial-blue)]/30',
@@ -328,7 +329,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                 ) : (
                   <div className="space-y-2">
                     {selectedDayEvents.map((ev) => {
-                      const company = ev.companies as { id: string; name: string; ticker: string | null } | undefined
+                      const company = ev.companies as { id: string; name: string; ticker: string | null; logo_url: string | null; website_url: string | null } | undefined
                       const timeStr = ev.expected_time ? ev.expected_time.slice(0, 5) : null
 
                       return (
@@ -345,9 +346,10 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                             )}
                           </div>
 
-                          {/* Status dot + Company + Report Type */}
+                          {/* Status dot + Logo + Company + Report Type */}
                           <div className="flex min-w-0 flex-1 items-start gap-2.5">
                             <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_COLORS[ev.status]}`} />
+                            <CompanyLogo logoUrl={company?.logo_url} websiteUrl={company?.website_url} name={company?.name} size="sm" className="mt-0.5" />
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-foreground">
