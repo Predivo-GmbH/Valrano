@@ -1,24 +1,21 @@
 import { useState, useRef, useCallback } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Plus, Pencil, Upload, FileText, Loader2 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { Building2, Pencil, Upload, FileText, Loader2 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   useMyCompanies,
-  useCreateMyCompany,
   useMyCompanyKpis,
   useUpsertMyCompanyKpis,
 } from '@/hooks/useMyCompany'
 import { useKpiDefinitions, useCompanies } from '@/hooks/useData'
 import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
-import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete/CompanyAutocomplete'
 import { REPORT_TYPE_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { ReportType } from '@/types/database'
@@ -30,25 +27,11 @@ function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
   return `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
 }
 
-const SECTORS = [
-  'Construction & Materials',
-  'Industrials',
-  'Technology',
-  'Healthcare',
-  'Financial Services',
-  'Consumer Goods',
-  'Energy',
-  'Utilities',
-  'Real Estate',
-  'Telecommunications',
-  'Other',
-]
 
 export function MyCompanyPage() {
   const navigate = useNavigate()
   const { data: companies, isLoading } = useMyCompanies()
   const { data: allCompanies } = useCompanies()
-  const [showCreate, setShowCreate] = useState(false)
   const [editingKpis, setEditingKpis] = useState<string | null>(null)
   const [uploadCompanyId, setUploadCompanyId] = useState<string | null>(null)
 
@@ -75,14 +58,10 @@ export function MyCompanyPage() {
         ) : !companies || companies.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
             <Building2 className="mx-auto h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-semibold text-foreground">Add your company</h3>
+            <h3 className="mt-4 text-lg font-semibold text-foreground">No company configured</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Enter your company details and KPI data to see how you compare against industry peers.
+              Upload your annual report on the Dashboard to set up your company automatically.
             </p>
-            <Button onClick={() => setShowCreate(true)} className="mt-6">
-              <Plus className="h-4 w-4" />
-              Add Company
-            </Button>
           </div>
         ) : (
           <div className="space-y-6">
@@ -98,19 +77,9 @@ export function MyCompanyPage() {
               />
             ))}
 
-            {/* Add another company */}
-            <Button
-              variant="outline"
-              onClick={() => setShowCreate(true)}
-              className="flex w-full items-center justify-center gap-2 border-dashed"
-            >
-              <Plus className="h-4 w-4" />
-              Add Another Company
-            </Button>
           </div>
         )}
 
-        <CreateCompanyDialog open={showCreate} onClose={() => setShowCreate(false)} />
         {uploadCompanyId && (
           <UploadReportDialog
             open
@@ -303,169 +272,6 @@ function KpiEditor({ companyId }: { companyId: string }) {
         </Button>
       </div>
     </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Create Company Dialog
-// ---------------------------------------------------------------------------
-
-function CreateCompanyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [name, setName] = useState('')
-  const [sector, setSector] = useState('')
-  const [country, setCountry] = useState('Switzerland')
-  const [currency, setCurrency] = useState('CHF')
-  const [headcount, setHeadcount] = useState('')
-  const [submitAttempted, setSubmitAttempted] = useState(false)
-  const createMutation = useCreateMyCompany()
-
-  const nameInvalid = !name.trim() && submitAttempted
-
-  const handleCompanyAutoSelect = (company: CompanyResult) => {
-    setName(company.name)
-    // Auto-fill sector
-    if (company.sector) {
-      const match = SECTORS.find((s) =>
-        company.sector!.toLowerCase().includes(s.toLowerCase()) ||
-        s.toLowerCase().includes(company.sector!.split(' ')[0].toLowerCase()),
-      )
-      if (match) setSector(match)
-    }
-    // Auto-fill country from jurisdiction
-    if (company.jurisdiction) {
-      setCountry(company.jurisdiction)
-    }
-    // Auto-fill currency
-    if (company.currency) {
-      setCurrency(company.currency)
-    }
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSubmitAttempted(true)
-    if (!name.trim()) return
-    createMutation.mutate(
-      {
-        name,
-        sector: sector || null,
-        country: country || null,
-        reporting_currency: currency,
-        headcount: headcount ? parseInt(headcount) : null,
-        is_primary: true,
-        founded_year: null,
-        website_url: null,
-      },
-      {
-        onSuccess: (data) => {
-          toast.success('Company added')
-          onClose()
-          // Auto-resolve website URL (and thus logo) in background
-          if (data?.company_id) {
-            supabase.auth.getSession().then(({ data: { session } }) => {
-              if (!session) return
-              fetch(
-                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
-                {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-                  },
-                  body: JSON.stringify({ name, company_id: data.company_id }),
-                },
-              ).catch(() => {})
-            })
-          }
-        },
-        onError: (err) => toast.error(`Failed: ${err.message}`),
-      }
-    )
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o: boolean) => { if (!o) onClose() }}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add Your Company</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="company-name" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company Name</label>
-            <CompanyAutocomplete
-              id="company-name"
-              value={name}
-              onChange={(v) => { setName(v); setSubmitAttempted(false) }}
-              onSelect={handleCompanyAutoSelect}
-              placeholder="Start typing to search..."
-              className={nameInvalid ? 'border-[var(--color-signal-red)]' : ''}
-            />
-            <p className="mt-1 text-[10px] text-muted-foreground">Type 3+ letters to search company registers</p>
-            {nameInvalid && <p className="mt-1 text-[12px] text-[var(--color-signal-red)]">Company name is required.</p>}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="company-sector" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Sector</label>
-              <Select value={sector} onValueChange={(v) => v && setSector(v)}>
-                <SelectTrigger id="company-sector" className="w-full">
-                  <SelectValue placeholder="Select..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Select...</SelectItem>
-                  {SECTORS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label htmlFor="company-country" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Country</label>
-              <input
-                id="company-country"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="company-currency" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Currency</label>
-              <Select value={currency} onValueChange={(v) => v && setCurrency(v)}>
-                <SelectTrigger id="company-currency" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CHF">CHF</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label htmlFor="company-headcount" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Headcount</label>
-              <input
-                id="company-headcount"
-                type="number"
-                value={headcount}
-                onChange={(e) => setHeadcount(e.target.value)}
-                placeholder="e.g., 500"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? 'Adding...' : 'Add Company'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }
 
