@@ -295,16 +295,16 @@ export default function NewsPage() {
                           </a>
                           <TooltipProvider delay={200}>
                             <Tooltip>
-                              <TooltipTrigger asChild>
-                                <a
-                                  href={article.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  aria-label={`Open ${article.title} in new tab`}
+                              <TooltipTrigger
+                                  render={<a
+                                    href={article.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-label={`Open ${article.title} in new tab`}
+                                  />}
                                   className="flex min-h-[44px] min-w-[44px] flex-shrink-0 items-center justify-center text-[var(--color-muted-foreground)] hover:text-[var(--color-accent)] transition-colors"
                                 >
                                   <ExternalLink className="h-3.5 w-3.5" />
-                                </a>
                               </TooltipTrigger>
                               <TooltipContent side="left">
                                 <p className="text-xs">Open article in new tab</p>

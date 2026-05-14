@@ -589,7 +589,6 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
                     </TooltipTrigger>
                     <TooltipContent side="top">
                       <p className="text-xs font-medium">{kpi.name}</p>
-                      {kpi.unit && <p className="text-xs text-muted-foreground">Unit: {kpi.unit}</p>}
                     </TooltipContent>
                   </UiTooltip>
                 </TooltipProvider>
@@ -779,8 +778,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
                       </TooltipTrigger>
                       <TooltipContent side="top">
                         <p className="text-xs font-medium">{kpi.name}</p>
-                        {kpi.unit && <p className="text-xs text-muted-foreground">Unit: {kpi.unit}</p>}
-                      </TooltipContent>
+                        </TooltipContent>
                     </UiTooltip>
                   </TooltipProvider>
                 </th>
@@ -809,8 +807,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
                     <td key={kpi.code} className="px-1 py-2 text-center">
                       <TooltipProvider delay={100}>
                         <UiTooltip>
-                          <TooltipTrigger asChild>
-                            <div
+                          <TooltipTrigger
                               className="mx-auto flex h-9 items-center justify-center rounded-lg text-[11px] font-semibold tabular-nums cursor-default border border-transparent hover:border-[var(--color-accent)]/30 transition-colors"
                               style={{
                                 backgroundColor: getHeatColor(cell.percentile),
@@ -818,7 +815,6 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
                               }}
                             >
                               {cell.value.toLocaleString(undefined, { notation: 'compact', maximumFractionDigits: 1 } as Intl.NumberFormatOptions)}
-                            </div>
                           </TooltipTrigger>
                           <TooltipContent side="top">
                             <p className="text-xs font-medium">{kpi.name}</p>
