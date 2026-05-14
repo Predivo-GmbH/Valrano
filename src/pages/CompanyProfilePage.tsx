@@ -325,10 +325,28 @@ export function CompanyProfilePage() {
     return [...map.values()]
   }, [kpiValues, id, myCompanyId])
 
-  const latestYear = useMemo(() => {
-    if (kpiRows.length === 0) return null
-    return Math.max(...kpiRows.flatMap((r) => [...r.peerValues.keys(), ...r.myValues.keys()]))
+  // Compute available years per company
+  const { availableYears, latestPeerYear, latestMyYear } = useMemo(() => {
+    const peerYears = new Set<number>()
+    const myYears = new Set<number>()
+    for (const r of kpiRows) {
+      for (const y of r.peerValues.keys()) peerYears.add(y)
+      for (const y of r.myValues.keys()) myYears.add(y)
+    }
+    const allYears = [...new Set([...peerYears, ...myYears])].sort((a, b) => b - a)
+    return {
+      availableYears: allYears,
+      latestPeerYear: peerYears.size > 0 ? Math.max(...peerYears) : null,
+      latestMyYear: myYears.size > 0 ? Math.max(...myYears) : null,
+    }
   }, [kpiRows])
+
+  // Default to the year that has data for the viewed company; fall back to any available year
+  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const displayYear = selectedYear ?? latestPeerYear ?? latestMyYear ?? null
+
+  // Keep latestYear alias for backwards compat with sections that use it
+  const latestYear = displayYear
 
   // Publication events for this company
   const companyEvents = useMemo(
@@ -658,7 +676,32 @@ export function CompanyProfilePage() {
         {/* ============================================================= */}
         {/* SECTION 2: Head-to-Head Comparison Table                       */}
         {/* ============================================================= */}
-        <SectionHeader icon={BarChart3} title="Head-to-Head Comparison" subtitle={latestYear ? `FY ${latestYear}` : undefined} />
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <SectionHeader icon={BarChart3} title="Head-to-Head Comparison" subtitle={latestYear ? `FY ${latestYear}` : undefined} />
+          {availableYears.length > 1 && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[11px] text-muted-foreground">Year:</span>
+              <select
+                value={displayYear ?? ''}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="rounded-md border border-border bg-[var(--color-bg-tertiary)] px-2 py-1 text-[12px] text-foreground focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+              >
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>FY {y}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        {/* Year mismatch notice */}
+        {latestPeerYear && latestMyYear && latestPeerYear !== latestMyYear && !selectedYear && (
+          <div className="mb-3 flex items-center gap-2 rounded-lg border border-[var(--color-signal-amber)]/30 bg-[var(--color-signal-amber)]/5 px-4 py-2.5 text-[12px] text-muted-foreground">
+            <Info className="h-3.5 w-3.5 shrink-0 text-[var(--color-signal-amber)]" />
+            <span>
+              Latest data for <span className="font-medium text-foreground">{company.name}</span> is FY {latestPeerYear}, while <span className="font-medium text-foreground">{primaryCompany?.name ?? 'your company'}</span> has FY {latestMyYear}. Showing FY {displayYear}. Use the year selector to compare different periods.
+            </span>
+          </div>
+        )}
         {kpiRows.length > 0 && latestYear ? (
           <div className="mb-6 card-premium rounded-xl border border-border bg-card overflow-x-auto">
             {(['financial', 'esg', 'operational'] as KpiCategory[]).map((cat) => {
@@ -674,8 +717,8 @@ export function CompanyProfilePage() {
                   {/* Table header */}
                   <div className="hidden sm:grid grid-cols-[1fr_100px_100px_90px_80px] gap-2 border-b border-border/50 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                     <span>KPI</span>
-                    <span className="text-right">{primaryCompany ? 'You' : 'Your Co.'}</span>
-                    <span className="text-right">Peer</span>
+                    <span className="text-right truncate" title={primaryCompany?.name}>{primaryCompany?.name ?? 'Your Company'}</span>
+                    <span className="text-right truncate" title={company.name}>{company.name}</span>
                     <span className="text-right">Delta</span>
                     <span className="text-right">Trend</span>
                   </div>
@@ -806,7 +849,7 @@ export function CompanyProfilePage() {
           <div className="hidden sm:grid grid-cols-[180px_1fr_1fr_40px] gap-2 border-b border-border px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
             <span>Policy Area</span>
             <span>{primaryCompany?.name ?? 'Your Company'}</span>
-            <span>Peer</span>
+            <span>{company.name}</span>
             <span className="text-center">Match</span>
           </div>
           <div className="divide-y divide-border/30">
@@ -833,10 +876,10 @@ export function CompanyProfilePage() {
                     </span>
                   </div>
                   <div>
-                    <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground sm:hidden">Peer</span>
+                    <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground sm:hidden">{company.name}</span>
                     <span className="text-[12px] text-muted-foreground line-clamp-2">
                       {hasPeerData ? peerDesc : (
-                        <span className="italic text-muted-foreground/50">Upload peer report</span>
+                        <span className="italic text-muted-foreground/50">Upload {company.name} report</span>
                       )}
                     </span>
                   </div>
@@ -870,7 +913,7 @@ export function CompanyProfilePage() {
             <div>
               <p className="text-[13px] font-medium text-foreground">Different Accounting Standards</p>
               <p className="mt-0.5 text-[12px] text-muted-foreground">
-                Your company uses <span className="font-semibold text-foreground">{accountingProfile.accounting_standard}</span>, while this company reports under <span className="font-semibold text-foreground">{peerAccountingProfile.accounting_standard}</span>. KPI comparisons may not be fully comparable without adjustments.
+                {primaryCompany?.name ?? 'Your company'} uses <span className="font-semibold text-foreground">{accountingProfile.accounting_standard}</span>, while {company.name} reports under <span className="font-semibold text-foreground">{peerAccountingProfile.accounting_standard}</span>. KPI comparisons may not be fully comparable without adjustments.
               </p>
             </div>
           </div>
@@ -886,8 +929,8 @@ export function CompanyProfilePage() {
               <div className="min-w-[600px]">
               <div className="grid grid-cols-[1fr_100px_100px_90px_100px] gap-2 border-b border-border px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                 <span>KPI Name</span>
-                <span className="text-right">This Company</span>
-                <span className="text-right">{primaryCompany?.name ?? 'Your Company'}</span>
+                <span className="text-right truncate" title={company.name}>{company.name}</span>
+                <span className="text-right truncate" title={primaryCompany?.name}>{primaryCompany?.name ?? 'Your Company'}</span>
                 <span className="text-right">Difference</span>
                 <span className="text-right">Signal</span>
               </div>
@@ -1027,7 +1070,7 @@ export function CompanyProfilePage() {
         {/* ============================================================= */}
         {hasRadarData && (
           <>
-            <SectionHeader icon={Target} title="Profile Comparison" subtitle={`Peer vs ${primaryCompany?.name ?? 'Your Company'}`} />
+            <SectionHeader icon={Target} title="Profile Comparison" subtitle={`${company.name} vs ${primaryCompany?.name ?? 'Your Company'}`} />
             <div className="mb-6 card-premium card-accent-top rounded-xl border border-border bg-card p-5">
               <div className="mx-auto h-[300px] max-w-[480px]">
                 <ResponsiveContainer width="100%" height="100%">
