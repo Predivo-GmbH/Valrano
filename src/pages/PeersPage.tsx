@@ -538,77 +538,119 @@ function UploadReportDialog({
   const [reportType, setReportType] = useState<ReportType>('annual')
   const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear() - 1)
   const [fiscalQuarter, setFiscalQuarter] = useState(1)
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [isDragging, setIsDragging] = useState(false)
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; phase: 'uploading' | 'extracting' } | null>(null)
 
   const uploadMutation = useUploadReport()
   const extractMutation = useExtractKpis()
 
-  // Reset state when dialog opens with a new company
+  // Reset state when dialog opens/closes
   const handleOpenChange = useCallback(
     (o: boolean) => {
-      if (!o) {
+      if (!o && !batchProgress) {
         onClose()
-        setFile(null)
+        setFiles([])
+        setBatchProgress(null)
       }
     },
-    [onClose],
+    [onClose, batchProgress],
   )
+
+  const addFiles = useCallback((newFiles: FileList | File[]) => {
+    const pdfs: File[] = []
+    const rejected: string[] = []
+    for (const f of Array.from(newFiles)) {
+      if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) pdfs.push(f)
+      else rejected.push(f.name)
+    }
+    if (rejected.length > 0) toast.error(`Skipped non-PDF: ${rejected.join(', ')}`)
+    if (pdfs.length > 0) setFiles((prev) => [...prev, ...pdfs])
+  }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-    const dropped = e.dataTransfer.files[0]
-    if (dropped?.type === 'application/pdf') setFile(dropped)
-    else toast.error('Only PDF files are supported')
-  }, [])
+    addFiles(e.dataTransfer.files)
+  }, [addFiles])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0]
-    if (selected) setFile(selected)
-  }
-
-  const handleUpload = async () => {
-    if (!companyId) { toast.error('Select a company'); return }
-    if (!file) { toast.error('Select a PDF file'); return }
-
-    try {
-      const result = await uploadMutation.mutateAsync({
-        file,
-        companyId,
-        reportType,
-        fiscalYear,
-        fiscalQuarter: reportType === 'quarterly' ? fiscalQuarter : undefined,
-      })
-      toast.success('Report uploaded — extracting KPIs...')
-
-      // Auto-trigger extraction
-      try {
-        const extraction = await extractMutation.mutateAsync(result.report_id)
-        toast.success(`Extracted ${extraction.total_kpis_extracted} KPIs`, {
-          action: {
-            label: 'View in Peers',
-            onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
-          },
-        })
-      } catch {
-        toast.error('Upload succeeded but extraction failed — run manually from Review page')
-      }
-
-      onClose()
-      setFile(null)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed')
+    if (e.target.files && e.target.files.length > 0) {
+      addFiles(e.target.files)
+      e.target.value = ''
     }
   }
 
-  const isUploading = uploadMutation.isPending || extractMutation.isPending
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleStartAnalysis = async () => {
+    if (!companyId) { toast.error('Select a company'); return }
+    if (files.length === 0) { toast.error('Add at least one PDF file'); return }
+
+    const reportIds: string[] = []
+    const failedUploads: string[] = []
+
+    // Phase 1: Upload all files
+    for (let i = 0; i < files.length; i++) {
+      setBatchProgress({ current: i + 1, total: files.length, phase: 'uploading' })
+      try {
+        const result = await uploadMutation.mutateAsync({
+          file: files[i],
+          companyId,
+          reportType,
+          fiscalYear,
+          fiscalQuarter: reportType === 'quarterly' ? fiscalQuarter : undefined,
+        })
+        reportIds.push(result.report_id)
+      } catch {
+        failedUploads.push(files[i].name)
+      }
+    }
+
+    if (failedUploads.length > 0) {
+      toast.error(`Failed to upload: ${failedUploads.join(', ')}`)
+    }
+
+    // Phase 2: Extract KPIs from all uploaded reports
+    let totalKpis = 0
+    const failedExtractions: string[] = []
+    for (let i = 0; i < reportIds.length; i++) {
+      setBatchProgress({ current: i + 1, total: reportIds.length, phase: 'extracting' })
+      try {
+        const extraction = await extractMutation.mutateAsync(reportIds[i])
+        totalKpis += extraction.total_kpis_extracted
+      } catch {
+        failedExtractions.push(reportIds[i])
+      }
+    }
+
+    setBatchProgress(null)
+
+    if (reportIds.length > 0) {
+      toast.success(`Processed ${reportIds.length} file${reportIds.length > 1 ? 's' : ''} — extracted ${totalKpis} KPIs`, {
+        action: {
+          label: 'View in Peers',
+          onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+        },
+      })
+    }
+    if (failedExtractions.length > 0) {
+      toast.error(`Extraction failed for ${failedExtractions.length} report(s) — run manually from Review page`)
+    }
+
+    onClose()
+    setFiles([])
+  }
+
+  const isProcessing = !!batchProgress
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload Report</DialogTitle>
+          <DialogTitle>Upload Reports</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -617,7 +659,7 @@ function UploadReportDialog({
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Company
             </Label>
-            <Select value={companies.some((c) => c.id === companyId) ? companyId : undefined} onValueChange={(v) => v && setCompanyId(v)}>
+            <Select value={companies.some((c) => c.id === companyId) ? companyId : undefined} onValueChange={(v) => v && setCompanyId(v)} disabled={isProcessing}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
                 <SelectValue placeholder="Select company">{(() => { const c = companies.find((c) => c.id === companyId); return c ? `${c.name}${c.ticker ? ` (${c.ticker})` : ''}` : 'Select company' })()}</SelectValue>
               </SelectTrigger>
@@ -636,7 +678,7 @@ function UploadReportDialog({
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Report Type
             </Label>
-            <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)}>
+            <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)} disabled={isProcessing}>
               <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
                 <SelectValue>{REPORT_TYPE_LABELS[reportType]}</SelectValue>
               </SelectTrigger>
@@ -660,6 +702,7 @@ function UploadReportDialog({
                 max={new Date().getFullYear()}
                 value={fiscalYear}
                 onChange={(e) => setFiscalYear(Number(e.target.value))}
+                disabled={isProcessing}
                 className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
               />
             </div>
@@ -668,7 +711,7 @@ function UploadReportDialog({
                 <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                   Quarter
                 </Label>
-                <Select value={String(fiscalQuarter)} onValueChange={(v) => setFiscalQuarter(Number(v))}>
+                <Select value={String(fiscalQuarter)} onValueChange={(v) => setFiscalQuarter(Number(v))} disabled={isProcessing}>
                   <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
                     <SelectValue>Q{fiscalQuarter}</SelectValue>
                   </SelectTrigger>
@@ -685,22 +728,23 @@ function UploadReportDialog({
           {/* Drop Zone */}
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-              PDF File
+              PDF Files
             </Label>
             <div
               role="button"
               tabIndex={0}
-              aria-label="Upload PDF file"
-              onClick={() => inputRef.current?.click()}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click() } }}
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+              aria-label="Upload PDF files"
+              onClick={() => !isProcessing && inputRef.current?.click()}
+              onKeyDown={(e) => { if (!isProcessing && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); inputRef.current?.click() } }}
+              onDragOver={(e) => { e.preventDefault(); if (!isProcessing) setIsDragging(true) }}
               onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
+              onDrop={isProcessing ? undefined : handleDrop}
               className={cn(
-                'group flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-all duration-200',
+                'group flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-all duration-200',
+                isProcessing && 'pointer-events-none opacity-50',
                 isDragging
                   ? 'border-accent bg-accent/5'
-                  : file
+                  : files.length > 0
                   ? 'border-[var(--color-signal-green)]/50 bg-[var(--color-signal-green)]/5'
                   : 'border-border hover:border-accent/50 hover:bg-[var(--color-bg-tertiary)]',
               )}
@@ -709,41 +753,97 @@ function UploadReportDialog({
                 ref={inputRef}
                 type="file"
                 accept=".pdf,application/pdf"
+                multiple
                 className="hidden"
                 onChange={handleFileChange}
               />
-              {file ? (
-                <>
-                  <FileText className="h-5 w-5 text-[var(--color-signal-green)]" />
-                  <p className="text-[13px] font-medium text-foreground">{file.name}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Upload className="h-5 w-5 text-muted-foreground" />
-                  <p className="text-[13px] font-medium text-foreground">Drop PDF here or click to browse</p>
-                </>
-              )}
+              <Upload className="h-5 w-5 text-muted-foreground" />
+              <p className="text-[13px] font-medium text-foreground">
+                {files.length > 0 ? 'Drop more PDFs or click to add' : 'Drop PDFs here or click to browse'}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                You can upload multiple files for a more complete analysis
+              </p>
             </div>
           </div>
 
-          {/* Upload Button */}
+          {/* File list */}
+          {files.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                  {files.length} file{files.length > 1 ? 's' : ''} selected
+                </Label>
+                {files.length > 1 && !isProcessing && (
+                  <button
+                    onClick={() => setFiles([])}
+                    className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+              <div className={cn('space-y-1', files.length > 3 && 'max-h-[120px] overflow-y-auto pr-1')}>
+                {files.map((f, i) => (
+                  <div
+                    key={`${f.name}-${i}`}
+                    className="flex items-center gap-2 rounded-md border border-border bg-[var(--color-bg-tertiary)] px-3 py-2"
+                  >
+                    <FileText className="h-3.5 w-3.5 shrink-0 text-[var(--color-signal-green)]" />
+                    <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">{f.name}</span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {(f.size / 1024 / 1024).toFixed(1)} MB
+                    </span>
+                    {!isProcessing && (
+                      <button
+                        onClick={() => removeFile(i)}
+                        className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        aria-label={`Remove ${f.name}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Progress indicator */}
+          {batchProgress && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-accent)]" />
+                <span>
+                  {batchProgress.phase === 'uploading'
+                    ? `Uploading file ${batchProgress.current} of ${batchProgress.total}...`
+                    : `Extracting KPIs from report ${batchProgress.current} of ${batchProgress.total}...`}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[var(--color-bg-tertiary)]">
+                <div
+                  className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300"
+                  style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Start Analysis Button */}
           <Button
-            onClick={handleUpload}
-            disabled={isUploading || !companyId || !file}
+            onClick={handleStartAnalysis}
+            disabled={isProcessing || !companyId || files.length === 0}
             className="w-full"
           >
-            {isUploading ? (
+            {isProcessing ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                {extractMutation.isPending ? 'Extracting KPIs...' : 'Uploading...'}
+                Processing...
               </>
             ) : (
               <>
                 <Upload className="h-4 w-4" />
-                Upload & Extract
+                {files.length <= 1 ? 'Upload & Extract' : `Upload ${files.length} Files & Extract`}
               </>
             )}
           </Button>
