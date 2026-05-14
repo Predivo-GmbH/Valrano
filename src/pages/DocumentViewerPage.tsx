@@ -444,7 +444,7 @@ export function DocumentViewerPage() {
   const [statusDialog, setStatusDialog] = useState<{ targetStatus: string; label: string } | null>(null)
   const [reviewNotes, setReviewNotes] = useState('')
 
-  const handleStatusChange = useCallback(async (newStatus: string, notes?: string) => {
+  const handleStatusChange = useCallback(async (newStatus: string, _notes?: string) => {
     if (!doc) return
     try {
       await updateStatus.mutateAsync({ id: doc.id, status: newStatus })
