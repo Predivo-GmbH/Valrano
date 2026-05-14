@@ -7,6 +7,7 @@ import { useCompanies, useReports, useKpiDefinitions, useKpiValues } from '@/hoo
 import { usePrimaryCompany } from '@/hooks/useMyCompany'
 import { usePublicationEvents, useCheckPublication } from '@/hooks/useCalendar'
 import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
+import { useSmoothProgress } from '@/hooks/useSmoothProgress'
 import type { Company, ReportType, PublicationEventStatus } from '@/types/database'
 import { REPORT_TYPE_LABELS } from '@/lib/constants'
 import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete'
@@ -34,7 +35,6 @@ import {
   Sparkles,
   Check,
   Trash2,
-  X,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
@@ -538,316 +538,314 @@ function UploadReportDialog({
   const [reportType, setReportType] = useState<ReportType>('annual')
   const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear() - 1)
   const [fiscalQuarter, setFiscalQuarter] = useState(1)
-  const [files, setFiles] = useState<File[]>([])
+  const [file, setFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; phase: 'uploading' | 'extracting' } | null>(null)
+  const [uploadStep, setUploadStep] = useState<'idle' | 'uploading' | 'extracting' | 'done'>('idle')
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const displayProgress = useSmoothProgress(uploadProgress)
+  const [extractionResult, setExtractionResult] = useState<{ total: number; confidence: number | null; needsReview: number } | null>(null)
 
   const uploadMutation = useUploadReport()
   const extractMutation = useExtractKpis()
 
-  // Reset state when dialog opens/closes
+  const PROGRESS_STEPS = [
+    { key: 'uploading', label: 'Uploading PDF to secure storage' },
+    { key: 'extracting', label: 'AI extracting KPIs from report' },
+  ] as const
+
+  // Prevent close during upload
   const handleOpenChange = useCallback(
     (o: boolean) => {
-      if (!o && !batchProgress) {
+      if (!o && uploadStep !== 'idle' && uploadStep !== 'done') return
+      if (!o) {
         onClose()
-        setFiles([])
-        setBatchProgress(null)
+        setFile(null)
       }
     },
-    [onClose, batchProgress],
+    [onClose, uploadStep],
   )
-
-  const addFiles = useCallback((newFiles: FileList | File[]) => {
-    const pdfs: File[] = []
-    const rejected: string[] = []
-    for (const f of Array.from(newFiles)) {
-      if (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')) pdfs.push(f)
-      else rejected.push(f.name)
-    }
-    if (rejected.length > 0) toast.error(`Skipped non-PDF: ${rejected.join(', ')}`)
-    if (pdfs.length > 0) setFiles((prev) => [...prev, ...pdfs])
-  }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-    addFiles(e.dataTransfer.files)
-  }, [addFiles])
+    const dropped = e.dataTransfer.files[0]
+    if (dropped?.type === 'application/pdf') setFile(dropped)
+    else toast.error('Only PDF files are supported')
+  }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      addFiles(e.target.files)
-      e.target.value = ''
-    }
+    const selected = e.target.files?.[0]
+    if (selected) setFile(selected)
   }
 
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const handleStartAnalysis = async () => {
+  const handleUpload = async () => {
     if (!companyId) { toast.error('Select a company'); return }
-    if (files.length === 0) { toast.error('Add at least one PDF file'); return }
+    if (!file) { toast.error('Select a PDF file'); return }
 
-    const reportIds: string[] = []
-    const failedUploads: string[] = []
+    setUploadStep('uploading')
+    setUploadProgress(10)
 
-    // Phase 1: Upload all files
-    for (let i = 0; i < files.length; i++) {
-      setBatchProgress({ current: i + 1, total: files.length, phase: 'uploading' })
-      try {
-        const result = await uploadMutation.mutateAsync({
-          file: files[i],
-          companyId,
-          reportType,
-          fiscalYear,
-          fiscalQuarter: reportType === 'quarterly' ? fiscalQuarter : undefined,
-        })
-        reportIds.push(result.report_id)
-      } catch {
-        failedUploads.push(files[i].name)
-      }
-    }
-
-    if (failedUploads.length > 0) {
-      toast.error(`Failed to upload: ${failedUploads.join(', ')}`)
-    }
-
-    // Phase 2: Extract KPIs from all uploaded reports
-    let totalKpis = 0
-    const failedExtractions: string[] = []
-    for (let i = 0; i < reportIds.length; i++) {
-      setBatchProgress({ current: i + 1, total: reportIds.length, phase: 'extracting' })
-      try {
-        const extraction = await extractMutation.mutateAsync(reportIds[i])
-        totalKpis += extraction.total_kpis_extracted
-      } catch {
-        failedExtractions.push(reportIds[i])
-      }
-    }
-
-    setBatchProgress(null)
-
-    if (reportIds.length > 0) {
-      toast.success(`Processed ${reportIds.length} file${reportIds.length > 1 ? 's' : ''} — extracted ${totalKpis} KPIs`, {
-        action: {
-          label: 'View in Peers',
-          onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
-        },
+    try {
+      const result = await uploadMutation.mutateAsync({
+        file,
+        companyId,
+        reportType,
+        fiscalYear,
+        fiscalQuarter: reportType === 'quarterly' ? fiscalQuarter : undefined,
       })
-    }
-    if (failedExtractions.length > 0) {
-      toast.error(`Extraction failed for ${failedExtractions.length} report(s) — run manually from Review page`)
-    }
 
-    onClose()
-    setFiles([])
+      setUploadStep('extracting')
+      setUploadProgress(45)
+
+      // Auto-trigger extraction
+      try {
+        const extraction = await extractMutation.mutateAsync(result.report_id)
+        setUploadProgress(100)
+        setUploadStep('done')
+        setExtractionResult({
+          total: extraction.total_kpis_extracted ?? 0,
+          confidence: extraction.avg_confidence ?? null,
+          needsReview: extraction.needs_review_count ?? 0,
+        })
+      } catch {
+        setUploadStep('idle')
+        setUploadProgress(0)
+        toast.error('Upload succeeded but extraction failed — run manually from Review page')
+      }
+    } catch (err) {
+      setUploadStep('idle')
+      setUploadProgress(0)
+      toast.error(err instanceof Error ? err.message : 'Upload failed')
+    }
   }
 
-  const isProcessing = !!batchProgress
+  const selectedCompanyName = companies.find((c) => c.id === companyId)?.name ?? ''
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload Reports</DialogTitle>
+          <DialogTitle>Upload Report</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Company */}
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-              Company
-            </Label>
-            <Select value={companies.some((c) => c.id === companyId) ? companyId : undefined} onValueChange={(v) => v && setCompanyId(v)} disabled={isProcessing}>
-              <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                <SelectValue placeholder="Select company">{(() => { const c = companies.find((c) => c.id === companyId); return c ? `${c.name}${c.ticker ? ` (${c.ticker})` : ''}` : 'Select company' })()}</SelectValue>
-              </SelectTrigger>
-              <SelectContent className="rounded-lg border-border bg-card text-[13px]">
-                {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id} className="text-[13px]">
-                    {c.name}{c.ticker ? ` (${c.ticker})` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Report Type */}
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-              Report Type
-            </Label>
-            <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)} disabled={isProcessing}>
-              <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                <SelectValue>{REPORT_TYPE_LABELS[reportType]}</SelectValue>
-              </SelectTrigger>
-              <SelectContent className="rounded-lg border-border bg-card text-[13px]">
-                {(Object.entries(REPORT_TYPE_LABELS) as [ReportType, string][]).map(([k, label]) => (
-                  <SelectItem key={k} value={k} className="text-[13px]">{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Fiscal Year + Quarter */}
-          <div className="grid grid-cols-2 gap-4">
+        {uploadStep === 'idle' && (
+          <div className="space-y-4">
+            {/* Company */}
             <div className="space-y-1.5">
               <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                Fiscal Year
+                Company
               </Label>
-              <Input
-                type="number"
-                min={2000}
-                max={new Date().getFullYear()}
-                value={fiscalYear}
-                onChange={(e) => setFiscalYear(Number(e.target.value))}
-                disabled={isProcessing}
-                className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
-              />
+              <Select value={companies.some((c) => c.id === companyId) ? companyId : undefined} onValueChange={(v) => v && setCompanyId(v)}>
+                <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
+                  <SelectValue placeholder="Select company">{(() => { const c = companies.find((c) => c.id === companyId); return c ? `${c.name}${c.ticker ? ` (${c.ticker})` : ''}` : 'Select company' })()}</SelectValue>
+                </SelectTrigger>
+                <SelectContent className="rounded-lg border-border bg-card text-[13px]">
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id} className="text-[13px]">
+                      {c.name}{c.ticker ? ` (${c.ticker})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            {reportType === 'quarterly' && (
+
+            {/* Report Type */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                Report Type
+              </Label>
+              <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)}>
+                <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
+                  <SelectValue>{REPORT_TYPE_LABELS[reportType]}</SelectValue>
+                </SelectTrigger>
+                <SelectContent className="rounded-lg border-border bg-card text-[13px]">
+                  {(Object.entries(REPORT_TYPE_LABELS) as [ReportType, string][]).map(([k, label]) => (
+                    <SelectItem key={k} value={k} className="text-[13px]">{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Fiscal Year + Quarter */}
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                  Quarter
+                  Fiscal Year
                 </Label>
-                <Select value={String(fiscalQuarter)} onValueChange={(v) => setFiscalQuarter(Number(v))} disabled={isProcessing}>
-                  <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                    <SelectValue>Q{fiscalQuarter}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="rounded-lg border-border bg-card text-[13px]">
-                    {[1, 2, 3, 4].map((q) => (
-                      <SelectItem key={q} value={String(q)} className="text-[13px]">Q{q}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  type="number"
+                  min={2000}
+                  max={new Date().getFullYear()}
+                  value={fiscalYear}
+                  onChange={(e) => setFiscalYear(Number(e.target.value))}
+                  className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
+                />
               </div>
-            )}
-          </div>
-
-          {/* Drop Zone */}
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-              PDF Files
-            </Label>
-            <div
-              role="button"
-              tabIndex={0}
-              aria-label="Upload PDF files"
-              onClick={() => !isProcessing && inputRef.current?.click()}
-              onKeyDown={(e) => { if (!isProcessing && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); inputRef.current?.click() } }}
-              onDragOver={(e) => { e.preventDefault(); if (!isProcessing) setIsDragging(true) }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={isProcessing ? undefined : handleDrop}
-              className={cn(
-                'group flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-all duration-200',
-                isProcessing && 'pointer-events-none opacity-50',
-                isDragging
-                  ? 'border-accent bg-accent/5'
-                  : files.length > 0
-                  ? 'border-[var(--color-signal-green)]/50 bg-[var(--color-signal-green)]/5'
-                  : 'border-border hover:border-accent/50 hover:bg-[var(--color-bg-tertiary)]',
+              {reportType === 'quarterly' && (
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                    Quarter
+                  </Label>
+                  <Select value={String(fiscalQuarter)} onValueChange={(v) => setFiscalQuarter(Number(v))}>
+                    <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
+                      <SelectValue>Q{fiscalQuarter}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg border-border bg-card text-[13px]">
+                      {[1, 2, 3, 4].map((q) => (
+                        <SelectItem key={q} value={String(q)} className="text-[13px]">Q{q}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
-            >
-              <input
-                ref={inputRef}
-                type="file"
-                accept=".pdf,application/pdf"
-                multiple
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              <Upload className="h-5 w-5 text-muted-foreground" />
-              <p className="text-[13px] font-medium text-foreground">
-                {files.length > 0 ? 'Drop more PDFs or click to add' : 'Drop PDFs here or click to browse'}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                You can upload multiple files for a more complete analysis
-              </p>
             </div>
-          </div>
 
-          {/* File list */}
-          {files.length > 0 && (
+            {/* Drop Zone */}
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                  {files.length} file{files.length > 1 ? 's' : ''} selected
-                </Label>
-                {files.length > 1 && !isProcessing && (
-                  <button
-                    onClick={() => setFiles([])}
-                    className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    Clear all
-                  </button>
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                PDF File
+              </Label>
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label="Upload PDF file"
+                onClick={() => inputRef.current?.click()}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click() } }}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={cn(
+                  'group flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-all duration-200',
+                  isDragging
+                    ? 'border-accent bg-accent/5'
+                    : file
+                    ? 'border-[var(--color-signal-green)]/50 bg-[var(--color-signal-green)]/5'
+                    : 'border-border hover:border-accent/50 hover:bg-[var(--color-bg-tertiary)]',
+                )}
+              >
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                {file ? (
+                  <>
+                    <FileText className="h-5 w-5 text-[var(--color-signal-green)]" />
+                    <p className="text-[13px] font-medium text-foreground">{file.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-5 w-5 text-muted-foreground" />
+                    <p className="text-[13px] font-medium text-foreground">Drop PDF here or click to browse</p>
+                  </>
                 )}
               </div>
-              <div className={cn('space-y-1', files.length > 3 && 'max-h-[120px] overflow-y-auto pr-1')}>
-                {files.map((f, i) => (
-                  <div
-                    key={`${f.name}-${i}`}
-                    className="flex items-center gap-2 rounded-md border border-border bg-[var(--color-bg-tertiary)] px-3 py-2"
-                  >
-                    <FileText className="h-3.5 w-3.5 shrink-0 text-[var(--color-signal-green)]" />
-                    <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">{f.name}</span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground">
-                      {(f.size / 1024 / 1024).toFixed(1)} MB
-                    </span>
-                    {!isProcessing && (
-                      <button
-                        onClick={() => removeFile(i)}
-                        className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                        aria-label={`Remove ${f.name}`}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
             </div>
-          )}
 
-          {/* Progress indicator */}
-          {batchProgress && (
+            {/* Upload Button */}
+            <Button
+              onClick={handleUpload}
+              disabled={!companyId || !file}
+              className="w-full"
+            >
+              <Upload className="h-4 w-4" />
+              Upload & Extract
+            </Button>
+          </div>
+        )}
+
+        {(uploadStep === 'uploading' || uploadStep === 'extracting') && (
+          <div className="space-y-6 py-2">
+            {selectedCompanyName && (
+              <p className="text-[12px] text-muted-foreground text-center">
+                Processing <span className="font-medium text-foreground">{selectedCompanyName}</span>
+              </p>
+            )}
+
+            {/* Progress bar */}
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-accent)]" />
-                <span>
-                  {batchProgress.phase === 'uploading'
-                    ? `Uploading file ${batchProgress.current} of ${batchProgress.total}...`
-                    : `Extracting KPIs from report ${batchProgress.current} of ${batchProgress.total}...`}
-                </span>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Processing report...</span>
+                <span>{displayProgress}%</span>
               </div>
-              <div className="h-1.5 rounded-full bg-[var(--color-bg-tertiary)]">
+              <div className="h-2 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300"
-                  style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                  className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500 ease-out"
+                  style={{ width: `${displayProgress}%` }}
                 />
               </div>
             </div>
-          )}
 
-          {/* Start Analysis Button */}
-          <Button
-            onClick={handleStartAnalysis}
-            disabled={isProcessing || !companyId || files.length === 0}
-            className="w-full"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Upload className="h-4 w-4" />
-                {files.length <= 1 ? 'Upload & Extract' : `Upload ${files.length} Files & Extract`}
-              </>
-            )}
-          </Button>
-        </div>
+            {/* Step indicators */}
+            <div className="space-y-3">
+              {PROGRESS_STEPS.map((step, stepIdx) => {
+                const stepOrder = PROGRESS_STEPS.map(s => s.key)
+                const currentIdx = stepOrder.indexOf(uploadStep as 'uploading' | 'extracting')
+                const isActive = step.key === uploadStep
+                const isDone = currentIdx === -1 ? false : stepIdx < currentIdx
+
+                return (
+                  <div key={step.key} className="flex items-center gap-3">
+                    <div className={cn(
+                      'flex h-6 w-6 items-center justify-center rounded-full flex-shrink-0 transition-all duration-300',
+                      isDone ? 'bg-[var(--color-accent)] text-white' :
+                      isActive ? 'bg-[var(--color-accent)]/20 text-[var(--color-accent)]' :
+                      'bg-[var(--color-bg-tertiary)] text-muted-foreground/40',
+                    )}>
+                      {isDone ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : isActive ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <span className="text-[10px] font-medium">{stepIdx + 1}</span>
+                      )}
+                    </div>
+                    <p className={cn(
+                      'text-[12px] font-medium transition-colors',
+                      isDone ? 'text-muted-foreground' :
+                      isActive ? 'text-foreground' :
+                      'text-muted-foreground/40',
+                    )}>
+                      {step.label}
+                    </p>
+                    <span className={cn(
+                      'text-[10px] flex-shrink-0 transition-colors ml-auto',
+                      isDone ? 'text-[var(--color-accent)]' :
+                      isActive ? 'text-muted-foreground' :
+                      'text-muted-foreground/30',
+                    )}>
+                      {isDone ? 'Done' : isActive ? '...' : ''}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {uploadStep === 'done' && (
+          <div className="flex flex-col items-center gap-4 py-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-signal-green)]/10">
+              <Check className="h-6 w-6 text-[var(--color-signal-green)]" />
+            </div>
+            <div className="text-center">
+              <p className="text-[14px] font-semibold text-foreground">Report processed successfully</p>
+              <p className="mt-1 text-[12px] text-muted-foreground">
+                {extractionResult?.total ?? 0} KPIs extracted
+                {extractionResult?.confidence != null && ` · ${Math.round(extractionResult.confidence * 100)}% avg confidence`}
+                {(extractionResult?.needsReview ?? 0) > 0 && ` · ${extractionResult!.needsReview} need review`}
+              </p>
+            </div>
+            <Button onClick={() => { onClose(); setUploadStep('idle'); setUploadProgress(0); setExtractionResult(null); setFile(null) }} className="w-full">
+              Done
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

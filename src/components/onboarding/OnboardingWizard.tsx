@@ -26,6 +26,7 @@ import { useCreatePublicationEvent, usePublicationEvents } from '@/hooks/useCale
 import { useSuggestDates, useSuggestCompetitors } from '@/hooks/useAiSuggestions'
 import type { CompetitorSuggestion } from '@/hooks/useAiSuggestions'
 import { dismissOnboarding, useOnboarding } from '@/hooks/useOnboarding'
+import { useSmoothProgress } from '@/hooks/useSmoothProgress'
 import { CompanyAutocomplete } from '@/components/company-autocomplete'
 import type { Company } from '@/types/database'
 
@@ -431,6 +432,7 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
   const [isDragging, setIsDragging] = useState(false)
   const [uploadStep, setUploadStep] = useState<'idle' | 'uploading' | 'processing_file' | 'uploading_to_ai' | 'analyzing' | 'saving' | 'complete' | 'done'>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
+  const displayProgress = useSmoothProgress(uploadProgress)
   const progressRef = useRef(0)
 
   const ownReports = (reports ?? [])
@@ -697,12 +699,12 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
           <div className="space-y-2">
             <div className="flex items-center justify-between text-[11px] text-muted-foreground">
               <span>Processing your report...</span>
-              <span>{uploadProgress}%</span>
+              <span>{displayProgress}%</span>
             </div>
             <div className="h-2 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
               <div
-                className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300 ease-out"
-                style={{ width: `${uploadProgress}%` }}
+                className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500 ease-out"
+                style={{ width: `${displayProgress}%` }}
               />
             </div>
           </div>
