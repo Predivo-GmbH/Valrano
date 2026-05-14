@@ -12,6 +12,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import {
   useAccountingProfile,
   useAnalyzeAccountingProfile,
@@ -74,6 +75,38 @@ const POLICY_LABELS: Record<string, { label: string; description: string }> = {
   },
 }
 
+/** Tooltip explanations for common policy badge values */
+const POLICY_VALUE_TOOLTIPS: Record<string, Record<string, string>> = {
+  rd_treatment: {
+    expense: 'R&D costs are expensed immediately, not capitalized on the balance sheet',
+    capitalize: 'R&D costs are capitalized as intangible assets and amortized over time',
+  },
+  fx_translation: {
+    'current rate': 'All assets/liabilities translated at the closing rate; income at average rate',
+    'temporal': 'Monetary items at closing rate, non-monetary at historical rate',
+  },
+  lease_treatment: {
+    'ifrs 16': 'All leases recognized on-balance-sheet with a right-of-use asset and lease liability',
+    'operating': 'Leases treated as off-balance-sheet operating expenses',
+  },
+  goodwill_treatment: {
+    'impairment only': 'Goodwill is not amortized; tested annually for impairment',
+    'amortization': 'Goodwill is systematically amortized over its useful life',
+  },
+  pension_accounting: {
+    'projected unit credit': 'Pension obligations measured using the Projected Unit Credit (PBO) actuarial method',
+    'defined contribution': 'Employer contributions are expensed as incurred; no balance sheet liability',
+  },
+  segment_reporting: {
+    geographic: 'Business segments are reported by geographic region',
+    business: 'Business segments are reported by product/service line',
+  },
+  revenue_recognition: {
+    'point in time': 'Revenue recognized at a specific point when control transfers to the customer',
+    'over time': 'Revenue recognized progressively as performance obligations are satisfied',
+  },
+}
+
 const KPI_LABELS: Record<string, string> = {
   REVENUE: 'Revenue',
   EBITDA: 'EBITDA',
@@ -109,6 +142,10 @@ function PolicyCard({
 
   const sourcePage = policy.source_page as number | undefined
   const method = (policy.method as string) ?? (policy.standard as string) ?? (policy.basis as string)
+  const methodNormalized = method?.replace(/_/g, ' ')
+  const tooltipText = methodNormalized
+    ? POLICY_VALUE_TOOLTIPS[policyKey]?.[methodNormalized.toLowerCase()]
+    : undefined
 
   return (
     <div className="rounded-lg border border-border bg-[var(--color-bg-tertiary)]/30 overflow-hidden">
@@ -121,13 +158,35 @@ function PolicyCard({
           <div className="text-[10px] text-muted-foreground mt-0.5">{meta.description}</div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-          {method && (
-            <span className="rounded bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
-              {method.replace(/_/g, ' ')}
+          {methodNormalized ? (
+            tooltipText ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="rounded bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)] cursor-help">
+                      {methodNormalized}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-[260px] text-[11px]">
+                    {tooltipText}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <span className="rounded bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
+                {methodNormalized}
+              </span>
+            )
+          ) : (
+            <span className="rounded bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground italic">
+              not detected
             </span>
           )}
           {sourcePage && (
-            <span className="text-[9px] text-muted-foreground">p.{sourcePage}</span>
+            <span className="inline-flex items-center gap-1 text-[9px] text-muted-foreground" title={`Found on page ${sourcePage} of the source report`}>
+              <FileText className="h-2.5 w-2.5" />
+              p.&nbsp;{sourcePage}
+            </span>
           )}
           {expanded ? (
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -171,13 +230,15 @@ function KpiMappingRow({ code, mapping }: { code: string; mapping: KpiMapping })
 
   return (
     <tr className="border-b border-border/30 last:border-0">
-      <td className="px-3 py-2 text-[11px] font-medium text-foreground">{label}</td>
-      <td className="px-3 py-2 text-[11px] text-muted-foreground">{mapping.formula}</td>
-      <td className="px-3 py-2 text-[11px] text-muted-foreground">
-        {mapping.label_in_report ?? '—'}
-      </td>
-      <td className="px-3 py-2 text-[10px] text-muted-foreground text-center">
-        {mapping.source_page ? `p.${mapping.source_page}` : '—'}
+      <td className="px-3 py-2 text-[11px] font-medium text-foreground whitespace-nowrap w-[140px]">{label}</td>
+      <td className="px-3 py-2 text-[11px] text-muted-foreground break-words">{mapping.formula}</td>
+      <td className="px-3 py-2 text-[10px] text-muted-foreground text-center whitespace-nowrap w-[60px]">
+        {mapping.source_page ? (
+          <span className="inline-flex items-center gap-1" title={`Found on page ${mapping.source_page}`}>
+            <FileText className="h-2.5 w-2.5" />
+            p.&nbsp;{mapping.source_page}
+          </span>
+        ) : '—'}
       </td>
     </tr>
   )
@@ -599,9 +660,12 @@ export function AccountingProfilePage() {
 
         {/* Accounting policies */}
         <div className="px-5 py-4">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
             Accounting Policies ({policyEntries.length} detected)
           </h4>
+          <p className="text-[11px] text-muted-foreground mb-3 leading-relaxed">
+            These accounting policies were automatically detected from your uploaded report. They define how your company's financials are calculated and compared against peers.
+          </p>
           <div className="space-y-2">
             {policyEntries.map(([key, value]) => (
               <PolicyCard
@@ -636,20 +700,17 @@ export function AccountingProfilePage() {
         </button>
 
         {showKpiMappings && kpiMappingEntries.length > 0 && (
-          <div className="border-t border-border overflow-x-auto">
-            <table className="table-premium w-full min-w-max border-collapse">
+          <div className="border-t border-border">
+            <table className="table-premium w-full border-collapse table-fixed">
               <thead>
                 <tr className="border-b border-border bg-[var(--color-bg-tertiary)]/20">
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[140px]">
                     KPI
                   </th>
                   <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Formula / Method
                   </th>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Label in Report
-                  </th>
-                  <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[60px]">
                     Source
                   </th>
                 </tr>
