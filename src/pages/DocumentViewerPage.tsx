@@ -448,8 +448,8 @@ export function DocumentViewerPage() {
 
   // Workspace owner = admin; reviewer/admin can approve/reject; editor+ can submit/revise
   const isOwner = workspace?.owner_id === user?.id
-  const canApproveReject = isOwner || myRole === 'admin' || myRole === 'reviewer'
-  const canSubmitRevise = isOwner || myRole === 'admin' || myRole === 'reviewer' || myRole === 'editor'
+  const canApproveReject = isOwner || myRole === 'admin' || (myRole as string) === 'reviewer'
+  const canSubmitRevise = isOwner || myRole === 'admin' || (myRole as string) === 'reviewer' || myRole === 'editor'
 
   const [statusDialog, setStatusDialog] = useState<{ targetStatus: string; label: string } | null>(null)
   const [reviewNotes, setReviewNotes] = useState('')
