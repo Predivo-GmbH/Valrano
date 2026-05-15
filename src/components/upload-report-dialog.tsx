@@ -288,7 +288,7 @@ export function UploadReportDialog({
                         <p className="text-[10px] text-muted-foreground">{(item.file.size / 1024 / 1024).toFixed(1)} MB</p>
                       </div>
                       {showCompanySelector && (
-                        <Select value={item.companyId} onValueChange={(v) => updateQueuedFileCompany(item.id, v)}>
+                        <Select value={item.companyId ?? ''} onValueChange={(v) => updateQueuedFileCompany(item.id, v)}>
                           <SelectTrigger className="h-7 w-36 rounded border-border bg-card text-[11px]">
                             <SelectValue placeholder="Company">{(() => { const c = companies.find(c => c.id === item.companyId); return c ? c.name : 'Company' })()}</SelectValue>
                           </SelectTrigger>
