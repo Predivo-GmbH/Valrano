@@ -19,7 +19,7 @@ interface CompanyLogoProps {
   logoUrl?: string | null
   websiteUrl?: string | null
   name?: string
-  size?: 'xs' | 'sm' | 'md' | 'lg'
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   className?: string
 }
 
@@ -28,6 +28,7 @@ const SIZE_MAP = {
   sm: { container: 'h-6 w-6', icon: 'h-3 w-3' },
   md: { container: 'h-7 w-7', icon: 'h-3.5 w-3.5' },
   lg: { container: 'h-8 w-8', icon: 'h-4 w-4' },
+  xl: { container: 'h-10 w-10', icon: 'h-5 w-5' },
 }
 
 export function CompanyLogo({ logoUrl, websiteUrl, name, size = 'sm', className }: CompanyLogoProps) {

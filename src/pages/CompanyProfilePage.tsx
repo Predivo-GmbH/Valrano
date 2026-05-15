@@ -51,7 +51,7 @@ import { useSuggestDates } from '@/hooks/useAiSuggestions'
 import { supabase } from '@/lib/supabase'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 import { cn } from '@/lib/utils'
-import { companyLogoUrl } from '@/components/ui/company-logo'
+import { CompanyLogo } from '@/components/ui/company-logo'
 import type {
   KpiCategory,
   CompanyNews,
@@ -513,18 +513,7 @@ export function CompanyProfilePage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-3">
-                {(company.logo_url || companyLogoUrl(company.website_url)) ? (
-                  <img
-                    src={(company.logo_url || companyLogoUrl(company.website_url))!}
-                    alt=""
-                    className="h-10 w-10 rounded-lg border border-border/50 bg-white object-contain p-1"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
-                ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)]">
-                    <Building2 className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                )}
+                <CompanyLogo logoUrl={company.logo_url} websiteUrl={company.website_url} name={company.name} size="xl" className="rounded-lg" />
                 <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">
                   {company.name}
                 </h1>
