@@ -46,7 +46,7 @@ export function UploadReportDialog({
   const [selectedCompanyId, setSelectedCompanyId] = useState(defaultCompanyId ?? fixedCompanyId ?? '')
   const [reportType, setReportType] = useState<ReportType>('annual')
   const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear() - 1)
-  const [fiscalQuarter, setFiscalQuarter] = useState(1)
+  const [fiscalQuarter] = useState(1)
 
   const [queuedFiles, setQueuedFiles] = useState<QueuedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)

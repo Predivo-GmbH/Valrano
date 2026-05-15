@@ -12,7 +12,6 @@ import {
 } from '@/hooks/useMyCompany'
 import { useKpiDefinitions, useCompanies } from '@/hooks/useData'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
-import { cn } from '@/lib/utils'
 import { CompanyLogo, companyLogoUrl } from '@/components/ui/company-logo'
 import { UploadReportDialog } from '@/components/upload-report-dialog'
 
