@@ -2,13 +2,10 @@ import { useState, useRef, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
 import { useSmoothProgress } from '@/hooks/useSmoothProgress'
-import type { ReportType } from '@/types/database'
-import { REPORT_TYPE_LABELS } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
 import { Upload, FileText, Loader2, Check, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -28,9 +25,6 @@ interface QueuedFile {
   id: string
   file: File
   companyId: string
-  reportType: ReportType
-  fiscalYear: number
-  fiscalQuarter: number
   status: 'queued' | 'uploading' | 'extracting' | 'done' | 'error'
   result?: { total: number; confidence: number | null; needsReview: number }
   error?: string
@@ -45,9 +39,6 @@ export function UploadReportDialog({
 }: UploadReportDialogProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [selectedCompanyId, setSelectedCompanyId] = useState(defaultCompanyId ?? fixedCompanyId ?? '')
-  const [reportType, setReportType] = useState<ReportType>('annual')
-  const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear() - 1)
-  const [fiscalQuarter] = useState(1)
 
   const [queuedFiles, setQueuedFiles] = useState<QueuedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
@@ -105,13 +96,10 @@ export function UploadReportDialog({
       id: crypto.randomUUID(),
       file: f,
       companyId: effectiveCompanyId,
-      reportType,
-      fiscalYear,
-      fiscalQuarter,
       status: 'queued' as const,
     }))
     setQueuedFiles(prev => [...prev, ...newEntries])
-  }, [effectiveCompanyId, reportType, fiscalYear, fiscalQuarter])
+  }, [effectiveCompanyId])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -154,9 +142,6 @@ export function UploadReportDialog({
         const result = await uploadMutation.mutateAsync({
           file: item.file,
           companyId: item.companyId,
-          reportType: item.reportType,
-          fiscalYear: item.fiscalYear,
-          fiscalQuarter: item.reportType === 'quarterly' ? item.fiscalQuarter : undefined,
         })
 
         setUploadProgress(45)
@@ -222,37 +207,6 @@ export function UploadReportDialog({
                 </Select>
               </div>
             )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                  Report Type
-                </Label>
-                <Select value={reportType} onValueChange={(v) => v && setReportType(v as ReportType)}>
-                  <SelectTrigger className="w-full rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground">
-                    <SelectValue>{REPORT_TYPE_LABELS[reportType]}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="rounded-lg border-border bg-card text-[13px]">
-                    {(Object.entries(REPORT_TYPE_LABELS) as [ReportType, string][]).map(([k, label]) => (
-                      <SelectItem key={k} value={k} className="text-[13px]">{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                  Fiscal Year
-                </Label>
-                <Input
-                  type="number"
-                  min={2000}
-                  max={new Date().getFullYear()}
-                  value={fiscalYear}
-                  onChange={(e) => setFiscalYear(Number(e.target.value))}
-                  className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
-                />
-              </div>
-            </div>
 
             {/* Drop Zone */}
             <div className="space-y-1.5">

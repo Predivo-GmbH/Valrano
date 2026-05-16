@@ -31,6 +31,19 @@ const KPI_CODES = [
 const KPI_EXTRACTION_SCHEMA = {
   type: 'object',
   properties: {
+    report_type: {
+      type: 'string',
+      enum: ['annual', 'quarterly', 'half_year', 'sustainability'],
+      description: 'Detected type of report: annual report, quarterly report, half-year/semi-annual report, or sustainability/ESG report',
+    },
+    fiscal_year: {
+      type: 'integer',
+      description: 'The primary fiscal year this report covers (e.g. 2025 for a "2025 Annual Report")',
+    },
+    fiscal_quarter: {
+      type: 'integer',
+      description: 'The fiscal quarter if quarterly (1-4), or 0 for annual/half-year/sustainability',
+    },
     kpis: {
       type: 'array',
       items: {
@@ -41,7 +54,7 @@ const KPI_EXTRACTION_SCHEMA = {
           raw_currency: { type: 'string' },
           raw_label: { type: 'string', description: 'The exact label as printed in the report' },
           fiscal_year: { type: 'integer' },
-          fiscal_quarter: { type: 'integer', description: 'null for annual reports' },
+          fiscal_quarter: { type: 'integer', description: '0 for annual reports' },
           confidence: { type: 'number', description: '0-1 confidence score' },
           source_page: { type: 'integer' },
           source_text: { type: 'string', description: 'The surrounding text context' },
@@ -50,7 +63,7 @@ const KPI_EXTRACTION_SCHEMA = {
       },
     },
   },
-  required: ['kpis'],
+  required: ['report_type', 'fiscal_year', 'fiscal_quarter', 'kpis'],
 } as const
 
 type KpiCode = typeof KPI_CODES[number]
@@ -68,6 +81,9 @@ interface ExtractedKpi {
 }
 
 interface ClaudeToolResult {
+  report_type: 'annual' | 'quarterly' | 'half_year' | 'sustainability'
+  fiscal_year: number
+  fiscal_quarter: number
   kpis: ExtractedKpi[]
 }
 
@@ -220,7 +236,12 @@ For each KPI found:
 - Record the source_page number
 - Include surrounding source_text for audit trail${accountingProfile ? '\n- In source_text, note any accounting policy differences vs the user\'s framework (e.g., "Competitor includes restructuring in EBITDA; user excludes it")' : ''}
 
-Important: Values are typically in millions unless stated otherwise. Convert all values to millions.`
+Important: Values are typically in millions unless stated otherwise. Convert all values to millions.
+
+ALSO determine the report metadata:
+- report_type: "annual" for annual/yearly reports, "quarterly" for Q1-Q4 reports, "half_year" for H1/H2/semi-annual, "sustainability" for ESG/sustainability reports. If unclear, default to "annual".
+- fiscal_year: The primary fiscal year covered (e.g. 2025 for "Annual Report 2025"). Look at the cover page, title, or header.
+- fiscal_quarter: The quarter number (1-4) for quarterly reports, or 0 for annual/half_year/sustainability.`
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
@@ -338,10 +359,17 @@ Important: Values are typically in millions unless stated otherwise. Convert all
       })
       .eq('id', extraction.id)
 
-    // Update report status → extracted
+    // Update report status → extracted, and set AI-detected report_type + fiscal_year
+    const reportUpdate: Record<string, unknown> = { status: 'extracted' }
+    if (parsed.report_type) reportUpdate.report_type = parsed.report_type
+    if (parsed.fiscal_year) reportUpdate.fiscal_year = parsed.fiscal_year
+    if (parsed.fiscal_quarter && parsed.fiscal_quarter > 0) {
+      reportUpdate.fiscal_quarter = parsed.fiscal_quarter
+    }
+
     await adminClient
       .from('reports')
-      .update({ status: 'extracted' })
+      .update(reportUpdate)
       .eq('id', reportId)
 
     return jsonResponse({
@@ -349,6 +377,8 @@ Important: Values are typically in millions unless stated otherwise. Convert all
       total_kpis_extracted: totalExtracted,
       avg_confidence: avgConfidence,
       needs_review_count: kpiValuesToInsert.filter((v) => v.needs_review).length,
+      detected_report_type: parsed.report_type ?? null,
+      detected_fiscal_year: parsed.fiscal_year ?? null,
     })
   } catch (err) {
     return errorResponse(err)

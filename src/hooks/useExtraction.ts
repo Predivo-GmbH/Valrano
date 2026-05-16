@@ -6,15 +6,15 @@ export function useUploadReport() {
     mutationFn: async (params: {
       file: File
       companyId: string
-      reportType: string
-      fiscalYear: number
+      reportType?: string
+      fiscalYear?: number
       fiscalQuarter?: number
     }) => {
       const formData = new FormData()
       formData.append('file', params.file)
       formData.append('company_id', params.companyId)
-      formData.append('report_type', params.reportType)
-      formData.append('fiscal_year', params.fiscalYear.toString())
+      if (params.reportType) formData.append('report_type', params.reportType)
+      if (params.fiscalYear !== undefined) formData.append('fiscal_year', params.fiscalYear.toString())
       if (params.fiscalQuarter !== undefined) {
         formData.append('fiscal_quarter', params.fiscalQuarter.toString())
       }

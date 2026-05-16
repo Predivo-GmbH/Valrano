@@ -18,13 +18,14 @@ serve(async (req: Request) => {
     const fiscalYearRaw = formData.get('fiscal_year') as string
     const fiscalQuarterRaw = formData.get('fiscal_quarter') as string | null
 
-    const fiscalYear = fiscalYearRaw ? parseInt(fiscalYearRaw, 10) : NaN
+    const fiscalYear = fiscalYearRaw ? parseInt(fiscalYearRaw, 10) : (new Date().getFullYear() - 1)
     const fiscalQuarter = fiscalQuarterRaw ? parseInt(fiscalQuarterRaw, 10) : null
+    const effectiveReportType = reportType || 'annual'
 
     // Required field validation
-    if (!file || !companyId || !reportType || isNaN(fiscalYear)) {
+    if (!file || !companyId) {
       return jsonResponse(
-        { error: 'Missing required fields: file, company_id, report_type, fiscal_year' },
+        { error: 'Missing required fields: file, company_id' },
         400,
       )
     }
@@ -77,7 +78,7 @@ serve(async (req: Request) => {
       .from('reports')
       .insert({
         company_id: companyId,
-        report_type: reportType,
+        report_type: effectiveReportType,
         fiscal_year: fiscalYear,
         fiscal_quarter: fiscalQuarter,
         title: file.name.replace(/\.pdf$/i, ''),

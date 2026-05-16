@@ -527,8 +527,6 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
       const result = await uploadMutation.mutateAsync({
         file,
         companyId,
-        reportType: 'annual',
-        fiscalYear: new Date().getFullYear() - 1,
       })
 
       // Ensure step 1 displayed for at least MIN_STEP_MS
