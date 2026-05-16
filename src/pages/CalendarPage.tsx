@@ -109,6 +109,14 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const [editingTimeEventId, setEditingTimeEventId] = useState<string | null>(null)
   const [editTimeValue, setEditTimeValue] = useState('')
 
+  // Inline date editing
+  const [editingDateEventId, setEditingDateEventId] = useState<string | null>(null)
+  const [editDateValue, setEditDateValue] = useState('')
+
+  // Inline report type editing
+  const [editingReportTypeEventId, setEditingReportTypeEventId] = useState<string | null>(null)
+  const [editReportTypeValue, setEditReportTypeValue] = useState<string>('')
+
   // AI suggest state
   const [suggestingEventId, setSuggestingEventId] = useState<string | null>(null)
   const [bulkSuggesting, setBulkSuggesting] = useState(false)
@@ -139,6 +147,30 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
       {
         onSuccess: () => { toast.success('Time updated'); setEditingTimeEventId(null) },
         onError: (err) => toast.error(`Failed to update time: ${err.message}`),
+      },
+    )
+  }
+
+  // Inline date save
+  function handleDateSave(eventId: string) {
+    if (!editDateValue) return
+    updateMutation.mutate(
+      { id: eventId, expected_date: editDateValue },
+      {
+        onSuccess: () => { toast.success('Date updated'); setEditingDateEventId(null) },
+        onError: (err) => toast.error(`Failed to update date: ${err.message}`),
+      },
+    )
+  }
+
+  // Inline report type save
+  function handleReportTypeSave(eventId: string) {
+    if (!editReportTypeValue) return
+    updateMutation.mutate(
+      { id: eventId, report_type: editReportTypeValue },
+      {
+        onSuccess: () => { toast.success('Report type updated'); setEditingReportTypeEventId(null) },
+        onError: (err) => toast.error(`Failed to update report type: ${err.message}`),
       },
     )
   }
@@ -372,9 +404,33 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                     key={ev.id}
                     className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-[var(--color-bg-tertiary)]"
                   >
-                    {/* Date */}
-                    <div className="sm:w-24 shrink-0 text-xs text-muted-foreground">
-                      {new Date(ev.expected_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {/* Date — inline editable */}
+                    <div className="sm:w-32 shrink-0">
+                      {editingDateEventId === ev.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="date"
+                            value={editDateValue}
+                            onChange={(e) => setEditDateValue(e.target.value)}
+                            className="h-7 w-[7.5rem] rounded border border-border bg-background px-2 text-xs text-foreground"
+                            autoFocus
+                          />
+                          <button type="button" onClick={() => handleDateSave(ev.id)} className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                          <button type="button" onClick={() => setEditingDateEventId(null)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => { setEditingDateEventId(ev.id); setEditDateValue(ev.expected_date) }}
+                          className="text-xs text-muted-foreground hover:text-[var(--color-accent)] transition-colors"
+                        >
+                          {new Date(ev.expected_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </button>
+                      )}
                     </div>
 
                     {/* Time — inline editable */}
@@ -432,12 +488,48 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                       <CompanyLogo logoUrl={company?.logo_url} websiteUrl={company?.website_url} name={company?.name} size="sm" className="mt-0.5" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground">{company?.name ?? 'Unknown'}</span>
+                          {company?.id ? (
+                            <Link to={`/companies/${company.id}`} className="font-medium text-foreground hover:text-[var(--color-accent)] transition-colors">
+                              {company.name}
+                            </Link>
+                          ) : (
+                            <span className="font-medium text-foreground">Unknown</span>
+                          )}
                           {company?.ticker && <span className="text-xs text-muted-foreground">({company.ticker})</span>}
                         </div>
                         <div className="mt-0.5 text-xs text-muted-foreground">
-                          {REPORT_TYPE_LABELS[ev.report_type]} · FY {ev.fiscal_year}
-                          {ev.fiscal_quarter ? ` Q${ev.fiscal_quarter}` : ''}
+                          {editingReportTypeEventId === ev.id ? (
+                            <div className="flex items-center gap-1">
+                              <select
+                                value={editReportTypeValue}
+                                onChange={(e) => setEditReportTypeValue(e.target.value)}
+                                className="h-6 rounded border border-border bg-background px-1 text-xs text-foreground"
+                                autoFocus
+                              >
+                                {Object.entries(REPORT_TYPE_LABELS).map(([key, label]) => (
+                                  <option key={key} value={key}>{label}</option>
+                                ))}
+                              </select>
+                              <button type="button" onClick={() => handleReportTypeSave(ev.id)} className="flex h-5 w-5 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
+                                <Check className="h-3 w-3" />
+                              </button>
+                              <button type="button" onClick={() => setEditingReportTypeEventId(null)} className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => { setEditingReportTypeEventId(ev.id); setEditReportTypeValue(ev.report_type) }}
+                                className="hover:text-[var(--color-accent)] transition-colors"
+                              >
+                                {REPORT_TYPE_LABELS[ev.report_type]}
+                              </button>
+                              {' · FY '}{ev.fiscal_year}
+                              {ev.fiscal_quarter ? ` Q${ev.fiscal_quarter}` : ''}
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -625,17 +717,51 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                             <CompanyLogo logoUrl={company?.logo_url} websiteUrl={company?.website_url} name={company?.name} size="sm" className="mt-0.5" />
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="font-medium text-foreground">
-                                  {company?.name ?? 'Unknown'}
-                                </span>
+                                {company?.id ? (
+                                  <Link to={`/companies/${company.id}`} className="font-medium text-foreground hover:text-[var(--color-accent)] transition-colors">
+                                    {company.name}
+                                  </Link>
+                                ) : (
+                                  <span className="font-medium text-foreground">Unknown</span>
+                                )}
                                 {company?.ticker && (
                                   <span className="text-xs text-muted-foreground">({company.ticker})</span>
                                 )}
                               </div>
                               <div className="mt-0.5 text-xs text-muted-foreground">
-                                {REPORT_TYPE_LABELS[ev.report_type]} · FY {ev.fiscal_year}
-                                {ev.fiscal_quarter ? ` Q${ev.fiscal_quarter}` : ''}
-                                {ev.notes && ` · ${ev.notes}`}
+                                {editingReportTypeEventId === ev.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <select
+                                      value={editReportTypeValue}
+                                      onChange={(e) => setEditReportTypeValue(e.target.value)}
+                                      className="h-6 rounded border border-border bg-background px-1 text-xs text-foreground"
+                                      autoFocus
+                                    >
+                                      {Object.entries(REPORT_TYPE_LABELS).map(([key, label]) => (
+                                        <option key={key} value={key}>{label}</option>
+                                      ))}
+                                    </select>
+                                    <button type="button" onClick={() => handleReportTypeSave(ev.id)} className="flex h-5 w-5 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
+                                      <Check className="h-3 w-3" />
+                                    </button>
+                                    <button type="button" onClick={() => setEditingReportTypeEventId(null)} className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => { setEditingReportTypeEventId(ev.id); setEditReportTypeValue(ev.report_type) }}
+                                      className="hover:text-[var(--color-accent)] transition-colors"
+                                    >
+                                      {REPORT_TYPE_LABELS[ev.report_type]}
+                                    </button>
+                                    {' · FY '}{ev.fiscal_year}
+                                    {ev.fiscal_quarter ? ` Q${ev.fiscal_quarter}` : ''}
+                                    {ev.notes && ` · ${ev.notes}`}
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>
