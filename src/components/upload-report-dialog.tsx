@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
 import { useSmoothProgress } from '@/hooks/useSmoothProgress'
 import type { ReportType } from '@/types/database'
@@ -56,24 +57,43 @@ export function UploadReportDialog({
   const displayProgress = useSmoothProgress(uploadProgress)
   const [currentProcessingIdx, setCurrentProcessingIdx] = useState(-1)
 
+  const queryClient = useQueryClient()
   const uploadMutation = useUploadReport()
   const extractMutation = useExtractKpis()
 
   const effectiveCompanyId = fixedCompanyId ?? selectedCompanyId
   const showCompanySelector = !fixedCompanyId && companies && companies.length > 0
 
+  const closeAndReset = useCallback(() => {
+    const hadSuccessfulUploads = queuedFiles.some(f => f.status === 'done')
+    onClose()
+    setQueuedFiles([])
+    setAllDone(false)
+    setIsProcessing(false)
+    setCurrentProcessingIdx(-1)
+    if (hadSuccessfulUploads) {
+      queryClient.invalidateQueries()
+    }
+  }, [onClose, queuedFiles, queryClient])
+
   const handleOpenChange = useCallback(
     (o: boolean) => {
       if (!o && isProcessing) return
       if (!o) {
-        onClose()
-        setQueuedFiles([])
-        setAllDone(false)
-        setIsProcessing(false)
-        setCurrentProcessingIdx(-1)
+        // Files queued but not yet uploaded — warn before discarding
+        const hasUnprocessedFiles = queuedFiles.some(f => f.status === 'queued')
+        if (hasUnprocessedFiles) {
+          const confirmed = window.confirm(
+            `You have ${queuedFiles.filter(f => f.status === 'queued').length} file(s) that haven't been uploaded yet.\n\n` +
+            'If you close this dialog, they will be discarded.\n\n' +
+            'Click "Upload & Extract" to process them first, or press OK to discard.'
+          )
+          if (!confirmed) return
+        }
+        closeAndReset()
       }
     },
-    [onClose, isProcessing],
+    [isProcessing, queuedFiles, closeAndReset],
   )
 
   const addFiles = useCallback((files: File[]) => {
@@ -418,7 +438,7 @@ export function UploadReportDialog({
                 Upload More
               </Button>
               <Button
-                onClick={() => { onClose(); setQueuedFiles([]); setAllDone(false); setIsProcessing(false) }}
+                onClick={closeAndReset}
                 className="flex-1"
               >
                 Done
