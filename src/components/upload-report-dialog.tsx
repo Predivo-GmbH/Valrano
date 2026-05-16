@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useUploadReport, useExtractKpis } from '@/hooks/useExtraction'
+import { useUploadReport, useExtractKpis, useNormalizeKpis } from '@/hooks/useExtraction'
 import { useSmoothProgress } from '@/hooks/useSmoothProgress'
+import { useReports } from '@/hooks/useData'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -51,9 +52,13 @@ export function UploadReportDialog({
   const queryClient = useQueryClient()
   const uploadMutation = useUploadReport()
   const extractMutation = useExtractKpis()
+  const normalizeMutation = useNormalizeKpis()
 
   const effectiveCompanyId = fixedCompanyId ?? selectedCompanyId
   const showCompanySelector = !fixedCompanyId && companies && companies.length > 0
+
+  // Fetch existing reports for duplicate detection
+  const { data: existingReports } = useReports(effectiveCompanyId || undefined)
 
   const closeAndReset = useCallback(() => {
     const hadSuccessfulUploads = queuedFiles.some(f => f.status === 'done')
@@ -92,6 +97,27 @@ export function UploadReportDialog({
     if (pdfs.length === 0) { toast.error('Only PDF files are supported'); return }
     if (pdfs.length < files.length) toast.info(`${files.length - pdfs.length} non-PDF file(s) skipped`)
 
+    // Check for duplicates against existing reports
+    const duplicates: string[] = []
+    if (existingReports?.length) {
+      const existingTitles = new Set(existingReports.map(r => r.title?.toLowerCase()))
+      for (const pdf of pdfs) {
+        const nameWithoutExt = pdf.name.replace(/\.pdf$/i, '').toLowerCase()
+        if (existingTitles.has(nameWithoutExt)) {
+          duplicates.push(pdf.name)
+        }
+      }
+    }
+
+    if (duplicates.length > 0) {
+      const confirmed = window.confirm(
+        `The following file(s) appear to have been uploaded before:\n\n` +
+        duplicates.map(n => `• ${n}`).join('\n') +
+        `\n\nDo you want to upload them again?`
+      )
+      if (!confirmed) return
+    }
+
     const newEntries: QueuedFile[] = pdfs.map(f => ({
       id: crypto.randomUUID(),
       file: f,
@@ -99,7 +125,7 @@ export function UploadReportDialog({
       status: 'queued' as const,
     }))
     setQueuedFiles(prev => [...prev, ...newEntries])
-  }, [effectiveCompanyId])
+  }, [effectiveCompanyId, existingReports])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -149,6 +175,15 @@ export function UploadReportDialog({
 
         try {
           const extraction = await extractMutation.mutateAsync(result.report_id)
+          setUploadProgress(80)
+
+          // Normalize KPIs (currency conversion to CHF) — critical for Dashboard display
+          try {
+            await normalizeMutation.mutateAsync(result.report_id)
+          } catch (normErr) {
+            console.warn('KPI normalization failed (non-fatal):', normErr)
+          }
+
           setUploadProgress(100)
           setQueuedFiles(prev => prev.map((f, idx) => idx === i ? {
             ...f,

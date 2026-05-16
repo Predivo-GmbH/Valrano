@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Pencil, Upload } from 'lucide-react'
+import { Building2, Pencil, Upload, FileText, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import {
   useMyCompanyKpis,
   useUpsertMyCompanyKpis,
 } from '@/hooks/useMyCompany'
-import { useKpiDefinitions, useCompanies } from '@/hooks/useData'
+import { useKpiDefinitions, useCompanies, useReports } from '@/hooks/useData'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { CompanyLogo, companyLogoUrl } from '@/components/ui/company-logo'
 import { UploadReportDialog } from '@/components/upload-report-dialog'
@@ -22,6 +22,9 @@ export function MyCompanyPage() {
   const { data: allCompanies } = useCompanies()
   const [editingKpis, setEditingKpis] = useState<string | null>(null)
   const [uploadCompanyId, setUploadCompanyId] = useState<string | null>(null)
+
+  const primaryCompanyId = companies?.find((c) => c.is_primary)?.company_id ?? companies?.[0]?.company_id
+  const { data: reports } = useReports(primaryCompanyId ?? undefined)
 
   const primaryCompany = companies?.find((c) => c.is_primary) ?? companies?.[0]
 
@@ -65,6 +68,28 @@ export function MyCompanyPage() {
               />
             ))}
 
+            {/* Recent Reports */}
+            {reports && reports.length > 0 && (
+              <div className="rounded-xl border border-border bg-card p-5">
+                <h3 className="mb-3 text-sm font-semibold text-foreground">Recent Reports</h3>
+                <div className="space-y-2">
+                  {reports.slice(0, 10).map((report) => (
+                    <div key={report.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)] px-3 py-2.5">
+                      <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-medium text-foreground">
+                          {report.title ?? `Report FY ${report.fiscal_year}`}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {report.report_type} · FY {report.fiscal_year}{report.fiscal_quarter ? ` Q${report.fiscal_quarter}` : ''} · {new Date(report.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <ReportStatusBadge status={report.status} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -147,6 +172,40 @@ function CompanyCard({
       )}
     </div>
   )
+}
+
+// ---------------------------------------------------------------------------
+// Report Status Badge
+// ---------------------------------------------------------------------------
+
+function ReportStatusBadge({ status }: { status: string }) {
+  switch (status) {
+    case 'extracted':
+    case 'reviewed':
+      return (
+        <span className="flex items-center gap-1 rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-green)]">
+          <CheckCircle2 className="h-3 w-3" />
+          {status === 'reviewed' ? 'Reviewed' : 'Extracted'}
+        </span>
+      )
+    case 'pending':
+    case 'processing':
+      return (
+        <span className="flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
+          <Clock className="h-3 w-3" />
+          {status === 'processing' ? 'Processing' : 'Pending'}
+        </span>
+      )
+    case 'error':
+      return (
+        <span className="flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
+          <AlertCircle className="h-3 w-3" />
+          Error
+        </span>
+      )
+    default:
+      return null
+  }
 }
 
 // ---------------------------------------------------------------------------
