@@ -163,7 +163,7 @@ function CompanyCard({
 // Recent Reports
 // ---------------------------------------------------------------------------
 
-function RecentReports({ reports }: { reports: { id: string; title: string | null; report_type: string; fiscal_year: number; fiscal_quarter: number | null; status: string; created_at: string }[] }) {
+function RecentReports({ reports }: { reports: { id: string; title: string | null; report_type: string; fiscal_year: number; fiscal_quarter: number | null; status: string; created_at: string; pdf_storage_path: string | null }[] }) {
   const queryClient = useQueryClient()
   const extractMutation = useExtractKpis()
   const normalizeMutation = useNormalizeKpis()
@@ -184,10 +184,22 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
     }
   }
 
-  async function handleDelete(reportId: string, title: string) {
-    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return
+  async function handleDelete(reportId: string, title: string, storagePath: string | null) {
+    const confirmed = window.confirm(
+      `Delete "${title}"?\n\n` +
+      'This will permanently remove:\n' +
+      '  - The uploaded PDF file\n' +
+      '  - All extracted KPIs from this report\n' +
+      '  - The AI analysis and report context\n\n' +
+      'Peer benchmarks and calendar events linked to this report will keep working but lose their source reference.\n\n' +
+      'This cannot be undone.'
+    )
+    if (!confirmed) return
     setDeletingId(reportId)
     try {
+      if (storagePath) {
+        await supabase.storage.from('reports').remove([storagePath])
+      }
       const { error } = await supabase.from('reports').delete().eq('id', reportId)
       if (error) throw error
       toast.success('Report deleted')
@@ -227,7 +239,7 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
                 </button>
               )}
               <button
-                onClick={() => handleDelete(report.id, report.title ?? `Report FY ${report.fiscal_year}`)}
+                onClick={() => handleDelete(report.id, report.title ?? `Report FY ${report.fiscal_year}`, report.pdf_storage_path)}
                 disabled={deletingId === report.id}
                 className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                 aria-label="Delete report"
