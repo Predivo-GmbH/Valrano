@@ -43,6 +43,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts'
+import { toast } from 'sonner'
 import { useAllCompanies, useKpiValues, useReports } from '@/hooks/useData'
 import { usePrimaryCompany } from '@/hooks/useMyCompany'
 import { useAccountingProfile } from '@/hooks/useAccountingProfile'
@@ -254,6 +255,37 @@ export function CompanyProfilePage() {
   })
 
   const company = useMemo(() => companies?.find((c) => c.id === id), [companies, id])
+
+  // Inline URL editing state
+  const [editingWebsite, setEditingWebsite] = useState(false)
+  const [editingIr, setEditingIr] = useState(false)
+  const [websiteInput, setWebsiteInput] = useState('')
+  const [irInput, setIrInput] = useState('')
+
+  const saveWebsiteUrl = async (url: string) => {
+    if (!company) return
+    let parsed: URL
+    try { parsed = new URL(url) } catch {
+      toast.error('Invalid URL — include https:// (e.g. https://www.example.com)')
+      return
+    }
+    const domain = parsed.hostname.replace(/^www\./, '')
+    const logoUrl = `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
+    await supabase.from('companies').update({ website_url: url, logo_url: logoUrl }).eq('id', company.id)
+    queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+    setEditingWebsite(false)
+  }
+
+  const saveIrUrl = async (url: string) => {
+    if (!company) return
+    try { new URL(url) } catch {
+      toast.error('Invalid URL — include https://')
+      return
+    }
+    await supabase.from('companies').update({ ir_page_url: url }).eq('id', company.id)
+    queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+    setEditingIr(false)
+  }
 
   // Auto-resolve website URL if missing (fires once per company)
   const resolvedRef = useRef<string | null>(null)
@@ -546,42 +578,49 @@ export function CompanyProfilePage() {
               </div>
 
               {/* Links */}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {company.website_url ? (
-                  <>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {/* Website pill */}
+                {editingWebsite ? (
+                  <form
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-accent)] bg-secondary/50 px-2 py-1"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      if (websiteInput.trim()) saveWebsiteUrl(websiteInput.trim())
+                    }}
+                  >
+                    <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <input
+                      autoFocus
+                      type="url"
+                      placeholder="https://www.example.com"
+                      value={websiteInput}
+                      onChange={(e) => setWebsiteInput(e.target.value)}
+                      className="w-56 bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50"
+                      onKeyDown={(e) => { if (e.key === 'Escape') setEditingWebsite(false) }}
+                    />
+                    <button type="submit" className="text-[11px] font-medium text-[var(--color-accent)] hover:underline">Save</button>
+                    <button type="button" onClick={() => setEditingWebsite(false)} className="text-[11px] text-muted-foreground hover:text-foreground">Cancel</button>
+                  </form>
+                ) : company.website_url ? (
+                  <div className="inline-flex items-center rounded-lg border border-border text-[12px]">
                     <a
                       href={company.website_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      <Globe className="h-3.5 w-3.5" /> Website{' '}
-                      <ExternalLink className="h-3 w-3" />
+                      <Globe className="h-3.5 w-3.5" /> Website <ExternalLink className="h-3 w-3" />
                     </a>
+                    <span className="h-5 w-px bg-border" />
                     <button
                       type="button"
                       title="Edit website URL"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2 py-1.5 text-[12px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-                      onClick={async () => {
-                        const url = window.prompt('Enter correct website URL:', company.website_url ?? '')
-                        if (!url?.trim() || url.trim() === company.website_url) return
-                        let parsed: URL
-                        try { parsed = new URL(url.trim()) } catch {
-                          window.alert('Invalid URL. Please include https:// (e.g. https://www.buzzi.com)')
-                          return
-                        }
-                        const domain = parsed.hostname.replace(/^www\./, '')
-                        const logoUrl = `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
-                        await supabase.from('companies').update({
-                          website_url: url.trim(),
-                          logo_url: logoUrl,
-                        }).eq('id', company.id)
-                        queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-                      }}
+                      className="inline-flex items-center px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                      onClick={() => { setWebsiteInput(company.website_url ?? ''); setEditingWebsite(true) }}
                     >
                       <Pencil className="h-3 w-3" />
                     </button>
-                  </>
+                  </div>
                 ) : (
                   <button
                     type="button"
@@ -610,26 +649,12 @@ export function CompanyProfilePage() {
                         if (data.website_url) {
                           queryClient.invalidateQueries({ queryKey: ['companies-all'] })
                         } else {
-                          const url = window.prompt('Could not auto-detect. Enter website URL:')
-                          if (url?.trim()) {
-                            let parsed: URL
-                            try { parsed = new URL(url.trim()) } catch { return }
-                            const domain = parsed.hostname.replace(/^www\./, '')
-                            const logoUrl = `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
-                            await supabase.from('companies').update({ website_url: url.trim(), logo_url: logoUrl }).eq('id', company.id)
-                            queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-                          }
+                          setWebsiteInput('')
+                          setEditingWebsite(true)
                         }
                       } catch {
-                        const url = window.prompt('Enter website URL (e.g. https://www.holcim.com):')
-                        if (url?.trim()) {
-                          let parsed: URL
-                          try { parsed = new URL(url.trim()) } catch { return }
-                          const domain = parsed.hostname.replace(/^www\./, '')
-                          const logoUrl = `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
-                          await supabase.from('companies').update({ website_url: url.trim(), logo_url: logoUrl }).eq('id', company.id)
-                          queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-                        }
+                        setWebsiteInput('')
+                        setEditingWebsite(true)
                       }
                     }}
                   >
@@ -637,16 +662,58 @@ export function CompanyProfilePage() {
                     Detect website
                   </button>
                 )}
-                {company.ir_page_url && (
-                  <a
-                    href={company.ir_page_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
+
+                {/* IR pill */}
+                {editingIr ? (
+                  <form
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-accent)] bg-secondary/50 px-2 py-1"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      if (irInput.trim()) saveIrUrl(irInput.trim())
+                    }}
                   >
-                    <FileText className="h-3.5 w-3.5" /> Investor Relations{' '}
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                    <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <input
+                      autoFocus
+                      type="url"
+                      placeholder="https://www.example.com/investors"
+                      value={irInput}
+                      onChange={(e) => setIrInput(e.target.value)}
+                      className="w-64 bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50"
+                      onKeyDown={(e) => { if (e.key === 'Escape') setEditingIr(false) }}
+                    />
+                    <button type="submit" className="text-[11px] font-medium text-[var(--color-accent)] hover:underline">Save</button>
+                    <button type="button" onClick={() => setEditingIr(false)} className="text-[11px] text-muted-foreground hover:text-foreground">Cancel</button>
+                  </form>
+                ) : company.ir_page_url ? (
+                  <div className="inline-flex items-center rounded-lg border border-border text-[12px]">
+                    <a
+                      href={company.ir_page_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Investor Relations <ExternalLink className="h-3 w-3" />
+                    </a>
+                    <span className="h-5 w-px bg-border" />
+                    <button
+                      type="button"
+                      title="Edit IR page URL"
+                      className="inline-flex items-center px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                      onClick={() => { setIrInput(company.ir_page_url ?? ''); setEditingIr(true) }}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                    onClick={() => { setIrInput(''); setEditingIr(true) }}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add IR page
+                  </button>
                 )}
               </div>
             </div>
