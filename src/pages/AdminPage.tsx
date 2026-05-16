@@ -6,7 +6,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { SUPER_ADMIN_EMAIL } from '@/hooks/useSubscription'
 import { getNewsDisabledUsers, setNewsDisabledUsers } from '@/lib/dev-flags'
 import type { SubscriptionTier } from '@/types/database'
-import { ShieldCheck, Loader2 } from 'lucide-react'
+import { ShieldCheck, Loader2, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 const TIERS: SubscriptionTier[] = ['starter', 'professional', 'enterprise']
 
@@ -83,6 +84,25 @@ function AdminPanel({
     },
   })
 
+  const [confirmWipe, setConfirmWipe] = useState<string | null>(null)
+
+  const wipeAccount = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.rpc('admin_wipe_account', {
+        target_user_id: userId,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('Account wiped successfully')
+      setConfirmWipe(null)
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+    },
+    onError: (err: Error) => {
+      toast.error(`Wipe failed: ${err.message}`)
+    },
+  })
+
   const toggleNews = (userId: string) => {
     setDisabledUsers((prev) => {
       const next = new Set(prev)
@@ -118,12 +138,13 @@ function AdminPanel({
       </p>
 
       <div className="rounded-xl border border-border bg-card overflow-x-auto">
-        <table className="w-full min-w-[500px] text-sm">
+        <table className="w-full min-w-[600px] text-sm">
           <thead>
             <tr className="border-b border-border bg-[var(--color-bg-tertiary)]/30">
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">User</th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tier</th>
               <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">News</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -183,6 +204,36 @@ function AdminPanel({
                         }`}
                       />
                     </button>
+                  </td>
+
+                  {/* Erase account */}
+                  <td className="px-4 py-3 text-center">
+                    {confirmWipe === u.id ? (
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => wipeAccount.mutate(u.id)}
+                          disabled={wipeAccount.isPending}
+                          className="rounded-md bg-red-600 px-2.5 py-1.5 min-h-[44px] text-[11px] font-medium text-white hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {wipeAccount.isPending ? 'Wiping…' : 'Confirm'}
+                        </button>
+                        <button
+                          onClick={() => setConfirmWipe(null)}
+                          className="rounded-md bg-[var(--color-bg-tertiary)] px-2.5 py-1.5 min-h-[44px] text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmWipe(u.id)}
+                        className="inline-flex items-center gap-1 rounded-md bg-[var(--color-bg-tertiary)] px-2.5 py-1.5 min-h-[44px] text-[11px] font-medium text-muted-foreground hover:text-red-400 hover:bg-red-950/20 transition-colors cursor-pointer"
+                        title="Erase all account data"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Erase
+                      </button>
+                    )}
                   </td>
                 </tr>
               )
