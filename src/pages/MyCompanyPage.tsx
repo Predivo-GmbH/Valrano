@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Building2, Pencil, Upload, FileText, CheckCircle2, Clock, AlertCircle, RotateCw, Loader2, Trash2 } from 'lucide-react'
+import { Building2, Pencil, Upload, FileText, CheckCircle2, Clock, AlertCircle, RotateCw, Loader2, Trash2, AlertTriangle } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { CompanyLogo, companyLogoUrl } from '@/components/ui/company-logo'
 import { UploadReportDialog } from '@/components/upload-report-dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 
 
 export function MyCompanyPage() {
@@ -169,6 +170,7 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
   const normalizeMutation = useNormalizeKpis()
   const [retryingId, setRetryingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string; storagePath: string | null } | null>(null)
 
   async function handleRetry(reportId: string) {
     setRetryingId(reportId)
@@ -184,23 +186,16 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
     }
   }
 
-  async function handleDelete(reportId: string, title: string, storagePath: string | null) {
-    const confirmed = window.confirm(
-      `Delete "${title}"?\n\n` +
-      'This will permanently remove:\n' +
-      '  - The uploaded PDF file\n' +
-      '  - All extracted KPIs from this report\n' +
-      '  - The AI analysis and report context\n\n' +
-      'Peer benchmarks and calendar events linked to this report will keep working but lose their source reference.\n\n' +
-      'This cannot be undone.'
-    )
-    if (!confirmed) return
-    setDeletingId(reportId)
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    const { id, storagePath } = deleteTarget
+    setDeleteTarget(null)
+    setDeletingId(id)
     try {
       if (storagePath) {
         await supabase.storage.from('reports').remove([storagePath])
       }
-      const { error } = await supabase.from('reports').delete().eq('id', reportId)
+      const { error } = await supabase.from('reports').delete().eq('id', id)
       if (error) throw error
       toast.success('Report deleted')
       queryClient.invalidateQueries({ queryKey: ['reports'] })
@@ -212,47 +207,96 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">Recent Reports</h3>
-      <div className="space-y-2">
-        {reports.slice(0, 10).map((report) => (
-          <div key={report.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)] px-3 py-2.5">
-            <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-medium text-foreground">
-                {report.title ?? `Report FY ${report.fiscal_year}`}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {report.report_type} · FY {report.fiscal_year}{report.fiscal_quarter ? ` Q${report.fiscal_quarter}` : ''} · {new Date(report.created_at).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              {(report.status === 'pending' || report.status === 'error') && (
+    <>
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Recent Reports</h3>
+        <div className="space-y-2">
+          {reports.slice(0, 10).map((report) => (
+            <div key={report.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)] px-3 py-2.5">
+              <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-medium text-foreground">
+                  {report.title ?? `Report FY ${report.fiscal_year}`}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {report.report_type} · FY {report.fiscal_year}{report.fiscal_quarter ? ` Q${report.fiscal_quarter}` : ''} · {new Date(report.created_at).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {(report.status === 'pending' || report.status === 'error') && (
+                  <button
+                    onClick={() => handleRetry(report.id)}
+                    disabled={retryingId === report.id}
+                    className="rounded p-1 text-muted-foreground hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] disabled:opacity-50"
+                    aria-label="Retry extraction"
+                    title="Retry extraction"
+                  >
+                    {retryingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
+                  </button>
+                )}
                 <button
-                  onClick={() => handleRetry(report.id)}
-                  disabled={retryingId === report.id}
-                  className="rounded p-1 text-muted-foreground hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] disabled:opacity-50"
-                  aria-label="Retry extraction"
-                  title="Retry extraction"
+                  onClick={() => setDeleteTarget({ id: report.id, title: report.title ?? `Report FY ${report.fiscal_year}`, storagePath: report.pdf_storage_path })}
+                  disabled={deletingId === report.id}
+                  className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                  aria-label="Delete report"
+                  title="Delete report"
                 >
-                  {retryingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
+                  {deletingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                 </button>
-              )}
-              <button
-                onClick={() => handleDelete(report.id, report.title ?? `Report FY ${report.fiscal_year}`, report.pdf_storage_path)}
-                disabled={deletingId === report.id}
-                className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-                aria-label="Delete report"
-                title="Delete report"
-              >
-                {deletingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-              </button>
-              <ReportStatusBadge status={report.status} />
+                <ReportStatusBadge status={report.status} />
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}>
+        <DialogContent showCloseButton={false} className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-destructive/10">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            </div>
+            <DialogTitle className="text-center">Delete Report</DialogTitle>
+            <DialogDescription className="text-center">
+              Are you sure you want to delete <span className="font-medium text-foreground">"{deleteTarget?.title}"</span>?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-[12px]">
+            <p className="mb-2 font-medium text-destructive">This will permanently remove:</p>
+            <ul className="space-y-1 text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 text-destructive">-</span>
+                The uploaded PDF file
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 text-destructive">-</span>
+                All extracted KPIs from this report
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 text-destructive">-</span>
+                The AI analysis and report context
+              </li>
+            </ul>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Peer benchmarks and calendar events linked to this report will keep working but lose their source reference.
+          </p>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
