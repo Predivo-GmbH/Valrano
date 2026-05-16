@@ -111,6 +111,68 @@ serve(async (req: Request) => {
     // ------------------------------------------------------------------
     let updatedCount = 0
 
+    // Helper: look up FX rate with fallback to inverse direction and closest year
+    async function findFxRate(
+      currency: string,
+      rateType: string,
+      dateFilter: { gte?: string; lte?: string },
+    ): Promise<{ rate: number; inverted: boolean } | null> {
+      // Try direct: currency → CHF
+      const directQuery = adminClient
+        .from('fx_rates')
+        .select('rate, rate_date, rate_type')
+        .eq('base_currency', currency)
+        .eq('quote_currency', 'CHF')
+        .eq('rate_type', rateType)
+      if (dateFilter.gte) directQuery.gte('rate_date', dateFilter.gte)
+      if (dateFilter.lte) directQuery.lte('rate_date', dateFilter.lte)
+      const { data: directRows } = await directQuery.order('rate_date', { ascending: false }).limit(1)
+      if (directRows?.length) return { rate: (directRows[0] as FxRateRow).rate, inverted: false }
+
+      // Try inverse: CHF → currency (invert the rate)
+      const inverseQuery = adminClient
+        .from('fx_rates')
+        .select('rate, rate_date, rate_type')
+        .eq('base_currency', 'CHF')
+        .eq('quote_currency', currency)
+        .eq('rate_type', rateType)
+      if (dateFilter.gte) inverseQuery.gte('rate_date', dateFilter.gte)
+      if (dateFilter.lte) inverseQuery.lte('rate_date', dateFilter.lte)
+      const { data: inverseRows } = await inverseQuery.order('rate_date', { ascending: false }).limit(1)
+      if (inverseRows?.length) {
+        const invRate = (inverseRows[0] as FxRateRow).rate
+        return { rate: 1 / invRate, inverted: true }
+      }
+
+      // Fallback: try ANY year with same rate type (closest available)
+      const fallbackDirect = adminClient
+        .from('fx_rates')
+        .select('rate, rate_date, rate_type')
+        .eq('base_currency', currency)
+        .eq('quote_currency', 'CHF')
+        .eq('rate_type', rateType)
+      const { data: fbDirectRows } = await fallbackDirect.order('rate_date', { ascending: false }).limit(1)
+      if (fbDirectRows?.length) {
+        console.warn(`Using fallback FX rate from ${(fbDirectRows[0] as FxRateRow).rate_date} for ${currency}/CHF`)
+        return { rate: (fbDirectRows[0] as FxRateRow).rate, inverted: false }
+      }
+
+      const fallbackInverse = adminClient
+        .from('fx_rates')
+        .select('rate, rate_date, rate_type')
+        .eq('base_currency', 'CHF')
+        .eq('quote_currency', currency)
+        .eq('rate_type', rateType)
+      const { data: fbInverseRows } = await fallbackInverse.order('rate_date', { ascending: false }).limit(1)
+      if (fbInverseRows?.length) {
+        const invRate = (fbInverseRows[0] as FxRateRow).rate
+        console.warn(`Using fallback inverted FX rate from ${(fbInverseRows[0] as FxRateRow).rate_date} for CHF/${currency}`)
+        return { rate: 1 / invRate, inverted: true }
+      }
+
+      return null
+    }
+
     for (const kv of kpiValues as KpiValueRow[]) {
       const kpiCode = kv.kpi_definitions?.code
       const rawValue = kv.raw_value
@@ -122,73 +184,48 @@ serve(async (req: Request) => {
       let fxRateUsed: number | null = null
       let fxRateType: 'period_average' | 'point_in_time' | null = null
 
-      // Already in CHF or no conversion needed
-      if (rawCurrency === 'CHF' || NO_CONVERSION_KPI_CODES.has(kpiCode)) {
+      // Percentage/ratio KPIs: copy raw value directly (no currency conversion)
+      if (rawCurrency === '%' || NO_CONVERSION_KPI_CODES.has(kpiCode)) {
         normalizedValue = rawValue
-        fxRateUsed = rawCurrency === 'CHF' ? 1.0 : null
-        fxRateType = rawCurrency === 'CHF' ? 'period_average' : null
+        fxRateUsed = null
+        fxRateType = null
+      } else if (rawCurrency === 'CHF') {
+        normalizedValue = rawValue
+        fxRateUsed = 1.0
+        fxRateType = 'period_average'
       } else if (PL_KPI_CODES.has(kpiCode)) {
-        // P&L: use period_average rate for the fiscal year
         const fiscalYear = kv.fiscal_year
+        const fxResult = await findFxRate(rawCurrency, 'period_average', {
+          gte: `${fiscalYear}-01-01`,
+          lte: `${fiscalYear}-12-31`,
+        })
 
-        const { data: fxRows, error: fxError } = await adminClient
-          .from('fx_rates')
-          .select('rate, rate_date, rate_type')
-          .eq('base_currency', rawCurrency)
-          .eq('quote_currency', 'CHF')
-          .eq('rate_type', 'period_average')
-          // period_average rows are dated to the last day of the period; match by year
-          .gte('rate_date', `${fiscalYear}-01-01`)
-          .lte('rate_date', `${fiscalYear}-12-31`)
-          .order('rate_date', { ascending: false })
-          .limit(1)
-
-        if (fxError) throw new Error(`FX rate lookup failed: ${fxError.message}`)
-
-        if (!fxRows || fxRows.length === 0) {
-          // No rate available — skip normalization for this row
-          console.warn(
-            `No period_average FX rate found for ${rawCurrency}/CHF in ${fiscalYear}. Skipping kpi_value ${kv.id}`,
-          )
+        if (!fxResult) {
+          console.warn(`No FX rate found for ${rawCurrency}/CHF in ${fiscalYear}. Skipping kpi_value ${kv.id}`)
           continue
         }
 
-        const fx = fxRows[0] as FxRateRow
-        fxRateUsed = fx.rate
+        fxRateUsed = fxResult.rate
         fxRateType = 'period_average'
-        normalizedValue = rawValue * fx.rate
+        normalizedValue = rawValue * fxResult.rate
       } else if (BS_KPI_CODES.has(kpiCode)) {
-        // Balance sheet: use closest daily_close rate to publication_date (or fiscal year end)
         const reportDate =
           kv.reports?.publication_date ?? `${kv.reports?.fiscal_year ?? kv.fiscal_year}-12-31`
+        const fxResult = await findFxRate(rawCurrency, 'daily_close', { lte: reportDate })
 
-        const { data: fxRows, error: fxError } = await adminClient
-          .from('fx_rates')
-          .select('rate, rate_date, rate_type')
-          .eq('base_currency', rawCurrency)
-          .eq('quote_currency', 'CHF')
-          .eq('rate_type', 'daily_close')
-          .lte('rate_date', reportDate)
-          .order('rate_date', { ascending: false })
-          .limit(1)
-
-        if (fxError) throw new Error(`FX rate lookup failed: ${fxError.message}`)
-
-        if (!fxRows || fxRows.length === 0) {
-          console.warn(
-            `No daily_close FX rate found for ${rawCurrency}/CHF on/before ${reportDate}. Skipping kpi_value ${kv.id}`,
-          )
+        if (!fxResult) {
+          console.warn(`No FX rate found for ${rawCurrency}/CHF on/before ${reportDate}. Skipping kpi_value ${kv.id}`)
           continue
         }
 
-        const fx = fxRows[0] as FxRateRow
-        fxRateUsed = fx.rate
+        fxRateUsed = fxResult.rate
         fxRateType = 'point_in_time'
-        normalizedValue = rawValue * fx.rate
+        normalizedValue = rawValue * fxResult.rate
       } else {
-        // Unknown KPI code — skip
-        console.warn(`Unknown KPI code "${kpiCode}" — skipping normalization for kpi_value ${kv.id}`)
-        continue
+        // Unknown KPI code — treat as ratio (copy raw value)
+        normalizedValue = rawValue
+        fxRateUsed = null
+        fxRateType = null
       }
 
       // ------------------------------------------------------------------
