@@ -9,6 +9,36 @@ function stripLegalSuffix(name: string): string {
     .trim()
 }
 
+/** Check if key words from company name appear in the domain (name-similarity heuristic) */
+function domainMatchesName(domain: string, companyName: string): boolean {
+  const domainLower = domain.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const words = stripLegalSuffix(companyName).toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2)
+  if (words.length === 0) return true
+  return words.some(w => domainLower.includes(w))
+}
+
+/** Validate domain responds via HEAD request; detect redirects to different domains */
+async function validateDomainReachable(domain: string): Promise<{ reachable: boolean; redirectDomain: string | null }> {
+  try {
+    const resp = await fetch(`https://${domain}`, {
+      method: 'HEAD',
+      redirect: 'follow',
+      signal: AbortSignal.timeout(5000),
+    })
+    const finalUrl = resp.url
+    if (finalUrl) {
+      const finalDomain = new URL(finalUrl).hostname.replace(/^www\./, '')
+      const originalClean = domain.replace(/^www\./, '')
+      if (finalDomain !== originalClean && !finalDomain.endsWith('.' + originalClean)) {
+        return { reachable: true, redirectDomain: finalDomain }
+      }
+    }
+    return { reachable: resp.ok || resp.status === 405 || resp.status === 403, redirectDomain: null }
+  } catch {
+    return { reachable: false, redirectDomain: null }
+  }
+}
+
 /**
  * Use Claude Haiku to verify/correct a company website URL.
  * Now includes sector/industry context for disambiguation.
@@ -37,7 +67,8 @@ If not, what is the correct corporate website domain?
 Consider:
 - Companies may have rebranded (e.g. HeidelbergCement → Heidelberg Materials)
 - Subsidiary/product domains are NOT the corporate website
-- The correct answer is the domain where you'd find annual reports and investor relations${contextBlock}`
+- The correct answer is the domain where you'd find annual reports and investor relations
+- CRITICAL: Be extremely careful with similarly-named companies. For example "Titan Cement" (titan-cement.com) vs "TitanCem" (titancem.com) are DIFFERENT companies. The domain must belong to the EXACT company named, not a similarly-named one. If the Brandfetch result looks like an abbreviation, truncation, or different brand with a similar name, REJECT it and provide the correct domain.${contextBlock}`
     : `Company name: "${companyName}"
 A brand search API returned no results for this company.
 
@@ -240,6 +271,59 @@ Deno.serve(async (req: Request) => {
     } else {
       finalDomain = null
       source = 'none'
+    }
+
+    // --- Step 2b: Domain-name heuristic check (Change 4) ---
+    if (finalDomain && !domainMatchesName(finalDomain, name.trim())) {
+      // Domain doesn't contain any word from company name — apply confidence penalty
+      if (llmResult && llmResult.confidence < 0.95) {
+        console.log(`Name-heuristic rejection: "${name}" → ${finalDomain} (no name words in domain, conf=${llmResult.confidence})`)
+        finalDomain = null
+        source = 'name_heuristic_rejected'
+      } else {
+        console.log(`Name-heuristic warning (high conf override): "${name}" → ${finalDomain}`)
+      }
+    }
+
+    // --- Step 2c: HEAD validation (Change 2) ---
+    if (finalDomain) {
+      const validation = await validateDomainReachable(finalDomain)
+      if (!validation.reachable) {
+        console.log(`Domain unreachable: "${name}" → ${finalDomain}`)
+        finalDomain = null
+        source = 'domain_unreachable'
+      } else if (validation.redirectDomain) {
+        console.log(`Domain redirects: ${finalDomain} → ${validation.redirectDomain}`)
+        // If redirected domain matches the company name better, use it
+        if (domainMatchesName(validation.redirectDomain, name.trim())) {
+          finalDomain = validation.redirectDomain
+          source = 'redirect_corrected'
+        } else {
+          finalDomain = null
+          source = 'redirect_mismatch_rejected'
+        }
+      }
+    }
+
+    // --- Step 2d: Cross-reference with IR URL if available (Change 1) ---
+    if (finalDomain && company_id) {
+      const { data: existingCompany } = await adminClient
+        .from('companies')
+        .select('ir_page_url')
+        .eq('id', company_id)
+        .maybeSingle()
+
+      if (existingCompany?.ir_page_url) {
+        try {
+          const irDomain = new URL(existingCompany.ir_page_url).hostname.replace(/^www\./, '')
+          const resolvedClean = finalDomain.replace(/^www\./, '')
+          if (irDomain !== resolvedClean && !irDomain.endsWith('.' + resolvedClean) && !resolvedClean.endsWith('.' + irDomain)) {
+            console.log(`IR URL domain mismatch: website=${finalDomain}, IR=${irDomain} — using IR domain root`)
+            finalDomain = irDomain
+            source = 'ir_crossref_corrected'
+          }
+        } catch { /* invalid IR URL, ignore */ }
+      }
     }
 
     if (!finalDomain) {
