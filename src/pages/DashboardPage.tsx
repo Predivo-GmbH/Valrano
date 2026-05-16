@@ -1447,7 +1447,7 @@ export function DashboardPage() {
               </div>
               <TabsList className="h-7 rounded-lg bg-[var(--color-bg-tertiary)] p-0.5 flex-shrink-0 overflow-x-auto">
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger>
                     <TabsTrigger
                       value="financial"
                       className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
@@ -1460,7 +1460,7 @@ export function DashboardPage() {
                   </TooltipContent>
                 </Tooltip>
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger>
                     <TabsTrigger
                       value="esg"
                       className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
@@ -1473,7 +1473,7 @@ export function DashboardPage() {
                   </TooltipContent>
                 </Tooltip>
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger>
                     <TabsTrigger
                       value="operational"
                       className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
@@ -1486,7 +1486,7 @@ export function DashboardPage() {
                   </TooltipContent>
                 </Tooltip>
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger>
                     <TabsTrigger
                       value="all"
                       className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
