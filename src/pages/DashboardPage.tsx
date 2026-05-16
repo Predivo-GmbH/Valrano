@@ -829,6 +829,14 @@ export function DashboardPage() {
     return { companiesWithData: withData, companiesWithoutData: withoutData }
   }, [peerCompanies, filteredDefs, valueMap])
 
+  // Detect unnormalized KPI data (raw exists but normalized is null)
+  const hasUnnormalizedData = useMemo(() => {
+    if (!kpiValues) return false
+    return (kpiValues as KpiValueWithJoins[]).some(
+      (v) => v.raw_value != null && v.normalized_value == null
+    )
+  }, [kpiValues])
+
   // Sort peer companies by sort column or alphabetical
   const sortedCompaniesWithData = useMemo(() => {
     const sorted = [...companiesWithData]
@@ -1478,6 +1486,16 @@ export function DashboardPage() {
                 onClearYear={(y) => setFiscalYear(y)}
                 availableYears={availableYears}
               />
+            ) : companiesWithData.length === 0 && hasUnnormalizedData ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                <div className="mb-3 rounded-full bg-amber-500/10 p-3">
+                  <AlertTriangle className="h-6 w-6 text-amber-500" />
+                </div>
+                <h3 className="mb-1.5 text-[14px] font-semibold text-foreground">KPI data awaiting normalization</h3>
+                <p className="text-[12px] text-muted-foreground max-w-sm">
+                  Reports have been extracted but currency conversion to CHF is pending. This usually resolves automatically — try refreshing in a moment.
+                </p>
+              </div>
             ) : companiesWithData.length === 0 ? (
               <SetupGuidanceState hasCompany={hasCompany} hasPeers={hasPeers} />
             ) : (
