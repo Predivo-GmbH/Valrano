@@ -177,11 +177,13 @@ export function UploadReportDialog({
           const extraction = await extractMutation.mutateAsync(result.report_id)
           setUploadProgress(80)
 
-          // Normalize KPIs (currency conversion to CHF) — critical for Dashboard display
+          // Normalize KPIs (currency conversion to CHF) — belt-and-suspenders
+          // DB trigger handles normalization at INSERT, but edge function catches edge cases
           try {
             await normalizeMutation.mutateAsync(result.report_id)
           } catch (normErr) {
-            console.warn('KPI normalization failed (non-fatal):', normErr)
+            console.warn('Edge function normalization failed (DB trigger should have handled it):', normErr)
+            toast.warning('KPI normalization may be incomplete — check Dashboard')
           }
 
           setUploadProgress(100)
