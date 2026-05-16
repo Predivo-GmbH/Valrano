@@ -428,10 +428,7 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
   const [uploadProgress, setUploadProgress] = useState(0)
   const displayProgress = useSmoothProgress(uploadProgress)
   const progressRef = useRef(0)
-  const stepQueueRef = useRef<Array<{ step: string; progress: number }>>([])
-  const stepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastStepTimeRef = useRef(0)
-  const MIN_STEP_DISPLAY_MS = 5000
+  const MIN_STEP_MS = 5000
 
   const ownReports = (reports ?? [])
     .filter((r) => r.pdf_storage_path)
@@ -465,14 +462,10 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
     setUploadStep('uploading')
     setUploadProgress(0)
     progressRef.current = 0
-    lastStepTimeRef.current = Date.now()
-    stepQueueRef.current = []
-    if (stepTimerRef.current) { clearTimeout(stepTimerRef.current); stepTimerRef.current = null }
-
-    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null
 
     try {
-      // Step 1: Upload PDF — create a placeholder company silently (required by storage path)
+      // ── Step 1: Uploading PDF to secure storage ──
+      const stepStart1 = Date.now()
       const placeholderName = 'Pending Analysis'
       let company = primaryCompany
       if (!company) {
@@ -533,90 +526,31 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
         fiscalYear: new Date().getFullYear() - 1,
       })
 
-      // Mark uploading step done, transition to processing_file with minimum delay
+      // Ensure step 1 displayed for at least MIN_STEP_MS
+      const elapsed1 = Date.now() - stepStart1
+      if (elapsed1 < MIN_STEP_MS) await new Promise(r => setTimeout(r, MIN_STEP_MS - elapsed1))
+
+      // ── Step 2: Processing your PDF file ──
       setUploadStep('processing_file')
       setUploadProgress(STEP_PROGRESS['processing_file'])
-      progressRef.current = STEP_PROGRESS['processing_file']
-      lastStepTimeRef.current = Date.now()
+      await new Promise(r => setTimeout(r, MIN_STEP_MS))
 
-      // Subscribe to Realtime progress updates from the edge function
-      realtimeChannel = supabase
-        .channel(`processing-${result.report_id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'processing_status',
-            filter: `report_id=eq.${result.report_id}`,
-          },
-          (payload) => {
-            const row = payload.new as { step: string; status: string; message: string }
-
-            if (row.status === 'error') {
-              toast.error(row.message || 'Analysis failed')
-              return
-            }
-
-            // Queue step transitions so each shows for at least MIN_STEP_DISPLAY_MS
-            const applyStep = (step: string, progress: number) => {
-              setUploadStep(step as typeof uploadStep)
-              setUploadProgress(progress)
-              progressRef.current = progress
-              lastStepTimeRef.current = Date.now()
-            }
-
-            const scheduleNext = () => {
-              if (stepQueueRef.current.length === 0) return
-              const elapsed = Date.now() - lastStepTimeRef.current
-              const delay = Math.max(0, MIN_STEP_DISPLAY_MS - elapsed)
-              stepTimerRef.current = setTimeout(() => {
-                const next = stepQueueRef.current.shift()
-                if (next) {
-                  applyStep(next.step, next.progress)
-                  scheduleNext()
-                }
-              }, delay)
-            }
-
-            if (row.status === 'in_progress') {
-              const targetProgress = STEP_PROGRESS[row.step] ?? progressRef.current
-              const elapsed = Date.now() - lastStepTimeRef.current
-              if (elapsed >= MIN_STEP_DISPLAY_MS && stepQueueRef.current.length === 0) {
-                applyStep(row.step, targetProgress)
-              } else {
-                stepQueueRef.current.push({ step: row.step, progress: targetProgress })
-                if (!stepTimerRef.current || stepQueueRef.current.length === 1) {
-                  scheduleNext()
-                }
-              }
-            }
-
-            if (row.step === 'complete' && row.status === 'done') {
-              stepQueueRef.current.push({ step: 'complete', progress: 100 })
-              scheduleNext()
-            }
-          },
-        )
-        .subscribe()
-
-      // Wait minimum display time for processing_file step before moving to uploading_to_ai
-      await new Promise(r => setTimeout(r, MIN_STEP_DISPLAY_MS))
+      // ── Step 3: Uploading PDF to AI engine ──
       setUploadStep('uploading_to_ai')
       setUploadProgress(STEP_PROGRESS['uploading_to_ai'])
-      progressRef.current = STEP_PROGRESS['uploading_to_ai']
-      lastStepTimeRef.current = Date.now()
+      await new Promise(r => setTimeout(r, MIN_STEP_MS))
+
+      // ── Step 4: AI reading your annual report ──
+      // This is the real long-running step — the edge function does the work here
+      setUploadStep('analyzing')
+      setUploadProgress(STEP_PROGRESS['analyzing'])
 
       const analysisResult = await analyzeMutation.mutateAsync({ reportId: result.report_id })
 
-      // Step 3: Setting up company profile with AI-extracted name
-      // Drain any remaining queued steps instantly before saving
-      if (stepTimerRef.current) { clearTimeout(stepTimerRef.current); stepTimerRef.current = null }
-      stepQueueRef.current = []
+      // ── Step 5: Saving profile & extracting competitors ──
       setUploadStep('saving')
       setUploadProgress(90)
-      progressRef.current = 90
-      lastStepTimeRef.current = Date.now()
+      const stepStart5 = Date.now()
 
       const analysisData = analysisResult as { company_name?: string; mentioned_competitors?: Array<{ name: string; ticker?: string; context?: string }> }
       const extractedName = analysisData?.company_name
@@ -632,6 +566,10 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
         onReportCompetitorsFound(analysisData.mentioned_competitors, true)
       }
 
+      // Ensure step 5 displayed for at least MIN_STEP_MS
+      const elapsed5 = Date.now() - stepStart5
+      if (elapsed5 < MIN_STEP_MS) await new Promise(r => setTimeout(r, MIN_STEP_MS - elapsed5))
+
       // Done
       setUploadStep('done')
       setUploadProgress(100)
@@ -641,9 +579,6 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
       setUploadProgress(0)
       toast.error(err instanceof Error ? err.message : 'Upload failed')
     } finally {
-      if (realtimeChannel) supabase.removeChannel(realtimeChannel)
-      if (stepTimerRef.current) { clearTimeout(stepTimerRef.current); stepTimerRef.current = null }
-      stepQueueRef.current = []
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
