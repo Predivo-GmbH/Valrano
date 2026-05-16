@@ -40,6 +40,58 @@ async function validateDomainReachable(domain: string): Promise<{ reachable: boo
 }
 
 /**
+ * FINAL GATEKEEPER: Fetch the page and verify the company name appears in the HTML.
+ * If the company name is not mentioned on the page, the domain is REJECTED.
+ * This guarantees we never show a wrong website.
+ */
+async function verifyCompanyNameOnPage(domain: string, companyName: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`https://${domain}`, {
+      method: 'GET',
+      redirect: 'follow',
+      signal: AbortSignal.timeout(8000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BenchmarkSignal/1.0)' },
+    })
+    if (!resp.ok) return false
+
+    // Read first 50KB of HTML (enough to check title, meta, headers)
+    const reader = resp.body?.getReader()
+    if (!reader) return false
+    let html = ''
+    const decoder = new TextDecoder()
+    while (html.length < 50000) {
+      const { done, value } = await reader.read()
+      if (done) break
+      html += decoder.decode(value, { stream: true })
+    }
+    reader.cancel()
+
+    const htmlLower = html.toLowerCase()
+    const cleanName = stripLegalSuffix(companyName).toLowerCase()
+
+    // Check if full company name appears
+    if (htmlLower.includes(cleanName)) return true
+
+    // Check if individual significant words all appear (e.g. "Titan" AND "Cement")
+    const words = cleanName.split(/\s+/).filter(w => w.length > 2)
+    if (words.length >= 2 && words.every(w => htmlLower.includes(w))) return true
+
+    // Check domain-derived name (e.g. titan-cement.com → "titan cement")
+    const domainName = domain.replace(/\.(com|net|org|io|ch|de|fr|es|co\.uk|com\.au)$/i, '').replace(/[-_.]/g, ' ').toLowerCase()
+    const domainWords = domainName.split(/\s+/).filter(w => w.length > 2)
+    if (domainWords.length >= 1 && words.some(w => domainWords.some(dw => dw.includes(w) || w.includes(dw)))) {
+      // Domain itself contains company name words — check if page has at least the domain brand
+      if (domainWords.some(dw => htmlLower.includes(dw))) return true
+    }
+
+    return false
+  } catch {
+    // If we can't fetch the page, we cannot verify — reject
+    return false
+  }
+}
+
+/**
  * Use Claude Haiku to verify/correct a company website URL.
  * Now includes sector/industry context for disambiguation.
  */
@@ -237,7 +289,7 @@ Deno.serve(async (req: Request) => {
     let finalDomain: string | null
     let source: string
 
-    const MIN_CONFIDENCE = 0.85
+    const MIN_CONFIDENCE = 0.95
 
     if (llmResult && llmResult.confidence >= MIN_CONFIDENCE) {
       // Sector mismatch is a warning, not an automatic rejection.
@@ -323,6 +375,16 @@ Deno.serve(async (req: Request) => {
             source = 'ir_crossref_corrected'
           }
         } catch { /* invalid IR URL, ignore */ }
+      }
+    }
+
+    // --- Step 2e: FINAL GATEKEEPER — verify company name appears on the page ---
+    if (finalDomain) {
+      const nameOnPage = await verifyCompanyNameOnPage(finalDomain, name.trim())
+      if (!nameOnPage) {
+        console.log(`Page content verification FAILED: "${name}" not found on ${finalDomain} — REJECTING`)
+        finalDomain = null
+        source = 'page_verification_failed'
       }
     }
 
