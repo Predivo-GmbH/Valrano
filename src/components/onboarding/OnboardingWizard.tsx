@@ -85,6 +85,8 @@ export function OnboardingWizard() {
   const [schedules, setSchedules] = useState<
     Record<string, { reportType: string; expectedDate: string }>
   >({})
+  // Track which schedule dates the user explicitly confirmed (manual input or individual suggest)
+  const [userConfirmedScheduleIds, setUserConfirmedScheduleIds] = useState<Set<string>>(new Set())
 
   // Sync existing data into state once loaded
   const competitorCount = existingCompetitorIds.length
@@ -177,10 +179,12 @@ export function OnboardingWizard() {
       }
 
       // Auto-save publication schedules when leaving the schedule step
+      // ONLY save events the user explicitly confirmed (manual date entry or individual suggest)
       if (currentStep === 2) {
         let saved = 0
         for (const [companyId, schedule] of Object.entries(schedules)) {
           if (!schedule.expectedDate) continue
+          if (!userConfirmedScheduleIds.has(companyId)) continue
           try {
             await createEvent.mutateAsync({
               company_id: companyId,
@@ -350,6 +354,7 @@ export function OnboardingWizard() {
             selectedCompanyIds={selectedCompanyIds}
             schedules={schedules}
             onSchedulesChange={setSchedules}
+            onConfirmSchedule={(id) => setUserConfirmedScheduleIds((prev) => new Set(prev).add(id))}
             onSkip={() => setCurrentStep(3)}
           />
         )}
@@ -1063,11 +1068,13 @@ function StepSchedule({
   selectedCompanyIds,
   schedules,
   onSchedulesChange,
+  onConfirmSchedule,
   onSkip,
 }: {
   selectedCompanyIds: string[]
   schedules: Record<string, { reportType: string; expectedDate: string }>
   onSchedulesChange: (s: Record<string, { reportType: string; expectedDate: string }>) => void
+  onConfirmSchedule: (companyId: string) => void
   onSkip: () => void
 }) {
   const { data: companies } = useAllCompanies()
@@ -1105,6 +1112,7 @@ function StepSchedule({
         onSuccess: (data) => {
           updateSchedule(company.id, 'expectedDate', data.suggestion.suggested_date)
           setSuggestedIds((prev) => new Set(prev).add(company.id))
+          onConfirmSchedule(company.id)
           toast.success(
             `Suggested: ${data.suggestion.suggested_date} (${data.suggestion.confidence}% confidence)`,
           )
@@ -1218,7 +1226,7 @@ function StepSchedule({
               <input
                 type="date"
                 value={schedule.expectedDate}
-                onChange={(e) => updateSchedule(company.id, 'expectedDate', e.target.value)}
+                onChange={(e) => { updateSchedule(company.id, 'expectedDate', e.target.value); onConfirmSchedule(company.id) }}
                 className="rounded-lg border border-border bg-[var(--color-bg-tertiary)] px-3 py-2 text-[12px] text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] w-40"
               />
 
