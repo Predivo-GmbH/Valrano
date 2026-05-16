@@ -1240,7 +1240,7 @@ export function CompanyProfilePage() {
                   </div>
                   {report.pdf_storage_path && (
                     <Link
-                      to={`/reports/${report.id}`}
+                      to={`/uploaded-reports/${report.id}`}
                       className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
                     >
                       <Eye className="h-3.5 w-3.5" /> View

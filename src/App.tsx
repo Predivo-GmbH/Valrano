@@ -20,6 +20,7 @@ const DocumentViewerPage = lazy(() => import('@/pages/DocumentViewerPage').then(
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })))
 const ReportBuilderPage = lazy(() => import('@/pages/ReportBuilderPage').then(m => ({ default: m.ReportBuilderPage })))
 const ReportViewerPage = lazy(() => import('@/pages/ReportViewerPage').then(m => ({ default: m.ReportViewerPage })))
+const UploadedReportPage = lazy(() => import('@/pages/UploadedReportPage').then(m => ({ default: m.UploadedReportPage })))
 const PeersPage = lazy(() => import('@/pages/PeersPage').then(m => ({ default: m.PeersPage })))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const AccountPage = lazy(() => import('@/pages/AccountPage').then(m => ({ default: m.AccountPage })))
@@ -80,6 +81,7 @@ function App() {
                           <Route path="/news" element={<NewsPage />} />
                           <Route path="/reports" element={<ReportBuilderPage />} />
                           <Route path="/reports/:id" element={<ReportViewerPage />} />
+                          <Route path="/uploaded-reports/:id" element={<UploadedReportPage />} />
                           <Route path="/documents/:id" element={<DocumentViewerPage />} />
                           <Route path="/companies/:id" element={<CompanyProfilePage />} />
                           <Route path="/account" element={<AccountPage />} />
