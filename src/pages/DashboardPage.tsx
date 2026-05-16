@@ -1446,30 +1446,58 @@ export function DashboardPage() {
                 </p>
               </div>
               <TabsList className="h-7 rounded-lg bg-[var(--color-bg-tertiary)] p-0.5 flex-shrink-0 overflow-x-auto">
-                <TabsTrigger
-                  value="financial"
-                  className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
-                >
-                  Financial
-                </TabsTrigger>
-                <TabsTrigger
-                  value="esg"
-                  className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
-                >
-                  ESG
-                </TabsTrigger>
-                <TabsTrigger
-                  value="operational"
-                  className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
-                >
-                  Operational
-                </TabsTrigger>
-                <TabsTrigger
-                  value="all"
-                  className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
-                >
-                  All
-                </TabsTrigger>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger
+                      value="financial"
+                      className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
+                    >
+                      Financial
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[240px] text-center">
+                    Revenue, EBITDA, EBIT, Net Income, EPS, Net Debt, Leverage, ROIC, and CAPEX — all currency-converted to CHF.
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger
+                      value="esg"
+                      className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
+                    >
+                      ESG
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[240px] text-center">
+                    Environmental, Social & Governance: CO₂ emissions (absolute & intensity), lost-time injury frequency rate (LTIFR).
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger
+                      value="operational"
+                      className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
+                    >
+                      Operational
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[240px] text-center">
+                    Industry-specific operational metrics: cement/clinker sales volumes and production capacity indicators.
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <TabsTrigger
+                      value="all"
+                      className="rounded px-2.5 py-0.5 text-[10px] font-medium flex-shrink-0 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
+                    >
+                      All
+                    </TabsTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[240px] text-center">
+                    All KPI categories combined: financial, ESG, and operational metrics in a single view.
+                  </TooltipContent>
+                </Tooltip>
               </TabsList>
             </div>
 
