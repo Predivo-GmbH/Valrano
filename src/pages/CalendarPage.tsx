@@ -405,20 +405,20 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                     className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-[var(--color-bg-tertiary)]"
                   >
                     {/* Date — inline editable */}
-                    <div className="sm:w-32 shrink-0">
+                    <div className="shrink-0">
                       {editingDateEventId === ev.id ? (
                         <div className="flex items-center gap-1">
                           <input
                             type="date"
                             value={editDateValue}
                             onChange={(e) => setEditDateValue(e.target.value)}
-                            className="h-7 w-[7.5rem] rounded border border-border bg-background px-2 text-xs text-foreground"
+                            className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground"
                             autoFocus
                           />
-                          <button type="button" onClick={() => handleDateSave(ev.id)} className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
+                          <button type="button" onClick={() => handleDateSave(ev.id)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
                             <Check className="h-3.5 w-3.5" />
                           </button>
-                          <button type="button" onClick={() => setEditingDateEventId(null)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                          <button type="button" onClick={() => setEditingDateEventId(null)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent">
                             <X className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -426,7 +426,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                         <button
                           type="button"
                           onClick={() => { setEditingDateEventId(ev.id); setEditDateValue(ev.expected_date) }}
-                          className="text-xs text-muted-foreground hover:text-[var(--color-accent)] transition-colors"
+                          className="sm:w-24 text-xs text-muted-foreground hover:text-[var(--color-accent)] transition-colors"
                         >
                           {new Date(ev.expected_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </button>
