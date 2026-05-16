@@ -110,6 +110,7 @@ serve(async (req: Request) => {
     // 2. Normalize each value
     // ------------------------------------------------------------------
     let updatedCount = 0
+    const skippedReasons: string[] = []
 
     // Helper: look up FX rate with fallback to inverse direction and closest year
     async function findFxRate(
@@ -201,7 +202,9 @@ serve(async (req: Request) => {
         })
 
         if (!fxResult) {
-          console.warn(`No FX rate found for ${rawCurrency}/CHF in ${fiscalYear}. Skipping kpi_value ${kv.id}`)
+          const reason = `No FX rate for ${rawCurrency}/CHF (period_average, FY${fiscalYear}) — KPI ${kpiCode}`
+          console.warn(reason)
+          skippedReasons.push(reason)
           continue
         }
 
@@ -214,7 +217,9 @@ serve(async (req: Request) => {
         const fxResult = await findFxRate(rawCurrency, 'daily_close', { lte: reportDate })
 
         if (!fxResult) {
-          console.warn(`No FX rate found for ${rawCurrency}/CHF on/before ${reportDate}. Skipping kpi_value ${kv.id}`)
+          const reason = `No FX rate for ${rawCurrency}/CHF (daily_close, ≤${reportDate}) — KPI ${kpiCode}`
+          console.warn(reason)
+          skippedReasons.push(reason)
           continue
         }
 
@@ -288,6 +293,7 @@ serve(async (req: Request) => {
       report_id: reportId,
       updated: updatedCount,
       skipped: (kpiValues?.length ?? 0) - updatedCount,
+      skipped_reasons: skippedReasons.length > 0 ? skippedReasons : undefined,
     })
   } catch (err) {
     return errorResponse(err)
