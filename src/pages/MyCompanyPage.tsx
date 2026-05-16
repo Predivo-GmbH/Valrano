@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Pencil, Upload, FileText, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Building2, Pencil, Upload, FileText, CheckCircle2, Clock, AlertCircle, RotateCw, Loader2, Trash2 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,8 @@ import {
   useUpsertMyCompanyKpis,
 } from '@/hooks/useMyCompany'
 import { useKpiDefinitions, useCompanies, useReports } from '@/hooks/useData'
+import { useExtractKpis, useNormalizeKpis } from '@/hooks/useExtraction'
+import { supabase } from '@/lib/supabase'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { CompanyLogo, companyLogoUrl } from '@/components/ui/company-logo'
 import { UploadReportDialog } from '@/components/upload-report-dialog'
@@ -70,25 +73,7 @@ export function MyCompanyPage() {
 
             {/* Recent Reports */}
             {reports && reports.length > 0 && (
-              <div className="rounded-xl border border-border bg-card p-5">
-                <h3 className="mb-3 text-sm font-semibold text-foreground">Recent Reports</h3>
-                <div className="space-y-2">
-                  {reports.slice(0, 10).map((report) => (
-                    <div key={report.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)] px-3 py-2.5">
-                      <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium text-foreground">
-                          {report.title ?? `Report FY ${report.fiscal_year}`}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {report.report_type} · FY {report.fiscal_year}{report.fiscal_quarter ? ` Q${report.fiscal_quarter}` : ''} · {new Date(report.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <ReportStatusBadge status={report.status} />
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <RecentReports reports={reports} />
             )}
           </div>
         )}
@@ -170,6 +155,91 @@ function CompanyCard({
           <KpiEditor companyId={company.id} />
         </div>
       )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Recent Reports
+// ---------------------------------------------------------------------------
+
+function RecentReports({ reports }: { reports: { id: string; title: string | null; report_type: string; fiscal_year: number; fiscal_quarter: number | null; status: string; created_at: string }[] }) {
+  const queryClient = useQueryClient()
+  const extractMutation = useExtractKpis()
+  const normalizeMutation = useNormalizeKpis()
+  const [retryingId, setRetryingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  async function handleRetry(reportId: string) {
+    setRetryingId(reportId)
+    try {
+      const extraction = await extractMutation.mutateAsync(reportId)
+      try { await normalizeMutation.mutateAsync(reportId) } catch { /* non-fatal */ }
+      toast.success(`Extracted ${extraction.total_kpis_extracted} KPIs`)
+      queryClient.invalidateQueries({ queryKey: ['reports'] })
+    } catch (err) {
+      toast.error(`Extraction failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setRetryingId(null)
+    }
+  }
+
+  async function handleDelete(reportId: string, title: string) {
+    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return
+    setDeletingId(reportId)
+    try {
+      const { error } = await supabase.from('reports').delete().eq('id', reportId)
+      if (error) throw error
+      toast.success('Report deleted')
+      queryClient.invalidateQueries({ queryKey: ['reports'] })
+    } catch (err) {
+      toast.error(`Delete failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <h3 className="mb-3 text-sm font-semibold text-foreground">Recent Reports</h3>
+      <div className="space-y-2">
+        {reports.slice(0, 10).map((report) => (
+          <div key={report.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)] px-3 py-2.5">
+            <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-medium text-foreground">
+                {report.title ?? `Report FY ${report.fiscal_year}`}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {report.report_type} · FY {report.fiscal_year}{report.fiscal_quarter ? ` Q${report.fiscal_quarter}` : ''} · {new Date(report.created_at).toLocaleDateString()}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {(report.status === 'pending' || report.status === 'error') && (
+                <button
+                  onClick={() => handleRetry(report.id)}
+                  disabled={retryingId === report.id}
+                  className="rounded p-1 text-muted-foreground hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] disabled:opacity-50"
+                  aria-label="Retry extraction"
+                  title="Retry extraction"
+                >
+                  {retryingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
+                </button>
+              )}
+              <button
+                onClick={() => handleDelete(report.id, report.title ?? `Report FY ${report.fiscal_year}`)}
+                disabled={deletingId === report.id}
+                className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                aria-label="Delete report"
+                title="Delete report"
+              >
+                {deletingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              </button>
+              <ReportStatusBadge status={report.status} />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
