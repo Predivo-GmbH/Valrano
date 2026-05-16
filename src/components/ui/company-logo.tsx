@@ -31,14 +31,8 @@ const SIZE_MAP = {
   xl: { container: 'h-10 w-10', icon: 'h-5 w-5' },
 }
 
-/** Returns true if the URL is a Brandfetch fallback lettermark (invisible white-on-transparent). */
-function isFallbackLettermark(url: string): boolean {
-  return url.includes('/fallback/') || url.includes('/lettermark/')
-}
-
 export function CompanyLogo({ logoUrl, websiteUrl, name, size = 'sm', className }: CompanyLogoProps) {
-  const raw = logoUrl || companyLogoUrl(websiteUrl)
-  const src = raw && !isFallbackLettermark(raw) ? raw : null
+  const src = logoUrl || companyLogoUrl(websiteUrl)
   const { container, icon } = SIZE_MAP[size]
   const [failed, setFailed] = useState(false)
 
