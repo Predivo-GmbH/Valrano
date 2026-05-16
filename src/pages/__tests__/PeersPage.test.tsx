@@ -15,6 +15,7 @@ vi.mock('@/hooks/useCalendar', () => ({
 vi.mock('@/hooks/useExtraction', () => ({
   useUploadReport: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useExtractKpis: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useNormalizeKpis: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 
 describe('PeersPage', () => {
