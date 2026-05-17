@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Security Fix: RLS scoping
+-- Valrano — Security Fix: RLS scoping
 -- Migration: 20260507200000_fix_rls_scoping
 -- Fixes H1 (benchmark_documents UPDATE) and H2 (publication_events + approval tables)
 -- =============================================================================

@@ -8,7 +8,7 @@ test.describe('Smoke Tests', () => {
 
   test('app loads with correct title', async ({ page }) => {
     await page.goto('/dashboard')
-    await expect(page).toHaveTitle(/BenchmarkSignal/)
+    await expect(page).toHaveTitle(/Valrano/)
   })
 
   test('no console errors on dashboard', async ({ page }) => {
@@ -38,12 +38,12 @@ test.describe('Smoke Tests', () => {
 
   test('upload page is reachable', async ({ page }) => {
     await page.goto('/upload')
-    await expect(page).toHaveTitle(/BenchmarkSignal/)
+    await expect(page).toHaveTitle(/Valrano/)
   })
 
   test('review page is reachable', async ({ page }) => {
     await page.goto('/review')
-    await expect(page).toHaveTitle(/BenchmarkSignal/)
+    await expect(page).toHaveTitle(/Valrano/)
   })
 
   test('unknown route does not crash app', async ({ page }) => {

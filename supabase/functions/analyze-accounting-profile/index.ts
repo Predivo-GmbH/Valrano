@@ -449,7 +449,7 @@ For MENTIONED COMPETITORS: Scan the ENTIRE document for companies explicitly nam
     const estimatedCostUsd = (inputTokens * 1.25 + outputTokens * 10) / 1_000_000
 
     // Log usage (reuse existing log infrastructure)
-    await logAnthropicUsage('BenchmarkSignal', 'analyze-accounting-profile', {
+    await logAnthropicUsage('Valrano', 'analyze-accounting-profile', {
       usage: { input_tokens: inputTokens, output_tokens: outputTokens },
       model: 'gemini-2.5-pro',
     })

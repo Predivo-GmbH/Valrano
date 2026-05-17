@@ -293,7 +293,7 @@ Generate 3-8 insights based on data availability. Prioritize:
     const inputTokens = geminiJson.usageMetadata?.promptTokenCount ?? 0
     const outputTokens = geminiJson.usageMetadata?.candidatesTokenCount ?? 0
 
-    await logAnthropicUsage('BenchmarkSignal', 'generate-insights', {
+    await logAnthropicUsage('Valrano', 'generate-insights', {
       model: GEMINI_MODEL,
       usage: { input_tokens: inputTokens, output_tokens: outputTokens },
     })

@@ -53,7 +53,7 @@ export function SettingsPage() {
 
   return (
     <>
-      <Helmet><title>Settings - BenchmarkSignal</title></Helmet>
+      <Helmet><title>Settings - Valrano</title></Helmet>
       <div className="section-fade-in mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Page header */}
         <div className="mb-6">
@@ -61,7 +61,7 @@ export function SettingsPage() {
             Settings
           </h1>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Configure your BenchmarkSignal account
+            Configure your Valrano account
           </p>
         </div>
 

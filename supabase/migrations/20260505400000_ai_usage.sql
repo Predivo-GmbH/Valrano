@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — AI Usage Tracking
+-- Valrano — AI Usage Tracking
 -- Migration: 20260505200000_ai_usage
 -- Tracks AI suggestion usage per user for tier-based rate limiting
 -- =============================================================================

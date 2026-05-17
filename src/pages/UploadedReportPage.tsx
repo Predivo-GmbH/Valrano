@@ -87,7 +87,7 @@ export function UploadedReportPage() {
 
   return (
     <>
-      <Helmet><title>{report.title || 'Report'} - BenchmarkSignal</title></Helmet>
+      <Helmet><title>{report.title || 'Report'} - Valrano</title></Helmet>
       <div className="section-fade-in mx-auto max-w-[1000px] px-4 py-8 sm:px-6">
         <Breadcrumbs items={[
           ...(company ? [{ label: company.name, href: `/companies/${company.id}` }] : []),

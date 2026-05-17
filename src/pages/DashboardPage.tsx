@@ -417,7 +417,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
       lines.push('─'.repeat(80))
       lines.push('')
     }
-    lines.push('', 'BenchmarkSignal — AI-Powered Competitive Intelligence', 'https://benchmarksignal.predivo.ch')
+    lines.push('', 'Valrano — AI-Powered Competitive Intelligence', 'https://valrano.com')
     const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -1123,7 +1123,7 @@ export function DashboardPage() {
   return (
     <TooltipProvider>
     <>
-    <Helmet><title>Dashboard - BenchmarkSignal</title></Helmet>
+    <Helmet><title>Dashboard - Valrano</title></Helmet>
     <div className="section-fade-in mx-auto max-w-[1440px] px-4 py-8 sm:px-6">
 
       {/* Setup progress banner (shows when wizard dismissed but steps incomplete) */}

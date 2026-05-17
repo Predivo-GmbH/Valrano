@@ -34,7 +34,7 @@ export function MyCompanyPage() {
 
   return (
     <>
-      <Helmet><title>{primaryCompany?.name ?? 'My Company'} - BenchmarkSignal</title></Helmet>
+      <Helmet><title>{primaryCompany?.name ?? 'My Company'} - Valrano</title></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between">
           <div>

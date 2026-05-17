@@ -286,7 +286,7 @@ export function AccountingProfilePage() {
   if (!profile) {
     return (
       <div className="space-y-6">
-        <Helmet><title>Accounting Profile - BenchmarkSignal</title></Helmet>
+        <Helmet><title>Accounting Profile - Valrano</title></Helmet>
         <div className="rounded-xl border border-border bg-card p-6">
           <div className="flex items-start gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-accent)]/10">
@@ -393,7 +393,7 @@ export function AccountingProfilePage() {
 
   return (
     <div className="space-y-6">
-      <Helmet><title>Accounting Profile - BenchmarkSignal</title></Helmet>
+      <Helmet><title>Accounting Profile - Valrano</title></Helmet>
       {/* Profile header */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">

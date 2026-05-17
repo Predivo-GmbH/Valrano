@@ -302,7 +302,7 @@ Be precise with page numbers. If something spans multiple pages, use the first p
     const result = await apiResp.json()
     const inputTokens = result.usageMetadata?.promptTokenCount ?? 0
     const outputTokens = result.usageMetadata?.candidatesTokenCount ?? 0
-    await logAnthropicUsage('BenchmarkSignal', 'extract-report-context', {
+    await logAnthropicUsage('Valrano', 'extract-report-context', {
       model: GEMINI_MODEL,
       usage: { input_tokens: inputTokens, output_tokens: outputTokens },
     })

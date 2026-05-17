@@ -228,7 +228,7 @@ No markdown code blocks. Just the JSON.`
     }
 
     const data = await resp.json()
-    await logAnthropicUsage('BenchmarkSignal', 'compute-comparability', data)
+    await logAnthropicUsage('Valrano', 'compute-comparability', data)
     const text = data.content?.[0]?.text ?? '{}'
     const jsonStr = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim()
     const result: AdjustmentResult = JSON.parse(jsonStr)

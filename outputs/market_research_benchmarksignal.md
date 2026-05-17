@@ -1,4 +1,4 @@
-# BenchmarkSignal -- Market Research Report
+# Valrano -- Market Research Report
 
 **Date:** 2026-05-04
 **Product:** Fully automated competitive benchmarking platform for listed corporations
@@ -35,7 +35,7 @@ Multiple research firms have sized the competitive intelligence tools market. Ke
 
 **Best estimate for the CI software market in 2025: USD 0.6B -- 1.9B, growing at 10--21% CAGR.**
 
-Adding adjacent markets that BenchmarkSignal touches:
+Adding adjacent markets that Valrano touches:
 
 - **ESG Reporting Software Market:** USD 1.48B in 2025, growing to USD 4.66B -- 7.36B by 2032-2034 (CAGR 17.8--21.0%) [Kings Research, Fortune Business Insights]
 - **Business Intelligence Market:** USD 18.56B incremental growth 2024--2029 [Technavio]
@@ -236,7 +236,7 @@ Expanding to broader industrials (chemicals, metals, mining) in Year 3+:
 ### 3.2 Shift from Manual Analyst Work to Automated Extraction
 
 - Vision-capable LLMs now "understand document structure, extract meaning from context, and adapt to new formats without reprogramming" [Virtido, 2026]
-- Stanford CS231N research (2025) demonstrates computer vision applied to financial statement analysis -- directly relevant to BenchmarkSignal's approach
+- Stanford CS231N research (2025) demonstrates computer vision applied to financial statement analysis -- directly relevant to Valrano's approach
 - Cognica (November 2025) published a technical guide on "Automated Financial Statement Extraction from PDFs Using LLMs"
 - The "Talk to EDGAR" platform allows plain-English queries against SEC filings -- demonstrating that structured extraction from financial documents is production-ready
 - LlamaIndex offers an "AI OCR Processing Platform" specifically for automated financial data extraction
@@ -257,7 +257,7 @@ The market is shifting from quarterly batch analysis to continuous monitoring:
 
 - AlphaSense and Valona Intelligence both emphasize "real-time" monitoring capabilities
 - Earnings call transcripts are now analyzed within minutes of publication (vs. days historically)
-- BenchmarkSignal's "60 minutes after publication" positioning is aligned with this trend
+- Valrano's "60 minutes after publication" positioning is aligned with this trend
 
 ---
 
@@ -294,7 +294,7 @@ The market is shifting from quarterly batch analysis to continuous monitoring:
 - AlphaSense enterprise deals: average USD 50,000--100,000+; largest customers exceed USD 1M/year
 - Most mid-market SaaS: annual subscription based on market cap, users, and modules
 
-### 4.4 Recommended Pricing Position for BenchmarkSignal
+### 4.4 Recommended Pricing Position for Valrano
 
 Based on the competitive landscape:
 
@@ -330,9 +330,9 @@ Based on the competitive landscape:
 - EFRAG's revised ESRS draft shows 61% reduction in mandatory datapoints (from ~1,100 to ~430)
 - Voluntary disclosures eliminated entirely
 
-**Impact on BenchmarkSignal:**
+**Impact on Valrano:**
 - Even with reduced scope, thousands of EU companies must now report ESG metrics in standardized formats
-- These reports are the exact input that BenchmarkSignal extracts and benchmarks
+- These reports are the exact input that Valrano extracts and benchmarks
 - Companies NEED peer ESG benchmarks to know if their metrics are competitive
 - The standardization actually HELPS automated extraction (more consistent formats)
 
@@ -356,7 +356,7 @@ Based on the competitive landscape:
 | Taiwan | Roadmap published | 2026 |
 | California (US state) | Mandatory climate reporting | January 2026 |
 
-**Impact on BenchmarkSignal:**
+**Impact on Valrano:**
 - ISSB creates a global baseline for sustainability disclosures -- more data to extract and benchmark
 - Accelerated adoption in 2026--2027 means a growing universe of comparable ESG data
 - Companies adopting ISSB will need to benchmark against early adopters

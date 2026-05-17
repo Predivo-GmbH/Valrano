@@ -115,7 +115,7 @@ export function AnalyticsPage() {
 
   return (
     <>
-      <Helmet><title>Analytics - BenchmarkSignal</title></Helmet>
+      <Helmet><title>Analytics - Valrano</title></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6">
           <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Analytics</h1>

@@ -87,7 +87,7 @@ export function AppLayout() {
               to="/dashboard"
               className="text-[15px] font-bold tracking-tight text-foreground transition-colors hover:text-foreground/80"
             >
-              BenchmarkSignal
+              Valrano
             </NavLink>
 
             {/* Center navigation — desktop */}

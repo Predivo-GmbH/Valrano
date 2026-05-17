@@ -1,5 +1,5 @@
 /**
- * Shared SMTP email module for BenchmarkSignal transactional emails.
+ * Shared SMTP email module for Valrano transactional emails.
  * Uses Metanet's native SMTP service via Deno's smtp client.
  *
  * Required env vars: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
@@ -22,7 +22,7 @@ function getSmtpConfig(): SmtpConfig {
   const port = Deno.env.get('SMTP_PORT')
   const username = Deno.env.get('SMTP_USER')
   const password = Deno.env.get('SMTP_PASS')
-  const from = Deno.env.get('SMTP_FROM') ?? 'BenchmarkSignal <noreply@benchmarksignal.predivo.ch>'
+  const from = Deno.env.get('SMTP_FROM') ?? 'Valrano <noreply@valrano.com>'
 
   if (!hostname || !port || !username || !password) {
     throw new Error('Missing SMTP configuration (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)')
@@ -72,7 +72,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 
 const ACCENT = '#3B82F6'
 const FONT = "'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,'Helvetica Neue',Arial,sans-serif"
-const APP_URL = Deno.env.get('APP_URL') ?? 'https://benchmarksignal.predivo.ch'
+const APP_URL = Deno.env.get('APP_URL') ?? 'https://valrano.com'
 
 // ─── Shared inline styles ────────────────────────────────────────────────────
 
@@ -92,7 +92,7 @@ function layout(body: string): string {
     '<head>',
     '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />',
     '<meta name="viewport" content="width=device-width, initial-scale=1.0" />',
-    '<title>BenchmarkSignal</title>',
+    '<title>Valrano</title>',
     '</head>',
     '<body style="margin:0;padding:0;font-family:' + FONT + ';background-color:#f4f4f5;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">',
     '<!--[if mso | IE]><table role="presentation" width="100%" bgcolor="#f4f4f5"><tr><td align="center"><![endif]-->',
@@ -102,7 +102,7 @@ function layout(body: string): string {
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="480" style="max-width:480px;width:100%;">',
     '<tr>',
     '<td align="center" style="padding-bottom:28px;">',
-    '<span style="font-family:' + FONT + ';font-size:20px;font-weight:700;color:#18181b;letter-spacing:-0.02em;">BenchmarkSignal</span>',
+    '<span style="font-family:' + FONT + ';font-size:20px;font-weight:700;color:#18181b;letter-spacing:-0.02em;">Valrano</span>',
     '</td>',
     '</tr>',
     '<tr>',
@@ -112,8 +112,8 @@ function layout(body: string): string {
     '</tr>',
     '<tr>',
     '<td align="center" style="padding-top:24px;">',
-    '<p style="margin:0;font-family:' + FONT + ';font-size:12px;color:#a1a1aa;line-height:1.5;">&copy; ' + new Date().getFullYear() + ' BenchmarkSignal &middot; Predivo GmbH</p>',
-    '<p style="margin:8px 0 0;font-family:' + FONT + ';font-size:12px;color:#a1a1aa;">You&rsquo;re receiving this because you have a BenchmarkSignal account.</p>',
+    '<p style="margin:0;font-family:' + FONT + ';font-size:12px;color:#a1a1aa;line-height:1.5;">&copy; ' + new Date().getFullYear() + ' Valrano &middot; Predivo GmbH</p>',
+    '<p style="margin:8px 0 0;font-family:' + FONT + ';font-size:12px;color:#a1a1aa;">You&rsquo;re receiving this because you have a Valrano account.</p>',
     '</td>',
     '</tr>',
     '</table>',
@@ -193,10 +193,10 @@ export function getAuthEmailContent(payload: AuthEmailPayload): { subject: strin
   switch (email_action_type) {
     case 'signup':
       return {
-        subject: 'BenchmarkSignal \u2013 Confirm your email',
+        subject: 'Valrano \u2013 Confirm your email',
         html: layout(
           '<h1 style="' + ST.h1 + '">Confirm your email</h1>' +
-          '<p style="' + ST.p + '">Enter this code to verify your email and create your BenchmarkSignal account.</p>' +
+          '<p style="' + ST.p + '">Enter this code to verify your email and create your Valrano account.</p>' +
           otpBlock(token) +
           button('Confirm Email', actionUrl) +
           '<p style="' + ST.hint + '">If you didn&rsquo;t create an account, you can safely ignore this email.</p>'
@@ -205,10 +205,10 @@ export function getAuthEmailContent(payload: AuthEmailPayload): { subject: strin
 
     case 'magiclink':
       return {
-        subject: 'Your BenchmarkSignal login code',
+        subject: 'Your Valrano login code',
         html: layout(
           '<h1 style="' + ST.h1 + '">Sign in</h1>' +
-          '<p style="' + ST.p + '">Use this code to sign in to your BenchmarkSignal account.</p>' +
+          '<p style="' + ST.p + '">Use this code to sign in to your Valrano account.</p>' +
           otpBlock(token) +
           button('Sign In', actionUrl) +
           '<p style="' + ST.hint + '">If you didn&rsquo;t request this, you can safely ignore this email.</p>'
@@ -217,7 +217,7 @@ export function getAuthEmailContent(payload: AuthEmailPayload): { subject: strin
 
     case 'recovery':
       return {
-        subject: 'BenchmarkSignal \u2013 Reset your password',
+        subject: 'Valrano \u2013 Reset your password',
         html: layout(
           '<h1 style="' + ST.h1 + '">Reset your password</h1>' +
           '<p style="' + ST.p + '">Click the button below to reset your password.</p>' +
@@ -228,7 +228,7 @@ export function getAuthEmailContent(payload: AuthEmailPayload): { subject: strin
 
     case 'email_change':
       return {
-        subject: 'BenchmarkSignal \u2013 Confirm email change',
+        subject: 'Valrano \u2013 Confirm email change',
         html: layout(
           '<h1 style="' + ST.h1 + '">Confirm email change</h1>' +
           '<p style="' + ST.p + '">Confirm the change to your email address.</p>' +
@@ -239,7 +239,7 @@ export function getAuthEmailContent(payload: AuthEmailPayload): { subject: strin
 
     default:
       return {
-        subject: 'BenchmarkSignal \u2013 Action required',
+        subject: 'Valrano \u2013 Action required',
         html: layout(
           '<h1 style="' + ST.h1 + '">Action required</h1>' +
           '<p style="' + ST.p + '">Your verification code:</p>' +
@@ -255,10 +255,10 @@ export function getAuthEmailContent(payload: AuthEmailPayload): { subject: strin
 export function welcomeEmail(userName: string): { subject: string; html: string } {
   const firstName = userName.split(' ')[0]
   return {
-    subject: 'Welcome to BenchmarkSignal, ' + firstName + '!',
+    subject: 'Welcome to Valrano, ' + firstName + '!',
     html: layout(
       '<h1 style="' + ST.h1 + '">Welcome aboard, ' + firstName + '!</h1>' +
-      '<p style="' + ST.p + '">Your BenchmarkSignal account is ready. Here&rsquo;s how to get started:</p>' +
+      '<p style="' + ST.p + '">Your Valrano account is ready. Here&rsquo;s how to get started:</p>' +
       '<ol style="margin:0 0 12px;padding-left:20px;font-family:' + FONT + ';font-size:15px;color:#3f3f46;line-height:1.8;">' +
       '<li>Upload your first annual report (PDF)</li>' +
       '<li>AI extracts and normalizes your KPIs automatically</li>' +
@@ -273,10 +273,10 @@ export function welcomeEmail(userName: string): { subject: string; html: string 
 export function accountDeletedEmail(userName: string): { subject: string; html: string } {
   const firstName = userName.split(' ')[0]
   return {
-    subject: 'Your BenchmarkSignal account has been deleted',
+    subject: 'Your Valrano account has been deleted',
     html: layout(
       '<h1 style="' + ST.h1 + '">Account deleted, ' + firstName + '</h1>' +
-      '<p style="' + ST.p + '">Your BenchmarkSignal account and all associated data have been permanently deleted as requested.</p>' +
+      '<p style="' + ST.p + '">Your Valrano account and all associated data have been permanently deleted as requested.</p>' +
       '<p style="' + ST.p + '">If this was a mistake or you&rsquo;d like to come back, you&rsquo;re welcome to sign up again anytime.</p>' +
       '<p style="' + ST.hint + '">We&rsquo;re sorry to see you go. If you have feedback, reply to this email &mdash; we&rsquo;d love to hear how we can improve.</p>'
     ),

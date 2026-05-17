@@ -74,7 +74,7 @@ export function ReportViewerPage() {
 
   return (
     <>
-      <Helmet><title>{report.title} - BenchmarkSignal</title></Helmet>
+      <Helmet><title>{report.title} - Valrano</title></Helmet>
       <div className="section-fade-in mx-auto max-w-[900px] px-4 py-8 sm:px-6">
         {/* Breadcrumbs */}
         <div className="print:hidden">

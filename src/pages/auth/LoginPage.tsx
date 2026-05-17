@@ -82,9 +82,9 @@ export default function LoginPage() {
 
   return (
     <AuthLayout>
-      <Helmet><title>Sign In - BenchmarkSignal</title><meta name="robots" content="noindex, nofollow" /></Helmet>
+      <Helmet><title>Sign In - Valrano</title><meta name="robots" content="noindex, nofollow" /></Helmet>
       <h1 className="text-center text-2xl font-bold text-[var(--color-foreground)]">
-        Sign in to BenchmarkSignal
+        Sign in to Valrano
       </h1>
 
       {/* Tabs */}

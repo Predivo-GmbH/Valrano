@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test.describe('Critical Path', () => {
   test('landing page loads', async ({ page }) => {
     await page.goto('/')
-    await expect(page).toHaveTitle(/BenchmarkSignal/)
+    await expect(page).toHaveTitle(/Valrano/)
   })
 
   test('login page accessible', async ({ page }) => {

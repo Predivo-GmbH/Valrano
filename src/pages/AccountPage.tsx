@@ -106,7 +106,7 @@ export function AccountPage() {
 
   return (
     <>
-      <Helmet><title>Account - BenchmarkSignal</title></Helmet>
+      <Helmet><title>Account - Valrano</title></Helmet>
       <div className="mx-auto max-w-[800px] px-4 py-8 sm:px-6">
         <div className="mb-6">
           <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">

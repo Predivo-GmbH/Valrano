@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Seed Sample KPI Values (2024 Annual, 6 companies)
+-- Valrano — Seed Sample KPI Values (2024 Annual, 6 companies)
 -- Migration: 20260504100002_seed_sample_kpis
 -- =============================================================================
 -- FX rates used for CHF normalization (2024 period_average, CHF as base):

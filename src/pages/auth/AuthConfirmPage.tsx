@@ -45,7 +45,7 @@ export default function AuthConfirmPage() {
 
   return (
     <div className="flex h-screen items-center justify-center bg-[var(--color-background)]">
-      <Helmet><title>Confirming... - BenchmarkSignal</title><meta name="robots" content="noindex, nofollow" /></Helmet>
+      <Helmet><title>Confirming... - Valrano</title><meta name="robots" content="noindex, nofollow" /></Helmet>
       <div className="text-center" role="status" aria-live="polite">
         {error ? (
           <>

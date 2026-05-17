@@ -873,7 +873,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <>
-      <Helmet><title>Publication Calendar - BenchmarkSignal</title></Helmet>
+      <Helmet><title>Publication Calendar - Valrano</title></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {content}
       </div>

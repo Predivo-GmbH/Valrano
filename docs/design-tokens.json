@@ -1,6 +1,6 @@
 {
-  "$schema": "https://benchmarksignal.predivo.ch/design-tokens",
-  "name": "BenchmarkSignal Design Tokens",
+  "$schema": "https://valrano.com/design-tokens",
+  "name": "Valrano Design Tokens",
   "version": "1.0.0",
   "updated": "2026-05-04",
   "source": "Stitch screen ba2b617a0fe945e997ce45685ad7d3f0",

@@ -13,4 +13,4 @@ Disallow: /companies/
 Disallow: /reports/
 Disallow: /documents/
 
-Sitemap: https://benchmarksignal.predivo.ch/sitemap.xml
+Sitemap: https://valrano.com/sitemap.xml

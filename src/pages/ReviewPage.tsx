@@ -285,7 +285,7 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
 
   return (
   <>
-    <Helmet><title>Review Queue | BenchmarkSignal</title></Helmet>
+    <Helmet><title>Review Queue | Valrano</title></Helmet>
     <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
       {content}
     </div>

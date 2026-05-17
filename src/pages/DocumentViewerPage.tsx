@@ -542,7 +542,7 @@ export function DocumentViewerPage() {
 
   return (
     <div className="section-fade-in mx-auto max-w-[960px] px-4 py-8 sm:px-6">
-      <Helmet><title>{doc.title ? `${doc.title} - BenchmarkSignal` : 'Document - BenchmarkSignal'}</title></Helmet>
+      <Helmet><title>{doc.title ? `${doc.title} - Valrano` : 'Document - Valrano'}</title></Helmet>
       {/* Breadcrumbs */}
       <Breadcrumbs items={[
         { label: 'Reports', href: '/reports' },

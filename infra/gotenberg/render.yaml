@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: gotenberg-benchmarksignal
+    name: gotenberg-valrano
     runtime: docker
     repo: https://github.com/gotenberg/gotenberg
     dockerfilePath: ./Dockerfile

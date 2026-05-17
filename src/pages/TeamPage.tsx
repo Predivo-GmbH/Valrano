@@ -106,7 +106,7 @@ export function TeamPage() {
 
   return (
     <div className="space-y-8">
-      <Helmet><title>Team - BenchmarkSignal</title></Helmet>
+      <Helmet><title>Team - Valrano</title></Helmet>
       {/* Workspace info */}
       <div>
         <h2 className="text-[16px] font-semibold text-foreground">Team</h2>

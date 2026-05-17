@@ -14,7 +14,7 @@ import { sendEmail } from '../_shared/email.ts'
  */
 
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
-const APP_URL = Deno.env.get('APP_URL') ?? 'https://benchmarksignal.predivo.ch'
+const APP_URL = Deno.env.get('APP_URL') ?? 'https://valrano.com'
 
 const FONT = "'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,'Helvetica Neue',Arial,sans-serif"
 const ACCENT = '#3B82F6'
@@ -111,7 +111,7 @@ serve(async (req: Request) => {
         `<body style="margin:0;padding:0;font-family:${FONT};background-color:#f4f4f5;">`,
         '<table role="presentation" width="100%" style="background-color:#f4f4f5;"><tr><td align="center" style="padding:40px 16px;">',
         '<table role="presentation" width="480" style="max-width:480px;width:100%;">',
-        `<tr><td align="center" style="padding-bottom:28px;"><span style="font-family:${FONT};font-size:20px;font-weight:700;color:#18181b;">BenchmarkSignal</span></td></tr>`,
+        `<tr><td align="center" style="padding-bottom:28px;"><span style="font-family:${FONT};font-size:20px;font-weight:700;color:#18181b;">Valrano</span></td></tr>`,
         '<tr><td style="background-color:#ffffff;border:1px solid #e4e4e7;border-radius:12px;padding:36px 32px;">',
         `<h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#18181b;">Monthly Insights Digest</h1>`,
         `<p style="margin:0 0 16px;font-size:13px;color:#71717a;">${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</p>`,
@@ -124,13 +124,13 @@ serve(async (req: Request) => {
         `<a href="${APP_URL}/dashboard" target="_blank" style="display:inline-block;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;padding:14px 40px;">View All Insights</a>`,
         '</td></tr></table>',
         '</td></tr>',
-        `<tr><td align="center" style="padding-top:24px;"><p style="font-size:12px;color:#a1a1aa;">&copy; ${new Date().getFullYear()} BenchmarkSignal &middot; Predivo GmbH</p></td></tr>`,
+        `<tr><td align="center" style="padding-top:24px;"><p style="font-size:12px;color:#a1a1aa;">&copy; ${new Date().getFullYear()} Valrano &middot; Predivo GmbH</p></td></tr>`,
         '</table></td></tr></table></body></html>',
       ].join('\n')
 
       await sendEmail({
         to: userData.user.email,
-        subject: `BenchmarkSignal — Monthly Insights Digest${riskCount > 0 ? ` (${riskCount} risk alerts)` : ''}`,
+        subject: `Valrano — Monthly Insights Digest${riskCount > 0 ? ` (${riskCount} risk alerts)` : ''}`,
         html,
       })
 

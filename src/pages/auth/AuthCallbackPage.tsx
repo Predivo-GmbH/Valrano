@@ -36,7 +36,7 @@ export default function AuthCallbackPage() {
 
   return (
     <div className="flex h-screen items-center justify-center bg-[var(--color-background)]">
-      <Helmet><title>Redirecting... - BenchmarkSignal</title><meta name="robots" content="noindex, nofollow" /></Helmet>
+      <Helmet><title>Redirecting... - Valrano</title><meta name="robots" content="noindex, nofollow" /></Helmet>
       <div className="text-center" role="status" aria-live="polite">
         <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
         <p className="mt-4 text-sm text-[var(--color-muted-foreground)]">{status}</p>

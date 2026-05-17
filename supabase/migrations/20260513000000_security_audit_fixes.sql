@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Security Audit Fixes (2026-05-13)
+-- Valrano — Security Audit Fixes (2026-05-13)
 -- Fixes: C1, C2, C3, H1, H4 from the 6-domain security audit
 -- =============================================================================
 

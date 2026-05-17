@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Sprint 6: Benchmark Rules + Documents
+-- Valrano — Sprint 6: Benchmark Rules + Documents
 -- Migration: 20260504300000_benchmark_documents
 -- =============================================================================
 

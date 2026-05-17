@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Automation Columns
+-- Valrano — Automation Columns
 -- Migration: 20260505100000_automation_columns
 -- Adds columns needed for full automation pipeline
 -- =============================================================================

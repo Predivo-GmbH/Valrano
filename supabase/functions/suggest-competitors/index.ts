@@ -126,7 +126,7 @@ Focus on companies that are:
     }
 
     const aiResult = await response.json()
-    await logAnthropicUsage('BenchmarkSignal', 'suggest-competitors', aiResult)
+    await logAnthropicUsage('Valrano', 'suggest-competitors', aiResult)
     const text = aiResult.content?.[0]?.text ?? ''
 
     // Parse JSON from response

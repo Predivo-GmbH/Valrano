@@ -41,7 +41,7 @@ export default function PasswordGate({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-background)] px-4">
       <div className="w-full max-w-sm rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-8">
         <div className="mb-6 text-center">
-          <h1 className="text-xl font-bold text-[var(--color-foreground)]">BenchmarkSignal</h1>
+          <h1 className="text-xl font-bold text-[var(--color-foreground)]">Valrano</h1>
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">
             Private beta — enter the access code
           </p>

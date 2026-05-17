@@ -83,7 +83,7 @@ async function generateDigest(
   const data = await resp.json()
   const inputTokens = data.usageMetadata?.promptTokenCount ?? 0
   const outputTokens = data.usageMetadata?.candidatesTokenCount ?? 0
-  await logAnthropicUsage('BenchmarkSignal', 'digest-company-news', {
+  await logAnthropicUsage('Valrano', 'digest-company-news', {
     model: GEMINI_MODEL,
     usage: { input_tokens: inputTokens, output_tokens: outputTokens },
   })

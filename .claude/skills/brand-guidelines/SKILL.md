@@ -1,7 +1,7 @@
 ---
-name: BenchmarkSignal Brand Guidelines
+name: Valrano Brand Guidelines
 description: >
-  Auto-enforced brand guidelines for BenchmarkSignal. Every frontend file — components, pages,
+  Auto-enforced brand guidelines for Valrano. Every frontend file — components, pages,
   layouts, styles — MUST comply with these rules. Any AI coding assistant working on this project
   MUST read and follow this file. No design-tokens.json lookup required; all values are inlined.
 globs:
@@ -13,7 +13,7 @@ globs:
   - "tailwind.config.*"
 ---
 
-# BenchmarkSignal Brand Guidelines
+# Valrano Brand Guidelines
 
 > **Authority:** This file is the single source of truth for all visual and UI decisions.
 > If a component deviates from these rules, it is a bug. Fix it — do not rationalize it.

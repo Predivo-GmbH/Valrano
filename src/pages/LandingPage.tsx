@@ -220,7 +220,7 @@ function BrowserFrame() {
               <div className="h-3 w-3 rounded-full bg-[#28C840]" />
             </div>
             <div className="flex flex-1 items-center gap-2 rounded-md bg-[var(--color-background)] px-3 py-1.5 text-xs text-[var(--color-muted-foreground)]">
-              <Lock className="h-3 w-3" /><span>benchmarksignal.predivo.ch/dashboard</span>
+              <Lock className="h-3 w-3" /><span>valrano.com/dashboard</span>
             </div>
           </div>
         </div>
@@ -365,7 +365,7 @@ const FEATURES = [
   { icon: Globe, title: 'Multi-currency normalization', desc: 'Point-in-time and period-average FX conversion across CHF, EUR, USD, GBP, and 10+ currencies.', span: 'md:col-span-1 md:row-span-1', accent: '#06B6D4' },
   { icon: Zap, title: '60-minute briefings', desc: 'When a peer publishes at 7 AM, your board-ready briefing is in your inbox by 8 AM \u2014 with normalized KPIs, ESG trajectory, and competitive signals.', span: 'md:col-span-1 md:row-span-1', accent: '#F59E0B' },
   { icon: Shield, title: 'Full audit trail', desc: 'Every extracted value carries a confidence score and links to the exact PDF page and paragraph. Your team can verify any number in one click.', span: 'md:col-span-1 md:row-span-1', accent: '#10B981' },
-  { icon: Clock, title: 'Continuous monitoring', desc: 'No more quarterly scrambles. BenchmarkSignal monitors 15+ peers across all exchanges and delivers alerts the moment a new report drops.', span: 'md:col-span-2 md:row-span-1', accent: '#EC4899' },
+  { icon: Clock, title: 'Continuous monitoring', desc: 'No more quarterly scrambles. Valrano monitors 15+ peers across all exchanges and delivers alerts the moment a new report drops.', span: 'md:col-span-2 md:row-span-1', accent: '#EC4899' },
 ]
 
 const STATS = [
@@ -387,9 +387,9 @@ const ENTERPRISE_INCLUDES = [
 ]
 
 const FAQS = [
-  { q: 'How accurate is AI extraction? Can we trust these numbers for board-level reporting?', a: 'BenchmarkSignal uses a multi-layer accuracy architecture: vision-LLM extraction with structured schemas, multi-model voting, confidence scoring (values below 0.85 are flagged for human review), and cross-validation against known financial relationships. Every extracted value links to its source PDF page for one-click verification. The result is more auditable than your current manual process, where a junior analyst\'s Excel formula is the audit trail.' },
-  { q: 'We already have Bloomberg / FactSet. Why do we need another tool?', a: 'Bloomberg and FactSet provide raw financial data for investors. They do not extract KPIs from newly published PDF reports, normalize company-specific definitions (Recurring EBIT vs. RCO vs. Adjusted EBITDA), or deliver AI-generated peer briefings within 60 minutes. BenchmarkSignal replaces the 200 hours/year your team spends turning Bloomberg data into peer comparisons. It is a complement, not a replacement.' },
-  { q: 'What about data security and compliance?', a: 'BenchmarkSignal processes exclusively publicly available documents \u2014 annual reports, quarterly filings, and sustainability reports that companies publish on their IR websites. No customer internal data is ever uploaded or processed. Your peer group configuration is confidential. Data is hosted in EU data centers with encryption at rest and in transit.' },
+  { q: 'How accurate is AI extraction? Can we trust these numbers for board-level reporting?', a: 'Valrano uses a multi-layer accuracy architecture: vision-LLM extraction with structured schemas, multi-model voting, confidence scoring (values below 0.85 are flagged for human review), and cross-validation against known financial relationships. Every extracted value links to its source PDF page for one-click verification. The result is more auditable than your current manual process, where a junior analyst\'s Excel formula is the audit trail.' },
+  { q: 'We already have Bloomberg / FactSet. Why do we need another tool?', a: 'Bloomberg and FactSet provide raw financial data for investors. They do not extract KPIs from newly published PDF reports, normalize company-specific definitions (Recurring EBIT vs. RCO vs. Adjusted EBITDA), or deliver AI-generated peer briefings within 60 minutes. Valrano replaces the 200 hours/year your team spends turning Bloomberg data into peer comparisons. It is a complement, not a replacement.' },
+  { q: 'What about data security and compliance?', a: 'Valrano processes exclusively publicly available documents \u2014 annual reports, quarterly filings, and sustainability reports that companies publish on their IR websites. No customer internal data is ever uploaded or processed. Your peer group configuration is confidential. Data is hosted in EU data centers with encryption at rest and in transit.' },
   { q: 'Which accounting standards and currencies do you support?', a: 'IFRS, US GAAP, and Swiss GAAP FER for accounting standards. For currencies, we support CHF, EUR, USD, GBP, INR, MXN, AUD, HKD, and more \u2014 using both point-in-time and period-average FX rates for accurate normalization.' },
   { q: 'How long does implementation take?', a: 'A typical onboarding takes 2 weeks: we configure your peer group, run historical extraction on past reports, validate accuracy with your team, and train users. You receive your first live briefing within 2 weeks of go-live.' },
 ]
@@ -397,8 +397,8 @@ const FAQS = [
 const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'Organization', name: 'BenchmarkSignal', url: 'https://benchmarksignal.predivo.ch', logo: 'https://benchmarksignal.predivo.ch/og-image.png', description: 'Fully automated competitive benchmarking platform for listed corporations. AI-powered KPI extraction from peer reports.', sameAs: [], parentOrganization: { '@type': 'Organization', name: 'Predivo GmbH', url: 'https://predivo.ch' } },
-    { '@type': 'SoftwareApplication', name: 'BenchmarkSignal', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: 'AI-powered competitive benchmarking: extract financial and ESG KPIs from peer PDF reports, normalize across currencies and standards, deliver board-ready briefings in 60 minutes.', offers: { '@type': 'Offer', priceCurrency: 'CHF', price: '0', availability: 'https://schema.org/OnlineOnly', description: 'Contact us for enterprise pricing' } },
+    { '@type': 'Organization', name: 'Valrano', url: 'https://valrano.com', logo: 'https://valrano.com/og-image.png', description: 'Fully automated competitive benchmarking platform for listed corporations. AI-powered KPI extraction from peer reports.', sameAs: [], parentOrganization: { '@type': 'Organization', name: 'Predivo GmbH', url: 'https://predivo.ch' } },
+    { '@type': 'SoftwareApplication', name: 'Valrano', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: 'AI-powered competitive benchmarking: extract financial and ESG KPIs from peer PDF reports, normalize across currencies and standards, deliver board-ready briefings in 60 minutes.', offers: { '@type': 'Offer', priceCurrency: 'CHF', price: '0', availability: 'https://schema.org/OnlineOnly', description: 'Contact us for enterprise pricing' } },
     { '@type': 'FAQPage', mainEntity: FAQS.map((faq) => ({ '@type': 'Question', name: faq.q, acceptedAnswer: { '@type': 'Answer', text: faq.a } })) },
   ],
 }
@@ -459,17 +459,17 @@ export default function LandingPage() {
   return (
     <>
       <Helmet>
-        <title>BenchmarkSignal &mdash; AI-Powered Competitive Benchmarking for Listed Corporations</title>
+        <title>Valrano &mdash; AI-Powered Competitive Benchmarking for Listed Corporations</title>
         <meta name="description" content="Replace 200 hours of manual analyst work with AI-powered peer benchmarking. Extract financial and ESG KPIs from competitor reports, normalize across currencies and standards, get board-ready briefings in 60 minutes." />
-        <meta property="og:title" content="BenchmarkSignal &mdash; AI-Powered Competitive Benchmarking" />
+        <meta property="og:title" content="Valrano &mdash; AI-Powered Competitive Benchmarking" />
         <meta property="og:description" content="Extract financial and ESG KPIs from competitor PDF reports, normalize across currencies and standards, deliver board-ready briefings in 60 minutes." />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://benchmarksignal.predivo.ch" />
-        <meta property="og:image" content="https://benchmarksignal.predivo.ch/og-image.png" />
+        <meta property="og:url" content="https://valrano.com" />
+        <meta property="og:image" content="https://valrano.com/og-image.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta name="twitter:card" content="summary_large_image" />
-        <link rel="canonical" href="https://benchmarksignal.predivo.ch" />
+        <link rel="canonical" href="https://valrano.com" />
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
 
@@ -479,7 +479,7 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="fixed top-0 z-50 w-full border-b border-[var(--color-border)]/50 bg-[var(--color-background)]/70 backdrop-blur-2xl backdrop-saturate-150" aria-label="Landing navigation">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link to="/" className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">BenchmarkSignal</Link>
+          <Link to="/" className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">Valrano</Link>
           <div className="hidden items-center gap-8 md:flex">
             <a href="#features" className="inline-flex min-h-[44px] items-center text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Features</a>
             <a href="#pricing" className="inline-flex min-h-[44px] items-center text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Pricing</a>
@@ -580,7 +580,7 @@ export default function LandingPage() {
             <div className="text-center">
               <SectionLabel>The Solution</SectionLabel>
               <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">From publication to board briefing in 60 minutes</h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">BenchmarkSignal monitors your peers across every exchange, automatically extracts KPIs from published reports, normalizes across currencies and accounting standards, and delivers AI-generated briefings &mdash; so your board gets answers, not raw data.</p>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Valrano monitors your peers across every exchange, automatically extracts KPIs from published reports, normalizes across currencies and accounting standards, and delivers AI-generated briefings &mdash; so your board gets answers, not raw data.</p>
             </div>
           </div>
         </section>
@@ -622,7 +622,7 @@ export default function LandingPage() {
             <div className="text-center">
               <SectionLabel>Enterprise Solution</SectionLabel>
               <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Tailored to your organization</h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Every deployment is configured for your peer group, KPI taxonomy, and reporting cadence. We work with your team to ensure BenchmarkSignal fits seamlessly into your existing workflows.</p>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Every deployment is configured for your peer group, KPI taxonomy, and reporting cadence. We work with your team to ensure Valrano fits seamlessly into your existing workflows.</p>
             </div>
             <div className="relative mt-14 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-card)] p-6 shadow-[0_0_60px_var(--color-accent)/6] sm:p-10">
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--color-accent)]/40 to-transparent" />
@@ -630,7 +630,7 @@ export default function LandingPage() {
                 {ENTERPRISE_INCLUDES.map((item, i) => <EnterpriseItem key={item.text} item={item} index={i} />)}
               </div>
               <div className="mt-10 flex flex-col items-center gap-4 border-t border-[var(--color-border)] pt-8 sm:flex-row sm:justify-center">
-                <a href="mailto:roger@predivo.ch?subject=BenchmarkSignal%20Demo%20Request" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-3.5 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/20 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/30">
+                <a href="mailto:roger@predivo.ch?subject=Valrano%20Demo%20Request" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-3.5 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/20 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/30">
                   <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', backgroundSize: '200% 100%', animation: 'landing-shimmer 1.5s infinite' }} />
                   <span className="relative">Schedule a Consultation</span>
                   <ArrowRight className="relative h-4 w-4" aria-hidden="true" />
@@ -660,9 +660,9 @@ export default function LandingPage() {
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--color-accent)/8%,transparent_60%)]" />
             <div className="relative">
               <h2 className="text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Stop building peer comparisons manually</h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg md:text-xl">Your team spends 3-5 days building peer comparisons that are outdated before the board meeting. BenchmarkSignal delivers them in 60 minutes, continuously, for less than a single Bloomberg seat.</p>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg md:text-xl">Your team spends 3-5 days building peer comparisons that are outdated before the board meeting. Valrano delivers them in 60 minutes, continuously, for less than a single Bloomberg seat.</p>
               <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-                <a href="mailto:roger@predivo.ch?subject=BenchmarkSignal%20Demo%20Request" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35">
+                <a href="mailto:roger@predivo.ch?subject=Valrano%20Demo%20Request" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35">
                   <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', backgroundSize: '200% 100%', animation: 'landing-shimmer 1.5s infinite' }} />
                   <span className="relative">Request a Demo</span>
                   <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
@@ -679,7 +679,7 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl px-6 py-16">
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <div className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">BenchmarkSignal</div>
+                <div className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">Valrano</div>
                 <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted-foreground)]">AI-powered competitive benchmarking for listed corporations. From publication to board briefing in 60 minutes.</p>
                 <div className="mt-4 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]"><Shield className="h-3.5 w-3.5" /><span>Swiss-hosted &middot; GDPR compliant</span></div>
               </div>
@@ -703,12 +703,12 @@ export default function LandingPage() {
                 <h4 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Access</h4>
                 <ul className="mt-4 space-y-3">
                   <li><Link to="/login" className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Sign in</Link></li>
-                  <li><a href="mailto:roger@predivo.ch?subject=BenchmarkSignal%20Demo%20Request" className="inline-flex items-center gap-1.5 text-sm text-[var(--color-accent)] transition-colors hover:text-[var(--color-accent)]/80"><Mail className="h-3.5 w-3.5" />Request Demo</a></li>
+                  <li><a href="mailto:roger@predivo.ch?subject=Valrano%20Demo%20Request" className="inline-flex items-center gap-1.5 text-sm text-[var(--color-accent)] transition-colors hover:text-[var(--color-accent)]/80"><Mail className="h-3.5 w-3.5" />Request Demo</a></li>
                 </ul>
               </div>
             </div>
             <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-[var(--color-border)] pt-8 sm:flex-row">
-              <p className="text-xs text-[var(--color-muted-foreground)]">&copy; {new Date().getFullYear()} BenchmarkSignal by Predivo GmbH. All rights reserved.</p>
+              <p className="text-xs text-[var(--color-muted-foreground)]">&copy; {new Date().getFullYear()} Valrano by Predivo GmbH. All rights reserved.</p>
               <p className="text-xs text-[var(--color-muted-foreground)]">Swiss-made &middot; Software that Thinks Ahead</p>
             </div>
           </div>

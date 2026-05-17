@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Blocks 1, 2, 4, 5
+-- Valrano — Blocks 1, 2, 4, 5
 -- Migration: 20260505000000_blocks_1_2_4_5
 -- Publication Calendar, Ingestion Pipeline, Approval Workflow, Notifications
 -- =============================================================================

@@ -10,9 +10,9 @@ vi.mock('react-router-dom', async () => {
 })
 
 describe('AppLayout', () => {
-  it('renders the BenchmarkSignal logo', () => {
+  it('renders the Valrano logo', () => {
     render(<AppLayout />)
-    expect(screen.getByText('BenchmarkSignal')).toBeInTheDocument()
+    expect(screen.getByText('Valrano')).toBeInTheDocument()
   })
 
   it('renders navigation links', () => {

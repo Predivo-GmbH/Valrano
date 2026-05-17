@@ -238,7 +238,7 @@ export function OnboardingWizard() {
       <div className="border-b border-border bg-[var(--color-background)]/80 backdrop-blur-xl">
         <div className="mx-auto max-w-[900px] px-4 py-4 sm:px-6 flex items-center justify-between">
           <span className="text-[15px] font-bold tracking-tight text-foreground">
-            BenchmarkSignal
+            Valrano
           </span>
           <button
             onClick={handleSkip}
@@ -1283,7 +1283,7 @@ function StepActivate({
         </div>
         <h2 className="text-[22px] font-semibold text-foreground">You're Ready!</h2>
         <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed max-w-md mx-auto">
-          Here's what BenchmarkSignal will do automatically:
+          Here's what Valrano will do automatically:
         </p>
       </div>
 

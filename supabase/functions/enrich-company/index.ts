@@ -81,7 +81,7 @@ async function queryWikidata(companyName: string, wikidataId?: string): Promise<
   try {
     const params = new URLSearchParams({ query: sparql, format: 'json' })
     const res = await fetch(`${WIKIDATA_SPARQL}?${params}`, {
-      headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'BenchmarkSignal/1.0' },
+      headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'Valrano/1.0' },
       signal: AbortSignal.timeout(8000),
     })
 
@@ -291,7 +291,7 @@ Rules:
     const inputTokens = json.usageMetadata?.promptTokenCount ?? 0
     const outputTokens = json.usageMetadata?.candidatesTokenCount ?? 0
 
-    await logAnthropicUsage('BenchmarkSignal', 'enrich-company', {
+    await logAnthropicUsage('Valrano', 'enrich-company', {
       model: GEMINI_MODEL,
       usage: { input_tokens: inputTokens, output_tokens: outputTokens },
     })

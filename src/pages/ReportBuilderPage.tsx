@@ -120,7 +120,7 @@ export function ReportBuilderPage() {
 
   return (
     <>
-      <Helmet><title>Reports - BenchmarkSignal</title></Helmet>
+      <Helmet><title>Reports - Valrano</title></Helmet>
       <div className="section-fade-in mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">

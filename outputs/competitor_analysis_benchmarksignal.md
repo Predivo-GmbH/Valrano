@@ -1,4 +1,4 @@
-# BenchmarkSignal -- Comprehensive Competitor Analysis
+# Valrano -- Comprehensive Competitor Analysis
 
 **Date:** 2026-05-04
 **Product:** Fully automated competitive benchmarking platform for listed corporations
@@ -16,14 +16,14 @@
 5. [Category 4: ESG/Sustainability Benchmarking](#5-category-4-esgsustainability-benchmarking)
 6. [Category 5: Consulting/Research Firms (Manual Competitors)](#6-category-5-consultingresearch-firms-manual-competitors)
 7. [Competitor Gap Matrix](#7-competitor-gap-matrix)
-8. [The Gap: BenchmarkSignal's Competitive Moat](#8-the-gap-benchmarksignals-competitive-moat)
+8. [The Gap: Valrano's Competitive Moat](#8-the-gap-valranos-competitive-moat)
 9. [Sources](#9-sources)
 
 ---
 
 ## 1. Executive Summary
 
-BenchmarkSignal enters a market with strong incumbents (Bloomberg, FactSet, S&P Capital IQ) that serve primarily buy-side investors, a rising wave of AI-powered tools (AlphaSense, Daloopa, Hebbia) optimized for hedge funds and equity research, and ESG-specific rating agencies (MSCI, Sustainalytics) that rate but do not benchmark operationally.
+Valrano enters a market with strong incumbents (Bloomberg, FactSet, S&P Capital IQ) that serve primarily buy-side investors, a rising wave of AI-powered tools (AlphaSense, Daloopa, Hebbia) optimized for hedge funds and equity research, and ESG-specific rating agencies (MSCI, Sustainalytics) that rate but do not benchmark operationally.
 
 **The critical finding:** No existing tool combines all four of the following for corporate users:
 1. Automated vision-LLM extraction from published PDF reports
@@ -31,7 +31,7 @@ BenchmarkSignal enters a market with strong incumbents (Bloomberg, FactSet, S&P 
 3. Integrated financial + ESG peer benchmarking
 4. Delivery within 60 minutes of peer publication
 
-Each category addresses 1-2 of these needs. None addresses all four. This is BenchmarkSignal's moat.
+Each category addresses 1-2 of these needs. None addresses all four. This is Valrano's moat.
 
 ---
 
@@ -228,7 +228,7 @@ Each category addresses 1-2 of these needs. None addresses all four. This is Ben
 | **What they do** | B2B content intelligence platform using AI to predict individual interests and deliver personalized content experiences. Acquired by Optimizely in April 2020 (NOT by D&B as sometimes reported). |
 | **Pricing** | N/A -- absorbed into Optimizely's product suite. |
 | **Target customer** | B2B enterprise marketers, not financial analysts. |
-| **Relevance to BenchmarkSignal** | **Minimal.** Idio is a content personalization tool, not a financial data or benchmarking platform. It was incorrectly categorized in some competitive intelligence lists. Not a competitor. |
+| **Relevance to Valrano** | **Minimal.** Idio is a content personalization tool, not a financial data or benchmarking platform. It was incorrectly categorized in some competitive intelligence lists. Not a competitor. |
 
 ---
 
@@ -471,9 +471,9 @@ Each category addresses 1-2 of these needs. None addresses all four. This is Ben
 
 ## 7. Competitor Gap Matrix
 
-The following matrix compares each competitor against the 13 features BenchmarkSignal will deliver. Ratings: **Y** = Yes (full capability), **P** = Partial, **N** = No.
+The following matrix compares each competitor against the 13 features Valrano will deliver. Ratings: **Y** = Yes (full capability), **P** = Partial, **N** = No.
 
-| Feature | Bloomberg | FactSet | S&P CapIQ | LSEG | Morningstar | AlphaSense | Visible Alpha | Daloopa | Hebbia | Koyfin | Brightwave | Fintool | Crayon | Klue | Contify | Kompyte | MSCI ESG | Sustainalytics | ISS ESG | CDP | Clarity AI | Arabesque | MBB Consulting | CW Group | **BenchmarkSignal** |
+| Feature | Bloomberg | FactSet | S&P CapIQ | LSEG | Morningstar | AlphaSense | Visible Alpha | Daloopa | Hebbia | Koyfin | Brightwave | Fintool | Crayon | Klue | Contify | Kompyte | MSCI ESG | Sustainalytics | ISS ESG | CDP | Clarity AI | Arabesque | MBB Consulting | CW Group | **Valrano** |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | **Automated PDF/report extraction** | N | N | N | N | N | P | N | Y* | Y | N | Y | Y* | N | N | N | N | N | N | N | N | N | N | N | N | **Y** |
 | **Multi-currency normalization** | Y | Y | Y | Y | Y | P | P | N | N | P | N | N | N | N | N | N | N | N | N | N | N | N | Y** | P | **Y** |
@@ -496,7 +496,7 @@ The following matrix compares each competitor against the 13 features BenchmarkS
 
 | Competitor | Features (out of 13) | Score (Y=1, P=0.5) |
 |---|---|---|
-| **BenchmarkSignal** | **13/13** | **13.0** |
+| **Valrano** | **13/13** | **13.0** |
 | AlphaSense | 4Y + 5P | 6.5 |
 | Fintool | 3Y + 4P | 5.0 |
 | Bloomberg | 2Y + 7P | 5.5 |
@@ -514,13 +514,13 @@ The following matrix compares each competitor against the 13 features BenchmarkS
 
 ---
 
-## 8. The Gap: BenchmarkSignal's Competitive Moat
+## 8. The Gap: Valrano's Competitive Moat
 
 ### What NO existing tool does today
 
 **There is no product on the market that provides a fully automated, end-to-end competitive benchmarking workflow for listed corporates that combines financial AND ESG KPI extraction from published reports, normalizes across currencies and accounting standards, and delivers actionable intelligence within 60 minutes of a peer's publication.**
 
-Specifically, BenchmarkSignal occupies a unique intersection that no competitor covers:
+Specifically, Valrano occupies a unique intersection that no competitor covers:
 
 ### Gap 1: Corporate Buyer, Not Investor Buyer
 
@@ -528,7 +528,7 @@ Every financial data platform (Bloomberg, FactSet, S&P Capital IQ, LSEG) was bui
 
 ### Gap 2: Vision-LLM Extraction from European/International Reports
 
-Daloopa and Fintool can extract from US SEC filings (10-K, 10-Q) because these follow standardized XBRL/EDGAR formats. But Holcim's peers publish Swiss GAAP, IFRS, and local accounting standard reports as **designed PDFs** -- annual reports with custom layouts, infographics, footnotes, and non-standard KPI presentations. No existing tool uses vision-LLMs to extract structured data from these heterogeneous report formats. This is BenchmarkSignal's core technical differentiator.
+Daloopa and Fintool can extract from US SEC filings (10-K, 10-Q) because these follow standardized XBRL/EDGAR formats. But Holcim's peers publish Swiss GAAP, IFRS, and local accounting standard reports as **designed PDFs** -- annual reports with custom layouts, infographics, footnotes, and non-standard KPI presentations. No existing tool uses vision-LLMs to extract structured data from these heterogeneous report formats. This is Valrano's core technical differentiator.
 
 ### Gap 3: Financial + ESG in One Workflow
 
@@ -538,7 +538,7 @@ Today, a corporate strategy team needs:
 - A consulting firm for operational benchmarking ($$$$, slow, point-in-time)
 - Manual work to normalize and combine all three
 
-BenchmarkSignal collapses these into a single automated workflow.
+Valrano collapses these into a single automated workflow.
 
 ### Gap 4: 60-Minute Time to Insight
 
@@ -547,19 +547,19 @@ When HeidelbergCement publishes its annual report at 7:00 AM CET, Holcim's strat
 - **Consulting firms:** Weeks to months (if they even commission analysis)
 - **Manual analysis:** 2-5 days (junior analyst reads PDF, builds Excel model)
 - **AlphaSense:** Hours (indexes the document but doesn't extract/normalize KPIs)
-- **BenchmarkSignal:** 60 minutes (vision-LLM extracts, normalizes, and delivers briefing)
+- **Valrano:** 60 minutes (vision-LLM extracts, normalizes, and delivers briefing)
 
 ### Gap 5: KPI Taxonomy Mapping
 
-No existing tool maps disparate KPI definitions across companies to a canonical taxonomy. "Adjusted EBITDA" means different things at Holcim, HeidelbergCement, CRH, and Buzzi Unicem. Each excludes different items. BenchmarkSignal's KPI taxonomy engine normalizes these to enable true apples-to-apples comparison -- a capability that currently requires a $500K+ consulting engagement.
+No existing tool maps disparate KPI definitions across companies to a canonical taxonomy. "Adjusted EBITDA" means different things at Holcim, HeidelbergCement, CRH, and Buzzi Unicem. Each excludes different items. Valrano's KPI taxonomy engine normalizes these to enable true apples-to-apples comparison -- a capability that currently requires a $500K+ consulting engagement.
 
 ### Gap 6: Mid-Cap Accessibility
 
-Bloomberg ($24K/seat), FactSet ($12K-50K/seat), and AlphaSense ($10K-20K/seat) are priced for hedge funds managing billions. A mid-cap corporate with 3-5 strategy team members cannot justify $100K+ for financial data terminals. BenchmarkSignal can offer purpose-built peer benchmarking at a fraction of terminal pricing because it doesn't need to bundle trading data, real-time quotes, or portfolio analytics.
+Bloomberg ($24K/seat), FactSet ($12K-50K/seat), and AlphaSense ($10K-20K/seat) are priced for hedge funds managing billions. A mid-cap corporate with 3-5 strategy team members cannot justify $100K+ for financial data terminals. Valrano can offer purpose-built peer benchmarking at a fraction of terminal pricing because it doesn't need to bundle trading data, real-time quotes, or portfolio analytics.
 
 ### The Moat in One Sentence
 
-> **BenchmarkSignal is the only product that automatically extracts financial and ESG KPIs from heterogeneous international PDF reports using vision-LLMs, normalizes across currencies and accounting standards, and delivers AI-powered peer benchmarking briefings to corporate strategy teams within 60 minutes of publication -- at a price point accessible to mid-cap companies, not just hedge funds.**
+> **Valrano is the only product that automatically extracts financial and ESG KPIs from heterogeneous international PDF reports using vision-LLMs, normalizes across currencies and accounting standards, and delivers AI-powered peer benchmarking briefings to corporate strategy teams within 60 minutes of publication -- at a price point accessible to mid-cap companies, not just hedge funds.**
 
 ---
 

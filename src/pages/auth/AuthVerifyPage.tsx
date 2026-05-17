@@ -38,7 +38,7 @@ export default function AuthVerifyPage() {
   if (error) {
     return (
       <div className="flex h-screen items-center justify-center bg-[var(--color-background)] px-4">
-        <Helmet><title>Verification Failed - BenchmarkSignal</title><meta name="robots" content="noindex, nofollow" /></Helmet>
+        <Helmet><title>Verification Failed - Valrano</title><meta name="robots" content="noindex, nofollow" /></Helmet>
         <div className="mx-auto max-w-sm text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--color-destructive)]/10">
             <svg className="h-6 w-6 text-[var(--color-destructive)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -57,7 +57,7 @@ export default function AuthVerifyPage() {
 
   return (
     <div className="flex h-screen items-center justify-center bg-[var(--color-background)]">
-      <Helmet><title>Verifying... - BenchmarkSignal</title><meta name="robots" content="noindex, nofollow" /></Helmet>
+      <Helmet><title>Verifying... - Valrano</title><meta name="robots" content="noindex, nofollow" /></Helmet>
       <div className="text-center" role="status" aria-live="polite">
         <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent" />
         <p className="mt-4 text-sm text-[var(--color-muted-foreground)]">Verifying your code...</p>

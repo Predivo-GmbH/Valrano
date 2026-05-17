@@ -1,4 +1,4 @@
-# BenchmarkSignal — Product Vision & Roadmap
+# Valrano — Product Vision & Roadmap
 
 > Created: 2026-05-07
 > Status: APPROVED DIRECTION — ready for implementation
@@ -7,7 +7,7 @@
 
 ## 1. Core Value Proposition
 
-BenchmarkSignal automatically monitors competitor report publications, downloads and analyzes them using AI, normalizes all data to the user's own accounting framework, and delivers a board-ready comparison document — replacing weeks of manual cross-departmental work.
+Valrano automatically monitors competitor report publications, downloads and analyzes them using AI, normalizes all data to the user's own accounting framework, and delivers a board-ready comparison document — replacing weeks of manual cross-departmental work.
 
 **The core loop:**
 
@@ -343,7 +343,7 @@ This is the HEART of the dashboard — it shows what's coming and what needs att
    - Peers → company details + KPI values
 3. Build system prompt:
    ```
-   You are a financial analyst assistant for BenchmarkSignal.
+   You are a financial analyst assistant for Valrano.
    The user's company uses {accounting_standard} with these policies: {policies}.
    You have access to KPI data for {N} peer companies across {M} KPIs.
    Always cite sources (report title, page number) when referencing data.
@@ -590,7 +590,7 @@ Today, a typical benchmarking cycle at a mid-size company looks like:
 
 **Total: 2-4 weeks of cross-departmental work per quarterly cycle.**
 
-BenchmarkSignal reduces this to: upload your report once → system handles everything → review and approve the generated document.
+Valrano reduces this to: upload your report once → system handles everything → review and approve the generated document.
 
 ---
 

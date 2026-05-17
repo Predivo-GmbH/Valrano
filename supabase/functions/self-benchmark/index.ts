@@ -190,7 +190,7 @@ Be specific with numbers. Use professional financial language. Do not use bullet
 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json()
-          await logAnthropicUsage('BenchmarkSignal', 'self-benchmark', aiData)
+          await logAnthropicUsage('Valrano', 'self-benchmark', aiData)
           aiNarrative = aiData.content?.[0]?.text ?? ''
         }
       } catch (aiErr) {

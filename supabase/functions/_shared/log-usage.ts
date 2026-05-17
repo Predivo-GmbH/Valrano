@@ -8,7 +8,7 @@
  *   logAnthropicUsage('BackOffice', 'process-bill', json)
  *
  * Usage (streaming — pass tokens manually):
- *   logAnthropicUsage('BenchmarkSignal', 'ai-chat', { model: 'claude-sonnet-4-6', usage: { input_tokens: 500, output_tokens: 200 } })
+ *   logAnthropicUsage('Valrano', 'ai-chat', { model: 'claude-sonnet-4-6', usage: { input_tokens: 500, output_tokens: 200 } })
  */
 
 // Per-million-token pricing (USD) — update when pricing changes

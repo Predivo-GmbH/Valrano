@@ -1,10 +1,10 @@
-# Product Brief: BenchmarkSignal
+# Product Brief: Valrano
 
 **Date:** 2026-05-04
 **Phase:** 2 (Product Brief)
 **Owner:** Predivo GmbH
 **Based on:** Phase 1 Idea Validation (2026-05-04) + PRD v3 Full Scope
-**Founder decisions:** Full BenchmarkSignal (not Lite), B2B SaaS for listed corporations
+**Founder decisions:** Full Valrano (not Lite), B2B SaaS for listed corporations
 
 ---
 
@@ -14,17 +14,17 @@ Three options, evaluated against domain availability, value clarity, and brand c
 
 | Option | Domain | Conveys Value? | Signal Family Fit | Notes |
 |--------|--------|---------------|-------------------|-------|
-| **BenchmarkSignal** | benchmarksignal.com | Yes -- "benchmark" is the exact verb the buyer uses. "Signal" implies actionable intelligence, not raw data. | Strong -- follows the [Noun]Signal pattern. | Working title. Two-word compound is clear but long. |
-| **PeerSignal** | peersignal.com | Yes -- "peer" is the word corporate strategy teams use daily ("peer group", "peer comparison"). Slightly more specific than BenchmarkSignal. | Strong -- same pattern. | Shorter, punchier. Risk: could be confused with P2P/social. |
+| **Valrano** | valrano.com | Yes -- "benchmark" is the exact verb the buyer uses. "Signal" implies actionable intelligence, not raw data. | Strong -- follows the [Noun]Signal pattern. | Working title. Two-word compound is clear but long. |
+| **PeerSignal** | peersignal.com | Yes -- "peer" is the word corporate strategy teams use daily ("peer group", "peer comparison"). Slightly more specific than Valrano. | Strong -- same pattern. | Shorter, punchier. Risk: could be confused with P2P/social. |
 | **BenchSignal** | benchsignal.com | Moderate -- "bench" alone is ambiguous (bench as in workbench? benchmark?). Requires explanation. | Strong -- same pattern. | Shortest. Less immediately clear to a cold prospect. |
 
-**Recommendation for Roger's decision:** BenchmarkSignal or PeerSignal. Both work. BenchmarkSignal is more self-explanatory to a CFO who has never heard of the product. PeerSignal is more distinctive and memorable. Domain availability for all three should be verified before final decision.
+**Recommendation for Roger's decision:** Valrano or PeerSignal. Both work. Valrano is more self-explanatory to a CFO who has never heard of the product. PeerSignal is more distinctive and memorable. Domain availability for all three should be verified before final decision.
 
 ---
 
 ## 2. One-Line Description
 
-> BenchmarkSignal automatically extracts financial and ESG KPIs from competitor PDF reports, normalizes them across currencies and accounting standards, and delivers AI-powered peer benchmarking to corporate strategy teams within 60 minutes of any publication.
+> Valrano automatically extracts financial and ESG KPIs from competitor PDF reports, normalizes them across currencies and accounting standards, and delivers AI-powered peer benchmarking to corporate strategy teams within 60 minutes of any publication.
 
 ---
 
@@ -178,7 +178,7 @@ Everything below is out of scope for MVP (Phase 1 release). Each item is either 
 
 | Feature | Why |
 |---------|-----|
-| Real-time stock price data | BenchmarkSignal is about published report KPIs, not market data. Bloomberg/Refinitiv own this. |
+| Real-time stock price data | Valrano is about published report KPIs, not market data. Bloomberg/Refinitiv own this. |
 | ERP system integration | Out of scope per PRD. |
 | Non-public / proprietary data ingestion | Public sources only. Compliance requirement. |
 | In-house manual research team | Product is fully automated. Human-in-the-loop is for QA, not research. |

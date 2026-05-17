@@ -79,6 +79,6 @@ describe('LandingPage', () => {
     renderLanding()
     // Helmet manages head — we verify the script tag data is passed correctly
     // by checking the component renders without error (JSON-LD is in Helmet)
-    expect(screen.getAllByText('BenchmarkSignal').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Valrano').length).toBeGreaterThanOrEqual(1)
   })
 })

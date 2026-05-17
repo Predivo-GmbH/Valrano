@@ -1,5 +1,5 @@
 /**
- * stripe-webhook — Handles Stripe webhook events for BenchmarkSignal.
+ * stripe-webhook — Handles Stripe webhook events for Valrano.
  * Syncs subscription state to the `subscriptions` table.
  *
  * Events: checkout.session.completed, customer.subscription.updated,

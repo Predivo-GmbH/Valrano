@@ -1,8 +1,8 @@
-# BenchmarkSignal — Product & UX Restructure Plan
+# Valrano — Product & UX Restructure Plan
 
 **Date:** 2026-05-05
 **Context:** Based on 103 findings from 8-domain UI/UX audit
-**Core principle:** BenchmarkSignal automatically tracks what competitors publish, extracts the numbers, and lets you compare them against your own.
+**Core principle:** Valrano automatically tracks what competitors publish, extracts the numbers, and lets you compare them against your own.
 
 ---
 
@@ -13,7 +13,7 @@ The product does one thing: **automatically track what competitors publish, extr
 Everything else -- reports, analytics, trends -- is downstream of this automated data gathering.
 
 The user's daily experience should be:
-> "I open BenchmarkSignal. I see how I compare against my competitors. If something changed overnight, I see it immediately. If I need a board presentation, I generate one from the data that's already there."
+> "I open Valrano. I see how I compare against my competitors. If something changed overnight, I see it immediately. If I need a board presentation, I generate one from the data that's already there."
 
 ---
 
@@ -47,7 +47,7 @@ The user's daily experience should be:
 
 ```
 +-----------------------------------------------------------+
-| BenchmarkSignal    Dashboard  Peers  Analytics  Reports   | bell gear avatar
+| Valrano    Dashboard  Peers  Analytics  Reports   | bell gear avatar
 +-----------------------------------------------------------+
 ```
 

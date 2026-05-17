@@ -165,7 +165,7 @@ Be specific, use actual numbers from the data, and provide actionable insights.`
 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json()
-          await logAnthropicUsage('BenchmarkSignal', 'generate-report', aiData)
+          await logAnthropicUsage('Valrano', 'generate-report', aiData)
           const rawText = aiData.content?.[0]?.text ?? ''
 
           // Parse JSON from response

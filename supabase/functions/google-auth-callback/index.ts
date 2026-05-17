@@ -21,7 +21,7 @@ serve(async (req: Request) => {
     const state = url.searchParams.get('state') // JWT token
     const error = url.searchParams.get('error')
 
-    const frontendUrl = Deno.env.get('FRONTEND_URL') ?? 'https://benchmarksignal.predivo.ch'
+    const frontendUrl = Deno.env.get('FRONTEND_URL') ?? 'https://valrano.com'
 
     if (error) {
       return Response.redirect(
@@ -114,7 +114,7 @@ serve(async (req: Request) => {
     )
   } catch (err) {
     console.error('Google auth callback error:', err)
-    const frontendUrl = Deno.env.get('FRONTEND_URL') ?? 'https://benchmarksignal.predivo.ch'
+    const frontendUrl = Deno.env.get('FRONTEND_URL') ?? 'https://valrano.com'
     return Response.redirect(
       `${frontendUrl}/settings?tab=templates&google_error=unexpected`,
       302,

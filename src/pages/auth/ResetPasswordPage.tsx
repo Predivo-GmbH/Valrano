@@ -50,7 +50,7 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthLayout>
-      <Helmet><title>Reset Password - BenchmarkSignal</title><meta name="robots" content="noindex, nofollow" /></Helmet>
+      <Helmet><title>Reset Password - Valrano</title><meta name="robots" content="noindex, nofollow" /></Helmet>
 
       {success ? (
         <div className="text-center">

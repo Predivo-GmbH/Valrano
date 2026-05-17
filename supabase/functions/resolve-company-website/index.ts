@@ -50,7 +50,7 @@ async function verifyCompanyNameOnPage(domain: string, companyName: string): Pro
       method: 'GET',
       redirect: 'follow',
       signal: AbortSignal.timeout(8000),
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BenchmarkSignal/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Valrano/1.0)' },
     })
     if (!resp.ok) return false
 
@@ -174,7 +174,7 @@ The correct answer is the domain where you'd find annual reports and investor re
     if (!resp.ok) return null
 
     const json = await resp.json()
-    await logAnthropicUsage('BenchmarkSignal', 'resolve-company-website', json)
+    await logAnthropicUsage('Valrano', 'resolve-company-website', json)
 
     const toolBlock = json.content?.find((b: { type: string }) => b.type === 'tool_use')
     if (!toolBlock?.input?.correct_domain) return null

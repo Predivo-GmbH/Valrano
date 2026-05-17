@@ -503,7 +503,7 @@ export function CompanyProfilePage() {
     return (
       <>
         <Helmet>
-          <title>Company Not Found - BenchmarkSignal</title>
+          <title>Company Not Found - Valrano</title>
         </Helmet>
         <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
           <Link
@@ -527,7 +527,7 @@ export function CompanyProfilePage() {
   return (
     <>
       <Helmet>
-        <title>{company.name} - BenchmarkSignal</title>
+        <title>{company.name} - Valrano</title>
       </Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Back link */}

@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Seed FX Rates (2024 + 2025)
+-- Valrano — Seed FX Rates (2024 + 2025)
 -- Migration: 20260504100001_seed_fx_rates
 -- Base currency: CHF (SNB approximate annual averages)
 -- =============================================================================

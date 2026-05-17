@@ -157,7 +157,7 @@ async function classifyArticles(
       }
 
       const data = await resp.json()
-      await logAnthropicUsage('BenchmarkSignal', 'fetch-company-news', data)
+      await logAnthropicUsage('Valrano', 'fetch-company-news', data)
       const text = data.content?.[0]?.text ?? '[]'
       // Extract JSON from potential markdown code block
       const jsonStr = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim()
@@ -255,7 +255,7 @@ async function fetchFromIrPage(
     if (!extractResp.ok) return 0
 
     const geminiJson = await extractResp.json()
-    await logAnthropicUsage('BenchmarkSignal', 'fetch-company-news-ir', {
+    await logAnthropicUsage('Valrano', 'fetch-company-news-ir', {
       model: 'gemini-2.5-flash',
       usage: {
         input_tokens: geminiJson.usageMetadata?.promptTokenCount ?? 0,
@@ -349,7 +349,7 @@ async function fetchFromSource(
       return 0
     }
     const resp = await fetch(source.source_url, {
-      headers: { 'User-Agent': 'BenchmarkSignal/1.0 (news aggregator)' },
+      headers: { 'User-Agent': 'Valrano/1.0 (news aggregator)' },
       signal: AbortSignal.timeout(15000),
     })
     if (!resp.ok) {

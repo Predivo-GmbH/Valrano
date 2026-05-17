@@ -24,7 +24,7 @@ function getSmtpConfig(): SmtpConfig {
   const port = Deno.env.get('SMTP_PORT')
   const user = Deno.env.get('SMTP_USER')
   const pass = Deno.env.get('SMTP_PASS')
-  const from = Deno.env.get('SMTP_FROM') ?? 'noreply@benchmarksignal.predivo.ch'
+  const from = Deno.env.get('SMTP_FROM') ?? 'noreply@valrano.com'
 
   if (!host || !port || !user || !pass) {
     throw new Error('Missing SMTP configuration (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)')
@@ -78,7 +78,7 @@ serve(async (req: Request) => {
 
     switch (notification_type) {
       case 'approval_required':
-        subject = `[BenchmarkSignal] Review Required: ${doc.title}`
+        subject = `[Valrano] Review Required: ${doc.title}`
         bodyHtml = buildEmailHtml({
           heading: 'Document Awaiting Your Review',
           body: `A new benchmark document requires your approval.`,
@@ -88,13 +88,13 @@ serve(async (req: Request) => {
             `Fiscal Year: ${doc.fiscal_year}`,
           ],
           ctaText: 'Review Document',
-          ctaUrl: `https://benchmarksignal.predivo.ch/documents/${document_id}`,
+          ctaUrl: `https://valrano.com/documents/${document_id}`,
           recipientName: recipient_name,
         })
         break
 
       case 'document_approved':
-        subject = `[BenchmarkSignal] Document Approved: ${doc.title}`
+        subject = `[Valrano] Document Approved: ${doc.title}`
         bodyHtml = buildEmailHtml({
           heading: 'Document Approved',
           body: `Your benchmark document has been fully approved and is ready for delivery.`,
@@ -103,13 +103,13 @@ serve(async (req: Request) => {
             `Company: ${companyName}`,
           ],
           ctaText: 'View Document',
-          ctaUrl: `https://benchmarksignal.predivo.ch/documents/${document_id}`,
+          ctaUrl: `https://valrano.com/documents/${document_id}`,
           recipientName: recipient_name,
         })
         break
 
       case 'changes_requested':
-        subject = `[BenchmarkSignal] Changes Requested: ${doc.title}`
+        subject = `[Valrano] Changes Requested: ${doc.title}`
         bodyHtml = buildEmailHtml({
           heading: 'Changes Requested',
           body: `A reviewer has requested changes on the benchmark document.`,
@@ -118,7 +118,7 @@ serve(async (req: Request) => {
             `Company: ${companyName}`,
           ],
           ctaText: 'View Feedback',
-          ctaUrl: `https://benchmarksignal.predivo.ch/documents/${document_id}`,
+          ctaUrl: `https://valrano.com/documents/${document_id}`,
           recipientName: recipient_name,
         })
         break
@@ -148,7 +148,7 @@ serve(async (req: Request) => {
 
     // SMTP handshake
     await readResponse() // greeting
-    await sendLine(`EHLO benchmarksignal.predivo.ch`)
+    await sendLine(`EHLO valrano.com`)
     await readResponse()
 
     // AUTH LOGIN
@@ -170,7 +170,7 @@ serve(async (req: Request) => {
     await readResponse()
 
     const message = [
-      `From: BenchmarkSignal <${smtp.from}>`,
+      `From: Valrano <${smtp.from}>`,
       `To: ${recipient_name ? `${recipient_name} <${recipient_email}>` : recipient_email}`,
       `Subject: ${subject}`,
       `MIME-Version: 1.0`,
@@ -223,7 +223,7 @@ function buildEmailHtml(opts: {
     </div>
   </div>
   <div style="padding:16px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center">
-    <span style="font-size:11px;color:#94a3b8">BenchmarkSignal by Predivo GmbH</span>
+    <span style="font-size:11px;color:#94a3b8">Valrano by Predivo GmbH</span>
   </div>
 </div>
 </body>

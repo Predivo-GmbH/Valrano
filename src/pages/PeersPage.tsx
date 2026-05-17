@@ -1024,7 +1024,7 @@ export function PeersPage() {
 
   return (
     <>
-      <Helmet><title>Peers - BenchmarkSignal</title></Helmet>
+      <Helmet><title>Peers - Valrano</title></Helmet>
       <div className="section-fade-in mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Page header */}
         <div className="mb-6">

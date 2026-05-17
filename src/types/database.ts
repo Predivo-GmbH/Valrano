@@ -1,5 +1,5 @@
 // =============================================================================
-// BenchmarkSignal — Database Types
+// Valrano — Database Types
 // Manual types matching the initial schema migration.
 // Supabase codegen will replace this file once the project is wired up.
 // =============================================================================

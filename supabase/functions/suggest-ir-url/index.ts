@@ -260,7 +260,7 @@ If no sitemap, construct the most likely URL based on common patterns (confidenc
     const inputTokens = geminiJson.usageMetadata?.promptTokenCount ?? 0
     const outputTokens = geminiJson.usageMetadata?.candidatesTokenCount ?? 0
 
-    await logAnthropicUsage('BenchmarkSignal', 'suggest-ir-url', {
+    await logAnthropicUsage('Valrano', 'suggest-ir-url', {
       model: GEMINI_MODEL,
       usage: { input_tokens: inputTokens, output_tokens: outputTokens },
     })

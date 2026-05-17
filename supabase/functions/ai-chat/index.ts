@@ -182,7 +182,7 @@ serve(async (req: Request) => {
 
     const hasKpis = contextData.includes('Latest KPI Data')
 
-    const systemPrompt = `You are a financial analyst assistant embedded in BenchmarkSignal, a competitive benchmarking platform for the cement and building materials industry.
+    const systemPrompt = `You are a financial analyst assistant embedded in Valrano, a competitive benchmarking platform for the cement and building materials industry.
 
 ${profile ? `The user's company is "${profile.company_name}" using ${profile.accounting_standard} accounting standard.` : 'The user has not yet set up their accounting profile.'}
 
@@ -201,7 +201,7 @@ ${!hasKpis ? `\nNote: No KPI data is available yet for this user. If they ask ab
 
 ## Strict Rules — You MUST Follow These
 - NEVER mention or reference a "Help Center", "Support Center", "knowledge base", or "documentation portal" — these do not exist
-- NEVER tell users to "contact BenchmarkSignal support" or "reach out to our team" — there is no support team
+- NEVER tell users to "contact Valrano support" or "reach out to our team" — there is no support team
 - NEVER invent, assume, or hallucinate features, pages, or resources that are not explicitly listed here
 - If you don't know something about the app, say "I'm not sure about that specific feature" — do NOT guess
 - You are ONLY a financial analysis assistant — if asked about account setup, app navigation, or non-financial topics, be straightforward: "I'm here to help with financial analysis and benchmarking. I can't help with that."
@@ -315,7 +315,7 @@ ${!hasKpis ? `\nNote: No KPI data is available yet for this user. If they ask ab
             citations: [],
           })
 
-          await logAnthropicUsage('BenchmarkSignal', 'ai-chat', {
+          await logAnthropicUsage('Valrano', 'ai-chat', {
             model: streamModel,
             usage: { input_tokens: streamInputTokens, output_tokens: streamOutputTokens },
           })

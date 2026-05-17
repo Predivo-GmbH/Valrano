@@ -1,4 +1,4 @@
-# BenchmarkSignal — Design Brief
+# Valrano — Design Brief
 
 **Date:** 2026-05-04
 **Phase:** 3 Step 0.1 (DEFINE)
@@ -9,7 +9,7 @@
 
 ## 1. Product Context
 
-BenchmarkSignal is a fully automated competitive benchmarking platform for listed corporations. It uses vision-LLMs to extract financial and ESG KPIs from competitor PDF reports, normalizes them across currencies and accounting standards, and delivers AI-powered peer comparison within 60 minutes of any publication.
+Valrano is a fully automated competitive benchmarking platform for listed corporations. It uses vision-LLMs to extract financial and ESG KPIs from competitor PDF reports, normalizes them across currencies and accounting standards, and delivers AI-powered peer comparison within 60 minutes of any publication.
 
 **Target persona:** Head of Group Strategy / Group Controlling at large listed companies (pilot: Holcim Ltd, building materials). Budget authority CHF 50-100K/year. Currently spending 22-44 hours per quarter manually collecting, re-keying, and reconciling competitor data in Excel.
 
@@ -23,11 +23,11 @@ BenchmarkSignal is a fully automated competitive benchmarking platform for liste
 
 ### Raw Firecrawl Data (saved to `docs/references/brand-scrape-linear-app.json`)
 
-| Property | Linear Value | BenchmarkSignal Adaptation |
+| Property | Linear Value | Valrano Adaptation |
 |----------|-------------|---------------------------|
 | **Color scheme** | Dark (#08090A background) | Dark mode primary. Light mode as toggle. |
 | **Primary text** | #D0D6E0 (soft gray) | Adopt for dark mode body text |
-| **Accent** | #5E6AD2 (indigo-purple) | Adapt: financial blue or signal green for BenchmarkSignal identity |
+| **Accent** | #5E6AD2 (indigo-purple) | Adapt: financial blue or signal green for Valrano identity |
 | **Secondary** | #E4F222 (lime) | Do NOT adopt — too playful for enterprise finance |
 | **Font heading** | SF Pro Display / Inter | Use Inter only (free, cross-platform) |
 | **Font body** | Inter | Confirmed |
@@ -54,11 +54,11 @@ BenchmarkSignal is a fully automated competitive benchmarking platform for liste
 ### What NOT to Borrow
 - Lime/yellow accent (#E4F222) — too casual for enterprise finance
 - 2px border radius on cards — too sharp, feels dev-tool-ish for CFO audience
-- Product management vocabulary — BenchmarkSignal speaks finance, not software
+- Product management vocabulary — Valrano speaks finance, not software
 
 ---
 
-## 3. BenchmarkSignal Color System
+## 3. Valrano Color System
 
 ### Dark Mode (Primary)
 | Token | Hex | Usage |
@@ -152,7 +152,7 @@ BenchmarkSignal is a fully automated competitive benchmarking platform for liste
 
 ## 7. Anti-Slop Rules
 
-These patterns are BANNED from BenchmarkSignal:
+These patterns are BANNED from Valrano:
 
 1. **No gradients on backgrounds** — solid colors only (Linear-inspired)
 2. **No rounded-full avatars everywhere** — use squares or subtle rounds

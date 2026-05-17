@@ -1,4 +1,4 @@
-# BenchmarkSignal
+# Valrano
 
 ## Stack
 - React 19 + TypeScript + Vite 8, Tailwind 4 + shadcn/ui, TanStack Query v5
@@ -98,7 +98,7 @@ supabase functions deploy <function-name> --no-verify-jwt
 
 ## Deployment (Metanet FTP)
 
-- **Target:** `benchmarksignal.predivo.ch`
+- **Target:** `valrano.com`
 - **CI/CD:** GitHub Actions → lint → typecheck → test → build → FTP deploy
 - **Strategy:** Zero-downtime (assets first → index.html → cleanup stale)
 - **FTP credentials:** Stored as GitHub Secrets (`FTP_HOST`, `FTP_USER`, `FTP_PASS`)

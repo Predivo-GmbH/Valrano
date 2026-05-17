@@ -1,4 +1,4 @@
-# BenchmarkSignal -- Offer Design & Pricing Strategy
+# Valrano -- Offer Design & Pricing Strategy
 
 **Date:** 2026-05-04
 **Product:** Fully automated competitive benchmarking platform for listed corporations
@@ -87,7 +87,7 @@ All prices are annual contracts only. No monthly option. Enterprise SaaS standar
 - Mobile native app (PWA available)
 - Multi-vertical (single industry peer group)
 
-**Why CHF 58,800:** The anchor price. Below a 2-seat Bloomberg setup (2 x USD 28,320 = USD 56,640) that still requires manual synthesis. Below AlphaSense large enterprise deals (USD 50K--100K+) that provide search but not extraction or normalization. A fraction of a single McKinsey benchmarking engagement (USD 300K--800K) that delivers a point-in-time snapshot, not continuous monitoring. At CHF 58,800, BenchmarkSignal pays for itself if it saves one strategy analyst 150 hours/year -- which it does (the research shows 22--44 hours per benchmarking cycle, 4+ cycles per year = 88--176 hours).
+**Why CHF 58,800:** The anchor price. Below a 2-seat Bloomberg setup (2 x USD 28,320 = USD 56,640) that still requires manual synthesis. Below AlphaSense large enterprise deals (USD 50K--100K+) that provide search but not extraction or normalization. A fraction of a single McKinsey benchmarking engagement (USD 300K--800K) that delivers a point-in-time snapshot, not continuous monitoring. At CHF 58,800, Valrano pays for itself if it saves one strategy analyst 150 hours/year -- which it does (the research shows 22--44 hours per benchmarking cycle, 4+ cycles per year = 88--176 hours).
 
 ---
 
@@ -150,16 +150,16 @@ All prices are annual contracts only. No monthly option. Enterprise SaaS standar
 ### Supporting Variants (for different buyer personas):
 
 **For the CFO (cost-focused):**
-> "Your team spends 3--5 days building peer comparisons that are outdated before the board meeting. BenchmarkSignal delivers them in 60 minutes, continuously, for less than a single Bloomberg seat."
+> "Your team spends 3--5 days building peer comparisons that are outdated before the board meeting. Valrano delivers them in 60 minutes, continuously, for less than a single Bloomberg seat."
 
 **For the Head of Strategy (speed-focused):**
 > "When Heidelberg publishes at 7 AM, your board-ready briefing is in your inbox by 8 AM -- with normalized KPIs, ESG trajectory, and competitive signals extracted by AI, not a junior analyst."
 
 **For the Group Controller (accuracy-focused):**
-> "No more 'which EBITDA definition did they use?' -- BenchmarkSignal maps Recurring EBIT, RCO, Adjusted EBITDA, and every peer's custom KPIs to a canonical taxonomy so you compare apples to apples, not apples to cement."
+> "No more 'which EBITDA definition did they use?' -- Valrano maps Recurring EBIT, RCO, Adjusted EBITDA, and every peer's custom KPIs to a canonical taxonomy so you compare apples to apples, not apples to cement."
 
 **For the IRO (frequency-focused):**
-> "Every earnings season, you scramble to benchmark 15 peers in 5 currencies under 3 accounting standards. BenchmarkSignal does it automatically, every quarter, with full audit trail back to the source PDF."
+> "Every earnings season, you scramble to benchmark 15 peers in 5 currencies under 3 accounting standards. Valrano does it automatically, every quarter, with full audit trail back to the source PDF."
 
 ---
 
@@ -176,11 +176,11 @@ All prices are annual contracts only. No monthly option. Enterprise SaaS standar
 - Combine financial AND ESG KPIs in a single workflow
 - Provide corporate-first workflows (earnings prep, board packages, ESG trajectory)
 
-Bloomberg scores 5.5/13 on our feature gap matrix. BenchmarkSignal scores 13/13.
+Bloomberg scores 5.5/13 on our feature gap matrix. Valrano scores 13/13.
 
-**Proof point:** "Bloomberg provides your analysts with data. BenchmarkSignal provides your board with answers. Today, your strategy team downloads PDFs from IR pages, opens Bloomberg for market data, pulls ESG from a third source, and spends 3 days in Excel normalizing everything. BenchmarkSignal replaces that entire workflow. It does not replace Bloomberg for trading or portfolio management -- it replaces the 200 hours/year your team spends turning Bloomberg data into peer comparisons."
+**Proof point:** "Bloomberg provides your analysts with data. Valrano provides your board with answers. Today, your strategy team downloads PDFs from IR pages, opens Bloomberg for market data, pulls ESG from a third source, and spends 3 days in Excel normalizing everything. Valrano replaces that entire workflow. It does not replace Bloomberg for trading or portfolio management -- it replaces the 200 hours/year your team spends turning Bloomberg data into peer comparisons."
 
-**Positioning:** BenchmarkSignal is not a Bloomberg replacement. It is a Bloomberg complement that eliminates the manual synthesis Bloomberg cannot do.
+**Positioning:** Valrano is not a Bloomberg replacement. It is a Bloomberg complement that eliminates the manual synthesis Bloomberg cannot do.
 
 ---
 
@@ -188,7 +188,7 @@ Bloomberg scores 5.5/13 on our feature gap matrix. BenchmarkSignal scores 13/13.
 
 **The objection:** "AI makes things up. We can't trust AI-extracted numbers for board-level reporting."
 
-**Why it's wrong:** BenchmarkSignal uses a multi-layer accuracy architecture specifically designed for financial-grade extraction:
+**Why it's wrong:** Valrano uses a multi-layer accuracy architecture specifically designed for financial-grade extraction:
 
 1. **Vision-LLM extraction with structured schemas:** Not free-text generation. The AI extracts into predefined KPI schemas with strict type constraints (currency, unit, period, accounting standard).
 2. **Multi-model voting:** Every critical KPI is extracted by 2+ models independently. Disagreements are flagged for human review.
@@ -198,7 +198,7 @@ Bloomberg scores 5.5/13 on our feature gap matrix. BenchmarkSignal scores 13/13.
 
 **Proof point:** "We target 98% accuracy on core financial KPIs, validated against 5 historical annual reports from Holcim, Heidelberg, CRH, Vicat, and Buzzi during our proof-of-concept phase. For comparison, Daloopa (a US-only extraction tool) claims >99% accuracy on SEC filings. Our challenge is harder -- European designed PDFs under IFRS -- but the same vision-LLM technology that achieves >99% on structured US filings achieves 95%+ on European reports, improving with each report processed. And every value has a source link -- your team never presents a number they can't trace to the original document."
 
-**Positioning:** BenchmarkSignal is more auditable than your current manual process, where a junior analyst's Excel formula is the audit trail.
+**Positioning:** Valrano is more auditable than your current manual process, where a junior analyst's Excel formula is the audit trail.
 
 ---
 
@@ -206,17 +206,17 @@ Bloomberg scores 5.5/13 on our feature gap matrix. BenchmarkSignal scores 13/13.
 
 **The objection:** "We can't feed our competitive data into a third-party AI platform. Our compliance team will never approve it."
 
-**Why it's wrong:** BenchmarkSignal processes exclusively publicly available data. It never touches the customer's internal data.
+**Why it's wrong:** Valrano processes exclusively publicly available data. It never touches the customer's internal data.
 
-1. **All input data is public:** BenchmarkSignal extracts from published annual reports, quarterly reports, and sustainability reports that companies voluntarily publish on their IR websites. These are public documents, freely downloadable by anyone.
-2. **No customer data is uploaded:** The customer does not upload any internal data to BenchmarkSignal. The platform monitors and extracts from peer companies' public filings, not the customer's own data.
-3. **No scraping of paywalled content:** BenchmarkSignal respects robots.txt and only processes freely available public documents from IR pages, SEC EDGAR, SIX Exchange Regulation, and equivalent public repositories.
+1. **All input data is public:** Valrano extracts from published annual reports, quarterly reports, and sustainability reports that companies voluntarily publish on their IR websites. These are public documents, freely downloadable by anyone.
+2. **No customer data is uploaded:** The customer does not upload any internal data to Valrano. The platform monitors and extracts from peer companies' public filings, not the customer's own data.
+3. **No scraping of paywalled content:** Valrano respects robots.txt and only processes freely available public documents from IR pages, SEC EDGAR, SIX Exchange Regulation, and equivalent public repositories.
 4. **Enterprise-grade infrastructure:** SOC 2 Type II certification timeline (18 months post-launch). Data hosted in Swiss/EU data centers (Supabase EU region). Encryption at rest and in transit.
 5. **No competitive leakage risk:** Your peer group configuration is confidential. No customer can see another customer's peer groups, alerts, or usage patterns.
 
-**Proof point:** "BenchmarkSignal is no different from your strategy analyst googling 'Heidelberg Materials Annual Report 2025 PDF' and downloading it. We simply automate what your team already does manually with public documents. The AI processes the peer's public report -- not your internal data. Your compliance team can verify this in 5 minutes: the only data flowing into the platform is publicly available PDFs that anyone can download from the peer's IR website."
+**Proof point:** "Valrano is no different from your strategy analyst googling 'Heidelberg Materials Annual Report 2025 PDF' and downloading it. We simply automate what your team already does manually with public documents. The AI processes the peer's public report -- not your internal data. Your compliance team can verify this in 5 minutes: the only data flowing into the platform is publicly available PDFs that anyone can download from the peer's IR website."
 
-**Positioning:** BenchmarkSignal is less risky than your current process (where analysts email peer data via unencrypted channels and store it in personal Excel files).
+**Positioning:** Valrano is less risky than your current process (where analysts email peer data via unencrypted channels and store it in personal Excel files).
 
 ---
 
@@ -258,7 +258,7 @@ Do NOT offer a free pilot. Enterprise buyers do not value what they do not pay f
 **Why CHF 48,000 (not CHF 58,800):**
 - Holcim is the anchor customer. Their logo and reference value is worth more than the CHF 10,800/year discount.
 - The 18% discount is enough to feel meaningful without devaluing the product.
-- The 2-year lock at this rate gives BenchmarkSignal predictable revenue (CHF 96,000 over 24 months, minus CHF 9,500 credit = CHF 86,500 net).
+- The 2-year lock at this rate gives Valrano predictable revenue (CHF 96,000 over 24 months, minus CHF 9,500 credit = CHF 86,500 net).
 - After Year 2, Holcim renews at full price (by which point the switching costs are high and the value is proven).
 
 ---
@@ -278,7 +278,7 @@ Do NOT offer a free pilot. Enterprise buyers do not value what they do not pay f
 
 ### 5.1 Buyer Map
 
-| Role | Title at Holcim | Function | Relationship to BenchmarkSignal |
+| Role | Title at Holcim | Function | Relationship to Valrano |
 |------|----------------|----------|-------------------------------|
 | **Economic Buyer** (signs the check) | CFO or Group Controller | Finance / Controlling | Approves budget. Cares about cost vs. value. Needs to see ROI: hours saved, consulting spend replaced, faster board prep. |
 | **Champion** (feels the pain daily) | Head of Group Strategy or Senior Strategy Analyst | Strategy | Does the manual benchmarking today. Spends 3--5 days per cycle pulling PDFs, normalizing in Excel, building board slides. Most motivated buyer. |
@@ -292,7 +292,7 @@ The Champion is the person who currently does the manual work. At a company like
 
 - **Title:** Senior Strategy Analyst, Competitive Intelligence Manager, or Group Controlling Analyst
 - **Pain:** They personally spend 20--40 hours per quarter pulling data from peer reports, normalizing in Excel, and building comparison slides for the board package
-- **Motivation:** BenchmarkSignal eliminates the most tedious part of their job and makes them look strategic instead of administrative
+- **Motivation:** Valrano eliminates the most tedious part of their job and makes them look strategic instead of administrative
 - **How to find them:** Ask the CFO's office: "Who prepares the quarterly peer comparison for the board?" That person is the Champion.
 
 ### 5.3 Decision Process
@@ -363,8 +363,8 @@ Building materials industry procurement cycles are documented at 3--9 months. Th
 |-------------|---------------|--------|
 | **Live extraction demo on a real peer report** | Discovery call / demo meeting | "It just extracted Heidelberg's KPIs from this 200-page PDF in 3 minutes" -- seeing is believing |
 | **Accuracy metrics from POC** | POC review meeting | "98.2% accuracy on core financial KPIs across 5 reports, verified against your team's own historical data" |
-| **Time savings calculation** | Contract negotiation | "Your team spent 176 hours last year on peer benchmarking. BenchmarkSignal reduces this to ~10 hours of review. At loaded analyst cost, that's CHF 40K+ in recovered capacity -- the platform pays for itself." |
-| **Holcim case study** (for subsequent customers) | Second customer onward | "Holcim's strategy team uses BenchmarkSignal to benchmark 15 peers across 8 currencies in 60 minutes. Here's what their Head of Strategy says." |
+| **Time savings calculation** | Contract negotiation | "Your team spent 176 hours last year on peer benchmarking. Valrano reduces this to ~10 hours of review. At loaded analyst cost, that's CHF 40K+ in recovered capacity -- the platform pays for itself." |
+| **Holcim case study** (for subsequent customers) | Second customer onward | "Holcim's strategy team uses Valrano to benchmark 15 peers across 8 currencies in 60 minutes. Here's what their Head of Strategy says." |
 | **Board-ready output quality** | Executive sponsor meeting | Show a real AI-generated briefing card formatted for board consumption. C-suite cares about output quality, not technical features. |
 | **Audit trail walkthrough** | IT/compliance review | Click any number, see the source PDF page. Click the source, see the highlighted paragraph. This eliminates the "AI hallucination" concern instantly. |
 

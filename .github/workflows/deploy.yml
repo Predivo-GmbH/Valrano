@@ -37,13 +37,13 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
 
       - name: Write site-id marker
-        run: echo "benchmarksignal" > dist/.site-id
+        run: echo "valrano" > dist/.site-id
 
       - name: Verify deploy target (site-id guard)
         run: |
-          REMOTE_ID=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "cat benchmarksignal.predivo.ch/.site-id; quit" 2>/dev/null || echo "")
-          if [ -n "$REMOTE_ID" ] && [ "$REMOTE_ID" != "benchmarksignal" ]; then
-            echo "::error::DEPLOY ABORTED — remote .site-id is '$REMOTE_ID', expected 'benchmarksignal'. Wrong FTP target!"
+          REMOTE_ID=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "cat valrano.com/.site-id; quit" 2>/dev/null || echo "")
+          if [ -n "$REMOTE_ID" ] && [ "$REMOTE_ID" != "valrano" ]; then
+            echo "::error::DEPLOY ABORTED — remote .site-id is '$REMOTE_ID', expected 'valrano'. Wrong FTP target!"
             exit 1
           fi
           echo "Site-id guard passed (remote='${REMOTE_ID:-<none>}')"
@@ -57,7 +57,7 @@ jobs:
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-allow no
           mirror --reverse --verbose --no-perms \
-            ./dist/assets/ benchmarksignal.predivo.ch/assets/
+            ./dist/assets/ valrano.com/assets/
           bye
           SCRIPT
         env:
@@ -69,13 +69,13 @@ jobs:
         run: |
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-allow no
-          put ./dist/index.html -o benchmarksignal.predivo.ch/index.html
-          put ./dist/.htaccess -o benchmarksignal.predivo.ch/.htaccess
-          put ./dist/robots.txt -o benchmarksignal.predivo.ch/robots.txt
-          put ./dist/sitemap.xml -o benchmarksignal.predivo.ch/sitemap.xml
-          put ./dist/og-image.svg -o benchmarksignal.predivo.ch/og-image.svg
-          put ./dist/og-image.png -o benchmarksignal.predivo.ch/og-image.png
-          put ./dist/.site-id -o benchmarksignal.predivo.ch/.site-id
+          put ./dist/index.html -o valrano.com/index.html
+          put ./dist/.htaccess -o valrano.com/.htaccess
+          put ./dist/robots.txt -o valrano.com/robots.txt
+          put ./dist/sitemap.xml -o valrano.com/sitemap.xml
+          put ./dist/og-image.svg -o valrano.com/og-image.svg
+          put ./dist/og-image.png -o valrano.com/og-image.png
+          put ./dist/.site-id -o valrano.com/.site-id
           bye
           SCRIPT
         env:
@@ -88,7 +88,7 @@ jobs:
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-allow no
           mirror --reverse --verbose --no-perms --delete \
-            ./dist/assets/ benchmarksignal.predivo.ch/assets/
+            ./dist/assets/ valrano.com/assets/
           bye
           SCRIPT
         env:

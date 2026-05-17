@@ -154,7 +154,7 @@ export default function NewsPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <Helmet><title>News Intelligence - BenchmarkSignal</title></Helmet>
+      <Helmet><title>News Intelligence - Valrano</title></Helmet>
 
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">

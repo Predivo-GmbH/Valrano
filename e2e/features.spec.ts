@@ -87,9 +87,9 @@ test.describe('F-003: Navigation', () => {
     await expect(page).toHaveURL(/\/dashboard/)
   })
 
-  test('BenchmarkSignal logo is visible in nav', async ({ page }) => {
+  test('Valrano logo is visible in nav', async ({ page }) => {
     await page.goto('/dashboard')
-    await expect(page.locator('text=BenchmarkSignal')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('text=Valrano')).toBeVisible({ timeout: 10000 })
   })
 
   test('theme toggle button is present', async ({ page }) => {

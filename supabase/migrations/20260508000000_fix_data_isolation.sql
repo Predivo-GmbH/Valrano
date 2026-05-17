@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Fix Data Isolation (Multi-Tenancy)
+-- Valrano — Fix Data Isolation (Multi-Tenancy)
 -- Migration: 20260508000000_fix_data_isolation
 --
 -- Problem: reports, kpi_values, extractions, benchmark_rules, benchmark_documents,

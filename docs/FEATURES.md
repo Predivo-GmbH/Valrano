@@ -1,6 +1,6 @@
-# BenchmarkSignal Feature Registry
+# Valrano Feature Registry
 
-**Project:** BenchmarkSignal (Automated Competitive Benchmarking for Listed Corporations)
+**Project:** Valrano (Automated Competitive Benchmarking for Listed Corporations)
 **Last Updated:** 2026-05-08
 **Total Features:** 22 (core) + Phase 1-2 features (see PRODUCT-VISION-2026-05-07.md)
 **Implemented:** 6 core + Accounting Profile (Phase 1) + Dashboard Command Center (Phase 2) + Landing Page redesign + Company Profile + Dev Tools + Source Transparency + Document Editability
@@ -17,7 +17,7 @@
 - **Analytics Condensed Tables** — MAX_VISIBLE_KPIS=6, "+N more" expand/collapse for PivotPanel + HeatmapPanel (commit `f95cdcc`)
 - **Export PDF Fix** — ReportBuilderPage buttons now functional (link to `/documents/:id` or call `onView`) (commit `f95cdcc`)
 - **Dev Tools: News Gathering Toggles** — Per-user on/off for news fetching, saves API costs during testing (commit `adffe57`)
-- **Dev Tools: DEV_EMAIL Fix** — Changed from deleted `roger@mueller.ro` to `dev@benchmarksignal.predivo.ch` (commit `adffe57`)
+- **Dev Tools: DEV_EMAIL Fix** — Changed from deleted `roger@mueller.ro` to `dev@valrano.com` (commit `adffe57`)
 - **Dashboard Table Width Fix** — Peer comparison table fills card width, no dead space (commit `41a6918`)
 
 ### Previous Changes (2026-05-07)
@@ -30,7 +30,7 @@
 
 ## Overview
 
-This document defines all features in the BenchmarkSignal project with their status, routes, critical assertions, and test coverage. Every feature with status "implemented" or "tested" must have test files referenced below.
+This document defines all features in the Valrano project with their status, routes, critical assertions, and test coverage. Every feature with status "implemented" or "tested" must have test files referenced below.
 
 ### Utility Test Coverage
 
@@ -328,7 +328,7 @@ This document defines all features in the BenchmarkSignal project with their sta
 **Route:** Global (floating bottom-right, z-9999)
 **Components:** `src/components/dev/DevTierSwitcher.tsx`, `src/lib/dev-flags.ts`
 
-**Description:** Developer tools panel gated to DEV_EMAIL (`dev@benchmarksignal.predivo.ch`). Two sections: (1) Tier Override — switch subscription tier via localStorage for testing tier-gated features. (2) News Gathering — per-user toggle to enable/disable news fetching, preventing unnecessary API costs during development. Lists all users from `user_profiles` table.
+**Description:** Developer tools panel gated to DEV_EMAIL (`dev@valrano.com`). Two sections: (1) Tier Override — switch subscription tier via localStorage for testing tier-gated features. (2) News Gathering — per-user toggle to enable/disable news fetching, preventing unnecessary API costs during development. Lists all users from `user_profiles` table.
 
 **Critical Assertions:**
 1. Only visible when logged in as DEV_EMAIL

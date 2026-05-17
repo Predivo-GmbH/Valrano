@@ -1,4 +1,4 @@
-# Phase 1: Idea Validation Brief -- BenchmarkSignal
+# Phase 1: Idea Validation Brief -- Valrano
 
 **Date:** 2026-05-04
 **Product:** Fully automated competitive benchmarking platform for listed corporations
@@ -9,7 +9,7 @@
 
 ## 1. Winning Idea
 
-BenchmarkSignal is a fully automated competitive benchmarking platform that uses vision-LLMs to extract financial and ESG KPIs from published PDF reports of peer companies, normalizes them across currencies, accounting standards, and KPI definitions, and delivers AI-powered benchmarking briefings to corporate strategy, controlling, IR, and sustainability teams within 60 minutes of any peer publication. It targets listed corporations (starting with the building materials vertical, anchored by Holcim and its 15 peers) at a price point 50-80% below Bloomberg/FactSet terminals. The timing is driven by three converging forces: (1) vision-LLM technology maturing to production-grade in 2025-2026, (2) CSRD/ISSB mandates creating an explosion of standardized ESG reports that need peer context, and (3) every existing tool being built for investors, not for the corporates who actually compete against each other.
+Valrano is a fully automated competitive benchmarking platform that uses vision-LLMs to extract financial and ESG KPIs from published PDF reports of peer companies, normalizes them across currencies, accounting standards, and KPI definitions, and delivers AI-powered benchmarking briefings to corporate strategy, controlling, IR, and sustainability teams within 60 minutes of any peer publication. It targets listed corporations (starting with the building materials vertical, anchored by Holcim and its 15 peers) at a price point 50-80% below Bloomberg/FactSet terminals. The timing is driven by three converging forces: (1) vision-LLM technology maturing to production-grade in 2025-2026, (2) CSRD/ISSB mandates creating an explosion of standardized ESG reports that need peer context, and (3) every existing tool being built for investors, not for the corporates who actually compete against each other.
 
 ---
 
@@ -72,7 +72,7 @@ From the competitor analysis gap matrix (24 competitors evaluated across 13 feat
 
 | Competitor | Score (out of 13) | Key Missing |
 |-----------|-------------------|-------------|
-| **BenchmarkSignal** | **13.0** | -- |
+| **Valrano** | **13.0** | -- |
 | AlphaSense | 6.5 | No PDF extraction, no KPI taxonomy, no multi-currency normalization |
 | Bloomberg | 5.5 | No PDF extraction, no KPI taxonomy, no AI briefings, not corporate-focused |
 | Fintool (Microsoft) | 5.0 | US SEC only, no ESG, no international, investor-focused |
@@ -133,12 +133,12 @@ CI software market growing at 10-21% CAGR (consensus across 4 research firms). E
 | **Vision-LLM extraction from heterogeneous PDFs** | Custom extraction prompts + confidence scoring + cross-validation tuned across 15+ company report formats, multilingual (EN/DE/FR/IT). Not a generic OCR -- requires deep understanding of financial report layouts. | 6-12 months for a well-funded team; incumbents won't prioritize this over their core investor workflows |
 | **KPI taxonomy mapping** | Canonical mapping of company-specific KPIs (Recurring EBIT, RCO, RCOBD, Adjusted EBITDA) to normalized definitions. This is domain knowledge encoded as data, growing with every new company onboarded. | 3-6 months per vertical, requires deep accounting expertise |
 | **Corporate-first UX** | Every screen designed for CFO/CSO/IRO workflows (earnings prep, board packages, ESG trajectory), not investor screening. This UX paradigm does not exist in any current product. | Incumbents would need to build a separate product line |
-| **Price point** | CHF 48K-72K/year vs. $100K+ for Bloomberg/FactSet terminal bundles. Possible because BenchmarkSignal doesn't bundle trading data, real-time quotes, or portfolio analytics. | Incumbents cannot unbundle without cannibalizing their existing pricing |
+| **Price point** | CHF 48K-72K/year vs. $100K+ for Bloomberg/FactSet terminal bundles. Possible because Valrano doesn't bundle trading data, real-time quotes, or portfolio analytics. | Incumbents cannot unbundle without cannibalizing their existing pricing |
 
 ### Accumulating Advantages
 
 - **Data flywheel:** Every report processed improves extraction accuracy; every company onboarded enriches the KPI taxonomy. This compounds over time.
-- **Switching costs:** Once a corporate team builds their peer groups, alert configurations, and historical baselines in BenchmarkSignal, switching is painful.
+- **Switching costs:** Once a corporate team builds their peer groups, alert configurations, and historical baselines in Valrano, switching is painful.
 - **Network effects (limited but real):** As more companies in a sector adopt, the peer coverage improves for all users.
 
 ---
@@ -265,9 +265,9 @@ Each vertical expansion adds ~20-30 new peer companies and reuses the extraction
 
 ## 10. Backup Idea
 
-### If full BenchmarkSignal is too ambitious:
+### If full Valrano is too ambitious:
 
-**Stripped-down MVP: "BenchmarkSignal Lite"**
+**Stripped-down MVP: "Valrano Lite"**
 
 Focus on one thing only: **automated KPI extraction from PDF annual/quarterly reports + normalized peer comparison tables.**
 

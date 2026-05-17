@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Auto-normalize KPI values on INSERT
+-- Valrano — Auto-normalize KPI values on INSERT
 -- Migration: 20260516000000_auto_normalize_trigger
 --
 -- Guarantees: every inserted kpi_value gets normalized_value set at the DB level.

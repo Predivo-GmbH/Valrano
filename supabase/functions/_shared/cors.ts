@@ -1,5 +1,5 @@
 const ALLOWED_ORIGINS = [
-  'https://benchmarksignal.predivo.ch',
+  'https://valrano.com',
   'http://localhost:5173',
 ]
 
@@ -15,7 +15,7 @@ export function getCorsHeaders(req: Request) {
 
 // Static export for simple cases
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://benchmarksignal.predivo.ch',
+  'Access-Control-Allow-Origin': 'https://valrano.com',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }

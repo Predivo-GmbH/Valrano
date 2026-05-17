@@ -1,5 +1,5 @@
 /**
- * BenchmarkSignal — Value formatting utilities
+ * Valrano — Value formatting utilities
  * Handles KPI display: currency (millions/billions), percentages, ratios, tons, intensities.
  */
 

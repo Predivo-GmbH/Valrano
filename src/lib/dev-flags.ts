@@ -1,4 +1,4 @@
-const NEWS_DISABLED_KEY = 'benchmarksignal-news-disabled-users'
+const NEWS_DISABLED_KEY = 'valrano-news-disabled-users'
 
 export function getNewsDisabledUsers(): Set<string> {
   try {

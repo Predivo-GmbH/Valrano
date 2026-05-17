@@ -272,7 +272,7 @@ ALSO determine the report metadata:
     const inputTokens = geminiJson.usageMetadata?.promptTokenCount ?? 0
     const outputTokens = geminiJson.usageMetadata?.candidatesTokenCount ?? 0
 
-    await logAnthropicUsage('BenchmarkSignal', 'extract-kpis', {
+    await logAnthropicUsage('Valrano', 'extract-kpis', {
       model: GEMINI_MODEL,
       usage: { input_tokens: inputTokens, output_tokens: outputTokens },
     })

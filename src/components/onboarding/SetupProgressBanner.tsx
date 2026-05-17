@@ -10,7 +10,7 @@ import { BookOpen, Building2, Calendar, Check, X } from 'lucide-react'
 // Constants
 // ---------------------------------------------------------------------------
 
-const DISMISS_KEY = 'benchmarksignal-setup-banner-dismissed'
+const DISMISS_KEY = 'valrano-setup-banner-dismissed'
 
 const STEPS = [
   { key: 'hasFramework' as const, label: 'Accounting Framework', icon: BookOpen },

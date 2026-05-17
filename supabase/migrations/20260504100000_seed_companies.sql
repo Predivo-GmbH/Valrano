@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Seed Companies + Default Peer Group
+-- Valrano — Seed Companies + Default Peer Group
 -- Migration: 20260504100000_seed_companies
 -- =============================================================================
 

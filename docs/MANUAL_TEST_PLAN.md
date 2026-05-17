@@ -1,4 +1,4 @@
-# BenchmarkSignal — Manual Test Plan
+# Valrano — Manual Test Plan
 
 **Created:** 2026-05-04
 **Status:** Not yet executed
@@ -18,7 +18,7 @@ Phase J overlaps with C/D/F so it's mostly covered. Phase F (Upload) is the most
 
 | # | Test | Action | Expected Result | Pass? |
 |---|------|--------|-----------------|-------|
-| A1 | Landing loads | Visit https://benchmarksignal.predivo.ch | Full landing page renders — Hero, Problem, Solution, Features, Pricing, FAQ, CTA footer | |
+| A1 | Landing loads | Visit https://valrano.com | Full landing page renders — Hero, Problem, Solution, Features, Pricing, FAQ, CTA footer | |
 | A2 | Nav links | Click Features, Pricing, FAQ in nav | Smooth-scrolls to each section | |
 | A3 | Mobile nav | On phone (or resize to 375px): tap hamburger icon | Mobile menu opens with all nav links | |
 | A4 | Demo CTA | Click "Request a Demo" on any pricing card | Opens email client with pre-filled mailto:roger@predivo.ch | |
@@ -141,7 +141,7 @@ Phase J overlaps with C/D/F so it's mostly covered. Phase F (Upload) is the most
 | # | Test | Action | Expected Result | Pass? |
 |---|------|--------|-----------------|-------|
 | K1 | OTP email | Trigger via signup or login | Arrives from noreply@predivo.ch, contains 6-digit code | |
-| K2 | Welcome email | Trigger via new signup | Arrives with BenchmarkSignal branding | |
+| K2 | Welcome email | Trigger via new signup | Arrives with Valrano branding | |
 | K3 | Password reset | Trigger via forgot password | Arrives with reset link | |
 | K4 | Spam check | Check spam/junk folder | Emails land in inbox, not spam | |
 
@@ -169,5 +169,5 @@ Phase J overlaps with C/D/F so it's mostly covered. Phase F (Upload) is the most
 ## Prerequisites
 - A real email address you can check (for OTP and welcome emails)
 - A PDF annual report from a public company (for upload testing — e.g., Holcim, ABB, or Nestle)
-- Access to Supabase dashboard (supabase@benchmarksignal.predivo.ch) to verify DB state
+- Access to Supabase dashboard (supabase@valrano.com) to verify DB state
 - Access to Stripe dashboard to verify webhook and subscription state

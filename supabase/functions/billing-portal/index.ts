@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'No active subscription found' }, 404)
     }
 
-    const appUrl = Deno.env.get('APP_URL') ?? 'https://benchmarksignal.predivo.ch'
+    const appUrl = Deno.env.get('APP_URL') ?? 'https://valrano.com'
 
     const res = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
       method: 'POST',

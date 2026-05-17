@@ -28,7 +28,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthLayout>
-      <Helmet><title>Forgot Password - BenchmarkSignal</title><meta name="robots" content="noindex, nofollow" /></Helmet>
+      <Helmet><title>Forgot Password - Valrano</title><meta name="robots" content="noindex, nofollow" /></Helmet>
 
       {sent ? (
         <div className="text-center">

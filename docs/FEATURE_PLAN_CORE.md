@@ -1,4 +1,4 @@
-# BenchmarkSignal — Core Feature Plan
+# Valrano — Core Feature Plan
 
 **Created:** 2026-05-04
 **Last Updated:** 2026-05-07
@@ -9,7 +9,7 @@
 
 ## Vision
 
-When a competitor (e.g., CRH, Heidelberg, Buzzi) publishes their annual or quarterly report, BenchmarkSignal:
+When a competitor (e.g., CRH, Heidelberg, Buzzi) publishes their annual or quarterly report, Valrano:
 1. **Detects** the publication automatically
 2. **Downloads** the PDF from the IR page
 3. **Extracts** KPIs using Vision-LLM

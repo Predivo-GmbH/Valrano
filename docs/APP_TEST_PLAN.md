@@ -1,4 +1,4 @@
-# BenchmarkSignal — Core Application Test Plan
+# Valrano — Core Application Test Plan
 
 **Created:** 2026-05-04
 **Status:** Not yet executed
@@ -8,18 +8,18 @@
 
 ## What This Tests
 
-BenchmarkSignal's core value proposition: upload a real PDF annual report → AI extracts KPIs → normalize to CHF → peer comparison table updates → review low-confidence values. This plan tests that entire pipeline with real documents.
+Valrano's core value proposition: upload a real PDF annual report → AI extracts KPIs → normalize to CHF → peer comparison table updates → review low-confidence values. This plan tests that entire pipeline with real documents.
 
 ---
 
 ## Prerequisites
 
-1. **Logged-in user account** on https://benchmarksignal.predivo.ch (create via signup or use existing)
+1. **Logged-in user account** on https://valrano.com (create via signup or use existing)
 2. **Two real PDF annual reports** from seeded companies — download from their IR pages:
    - **Holcim** (CHF-denominated): https://www.holcim.com/investors/results-reports → 2024 Annual Report
    - **CRH** (EUR-denominated): https://www.crh.com/investors/results-centre → 2024 Annual Report
    - These test both the CHF-native path (no FX conversion) and the EUR→CHF conversion path
-3. **Supabase dashboard access** to verify DB state (supabase@benchmarksignal.predivo.ch)
+3. **Supabase dashboard access** to verify DB state (supabase@valrano.com)
 
 ---
 

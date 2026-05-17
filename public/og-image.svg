@@ -7,10 +7,10 @@
       <stop offset="100%" stop-color="#0A0B0D" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <text x="600" y="240" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="64" font-weight="700" fill="#E8EAED" letter-spacing="-2">BenchmarkSignal</text>
+  <text x="600" y="240" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="64" font-weight="700" fill="#E8EAED" letter-spacing="-2">Valrano</text>
   <text x="600" y="320" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="400" fill="#9CA3AF">AI-Powered Competitive Benchmarking</text>
   <text x="600" y="370" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="400" fill="#9CA3AF">for Listed Corporations</text>
   <rect x="480" y="420" width="240" height="48" rx="24" fill="#3B82F6"/>
   <text x="600" y="451" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="500" fill="white">Request a Demo</text>
-  <text x="600" y="560" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="400" fill="#6B7280">benchmarksignal.predivo.ch</text>
+  <text x="600" y="560" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="14" font-weight="400" fill="#6B7280">valrano.com</text>
 </svg>

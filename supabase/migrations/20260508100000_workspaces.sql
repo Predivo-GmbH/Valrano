@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Workspaces (Team Access)
+-- Valrano — Workspaces (Team Access)
 -- Migration: 20260508100000_workspaces
 --
 -- Adds workspace-based sharing so multiple users can collaborate on

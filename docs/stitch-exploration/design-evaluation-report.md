@@ -1,4 +1,4 @@
-# BenchmarkSignal — Design Evaluation Report
+# Valrano — Design Evaluation Report
 
 **Date:** 2026-05-04
 **Variations:** 5 Stitch landing page designs

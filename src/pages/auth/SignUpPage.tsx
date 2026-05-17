@@ -115,7 +115,7 @@ export default function SignUpPage() {
 
   return (
     <AuthLayout>
-      <Helmet><title>Create Account - BenchmarkSignal</title><meta name="robots" content="noindex, nofollow" /></Helmet>
+      <Helmet><title>Create Account - Valrano</title><meta name="robots" content="noindex, nofollow" /></Helmet>
 
       {/* Step 1: Email */}
       {step === 'email' && (

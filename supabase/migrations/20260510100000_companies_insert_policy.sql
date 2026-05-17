@@ -1,5 +1,5 @@
 -- =============================================================================
--- BenchmarkSignal — Allow authenticated users to create and update companies
+-- Valrano — Allow authenticated users to create and update companies
 -- Migration: 20260510100000_companies_insert_policy
 --
 -- Root cause: onboarding upload fails because useCreateMyCompany inserts into

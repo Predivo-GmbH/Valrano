@@ -36,7 +36,7 @@ export function AdminPage() {
   return (
     <>
       <Helmet>
-        <title>Admin - BenchmarkSignal</title>
+        <title>Admin - Valrano</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       <AdminPanel disabledUsers={disabledUsers} setDisabledUsers={setDisabledUsersState} queryClient={queryClient} />
