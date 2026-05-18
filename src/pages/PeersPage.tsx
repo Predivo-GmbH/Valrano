@@ -457,7 +457,7 @@ function AddCompanyDialog({
             </Select>
           </div>
 
-          {/* Website URL (used for logo) — auto-resolved via Brandfetch */}
+          {/* Website URL (used for logo) — auto-resolved via edge function */}
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Website

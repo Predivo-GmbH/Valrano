@@ -314,7 +314,7 @@ export function CompanyProfilePage() {
       return
     }
     const domain = parsed.hostname.replace(/^www\./, '')
-    const logoUrl = `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=1idRDjMi84k4oQP5jUq`
+    const logoUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
     await supabase.from('companies').update({ website_url: url, logo_url: logoUrl }).eq('id', company.id)
     queryClient.invalidateQueries({ queryKey: ['companies-all'] })
     setEditingWebsite(false)
