@@ -209,7 +209,7 @@ function buildEmailHtml(opts: {
 <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
 <div style="max-width:480px;margin:40px auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
   <div style="padding:24px 32px;background:#0f172a;text-align:center">
-    <span style="font-size:14px;font-weight:600;color:#3b82f6;letter-spacing:0.05em">BENCHMARKSIGNAL</span>
+    <span style="font-size:14px;font-weight:600;color:#3b82f6;letter-spacing:0.05em">VALRANO</span>
   </div>
   <div style="padding:32px">
     ${opts.recipientName ? `<p style="font-size:14px;color:#64748b;margin:0 0 16px 0">Hi ${opts.recipientName},</p>` : ''}
