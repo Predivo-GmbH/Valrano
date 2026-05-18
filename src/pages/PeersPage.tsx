@@ -163,9 +163,15 @@ function AddCompanyDialog({
         },
       )
       if (!res.ok) return
-      const data = await res.json() as { website_url: string | null }
+      const data = await res.json() as {
+        website_url: string | null
+        needs_confirmation?: boolean
+      }
       if (data.website_url) {
         setWebsiteUrl(data.website_url)
+        if (data.needs_confirmation) {
+          toast.info('Suggested website — please verify before adding peer')
+        }
       }
     } catch {
       // Silently fail — user can still enter manually
@@ -267,8 +273,14 @@ function AddCompanyDialog({
               },
             )
             if (res.ok) {
-              const data = await res.json() as { website_url: string | null }
-              if (data.website_url) finalWebsiteUrl = data.website_url
+              const data = await res.json() as {
+                website_url: string | null
+                needs_confirmation?: boolean
+              }
+              // Only use auto-resolved URL if high confidence
+              if (data.website_url && !data.needs_confirmation) {
+                finalWebsiteUrl = data.website_url
+              }
             }
           }
         } catch {
@@ -1219,6 +1231,7 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
       let resolved = 0
+      const needsConfirmation: string[] = []
       await Promise.all(
         missing.map(async (c) => {
           try {
@@ -1235,8 +1248,15 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
               },
             )
             if (res.ok) {
-              const data = await res.json() as { website_url: string | null }
-              if (data.website_url) resolved++
+              const data = await res.json() as {
+                website_url: string | null
+                needs_confirmation?: boolean
+              }
+              if (data.website_url && !data.needs_confirmation) {
+                resolved++
+              } else if (data.needs_confirmation) {
+                needsConfirmation.push(c.name)
+              }
             }
           } catch { /* silent */ }
         }),
@@ -1244,6 +1264,9 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
       if (resolved > 0) {
         queryClient.invalidateQueries({ queryKey: ['companies'] })
         queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+      }
+      if (needsConfirmation.length > 0) {
+        toast.info(`Website needs manual verification for: ${needsConfirmation.join(', ')}. Open their profile to confirm.`)
       }
     })()
   }, [companies, queryClient])

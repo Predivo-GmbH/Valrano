@@ -309,9 +309,18 @@ export function CompanyProfilePage() {
           },
         )
         if (!res.ok) return
-        const data = await res.json() as { website_url: string | null }
-        if (data.website_url) {
+        const data = await res.json() as {
+          website_url: string | null
+          needs_confirmation?: boolean
+          confidence?: number
+        }
+        if (data.website_url && !data.needs_confirmation) {
           queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+        } else if (data.website_url && data.needs_confirmation) {
+          // Low confidence — show input pre-filled so user can confirm
+          setWebsiteInput(data.website_url)
+          setEditingWebsite(true)
+          toast.info(`Suggested website for ${company.name} — please verify and save`)
         }
       } catch {
         // Silent — user can still click "Detect website" manually
@@ -645,9 +654,16 @@ export function CompanyProfilePage() {
                           },
                         )
                         if (!res.ok) throw new Error('Resolution failed')
-                        const data = await res.json() as { website_url: string | null }
-                        if (data.website_url) {
+                        const data = await res.json() as {
+                          website_url: string | null
+                          needs_confirmation?: boolean
+                        }
+                        if (data.website_url && !data.needs_confirmation) {
                           queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                        } else if (data.website_url && data.needs_confirmation) {
+                          setWebsiteInput(data.website_url)
+                          setEditingWebsite(true)
+                          toast.info('Suggested website — please verify and save')
                         } else {
                           setWebsiteInput('')
                           setEditingWebsite(true)
