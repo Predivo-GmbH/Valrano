@@ -261,6 +261,50 @@ export function CompanyProfilePage() {
   const [editingIr, setEditingIr] = useState(false)
   const [websiteInput, setWebsiteInput] = useState('')
   const [irInput, setIrInput] = useState('')
+  const [isRedetecting, setIsRedetecting] = useState(false)
+
+  const redetectWebsite = async () => {
+    if (!company) return
+    setIsRedetecting(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Not authenticated')
+      // Clear existing wrong data first so edge function treats it as fresh
+      await supabase.from('companies').update({ website_url: null, logo_url: null }).eq('id', company.id)
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ name: company.name, company_id: company.id }),
+        },
+      )
+      if (!res.ok) throw new Error('Resolution failed')
+      const data = await res.json() as {
+        website_url: string | null
+        needs_confirmation?: boolean
+      }
+      if (data.website_url && !data.needs_confirmation) {
+        queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+        setEditingWebsite(false)
+        toast.success(`Website updated to ${data.website_url}`)
+      } else if (data.website_url && data.needs_confirmation) {
+        setWebsiteInput(data.website_url)
+        toast.info('Suggested website — please verify and save')
+      } else {
+        setWebsiteInput('')
+        toast.info('Could not detect website — please enter manually')
+      }
+    } catch {
+      toast.error('Detection failed — please enter manually')
+    } finally {
+      setIsRedetecting(false)
+    }
+  }
 
   const saveWebsiteUrl = async (url: string) => {
     if (!company) return
@@ -608,6 +652,16 @@ export function CompanyProfilePage() {
                       onKeyDown={(e) => { if (e.key === 'Escape') setEditingWebsite(false) }}
                     />
                     <button type="submit" className="text-[11px] font-medium text-[var(--color-accent)] hover:underline">Save</button>
+                    <button
+                      type="button"
+                      onClick={redetectWebsite}
+                      disabled={isRedetecting}
+                      className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      title="Auto-detect website using AI"
+                    >
+                      {isRedetecting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      {isRedetecting ? 'Detecting...' : 'Re-detect'}
+                    </button>
                     <button type="button" onClick={() => setEditingWebsite(false)} className="text-[11px] text-muted-foreground hover:text-foreground">Cancel</button>
                   </form>
                 ) : company.website_url ? (
