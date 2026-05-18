@@ -354,7 +354,7 @@ function FeatureCard({ f, index, visible }: {
 
 /* ── Data ─────────────────────────────────────────────── */
 const PAIN_POINTS = [
-  { icon: Clock, title: '22-44 hours per cycle', desc: 'Strategy teams spend 3-5 working days every quarter manually collecting, re-keying, and reconciling competitor data in Excel.' },
+  { icon: Clock, title: '22-44 hours per cycle', desc: 'Strategy teams spend 3-5 working days every quarter manually collecting, re-keying, and reconciling competitor data from published reports.' },
   { icon: AlertCircle, title: 'Definitional chaos', desc: '\u201CRecurring EBIT\u201D at Holcim, \u201CRCO\u201D at Heidelberg, \u201CAdjusted EBITDA\u201D at CRH \u2014 every peer uses different KPI definitions, currencies, and accounting standards.' },
   { icon: Globe, title: 'Asynchronous publications', desc: 'Peers publish at different times in different formats across SIX, NYSE, XETRA, and Euronext. By the time your team compiles the data, it\u2019s already stale.' },
 ]
@@ -363,14 +363,14 @@ const FEATURES = [
   { icon: FileText, title: 'Vision-LLM extraction', desc: 'AI reads published PDF reports \u2014 annual, quarterly, sustainability \u2014 and extracts 50+ financial and ESG KPIs with 98% target accuracy. Every value links back to its source page.', span: 'md:col-span-2 md:row-span-2', featured: true, accent: '#3B82F6' },
   { icon: BarChart3, title: 'KPI taxonomy mapping', desc: 'Automatically maps company-specific definitions to a canonical taxonomy. Compare apples to apples across IFRS, US GAAP, and Swiss GAAP FER.', span: 'md:col-span-1 md:row-span-1', accent: '#8B5CF6' },
   { icon: Globe, title: 'Multi-currency normalization', desc: 'Point-in-time and period-average FX conversion across CHF, EUR, USD, GBP, and 10+ currencies.', span: 'md:col-span-1 md:row-span-1', accent: '#06B6D4' },
-  { icon: Zap, title: '60-minute briefings', desc: 'When a peer publishes at 7 AM, your board-ready briefing is in your inbox by 8 AM \u2014 with normalized KPIs, ESG trajectory, and competitive signals.', span: 'md:col-span-1 md:row-span-1', accent: '#F59E0B' },
+  { icon: Zap, title: 'Automated briefings', desc: 'When a peer publishes, Valrano detects it, extracts KPIs, normalizes currencies, and drafts a board briefing \u2014 your team just reviews and approves.', span: 'md:col-span-1 md:row-span-1', accent: '#F59E0B' },
   { icon: Shield, title: 'Full audit trail', desc: 'Every extracted value carries a confidence score and links to the exact PDF page and paragraph. Your team can verify any number in one click.', span: 'md:col-span-1 md:row-span-1', accent: '#10B981' },
   { icon: Clock, title: 'Continuous monitoring', desc: 'No more quarterly scrambles. Valrano monitors 15+ peers across all exchanges and delivers alerts the moment a new report drops.', span: 'md:col-span-2 md:row-span-1', accent: '#EC4899' },
 ]
 
 const STATS = [
   { value: 200, suffix: '+', label: 'Hours saved per year', icon: Timer },
-  { value: 60, suffix: 'min', label: 'Publication to briefing', icon: Zap },
+  { value: 95, suffix: '%', label: 'Of manual work eliminated', icon: Zap },
   { value: 98, suffix: '%', label: 'Extraction accuracy', icon: Target },
   { value: 15, suffix: '+', label: 'Peers monitored continuously', icon: Users },
 ]
@@ -379,7 +379,7 @@ const ENTERPRISE_INCLUDES = [
   { icon: Users, text: 'Unlimited users with SSO / SAML' },
   { icon: BarChart3, text: '50+ financial and ESG KPIs per peer' },
   { icon: Globe, text: 'Up to 30+ peers monitored continuously' },
-  { icon: Zap, text: '60-minute publication-to-briefing SLA' },
+  { icon: Zap, text: 'Automated detect \u2192 extract \u2192 normalize \u2192 brief pipeline' },
   { icon: FileText, text: 'AI-generated board briefings with source citations' },
   { icon: Shield, text: 'API + PowerBI / Tableau integration' },
   { icon: TrendingUp, text: 'Sentiment analysis on earnings calls' },
@@ -387,8 +387,8 @@ const ENTERPRISE_INCLUDES = [
 ]
 
 const FAQS = [
-  { q: 'How accurate is AI extraction? Can we trust these numbers for board-level reporting?', a: 'Valrano uses a multi-layer accuracy architecture: vision-LLM extraction with structured schemas, multi-model voting, confidence scoring (values below 0.85 are flagged for human review), and cross-validation against known financial relationships. Every extracted value links to its source PDF page for one-click verification. The result is more auditable than your current manual process, where a junior analyst\'s Excel formula is the audit trail.' },
-  { q: 'We already have Bloomberg / FactSet. Why do we need another tool?', a: 'Bloomberg and FactSet provide raw financial data for investors. They do not extract KPIs from newly published PDF reports, normalize company-specific definitions (Recurring EBIT vs. RCO vs. Adjusted EBITDA), or deliver AI-generated peer briefings within 60 minutes. Valrano replaces the 200 hours/year your team spends turning Bloomberg data into peer comparisons. It is a complement, not a replacement.' },
+  { q: 'How accurate is AI extraction? Can we trust these numbers for board-level reporting?', a: 'Valrano uses a multi-layer accuracy architecture: vision-LLM extraction with structured schemas, multi-model voting, confidence scoring (values below 0.85 are flagged for human review), and cross-validation against known financial relationships. Every extracted value links to its source PDF page for one-click verification. The result is more auditable than any manual process \u2014 every number traces back to its source document.' },
+  { q: 'We already have Bloomberg / FactSet. Why do we need another tool?', a: 'Bloomberg and FactSet provide raw financial data for investors. They do not extract KPIs from newly published PDF reports, normalize company-specific definitions (Recurring EBIT vs. RCO vs. Adjusted EBITDA), or deliver AI-generated peer briefings automatically, replacing the manual effort of collecting, normalizing, and comparing peer data. Valrano replaces the 200 hours/year your team spends turning raw data into peer comparisons. It is a complement, not a replacement.' },
   { q: 'What about data security and compliance?', a: 'Valrano processes exclusively publicly available documents \u2014 annual reports, quarterly filings, and sustainability reports that companies publish on their IR websites. No customer internal data is ever uploaded or processed. Your peer group configuration is confidential. Data is hosted in EU data centers with encryption at rest and in transit.' },
   { q: 'Which accounting standards and currencies do you support?', a: 'IFRS, US GAAP, and Swiss GAAP FER for accounting standards. For currencies, we support CHF, EUR, USD, GBP, INR, MXN, AUD, HKD, and more \u2014 using both point-in-time and period-average FX rates for accurate normalization.' },
   { q: 'How long does implementation take?', a: 'A typical onboarding takes 2 weeks: we configure your peer group, run historical extraction on past reports, validate accuracy with your team, and train users. You receive your first live briefing within 2 weeks of go-live.' },
@@ -398,7 +398,7 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
     { '@type': 'Organization', name: 'Valrano', url: 'https://valrano.com', logo: 'https://valrano.com/og-image.png', description: 'Fully automated competitive benchmarking platform for listed corporations. AI-powered KPI extraction from peer reports.', sameAs: [], parentOrganization: { '@type': 'Organization', name: 'Predivo GmbH', url: 'https://predivo.ch' } },
-    { '@type': 'SoftwareApplication', name: 'Valrano', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: 'AI-powered competitive benchmarking: extract financial and ESG KPIs from peer PDF reports, normalize across currencies and standards, deliver board-ready briefings in 60 minutes.', offers: { '@type': 'Offer', priceCurrency: 'CHF', price: '0', availability: 'https://schema.org/OnlineOnly', description: 'Contact us for enterprise pricing' } },
+    { '@type': 'SoftwareApplication', name: 'Valrano', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: 'AI-powered competitive benchmarking: extract financial and ESG KPIs from peer PDF reports, normalize across currencies and standards, deliver board-ready briefings automatically.', offers: { '@type': 'Offer', priceCurrency: 'CHF', price: '0', availability: 'https://schema.org/OnlineOnly', description: 'Contact us for enterprise pricing' } },
     { '@type': 'FAQPage', mainEntity: FAQS.map((faq) => ({ '@type': 'Question', name: faq.q, acceptedAnswer: { '@type': 'Answer', text: faq.a } })) },
   ],
 }
@@ -460,9 +460,9 @@ export default function LandingPage() {
     <>
       <Helmet>
         <title>Valrano &mdash; AI-Powered Competitive Benchmarking for Listed Corporations</title>
-        <meta name="description" content="Replace 200 hours of manual analyst work with AI-powered peer benchmarking. Extract financial and ESG KPIs from competitor reports, normalize across currencies and standards, get board-ready briefings in 60 minutes." />
+        <meta name="description" content="Replace 200 hours of manual analyst work with AI-powered peer benchmarking. Extract financial and ESG KPIs from competitor reports, normalize across currencies and standards, get board-ready briefings automatically." />
         <meta property="og:title" content="Valrano &mdash; AI-Powered Competitive Benchmarking" />
-        <meta property="og:description" content="Extract financial and ESG KPIs from competitor PDF reports, normalize across currencies and standards, deliver board-ready briefings in 60 minutes." />
+        <meta property="og:description" content="Extract financial and ESG KPIs from competitor PDF reports, normalize across currencies and standards, deliver board-ready briefings automatically." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://valrano.com" />
         <meta property="og:image" content="https://valrano.com/og-image.png" />
@@ -529,7 +529,7 @@ export default function LandingPage() {
             </div>
             <h1 className="landing-animate-in landing-delay-2 mt-8 text-[clamp(2.75rem,7vw,5.5rem)] font-bold leading-[1.02] tracking-[-0.035em] text-[var(--color-foreground)]">
               Board-ready peer benchmarking<br className="hidden sm:inline" />
-              <span className="bg-gradient-to-r from-[var(--color-accent)] via-[#8B5CF6] to-[#EC4899] bg-clip-text text-transparent">in 60 minutes</span>
+              <span className="bg-gradient-to-r from-[var(--color-accent)] via-[#8B5CF6] to-[#EC4899] bg-clip-text text-transparent">on autopilot</span>
             </h1>
             <p className="landing-animate-in landing-delay-3 mx-auto mt-8 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg md:text-xl">
               Replace CHF 300K consulting engagements and 200 hours of manual analyst work with a single platform that extracts, normalizes, and compares financial and ESG KPIs from peer reports automatically.
@@ -566,7 +566,7 @@ export default function LandingPage() {
             <div className="text-center">
               <SectionLabel>The Problem</SectionLabel>
               <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Peer benchmarking is broken</h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Every quarter, strategy teams download PDFs from IR pages, open Bloomberg for market data, pull ESG from a third source, and spend days in Excel normalizing everything.</p>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Every quarter, strategy teams download PDFs from IR pages, collect market data from multiple sources, pull ESG from yet another, and spend days manually normalizing everything.</p>
             </div>
             <div className="mt-16 grid gap-8 md:grid-cols-3">
               {PAIN_POINTS.map((p, i) => <PainPointCard key={p.title} p={p} index={i} />)}
@@ -579,7 +579,7 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl px-6 py-24 md:py-28">
             <div className="text-center">
               <SectionLabel>The Solution</SectionLabel>
-              <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">From publication to board briefing in 60 minutes</h2>
+              <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">From publication to board briefing &mdash; fully automated</h2>
               <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Valrano monitors your peers across every exchange, automatically extracts KPIs from published reports, normalizes across currencies and accounting standards, and delivers AI-generated briefings &mdash; so your board gets answers, not raw data.</p>
             </div>
           </div>
@@ -596,7 +596,7 @@ export default function LandingPage() {
               {[
                 { step: '01', title: 'Monitor', desc: 'Automatic detection when any peer publishes a new report across SIX, NYSE, XETRA, Euronext, and more.', icon: Globe },
                 { step: '02', title: 'Extract & Normalize', desc: 'Vision-LLMs extract 50+ KPIs. Multi-currency normalization, taxonomy mapping, and confidence scoring.', icon: BarChart3 },
-                { step: '03', title: 'Deliver', desc: 'Board-ready briefings with peer comparisons, trend analysis, and competitive signals in 60 minutes.', icon: TrendingUp },
+                { step: '03', title: 'Deliver', desc: 'Board-ready briefings with peer comparisons, trend analysis, and competitive signals \u2014 ready for your team to review, approve, and share.', icon: TrendingUp },
               ].map((s, i) => <ProcessStep key={s.step} step={s.step} title={s.title} desc={s.desc} icon={s.icon} isLast={i === 2} visible={processVisible} delay={i * 300} />)}
             </div>
           </div>
@@ -660,7 +660,7 @@ export default function LandingPage() {
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--color-accent)/8%,transparent_60%)]" />
             <div className="relative">
               <h2 className="text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Stop building peer comparisons manually</h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg md:text-xl">Your team spends 3-5 days building peer comparisons that are outdated before the board meeting. Valrano delivers them in 60 minutes, continuously, for less than a single Bloomberg seat.</p>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg md:text-xl">Your team spends 3-5 days building peer comparisons that are outdated before the board meeting. Valrano builds them automatically and continuously \u2014 your analysts review insights instead of collecting data.</p>
               <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
                 <a href="mailto:roger@predivo.ch?subject=Valrano%20Demo%20Request" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35">
                   <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', backgroundSize: '200% 100%', animation: 'landing-shimmer 1.5s infinite' }} />
@@ -680,7 +680,7 @@ export default function LandingPage() {
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <div className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">Valrano</div>
-                <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted-foreground)]">AI-powered competitive benchmarking for listed corporations. From publication to board briefing in 60 minutes.</p>
+                <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted-foreground)]">AI-powered competitive benchmarking for listed corporations. Automated detection, extraction, and analysis of peer reports.</p>
                 <div className="mt-4 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]"><Shield className="h-3.5 w-3.5" /><span>Swiss-hosted &middot; GDPR compliant</span></div>
               </div>
               <div>
