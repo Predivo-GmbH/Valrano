@@ -28,7 +28,7 @@ import {
 import { useBenchmarkDocuments } from '@/hooks/useBenchmark'
 import { useCompanies, useKpiDefinitions, usePeerGroups } from '@/hooks/useData'
 import type { DocumentStatus } from '@/types/database'
-import { DOC_STATUS_CONFIG, getDocStatusBadge } from '@/lib/status-config'
+import { DOC_STATUS_CONFIG } from '@/lib/status-config'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'

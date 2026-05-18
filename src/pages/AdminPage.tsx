@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { SUPER_ADMIN_EMAIL } from '@/hooks/useSubscription'
 import { getNewsDisabledUsers, setNewsDisabledUsers } from '@/lib/dev-flags'
 import type { SubscriptionTier } from '@/types/database'
-import { ShieldCheck, Loader2, Trash2 } from 'lucide-react'
+import { ShieldCheck, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { toast } from 'sonner'
 

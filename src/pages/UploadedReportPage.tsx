@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Download, FileText, CheckCircle2, Clock, AlertTriangle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Download, FileText, Clock, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
