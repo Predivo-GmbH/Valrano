@@ -13,8 +13,9 @@ export function useSubscription() {
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!user) return null
-      const { data, error } = await supabase
-        .from('subscriptions' as any)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- table not in generated types
+      const { data, error } = await (supabase as any)
+        .from('subscriptions')
         .select('id, user_id, tier, status, current_period_end')
         .eq('user_id', user.id)
         .maybeSingle()
