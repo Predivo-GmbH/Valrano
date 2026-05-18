@@ -2,14 +2,12 @@ import { useState } from 'react'
 import { Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export const BRANDFETCH_CLIENT_ID = '1idRDjMi84k4oQP5jUq'
-
-/** Build a Brandfetch Logo CDN URL from a full website URL (free 500K/mo). */
+/** Build a Google Favicon URL from a full website URL (free, no API key). */
 export function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
   if (!websiteUrl) return null
   try {
     const domain = new URL(websiteUrl).hostname.replace(/^www\./, '')
-    return `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=${BRANDFETCH_CLIENT_ID}`
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
   } catch {
     return null
   }

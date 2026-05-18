@@ -23,12 +23,6 @@ function extractDomain(url: string): string | null {
   }
 }
 
-/** Check if a Brandfetch icon URL is a lettermark fallback (not a real logo) */
-function isLettermarkFallback(iconUrl: string | null | undefined): boolean {
-  if (!iconUrl) return true
-  return iconUrl.includes('/fallback/lettermark/')
-}
-
 // ---------------------------------------------------------------------------
 // Phase 1: Multi-source candidate collection
 // ---------------------------------------------------------------------------
@@ -331,36 +325,12 @@ async function verifyCompanyNameOnPage(domain: string, companyName: string): Pro
 }
 
 // ---------------------------------------------------------------------------
-// Phase 5: Logo quality gate
+// Phase 5: Logo — Google Favicon V2 (free, no API key)
 // ---------------------------------------------------------------------------
 
-/** Validate logo URL is a real icon, not a lettermark or broken redirect */
-async function validateLogoUrl(logoUrl: string): Promise<boolean> {
-  if (isLettermarkFallback(logoUrl)) return false
-
-  try {
-    const resp = await fetch(logoUrl, {
-      method: 'HEAD',
-      redirect: 'manual', // Don't follow redirects — detect 302 to docs
-      signal: AbortSignal.timeout(5000),
-    })
-
-    // 302 to brandfetch docs = not in index
-    if (resp.status === 302) {
-      const location = resp.headers.get('location') ?? ''
-      if (location.includes('brandfetch.com/docs')) return false
-    }
-
-    // Must be a successful image response
-    return resp.ok && (resp.headers.get('content-type')?.startsWith('image/') ?? false)
-  } catch {
-    return false
-  }
-}
-
-/** Build Brandfetch CDN logo URL for a domain */
-function buildLogoUrl(domain: string, clientId: string): string {
-  return `https://cdn.brandfetch.io/${domain}/w/128/h/128/icon?c=${clientId}`
+/** Build Google Favicon URL for a domain */
+function buildLogoUrl(domain: string): string {
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
 }
 
 // ---------------------------------------------------------------------------
@@ -536,44 +506,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // -----------------------------------------------------------------------
-    // Step 4: Logo quality gate
+    // Step 4: Logo — Google Favicon (always available for valid domains)
     // -----------------------------------------------------------------------
-    let logoUrl: string | null = null
-
-    if (selectedDomain) {
-      // Try Brandfetch icon from search results first
-      const matchingCandidate = allCandidates.find(c => c.domain === selectedDomain && c.icon)
-      if (matchingCandidate?.icon && !isLettermarkFallback(matchingCandidate.icon)) {
-        logoUrl = matchingCandidate.icon
-      }
-
-      // Try Brandfetch CDN URL
-      if (!logoUrl) {
-        const cdnUrl = buildLogoUrl(selectedDomain, brandfetchClientId)
-        const isValid = await validateLogoUrl(cdnUrl)
-        if (isValid) logoUrl = cdnUrl
-      }
-
-      // Try other candidate domains for a better logo
-      if (!logoUrl) {
-        for (const c of allCandidates) {
-          if (c.domain === selectedDomain) continue
-          if (c.icon && !isLettermarkFallback(c.icon)) {
-            // Only use another candidate's logo if their name matches our company
-            const cNameLower = (c.name ?? '').toLowerCase()
-            const companyLower = stripLegalSuffix(companyName).toLowerCase()
-            if (cNameLower.includes(companyLower) || companyLower.includes(cNameLower)) {
-              const altCdnUrl = buildLogoUrl(c.domain, brandfetchClientId)
-              const isValid = await validateLogoUrl(altCdnUrl)
-              if (isValid) {
-                logoUrl = altCdnUrl
-                break
-              }
-            }
-          }
-        }
-      }
-    }
+    const logoUrl: string | null = selectedDomain ? buildLogoUrl(selectedDomain) : null
 
     // -----------------------------------------------------------------------
     // Step 5: Confidence gating — decide whether to auto-save
