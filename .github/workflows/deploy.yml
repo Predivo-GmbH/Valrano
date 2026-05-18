@@ -41,7 +41,7 @@ jobs:
 
       - name: Verify deploy target (site-id guard)
         run: |
-          REMOTE_ID=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "cat valrano.com/.site-id; quit" 2>/dev/null || echo "")
+          REMOTE_ID=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "cat httpdocs/.site-id; quit" 2>/dev/null || echo "")
           if [ -n "$REMOTE_ID" ] && [ "$REMOTE_ID" != "valrano" ]; then
             echo "::error::DEPLOY ABORTED — remote .site-id is '$REMOTE_ID', expected 'valrano'. Wrong FTP target!"
             exit 1
@@ -57,7 +57,7 @@ jobs:
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-allow no
           mirror --reverse --verbose --no-perms \
-            ./dist/assets/ valrano.com/assets/
+            ./dist/assets/ httpdocs/assets/
           bye
           SCRIPT
         env:
@@ -69,13 +69,13 @@ jobs:
         run: |
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-allow no
-          put ./dist/index.html -o valrano.com/index.html
-          put ./dist/.htaccess -o valrano.com/.htaccess
-          put ./dist/robots.txt -o valrano.com/robots.txt
-          put ./dist/sitemap.xml -o valrano.com/sitemap.xml
-          put ./dist/og-image.svg -o valrano.com/og-image.svg
-          put ./dist/og-image.png -o valrano.com/og-image.png
-          put ./dist/.site-id -o valrano.com/.site-id
+          put ./dist/index.html -o httpdocs/index.html
+          put ./dist/.htaccess -o httpdocs/.htaccess
+          put ./dist/robots.txt -o httpdocs/robots.txt
+          put ./dist/sitemap.xml -o httpdocs/sitemap.xml
+          put ./dist/og-image.svg -o httpdocs/og-image.svg
+          put ./dist/og-image.png -o httpdocs/og-image.png
+          put ./dist/.site-id -o httpdocs/.site-id
           bye
           SCRIPT
         env:
@@ -88,7 +88,7 @@ jobs:
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-allow no
           mirror --reverse --verbose --no-perms --delete \
-            ./dist/assets/ valrano.com/assets/
+            ./dist/assets/ httpdocs/assets/
           bye
           SCRIPT
         env:
