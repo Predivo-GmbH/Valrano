@@ -116,8 +116,7 @@ function useCountUp(end: number, duration = 2000, startOnView = true) {
   }, [startOnView, reducedMotion])
 
   useEffect(() => {
-    if (reducedMotion) { setCount(end); return }
-    if (!started) return
+    if (reducedMotion || !started) return
     let start = 0
     const increment = Math.ceil(end / (duration / 16))
     const timer = setInterval(() => {
