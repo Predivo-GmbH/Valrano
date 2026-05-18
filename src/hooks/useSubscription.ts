@@ -14,12 +14,12 @@ export function useSubscription() {
     queryFn: async () => {
       if (!user) return null
       const { data, error } = await supabase
-        .from('subscriptions')
+        .from('subscriptions' as any)
         .select('id, user_id, tier, status, current_period_end')
         .eq('user_id', user.id)
         .maybeSingle()
       if (error) throw error
-      return data
+      return data as Subscription | null
     },
     enabled: !!user,
   })

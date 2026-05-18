@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
+import { Badge } from '@/components/ui/badge'
 import { CompanyLogo } from '@/components/ui/company-logo'
 import {
   Plus,
