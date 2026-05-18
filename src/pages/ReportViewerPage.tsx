@@ -74,7 +74,7 @@ export function ReportViewerPage() {
 
   return (
     <>
-      <Helmet><title>{report.title} - Valrano</title></Helmet>
+      <Helmet><title>{report.title} - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="section-fade-in mx-auto max-w-[900px] px-4 py-8 sm:px-6">
         {/* Breadcrumbs */}
         <div className="print:hidden">
@@ -169,11 +169,11 @@ export function ReportViewerPage() {
                 <p className="text-sm leading-relaxed text-muted-foreground">{section.content}</p>
                 {section.data_points && section.data_points.length > 0 && (
                   <div className="mt-4 overflow-x-auto">
-                    <table className="table-premium w-full text-sm">
+                    <table className="table-premium w-full text-sm" aria-label="Report metrics">
                       <thead>
                         <tr className="border-b border-border text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                          <th className="px-3 py-2 text-left">Metric</th>
-                          <th className="px-3 py-2 text-right">Value</th>
+                          <th scope="col" className="px-3 py-2 text-left">Metric</th>
+                          <th scope="col" className="px-3 py-2 text-right">Value</th>
                         </tr>
                       </thead>
                       <tbody>

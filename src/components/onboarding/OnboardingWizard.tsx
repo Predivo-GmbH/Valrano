@@ -372,7 +372,7 @@ export function OnboardingWizard() {
           <button
             onClick={handleBack}
             disabled={currentStep === 0}
-            className="rounded-lg px-4 py-2 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-0"
+            className="min-h-[44px] rounded-lg px-4 py-2 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-0"
           >
             Back
           </button>
@@ -380,7 +380,7 @@ export function OnboardingWizard() {
             <button
               onClick={handleNext}
               disabled={!canProceed(currentStep)}
-              className="inline-flex items-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-[13px] font-medium text-background transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-[13px] font-medium text-background transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Continue
               <ChevronRight className="h-4 w-4" />
@@ -388,7 +388,7 @@ export function OnboardingWizard() {
           ) : (
             <button
               onClick={handleComplete}
-              className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-5 py-2.5 text-[13px] font-medium text-white transition-all hover:opacity-90"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-[var(--color-accent)] px-5 py-2.5 text-[13px] font-medium text-white transition-all hover:opacity-90"
             >
               <Rocket className="h-4 w-4" />
               Activate Pipeline

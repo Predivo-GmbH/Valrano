@@ -49,7 +49,7 @@ export function PremiumSelect({
         id={id}
         onClick={() => setOpen(!open)}
         className={cn(
-          'flex items-center gap-2 rounded-lg border border-border bg-[var(--color-background)] px-3 py-2 text-[13px] text-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30',
+          'flex items-center gap-2 rounded-lg border border-border bg-[var(--color-background)] px-3 py-2 min-h-[44px] text-[13px] text-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30',
           triggerClassName
         )}
       >
@@ -73,7 +73,7 @@ export function PremiumSelect({
                 setOpen(false)
               }}
               className={cn(
-                'flex w-full items-center justify-between gap-4 px-3 py-2 text-[13px] transition-colors hover:bg-[var(--color-bg-tertiary)]',
+                'flex w-full items-center justify-between gap-4 px-3 py-2 min-h-[44px] text-[13px] transition-colors hover:bg-[var(--color-bg-tertiary)]',
                 value === opt.value
                   ? 'font-medium text-[var(--color-accent)]'
                   : 'text-foreground'

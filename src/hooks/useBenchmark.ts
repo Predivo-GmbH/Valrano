@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import type {
   BenchmarkRule,
   BenchmarkDocument,
@@ -16,6 +17,7 @@ import type {
 export function useBenchmarkRules() {
   return useQuery({
     queryKey: ['benchmark-rules'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('benchmark_rules')
@@ -181,6 +183,9 @@ export function useDeleteBenchmarkRule() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['benchmark-rules'] })
     },
+    onError: (error: Error) => {
+      toast.error(error.message)
+    },
   })
 }
 
@@ -206,6 +211,9 @@ export function useGenerateBenchmark() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['benchmark-documents'] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
     },
   })
 }
@@ -275,6 +283,7 @@ export function useUpdateDocumentContent() {
 export function useApprovalChains() {
   return useQuery({
     queryKey: ['approval-chains'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('approval_chains')

@@ -9,8 +9,15 @@ Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /auth/
 Disallow: /admin
+Disallow: /peers
+Disallow: /analytics
+Disallow: /news
+Disallow: /reports
+Disallow: /account
+Disallow: /settings
+Disallow: /onboarding
 Disallow: /companies/
-Disallow: /reports/
 Disallow: /documents/
+Disallow: /uploaded-reports/
 
 Sitemap: https://valrano.com/sitemap.xml

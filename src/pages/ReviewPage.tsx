@@ -154,11 +154,12 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
           <EmptyReviewState />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-max border-collapse">
+            <table className="w-full min-w-max border-collapse" aria-label="KPI review">
               <thead>
                 <tr className="border-b border-border">
                   {['Company', 'KPI', 'Category', 'Raw Value', 'Normalized (CHF)', 'Confidence', 'Source', ''].map((h) => (
                     <th
+                      scope="col"
                       key={h}
                       className={`px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground ${
                         h === '' ? 'w-28 text-right' : 'text-left'
@@ -285,7 +286,7 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
 
   return (
   <>
-    <Helmet><title>Review Queue | Valrano</title></Helmet>
+    <Helmet><title>Review Queue - Valrano</title><meta name="robots" content="noindex" /></Helmet>
     <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
       {content}
     </div>

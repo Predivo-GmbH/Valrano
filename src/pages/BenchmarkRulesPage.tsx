@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
 import { useBenchmarkRules, useCreateBenchmarkRule, useDeleteBenchmarkRule } from '@/hooks/useBenchmark'
 import { useCompanies, useKpiDefinitions } from '@/hooks/useData'
@@ -19,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { Settings, Plus, Trash2, Loader2, FileText, Zap } from 'lucide-react'
 import { toast } from 'sonner'
+import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state'
 
 // ---------------------------------------------------------------------------
 // Narrative style labels
@@ -31,24 +33,19 @@ const STYLE_LABELS: Record<NarrativeStyle, string> = {
 }
 
 // ---------------------------------------------------------------------------
-// Empty state
+// Empty state — uses shared EmptyState component
 // ---------------------------------------------------------------------------
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-      <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
-        <Settings className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <h3 className="mb-2 text-[15px] font-semibold text-foreground">No benchmark rules</h3>
-      <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
-        Create a benchmark rule to define how competitive analysis documents are generated.
-      </p>
-      <Button onClick={onAdd}>
-        <Plus className="h-4 w-4" />
-        Create Rule
-      </Button>
-    </div>
+    <SharedEmptyState
+      icon={<Settings className="h-6 w-6" />}
+      title="No benchmark rules"
+      description="Create a benchmark rule to define how competitive analysis documents are generated."
+      actionLabel="Create Rule"
+      onAction={onAdd}
+      actionIcon={<Plus className="h-4 w-4" />}
+    />
   )
 }
 
@@ -316,6 +313,8 @@ export function BenchmarkRulesPage() {
   }
 
   return (
+    <>
+    <Helmet><title>Benchmark Rules - Valrano</title><meta name="robots" content="noindex" /></Helmet>
     <div className="mx-auto max-w-[960px] px-4 py-8 sm:px-6">
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -398,5 +397,6 @@ export function BenchmarkRulesPage() {
         isPending={deleteMutation.isPending}
       />
     </div>
+    </>
   )
 }

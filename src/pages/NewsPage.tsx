@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { Newspaper, RefreshCw, ExternalLink, TrendingUp, TrendingDown, Minus, Search, Filter } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { PremiumSelect } from '@/components/ui/premium-select'
 import { useAllNews, useFetchNews } from '@/hooks/useNews'
@@ -154,7 +155,7 @@ export default function NewsPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <Helmet><title>News Intelligence - Valrano</title></Helmet>
+      <Helmet><title>News Intelligence - Valrano</title><meta name="robots" content="noindex" /></Helmet>
 
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -197,13 +198,13 @@ export default function NewsPage() {
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
-          <input
+          <Input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search news..."
             aria-label="Search news"
-            className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] pl-9 pr-4 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus-visible:border-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/30"
+            className="h-10 pl-9 pr-4"
           />
         </div>
       </div>
@@ -235,8 +236,24 @@ export default function NewsPage() {
 
       {/* Loading */}
       {isLoading && (
-        <div className="mt-12 text-center text-[var(--color-muted-foreground)]">
-          Loading news...
+        <div className="mt-8 space-y-4 animate-pulse" role="status" aria-label="Loading news">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 h-4 w-4 rounded bg-[var(--color-bg-tertiary)]" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-3/4 rounded bg-[var(--color-bg-tertiary)]" />
+                  <div className="h-3 w-1/2 rounded bg-[var(--color-bg-tertiary)]" />
+                  <div className="h-3 w-full rounded bg-[var(--color-bg-tertiary)]" />
+                  <div className="flex gap-2 pt-1">
+                    <div className="h-5 w-20 rounded-full bg-[var(--color-bg-tertiary)]" />
+                    <div className="h-5 w-16 rounded-full bg-[var(--color-bg-tertiary)]" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+          <span className="sr-only">Loading news...</span>
         </div>
       )}
 

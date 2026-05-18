@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async'
 import { Plus, Trash2 } from 'lucide-react'
 import { PremiumSelect } from '@/components/ui/premium-select'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
+import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { useApprovalChains, useCreateApprovalChain } from '@/hooks/useBenchmark'
 import { useBenchmarkRules } from '@/hooks/useBenchmark'
@@ -22,7 +23,7 @@ export function ApprovalChainsPage() {
 
   return (
     <>
-      <Helmet><title>Approval Chains - Valrano</title></Helmet>
+      <Helmet><title>Approval Chains - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6">
           <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Approval Chains</h1>
@@ -42,18 +43,20 @@ export function ApprovalChainsPage() {
         {isLoading ? (
           <PageSkeleton />
         ) : (chains ?? []).length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center">
-            <h3 className="text-lg font-semibold text-foreground">No approval chains</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Create an approval chain to route benchmark documents through review.
-            </p>
-          </div>
+          <Card>
+            <CardContent className="p-12 text-center">
+              <h3 className="text-lg font-semibold text-foreground">No approval chains</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Create an approval chain to route benchmark documents through review.
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           <div className="space-y-4">
             {(chains ?? []).map((chain) => {
               const steps = (chain.steps ?? []) as ApprovalChainStep[]
               return (
-                <div key={chain.id} className="rounded-xl border border-border bg-card p-5">
+                <Card key={chain.id} className="p-5">
                   <div className="mb-3 flex items-center justify-between">
                     <div>
                       <h3 className="font-semibold text-foreground">{chain.name}</h3>
@@ -80,7 +83,7 @@ export function ApprovalChainsPage() {
                       </div>
                     ))}
                   </div>
-                </div>
+                </Card>
               )
             })}
           </div>

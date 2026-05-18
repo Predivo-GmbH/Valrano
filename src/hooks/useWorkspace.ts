@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
 import type { Workspace, WorkspaceMember, WorkspaceRole } from '@/types/database'
 
@@ -9,10 +10,11 @@ export type { WorkspaceRole } from '@/types/database'
 export function useWorkspaces() {
   return useQuery({
     queryKey: ['workspaces'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('workspaces')
-        .select('*')
+        .select('id, name, slug, owner_id, created_at')
         .order('created_at')
       if (error) throw error
       return data as Workspace[]
@@ -24,12 +26,13 @@ export function useCurrentWorkspace() {
   const { user } = useAuth()
   return useQuery({
     queryKey: ['workspace-current', user?.id],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!user) return null
       // First try owned workspace
       const { data: owned, error: ownedErr } = await supabase
         .from('workspaces')
-        .select('*')
+        .select('id, name, slug, owner_id, created_at')
         .eq('owner_id', user.id)
         .limit(1)
         .maybeSingle()
@@ -48,7 +51,7 @@ export function useCurrentWorkspace() {
 
       const { data: ws, error: wsErr } = await supabase
         .from('workspaces')
-        .select('*')
+        .select('id, name, slug, owner_id, created_at')
         .eq('id', membership.workspace_id)
         .single()
       if (wsErr) throw wsErr
@@ -108,6 +111,9 @@ export function useRemoveMember() {
     },
     onSuccess: (_, params) => {
       queryClient.invalidateQueries({ queryKey: ['workspace-members', params.workspaceId] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
     },
   })
 }

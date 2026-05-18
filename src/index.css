@@ -94,17 +94,17 @@
   --color-foreground: #E8EAED;
   --color-muted: #141518;
   --color-muted-foreground: #A8B0BB;
-  --color-border: #27282B;
+  --color-border: #3A3B3F;
   --color-input: #1C1D20;
-  --color-ring: #3B82F6;
+  --color-ring: #2563EB;
 
   --color-primary: #E8EAED;
   --color-primary-foreground: #0A0B0D;
   --color-secondary: #141518;
   --color-secondary-foreground: #E8EAED;
-  --color-accent: #3B82F6;
+  --color-accent: #2563EB;
   --color-accent-foreground: #FFFFFF;
-  --color-destructive: #EF4444;
+  --color-destructive: #DC2626;
   --color-destructive-foreground: #FFFFFF;
 
   --color-card: #141518;

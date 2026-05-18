@@ -35,9 +35,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { toast } from 'sonner'
 import { UploadReportDialog } from '@/components/upload-report-dialog'
 import { cn } from '@/lib/utils'
+import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state'
 import { Link } from 'react-router-dom'
-import { CalendarPage } from './CalendarPage'
-import { ReviewPage } from './ReviewPage'
+import { lazy, Suspense } from 'react'
+
+const CalendarPage = lazy(() => import('./CalendarPage').then(m => ({ default: m.CalendarPage })))
+const ReviewPage = lazy(() => import('./ReviewPage').then(m => ({ default: m.ReviewPage })))
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -568,9 +571,9 @@ function PeerCard({
         <Link to={`/companies/${company.id}`} className="flex items-center gap-2.5 min-w-0 group">
           <CompanyLogo logoUrl={company.logo_url} websiteUrl={company.website_url} name={company.name} size="md" className="rounded-md" />
           <div className="min-w-0">
-            <h3 className="text-[15px] font-semibold text-foreground truncate group-hover:text-[var(--color-accent)] transition-colors">
+            <h2 className="text-[15px] font-semibold text-foreground truncate group-hover:text-[var(--color-accent)] transition-colors">
               {company.name}
-            </h3>
+            </h2>
             {company.ticker && (
               <span className="text-[11px] text-muted-foreground">
                 {company.ticker}{company.exchange ? ` · ${company.exchange}` : ''}
@@ -587,12 +590,13 @@ function PeerCard({
                 : 'bg-zinc-400',
               isMonitoring && (monitoringStatus === 'overdue' || monitoringStatus === 'due_today') && 'status-pulse',
             )}
+            aria-label={`Monitoring: ${isMonitoring ? (monitoringStatus ?? 'scheduled').replace('_', ' ') : 'inactive'}`}
           />
           <TooltipProvider delay={200}>
             <Tooltip>
               <TooltipTrigger
                 className={cn(
-                  'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground',
+                  'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground',
                   'hover:bg-accent hover:text-foreground transition-colors',
                 )}
                 onClick={() => onUpload(company.id)}
@@ -605,7 +609,7 @@ function PeerCard({
               <Tooltip>
                 <TooltipTrigger
                   className={cn(
-                    'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground',
+                    'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground',
                     'hover:bg-accent hover:text-foreground transition-colors',
                     isChecking && 'pointer-events-none opacity-50',
                   )}
@@ -619,7 +623,7 @@ function PeerCard({
             <Tooltip>
               <TooltipTrigger
                 className={cn(
-                  'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground',
+                  'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground',
                   'hover:bg-destructive/10 hover:text-destructive transition-colors',
                   isDeleting && 'pointer-events-none opacity-50',
                 )}
@@ -712,9 +716,9 @@ function PeerCard({
 
         {/* Sector match badge */}
         {sectorMatch && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
+          <Badge variant="secondary" className="bg-[var(--color-accent)]/10 text-[10px] text-[var(--color-accent)]">
             Same sector
-          </span>
+          </Badge>
         )}
       </div>
 
@@ -872,24 +876,25 @@ function ComparisonTableView({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card">
-      <table className="w-full min-w-[800px] text-[13px]">
+      <table className="w-full min-w-[800px] text-[13px]" aria-label="Peer companies">
         <thead>
           <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
-            <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+            <th scope="col" className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Company
             </th>
             {TABLE_KPI_CODES.map((code) => (
               <th
+                scope="col"
                 key={code}
                 className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground"
               >
                 {TABLE_KPI_LABELS[code]}
               </th>
             ))}
-            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+            <th scope="col" className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Last Report
             </th>
-            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+            <th scope="col" className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Actions
             </th>
           </tr>
@@ -935,7 +940,7 @@ function ComparisonTableView({
                         <TooltipProvider delay={200}>
                           <Tooltip>
                             <TooltipTrigger
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
                               onClick={() => onUpload(row.companyId)}
                             >
                               <Upload className="h-3.5 w-3.5" />
@@ -946,7 +951,7 @@ function ComparisonTableView({
                             <Tooltip>
                               <TooltipTrigger
                                 className={cn(
-                                  'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
+                                  'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors',
                                   checkingEventId === nextEventId && 'pointer-events-none opacity-50',
                                 )}
                                 onClick={() => onCheckNow(nextEventId)}
@@ -959,7 +964,7 @@ function ComparisonTableView({
                           <Tooltip>
                             <TooltipTrigger
                               className={cn(
-                                'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors',
+                                'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors',
                                 deletingCompanyId === row.companyId && 'pointer-events-none opacity-50',
                               )}
                               onClick={() => onDelete(row.companyId, row.name)}
@@ -983,24 +988,19 @@ function ComparisonTableView({
 }
 
 // ---------------------------------------------------------------------------
-// Empty State
+// Empty State — uses shared EmptyState component
 // ---------------------------------------------------------------------------
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-16 text-center">
-      <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
-        <Building2 className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <h3 className="mb-2 text-[15px] font-semibold text-foreground">No peers configured</h3>
-      <p className="mb-6 max-w-sm text-[13px] text-muted-foreground">
-        Add competitor companies to your peer group to start monitoring their publications and extracting KPIs.
-      </p>
-      <Button onClick={onAdd}>
-        <Plus className="h-4 w-4" />
-        Add Peer
-      </Button>
-    </div>
+    <SharedEmptyState
+      icon={<Building2 className="h-6 w-6" />}
+      title="No peers configured"
+      description="Add competitor companies to your peer group to start monitoring their publications and extracting KPIs."
+      actionLabel="Add Peer"
+      onAction={onAdd}
+      actionIcon={<Plus className="h-4 w-4" />}
+    />
   )
 }
 
@@ -1036,7 +1036,7 @@ export function PeersPage() {
 
   return (
     <>
-      <Helmet><title>Peers - Valrano</title></Helmet>
+      <Helmet><title>Peers - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="section-fade-in mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Page header */}
         <div className="mb-6">
@@ -1061,6 +1061,7 @@ export function PeersPage() {
               id={`peer-tab-${tab.id}`}
               aria-selected={activeTab === tab.id}
               aria-controls={`peer-tabpanel-${tab.id}`}
+              tabIndex={activeTab === tab.id ? 0 : -1}
               onClick={() => setSearchParams({ tab: tab.id })}
               className={peerTabCls(activeTab === tab.id)}
             >
@@ -1077,8 +1078,10 @@ export function PeersPage() {
           aria-labelledby={`peer-tab-${activeTab}`}
         >
           {activeTab === 'competitors' && <CompetitorsTab autoUploadCompanyId={autoUploadCompanyId} />}
-          {activeTab === 'calendar' && <CalendarPage embedded />}
-          {activeTab === 'review' && <ReviewPage embedded />}
+          <Suspense fallback={<CardSkeleton />}>
+            {activeTab === 'calendar' && <CalendarPage embedded />}
+            {activeTab === 'review' && <ReviewPage embedded />}
+          </Suspense>
         </div>
       </div>
     </>
@@ -1148,13 +1151,16 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
   const userCompanyId = primaryCompany?.company_id ?? null
   const userCompanyName = primaryCompany?.name ?? null
 
-  // Fetch KPI review counts per company
+  // Fetch KPI review counts per company (scoped to visible companies only)
+  const companyIds = useMemo(() => (companies ?? []).map((c) => c.id), [companies])
   const { data: kpiCounts } = useQuery({
-    queryKey: ['peer-kpi-counts'],
+    queryKey: ['peer-kpi-counts', companyIds],
     queryFn: async () => {
+      if (!companyIds.length) return {} as Record<string, { extracted: number; pendingReview: number }>
       const { data, error } = await supabase
         .from('kpi_values')
         .select('company_id, needs_review')
+        .in('company_id', companyIds)
       if (error) throw error
 
       const counts: Record<string, { extracted: number; pendingReview: number }> = {}
@@ -1169,10 +1175,11 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
       }
       return counts
     },
+    enabled: companyIds.length > 0,
   })
 
   // Build card data — exclude user's own company (it's not a peer)
-  const peerCards: PeerCardData[] = (companies ?? [])
+  const peerCards: PeerCardData[] = useMemo(() => (companies ?? [])
     .filter((c) => c.id !== userCompanyId)
     .map((company) => {
     // Find the latest report for this company
@@ -1208,7 +1215,7 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
       nextEventId: nextEvent?.id ?? null,
       scheduledCount: companyEvents.length,
     }
-  })
+  }), [companies, userCompanyId, reports, events, kpiCounts])
 
   // All company IDs for table view (peers + user's company)
   const allCompanyIds = useMemo(() => {

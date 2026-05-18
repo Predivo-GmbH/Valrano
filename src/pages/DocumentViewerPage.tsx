@@ -6,6 +6,7 @@ import { useBenchmarkDocument, useUpdateDocumentStatus, useUpdateDocumentContent
 import { useCurrentWorkspace, useMyWorkspaceRole } from '@/hooks/useWorkspace'
 import { useAuth } from '@/hooks/useAuth'
 import type { DocumentStatus, EnhancedBenchmarkContentJson } from '@/types/database'
+import { DOC_STATUS_CONFIG } from '@/lib/status-config'
 import {
   ArrowLeft,
   Printer,
@@ -31,16 +32,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button'
 
 // ---------------------------------------------------------------------------
-// Status config
+// Status config (imported from shared status-config.ts)
 // ---------------------------------------------------------------------------
 
-const STATUS_CONFIG: Record<DocumentStatus, { label: string; className: string; icon: typeof Clock }> = {
-  draft: { label: 'Draft', className: 'text-muted-foreground', icon: Clock },
-  in_review: { label: 'In Review', className: 'text-[var(--color-signal-amber)]', icon: Clock },
-  approved: { label: 'Approved', className: 'text-[var(--color-signal-green)]', icon: CheckCircle2 },
-  delivered: { label: 'Delivered', className: 'text-[var(--color-accent)]', icon: CheckCircle2 },
-  rejected: { label: 'Rejected', className: 'text-[var(--color-signal-red)]', icon: XCircle },
-}
+const STATUS_CONFIG = Object.fromEntries(
+  Object.entries(DOC_STATUS_CONFIG).map(([k, v]) => [k, { label: v.label, className: v.textClassName, icon: v.icon }])
+) as Record<DocumentStatus, { label: string; className: string; icon: typeof Clock }>
 
 const POSITION_CONFIG = {
   improved: { label: 'Improved', color: 'text-[var(--color-signal-green)]', icon: TrendingUp },
@@ -237,14 +234,14 @@ function DocumentContent({ content, triggerName, customerName, editable = false,
 
           {section.kpi_comparisons.length > 0 && (
             <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="table-premium w-full min-w-max border-collapse text-[13px]">
+              <table className="table-premium w-full min-w-max border-collapse text-[13px]" aria-label="KPI comparisons">
                 <thead>
                   <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
-                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">KPI</th>
-                    <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">{triggerName}</th>
-                    <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">{customerName}</th>
-                    <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Peer Median</th>
-                    <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Signal</th>
+                    <th scope="col" className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">KPI</th>
+                    <th scope="col" className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">{triggerName}</th>
+                    <th scope="col" className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">{customerName}</th>
+                    <th scope="col" className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Peer Median</th>
+                    <th scope="col" className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">Signal</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -542,7 +539,7 @@ export function DocumentViewerPage() {
 
   return (
     <div className="section-fade-in mx-auto max-w-[960px] px-4 py-8 sm:px-6">
-      <Helmet><title>{doc.title ? `${doc.title} - Valrano` : 'Document - Valrano'}</title></Helmet>
+      <Helmet><title>{doc.title ? `${doc.title} - Valrano` : 'Document - Valrano'}</title><meta name="robots" content="noindex" /></Helmet>
       {/* Breadcrumbs */}
       <Breadcrumbs items={[
         { label: 'Reports', href: '/reports' },

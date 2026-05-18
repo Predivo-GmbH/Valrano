@@ -12,7 +12,7 @@ export function useNotifications() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notifications')
-        .select('*')
+        .select('id, type, title, body, link, is_read, related_document_id, related_report_id, created_at')
         .order('created_at', { ascending: false })
         .limit(50)
       if (error) throw error

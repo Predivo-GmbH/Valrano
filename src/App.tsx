@@ -10,8 +10,10 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import { OnboardingGuard } from '@/components/auth/OnboardingGuard'
 import { RedirectIfAuthenticated } from '@/components/auth/RedirectIfAuthenticated'
+import { toast } from 'sonner'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import LandingPage from '@/pages/LandingPage'
+const LandingPage = lazy(() => import('@/pages/LandingPage'))
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 
 // Route-level code splitting — each page loads on demand
@@ -38,8 +40,14 @@ const CompanyProfilePage = lazy(() => import('@/pages/CompanyProfilePage').then(
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
       staleTime: 30_000,
+    },
+    mutations: {
+      onError: (error) => {
+        if (error instanceof Error) toast.error(error.message)
+      },
     },
   },
 })
@@ -101,7 +109,7 @@ function App() {
                         </Route>
                       </Route>
 
-                      <Route path="*" element={<Navigate to="/" replace />} />
+                      <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                   </AuthProvider>
                 </PasswordGate>

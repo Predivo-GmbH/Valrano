@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { useVisibleCompanyIds } from './useVisibleCompanyIds'
 
 // ---------------------------------------------------------------------------
 // Smart Year Hook
@@ -21,10 +22,11 @@ interface SmartYearResult {
 const FALLBACK_YEAR = new Date().getFullYear() - 1
 
 export function useSmartYear(): SmartYearResult {
+  const { data: visibleIds } = useVisibleCompanyIds()
+
   const { data, isLoading } = useQuery({
-    queryKey: ['smart-year-available'],
+    queryKey: ['smart-year-available', visibleIds],
     queryFn: async () => {
-      const { data: visibleIds } = await supabase.rpc('visible_company_ids')
       if (!visibleIds?.length) return []
       const { data: rows, error } = await supabase
         .from('kpi_values')
@@ -41,6 +43,7 @@ export function useSmartYear(): SmartYearResult {
       }
       return [...yearsSet].sort((a, b) => b - a)
     },
+    enabled: !!visibleIds,
     staleTime: 5 * 60 * 1000, // 5 min — year list rarely changes
   })
 

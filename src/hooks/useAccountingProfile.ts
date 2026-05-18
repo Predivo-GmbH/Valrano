@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import type { AccountingProfile, AccountingProfileUpdate } from '@/types/database'
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,7 @@ function friendlyAnalysisError(status: number | null, detail: string): string {
 export function useAccountingProfile() {
   return useQuery({
     queryKey: ['accounting-profile'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounting_profiles')
@@ -121,6 +123,9 @@ export function useDeleteAccountingProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['accounting-profile'] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
     },
   })
 }

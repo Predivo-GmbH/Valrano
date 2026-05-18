@@ -7,6 +7,7 @@ import { SUPER_ADMIN_EMAIL } from '@/hooks/useSubscription'
 import { getNewsDisabledUsers, setNewsDisabledUsers } from '@/lib/dev-flags'
 import type { SubscriptionTier } from '@/types/database'
 import { ShieldCheck, Loader2, Trash2 } from 'lucide-react'
+import { Card } from '@/components/ui/card'
 import { toast } from 'sonner'
 
 const TIERS: SubscriptionTier[] = ['starter', 'professional', 'enterprise']
@@ -82,6 +83,9 @@ function AdminPanel({
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       queryClient.invalidateQueries({ queryKey: ['subscription'] })
     },
+    onError: (err: Error) => {
+      toast.error(`Tier update failed: ${err.message}`)
+    },
   })
 
   const [confirmWipe, setConfirmWipe] = useState<string | null>(null)
@@ -118,9 +122,37 @@ function AdminPanel({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12 text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        Loading users...
+      <div className="space-y-6 animate-pulse" role="status" aria-label="Loading admin data">
+        <div className="flex items-center gap-2">
+          <div className="h-5 w-5 rounded bg-[var(--color-bg-tertiary)]" />
+          <div className="h-5 w-32 rounded bg-[var(--color-bg-tertiary)]" />
+        </div>
+        <div className="h-4 w-72 rounded bg-[var(--color-bg-tertiary)]" />
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="border-b border-border bg-[var(--color-bg-tertiary)]/30 px-4 py-3">
+            <div className="flex gap-16">
+              <div className="h-3 w-12 rounded bg-[var(--color-bg-tertiary)]" />
+              <div className="h-3 w-8 rounded bg-[var(--color-bg-tertiary)]" />
+              <div className="h-3 w-10 rounded bg-[var(--color-bg-tertiary)]" />
+              <div className="h-3 w-14 rounded bg-[var(--color-bg-tertiary)]" />
+            </div>
+          </div>
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center gap-8 border-b border-border/50 px-4 py-4">
+              <div className="flex-1 space-y-1.5">
+                <div className="h-3.5 w-40 rounded bg-[var(--color-bg-tertiary)]" />
+                <div className="h-2.5 w-24 rounded bg-[var(--color-bg-tertiary)]" />
+              </div>
+              <div className="flex gap-1">
+                <div className="h-8 w-20 rounded-md bg-[var(--color-bg-tertiary)]" />
+                <div className="h-8 w-20 rounded-md bg-[var(--color-bg-tertiary)]" />
+              </div>
+              <div className="h-5 w-9 rounded-full bg-[var(--color-bg-tertiary)]" />
+              <div className="h-8 w-16 rounded-md bg-[var(--color-bg-tertiary)]" />
+            </div>
+          ))}
+        </div>
+        <span className="sr-only">Loading admin data...</span>
       </div>
     )
   }
@@ -137,14 +169,14 @@ function AdminPanel({
         Manage subscription tiers and news gathering for all registered accounts.
       </p>
 
-      <div className="rounded-xl border border-border bg-card overflow-x-auto">
-        <table className="w-full min-w-[600px] text-sm">
+      <Card className="overflow-x-auto p-0">
+        <table className="w-full min-w-[600px] text-sm" aria-label="User administration">
           <thead>
             <tr className="border-b border-border bg-[var(--color-bg-tertiary)]/30">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">User</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tier</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">News</th>
-              <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">User</th>
+              <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tier</th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">News</th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -240,7 +272,7 @@ function AdminPanel({
             })}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
   )
 }

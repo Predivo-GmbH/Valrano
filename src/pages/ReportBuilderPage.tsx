@@ -28,11 +28,13 @@ import {
 import { useBenchmarkDocuments } from '@/hooks/useBenchmark'
 import { useCompanies, useKpiDefinitions, usePeerGroups } from '@/hooks/useData'
 import type { DocumentStatus } from '@/types/database'
+import { DOC_STATUS_CONFIG, getDocStatusBadge } from '@/lib/status-config'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 import {
   useCorporateTemplates,
   useGenerateFromTemplate,
@@ -47,31 +49,8 @@ import {
 type TabFilter = 'all' | 'benchmark' | 'custom'
 
 // ---------------------------------------------------------------------------
-// Benchmark doc status badge styling
+// Benchmark doc status badge styling — imported from shared status-config.ts
 // ---------------------------------------------------------------------------
-
-const DOC_STATUS_CONFIG: Record<DocumentStatus, { label: string; className: string }> = {
-  draft: {
-    label: 'Draft',
-    className: 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
-  },
-  in_review: {
-    label: 'In Review',
-    className: 'bg-[var(--color-signal-amber)]/10 text-[var(--color-signal-amber)]',
-  },
-  approved: {
-    label: 'Approved',
-    className: 'bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)]',
-  },
-  delivered: {
-    label: 'Delivered',
-    className: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]',
-  },
-  rejected: {
-    label: 'Rejected',
-    className: 'bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)]',
-  },
-}
 
 // Custom report status config
 const REPORT_STATUS_CONFIG = {
@@ -120,7 +99,7 @@ export function ReportBuilderPage() {
 
   return (
     <>
-      <Helmet><title>Reports - Valrano</title></Helmet>
+      <Helmet><title>Reports - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="section-fade-in mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -278,7 +257,8 @@ interface BenchmarkDoc {
 }
 
 function BenchmarkDocCard({ doc, formatDate }: { doc: BenchmarkDoc; formatDate: (d: string | null | undefined) => string }) {
-  const statusCfg = DOC_STATUS_CONFIG[doc.status] ?? DOC_STATUS_CONFIG.draft
+  const entry = DOC_STATUS_CONFIG[doc.status] ?? DOC_STATUS_CONFIG.draft
+  const statusCfg = { label: entry.label, className: entry.badgeClassName }
 
   return (
     <div className="card-premium rounded-xl border border-border bg-card p-5 transition-colors hover:bg-card/80">
@@ -302,9 +282,9 @@ function BenchmarkDocCard({ doc, formatDate }: { doc: BenchmarkDoc; formatDate: 
                 )}>
                   {statusCfg.label}
                 </span>
-                <span className="inline-flex items-center rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
+                <Badge variant="secondary" className="bg-[var(--color-accent)]/10 text-[10px] text-[var(--color-accent)]">
                   Auto-generated
-                </span>
+                </Badge>
               </div>
             </div>
           </div>
@@ -397,9 +377,9 @@ function CustomReportCard({
               <StatusIcon className={`h-3 w-3 ${report.status === 'generating' ? 'animate-spin' : ''}`} />
               {status.label}
             </span>
-            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <Badge variant="secondary" className="text-[10px]">
               Custom
-            </span>
+            </Badge>
           </div>
           {report.description && (
             <p className="mt-1 text-sm text-muted-foreground">{report.description}</p>

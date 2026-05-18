@@ -23,6 +23,7 @@ import { usePrimaryCompany } from '@/hooks/useMyCompany'
 import { UploadReportDialog } from '@/components/upload-report-dialog'
 import type { AccountingPolicies, KpiMapping } from '@/types/database'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
+import { Button } from '@/components/ui/button'
 
 // ---------------------------------------------------------------------------
 // Policy display config
@@ -175,7 +176,7 @@ function PolicyCard({
             </span>
           )}
           {sourcePage && (
-            <span className="inline-flex items-center gap-1 text-[9px] text-muted-foreground" title={`Found on page ${sourcePage} of the source report`}>
+            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground" title={`Found on page ${sourcePage} of the source report`}>
               <FileText className="h-2.5 w-2.5" />
               p.&nbsp;{sourcePage}
             </span>
@@ -286,7 +287,7 @@ export function AccountingProfilePage() {
   if (!profile) {
     return (
       <div className="space-y-6">
-        <Helmet><title>Accounting Profile - Valrano</title></Helmet>
+        <Helmet><title>Accounting Profile - Valrano</title><meta name="robots" content="noindex" /></Helmet>
         <div className="rounded-xl border border-border bg-card p-6">
           <div className="flex items-start gap-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-accent)]/10">
@@ -323,10 +324,9 @@ export function AccountingProfilePage() {
                   </div>
                 </div>
 
-                <button
+                <Button
                   onClick={handleAnalyze}
                   disabled={!selectedReportId || analyzeMutation.isPending}
-                  className="inline-flex items-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-[13px] font-medium text-background transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {analyzeMutation.isPending ? (
                     <>
@@ -339,7 +339,7 @@ export function AccountingProfilePage() {
                       Analyze Accounting Framework
                     </>
                   )}
-                </button>
+                </Button>
 
                 {analyzeMutation.isError && (
                   <p className="text-[12px] text-[var(--color-signal-red)]">
@@ -357,14 +357,14 @@ export function AccountingProfilePage() {
             <p className="text-[12px] text-muted-foreground mb-3">
               No reports with PDFs found. Upload your company's annual report first to analyze your accounting framework.
             </p>
-            <button
+            <Button
+              size="sm"
               onClick={() => setShowUploadDialog(true)}
               disabled={!primaryCompany?.company_id}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3.5 py-1.5 text-[11px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Upload className="h-3 w-3" />
               Upload Report
-            </button>
+            </Button>
           </div>
         )}
 
@@ -393,7 +393,7 @@ export function AccountingProfilePage() {
 
   return (
     <div className="space-y-6">
-      <Helmet><title>Accounting Profile - Valrano</title></Helmet>
+      <Helmet><title>Accounting Profile - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       {/* Profile header */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -415,17 +415,18 @@ export function AccountingProfilePage() {
                   </span>
                 )}
                 {profile.manually_edited && (
-                  <span className="text-[9px] text-muted-foreground italic">manually edited</span>
+                  <span className="text-[10px] text-muted-foreground italic">manually edited</span>
                 )}
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleReAnalyze}
               disabled={analyzeMutation.isPending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] transition-colors disabled:opacity-40"
             >
               {analyzeMutation.isPending ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -433,15 +434,16 @@ export function AccountingProfilePage() {
                 <RefreshCw className="h-3 w-3" />
               )}
               Re-analyze
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-[var(--color-signal-red)] hover:border-[var(--color-signal-red)]/30 transition-colors disabled:opacity-40"
             >
               <Trash2 className="h-3 w-3" />
               Remove
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -501,16 +503,16 @@ export function AccountingProfilePage() {
 
         {showKpiMappings && kpiMappingEntries.length > 0 && (
           <div className="border-t border-border">
-            <table className="table-premium w-full border-collapse table-fixed">
+            <table className="table-premium w-full border-collapse table-fixed" aria-label="KPI mappings">
               <thead>
                 <tr className="border-b border-border bg-[var(--color-bg-tertiary)]/20">
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[140px]">
+                  <th scope="col" className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[140px]">
                     KPI
                   </th>
-                  <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <th scope="col" className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Formula / Method
                   </th>
-                  <th className="px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[60px]">
+                  <th scope="col" className="px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[60px]">
                     Source
                   </th>
                 </tr>

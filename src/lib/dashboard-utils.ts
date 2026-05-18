@@ -2,6 +2,8 @@
  * Dashboard utility functions — extracted from DashboardPage.tsx for reuse and testability.
  */
 
+export { getDocStatusBadge } from '@/lib/status-config'
+
 export function getGreeting(): string {
   const hour = new Date().getHours()
   if (hour < 12) return 'Good morning'
@@ -66,13 +68,4 @@ export function getEventStatusDot(status: string): string {
   }
 }
 
-export function getDocStatusBadge(status: string): { label: string; className: string } {
-  switch (status) {
-    case 'draft': return { label: 'Draft', className: 'bg-muted text-muted-foreground' }
-    case 'in_review': return { label: 'In Review', className: 'bg-[var(--color-signal-amber)]/10 text-[var(--color-signal-amber)]' }
-    case 'approved': return { label: 'Approved', className: 'bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)]' }
-    case 'delivered': return { label: 'Delivered', className: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]' }
-    case 'rejected': return { label: 'Rejected', className: 'bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)]' }
-    default: return { label: status, className: 'bg-muted text-muted-foreground' }
-  }
-}
+// getDocStatusBadge is re-exported from @/lib/status-config above

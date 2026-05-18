@@ -13,6 +13,7 @@ import {
   Grid3X3,
 } from 'lucide-react'
 import { CompanyLogo } from '@/components/ui/company-logo'
+import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -37,10 +38,10 @@ import { PageSkeleton } from '@/components/ui/page-skeleton'
 type TabId = 'trends' | 'pivot' | 'scatter' | 'heatmap'
 
 const TABS: { id: TabId; label: string; shortLabel: string; icon: ReactNode }[] = [
-  { id: 'trends', label: 'Trends', shortLabel: 'Trends', icon: <BarChart3 className="h-4 w-4" /> },
-  { id: 'pivot', label: 'Pivot Table', shortLabel: 'Pivot', icon: <Table2 className="h-4 w-4" /> },
-  { id: 'scatter', label: 'Scatter', shortLabel: 'Scatter', icon: <ScatterIcon className="h-4 w-4" /> },
-  { id: 'heatmap', label: 'Heatmap', shortLabel: 'Heat', icon: <Grid3X3 className="h-4 w-4" /> },
+  { id: 'trends', label: 'Trends', shortLabel: 'Trends', icon: <BarChart3 className="h-4 w-4" aria-hidden="true" /> },
+  { id: 'pivot', label: 'Pivot Table', shortLabel: 'Pivot', icon: <Table2 className="h-4 w-4" aria-hidden="true" /> },
+  { id: 'scatter', label: 'Scatter', shortLabel: 'Scatter', icon: <ScatterIcon className="h-4 w-4" aria-hidden="true" /> },
+  { id: 'heatmap', label: 'Heatmap', shortLabel: 'Heat', icon: <Grid3X3 className="h-4 w-4" aria-hidden="true" /> },
 ]
 
 const CHART_COLORS = [
@@ -115,7 +116,7 @@ export function AnalyticsPage() {
 
   return (
     <>
-      <Helmet><title>Analytics - Valrano</title></Helmet>
+      <Helmet><title>Analytics - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6">
           <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">Analytics</h1>
@@ -160,6 +161,7 @@ export function AnalyticsPage() {
               aria-controls={`tabpanel-${tab.id}`}
               aria-label={tab.label}
               id={`tab-${tab.id}`}
+              tabIndex={activeTab === tab.id ? 0 : -1}
               onClick={() => setTab(tab.id)}
               className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] ${
                 activeTab === tab.id
@@ -402,12 +404,14 @@ function TrendsPanel({
 
   if (disabled) {
     return (
-      <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
-        <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground/50" />
-        <p className="mt-3 text-sm text-[var(--color-signal-red)]">
-          Fix the year range to view trends.
-        </p>
-      </div>
+      <Card className="card-premium">
+        <CardContent className="p-12 text-center">
+          <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground/50" />
+          <p className="mt-3 text-sm text-[var(--color-signal-red)]">
+            Fix the year range to view trends.
+          </p>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -415,13 +419,15 @@ function TrendsPanel({
 
   if (!trends || trends.length === 0) {
     return (
-      <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
-        <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground/50" />
-        <h3 className="mt-3 text-lg font-semibold text-foreground">No trend data</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Upload reports and extract KPIs to see trends over time.
-        </p>
-      </div>
+      <Card className="card-premium">
+        <CardContent className="p-12 text-center">
+          <BarChart3 className="mx-auto h-10 w-10 text-muted-foreground/50" />
+          <h3 className="mt-3 text-lg font-semibold text-foreground">No trend data</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Upload reports and extract KPIs to see trends over time.
+          </p>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -485,14 +491,14 @@ function TrendsPanel({
             </h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="table-premium w-full text-sm">
+            <table className="table-premium w-full text-sm" aria-label="Compound annual growth rate">
               <thead>
                 <tr className="border-b border-border text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  <th className="px-5 py-3 text-left">Company</th>
-                  <th className="px-5 py-3 text-left">KPI</th>
-                  <th className="px-5 py-3 text-right">{startYear}</th>
-                  <th className="px-5 py-3 text-right">{endYear}</th>
-                  <th className="px-5 py-3 text-right">CAGR</th>
+                  <th scope="col" className="px-5 py-3 text-left">Company</th>
+                  <th scope="col" className="px-5 py-3 text-left">KPI</th>
+                  <th scope="col" className="px-5 py-3 text-right">{startYear}</th>
+                  <th scope="col" className="px-5 py-3 text-right">{endYear}</th>
+                  <th scope="col" className="px-5 py-3 text-right">CAGR</th>
                 </tr>
               </thead>
               <tbody>
@@ -575,14 +581,14 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
 
   return (
     <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
-      <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }}>
+      <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }} aria-label="Peer comparison heatmap">
         <thead>
           <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
-            <th className="sticky left-0 z-10 bg-[var(--color-bg-tertiary)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground" style={{ width: '180px' }}>
+            <th scope="col" className="sticky left-0 z-10 bg-[var(--color-bg-tertiary)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground" style={{ width: '180px' }}>
               Company
             </th>
             {visibleKpis.map((kpi) => (
-              <th key={kpi.code} className="px-3 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              <th scope="col" key={kpi.code} className="px-3 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                 <TooltipProvider delay={200}>
                   <UiTooltip>
                     <TooltipTrigger className="cursor-help">
@@ -765,14 +771,14 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
   return (
     <div className="space-y-4">
       <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
-        <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }}>
+        <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }} aria-label="Percentile ranking">
           <thead>
             <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
-              <th className="sticky left-0 z-10 bg-[var(--color-bg-tertiary)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground" style={{ width: '180px' }}>
+              <th scope="col" className="sticky left-0 z-10 bg-[var(--color-bg-tertiary)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground" style={{ width: '180px' }}>
                 Company
               </th>
               {visibleKpis.map((kpi) => (
-                <th key={kpi.code} className="px-1 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                <th scope="col" key={kpi.code} className="px-1 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                   <TooltipProvider delay={200}>
                     <UiTooltip>
                       <TooltipTrigger className="cursor-help">

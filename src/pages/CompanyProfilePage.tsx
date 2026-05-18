@@ -53,6 +53,7 @@ import { supabase } from '@/lib/supabase'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 import { cn } from '@/lib/utils'
 import { CompanyLogo } from '@/components/ui/company-logo'
+import { ReportStatusBadge as StatusBadge } from '@/components/ui/report-status-badge'
 import type {
   KpiCategory,
   CompanyNews,
@@ -313,8 +314,8 @@ export function CompanyProfilePage() {
       toast.error('Invalid URL — include https:// (e.g. https://www.example.com)')
       return
     }
-    const domain = parsed.hostname.replace(/^www\./, '')
-    const logoUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
+    const domain = parsed.hostname
+    const logoUrl = `https://${domain}/favicon.ico`
     await supabase.from('companies').update({ website_url: url, logo_url: logoUrl }).eq('id', company.id)
     queryClient.invalidateQueries({ queryKey: ['companies-all'] })
     setEditingWebsite(false)
@@ -557,6 +558,7 @@ export function CompanyProfilePage() {
       <>
         <Helmet>
           <title>Company Not Found - Valrano</title>
+          <meta name="robots" content="noindex" />
         </Helmet>
         <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
           <Link
@@ -581,6 +583,7 @@ export function CompanyProfilePage() {
     <>
       <Helmet>
         <title>{company.name} - Valrano</title>
+        <meta name="robots" content="noindex" />
       </Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Back link */}
@@ -1131,19 +1134,7 @@ export function CompanyProfilePage() {
                         )}
                       </div>
                       <div className="text-right">
-                        {signal === 'risk' ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-red)]">
-                            <ShieldAlert className="h-3 w-3" /> Risk
-                          </span>
-                        ) : signal === 'advantage' ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-green)]">
-                            <ShieldCheck className="h-3 w-3" /> Advantage
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                            <Minus className="h-3 w-3" /> Neutral
-                          </span>
-                        )}
+                        <SignalBadge signal={signal} />
                       </div>
                     </div>
                   )
@@ -1436,13 +1427,11 @@ export function CompanyProfilePage() {
             ))}
           </div>
         ) : (
-          <div className="mb-6 card-premium rounded-xl border border-border bg-card p-6 text-center">
-            <Newspaper className="mx-auto h-8 w-8 text-muted-foreground/40" />
-            <h3 className="mt-2 text-[15px] font-semibold text-foreground">No News Yet</h3>
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              News articles about {company.name} will appear here once news monitoring is active.
-            </p>
-          </div>
+          <EmptySection
+            icon={Newspaper}
+            title="No News Yet"
+            description={`News articles about ${company.name} will appear here once news monitoring is active.`}
+          />
         )}
 
         {/* ============================================================= */}
@@ -1497,13 +1486,11 @@ export function CompanyProfilePage() {
             })}
           </div>
         ) : (
-          <div className="mb-6 card-premium rounded-xl border border-border bg-card p-6 text-center">
-            <Zap className="mx-auto h-8 w-8 text-muted-foreground/40" />
-            <h3 className="mt-2 text-[15px] font-semibold text-foreground">No AI Insights Yet</h3>
-            <p className="mt-1 text-[12px] text-muted-foreground max-w-sm mx-auto">
-              AI-generated insights (trend reversals, outliers, opportunities) will appear here once {company.name}'s report data has been analyzed.
-            </p>
-          </div>
+          <EmptySection
+            icon={Zap}
+            title="No AI Insights Yet"
+            description={`AI-generated insights (trend reversals, outliers, opportunities) will appear here once ${company.name}'s report data has been analyzed.`}
+          />
         )}
       </div>
     </>
@@ -1549,25 +1536,49 @@ function SectionHeader({
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    extracted: 'bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)]',
-    reviewed: 'bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)]',
-    processing: 'bg-[var(--color-signal-amber)]/10 text-[var(--color-signal-amber)]',
-    pending: 'bg-muted text-muted-foreground',
-    error: 'bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)]',
+function EmptySection({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: typeof TrendingUp
+  title: string
+  description: string
+}) {
+  return (
+    <div className="mb-6 card-premium rounded-xl border border-border bg-card p-6 text-center">
+      <Icon className="mx-auto h-8 w-8 text-muted-foreground/40" />
+      <h3 className="mt-2 text-[15px] font-semibold text-foreground">{title}</h3>
+      <p className="mt-1 text-[12px] text-muted-foreground max-w-sm mx-auto">
+        {description}
+      </p>
+    </div>
+  )
+}
+
+function SignalBadge({ signal }: { signal: 'risk' | 'advantage' | 'neutral' }) {
+  if (signal === 'risk') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-red)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-red)]">
+        <ShieldAlert className="h-3 w-3" /> Risk
+      </span>
+    )
+  }
+  if (signal === 'advantage') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-signal-green)]">
+        <ShieldCheck className="h-3 w-3" /> Advantage
+      </span>
+    )
   }
   return (
-    <span
-      className={cn(
-        'rounded-full px-2 py-0.5 text-[10px] font-medium',
-        styles[status] ?? styles.pending,
-      )}
-    >
-      {status}
+    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+      <Minus className="h-3 w-3" /> Neutral
     </span>
   )
 }
+
+// StatusBadge imported from @/components/ui/report-status-badge
 
 // ---------------------------------------------------------------------------
 // Publication Schedule Section — inline add/edit/delete + AI suggest

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { CompanyLogo } from '@/components/ui/company-logo'
+import { Badge } from '@/components/ui/badge'
 
 const STATUS_COLORS: Record<PublicationEventStatus, string> = {
   scheduled: 'bg-[var(--color-financial-blue)]/15 text-[var(--color-financial-blue)] border-[var(--color-financial-blue)]/30',
@@ -85,7 +86,9 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterCompany, setFilterCompany] = useState<string>('all')
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [viewMode, setViewMode] = useState<'calendar' | 'upcoming'>('calendar')
+  const [viewMode, setViewMode] = useState<'calendar' | 'upcoming'>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 640 ? 'upcoming' : 'calendar'
+  )
 
   const today = new Date()
   const todayStr = today.toISOString().slice(0, 10)
@@ -415,10 +418,10 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                             className="h-7 rounded border border-border bg-background px-2 text-xs text-foreground"
                             autoFocus
                           />
-                          <button type="button" onClick={() => handleDateSave(ev.id)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
+                          <button type="button" onClick={() => handleDateSave(ev.id)} className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
                             <Check className="h-3.5 w-3.5" />
                           </button>
-                          <button type="button" onClick={() => setEditingDateEventId(null)} className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                          <button type="button" onClick={() => setEditingDateEventId(null)} className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent">
                             <X className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -444,10 +447,10 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                             className="h-7 w-24 rounded border border-border bg-background px-2 text-xs text-foreground"
                             autoFocus
                           />
-                          <button type="button" onClick={() => handleTimeSave(ev.id)} className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
+                          <button type="button" onClick={() => handleTimeSave(ev.id)} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
                             <Check className="h-3.5 w-3.5" />
                           </button>
-                          <button type="button" onClick={() => setEditingTimeEventId(null)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                          <button type="button" onClick={() => setEditingTimeEventId(null)} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-muted-foreground hover:bg-accent">
                             <X className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -474,7 +477,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                             onClick={() => handleSuggestTime(ev)}
                             disabled={isSuggesting}
                             title="Suggest time with AI"
-                            className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 disabled:opacity-50"
+                            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 disabled:opacity-50"
                           >
                             {isSuggesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                           </button>
@@ -484,7 +487,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
 
                     {/* Status dot + Logo + Company + Report Type */}
                     <div className="flex min-w-0 flex-1 items-start gap-2.5">
-                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_COLORS[ev.status]}`} />
+                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_COLORS[ev.status]}`} aria-label={`Status: ${STATUS_LABELS[ev.status]}`} />
                       <CompanyLogo logoUrl={company?.logo_url} websiteUrl={company?.website_url} name={company?.name} size="sm" className="mt-0.5" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -510,10 +513,10 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                                   <option key={key} value={key}>{label}</option>
                                 ))}
                               </select>
-                              <button type="button" onClick={() => handleReportTypeSave(ev.id)} className="flex h-5 w-5 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
+                              <button type="button" onClick={() => handleReportTypeSave(ev.id)} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
                                 <Check className="h-3 w-3" />
                               </button>
-                              <button type="button" onClick={() => setEditingReportTypeEventId(null)} className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                              <button type="button" onClick={() => setEditingReportTypeEventId(null)} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-muted-foreground hover:bg-accent">
                                 <X className="h-3 w-3" />
                               </button>
                             </div>
@@ -622,7 +625,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                           />
                         ))}
                         {dayEvents.length > 4 && (
-                          <span className="text-[9px] leading-none text-muted-foreground">+{dayEvents.length - 4}</span>
+                          <span className="text-[10px] leading-none text-muted-foreground">+{dayEvents.length - 4}</span>
                         )}
                       </div>
                     )}
@@ -673,10 +676,10 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                                   className="h-7 w-24 rounded border border-border bg-background px-2 text-xs text-foreground"
                                   autoFocus
                                 />
-                                <button type="button" onClick={() => handleTimeSave(ev.id)} className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
+                                <button type="button" onClick={() => handleTimeSave(ev.id)} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
                                   <Check className="h-3.5 w-3.5" />
                                 </button>
-                                <button type="button" onClick={() => setEditingTimeEventId(null)} className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                                <button type="button" onClick={() => setEditingTimeEventId(null)} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-muted-foreground hover:bg-accent">
                                   <X className="h-3.5 w-3.5" />
                                 </button>
                               </div>
@@ -703,7 +706,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                                   onClick={() => handleSuggestTime(ev)}
                                   disabled={isSuggesting}
                                   title="Suggest time with AI"
-                                  className="flex h-6 w-6 items-center justify-center rounded text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 disabled:opacity-50"
+                                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 disabled:opacity-50"
                                 >
                                   {isSuggesting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                                 </button>
@@ -713,7 +716,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
 
                           {/* Status dot + Logo + Company + Report Type */}
                           <div className="flex min-w-0 flex-1 items-start gap-2.5">
-                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_COLORS[ev.status]}`} />
+                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${STATUS_DOT_COLORS[ev.status]}`} aria-label={`Status: ${STATUS_LABELS[ev.status]}`} />
                             <CompanyLogo logoUrl={company?.logo_url} websiteUrl={company?.website_url} name={company?.name} size="sm" className="mt-0.5" />
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
@@ -741,10 +744,10 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                                         <option key={key} value={key}>{label}</option>
                                       ))}
                                     </select>
-                                    <button type="button" onClick={() => handleReportTypeSave(ev.id)} className="flex h-5 w-5 items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
+                                    <button type="button" onClick={() => handleReportTypeSave(ev.id)} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-[var(--color-signal-green)] hover:bg-[var(--color-signal-green)]/10">
                                       <Check className="h-3 w-3" />
                                     </button>
-                                    <button type="button" onClick={() => setEditingReportTypeEventId(null)} className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-accent">
+                                    <button type="button" onClick={() => setEditingReportTypeEventId(null)} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-muted-foreground hover:bg-accent">
                                       <X className="h-3 w-3" />
                                     </button>
                                   </div>
@@ -873,7 +876,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <>
-      <Helmet><title>Publication Calendar - Valrano</title></Helmet>
+      <Helmet><title>Publication Calendar - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {content}
       </div>
@@ -1008,9 +1011,9 @@ function CreateEventDialog({
           <DialogTitle>Add Publication Event</DialogTitle>
         </DialogHeader>
         <div className="flex justify-end">
-          <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+          <Badge variant="outline" className="text-[10px]">
             {TIER_LABELS[tier] ?? TIER_LABELS.starter}
-          </span>
+          </Badge>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

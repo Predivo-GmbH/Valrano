@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async'
 import { useTheme } from 'next-themes'
 import { User, Shield, CreditCard, SlidersHorizontal, Sun, Moon, Trash2, Eye, EyeOff, Check, KeyRound, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { PremiumSelect } from '@/components/ui/premium-select'
 import { useAuth } from '@/hooks/useAuth'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -106,7 +107,7 @@ export function AccountPage() {
 
   return (
     <>
-      <Helmet><title>Account - Valrano</title></Helmet>
+      <Helmet><title>Account - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="mx-auto max-w-[800px] px-4 py-8 sm:px-6">
         <div className="mb-6">
           <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">
@@ -150,13 +151,10 @@ export function AccountPage() {
                   <p className="text-[13px] font-medium text-foreground">Password</p>
                   <p className="text-[11px] text-muted-foreground">Update your account password</p>
                 </div>
-                <button
-                  onClick={() => setShowPasswordForm(true)}
-                  className="flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-white transition-all hover:opacity-90"
-                >
+                <Button size="sm" onClick={() => setShowPasswordForm(true)}>
                   <KeyRound className="h-3.5 w-3.5" />
                   Change Password
-                </button>
+                </Button>
               </div>
             ) : passwordSuccess ? (
               <div className="flex items-center gap-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
@@ -166,7 +164,7 @@ export function AccountPage() {
             ) : (
               <form onSubmit={handleChangePassword} className="space-y-4">
                 {passwordError && (
-                  <div role="alert" className="rounded-lg bg-[var(--color-destructive)]/10 px-4 py-3 text-[13px] text-[var(--color-destructive)]">
+                  <div id="acct-pw-error" role="alert" className="rounded-lg bg-[var(--color-destructive)]/10 px-4 py-3 text-[13px] text-[var(--color-destructive)]">
                     {passwordError}
                   </div>
                 )}
@@ -174,7 +172,7 @@ export function AccountPage() {
                 <div>
                   <label htmlFor="new-pw" className="block text-[12px] font-medium text-muted-foreground mb-1.5">New password</label>
                   <div className="relative">
-                    <input
+                    <Input
                       id="new-pw"
                       type={showPassword ? 'text' : 'password'}
                       required
@@ -182,8 +180,9 @@ export function AccountPage() {
                       minLength={8}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="block w-full rounded-lg border border-border bg-[var(--color-background)] px-3 py-2.5 pr-10 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
+                      className="pr-10"
                       placeholder="Min. 8 characters"
+                      aria-describedby={`acct-pw-strength${passwordError ? ' acct-pw-error' : ''}`}
                     />
                     <button
                       type="button"
@@ -194,47 +193,44 @@ export function AccountPage() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  <PasswordStrength password={newPassword} />
+                  <PasswordStrength password={newPassword} id="acct-pw-strength" />
                 </div>
 
                 <div>
                   <label htmlFor="confirm-pw" className="block text-[12px] font-medium text-muted-foreground mb-1.5">Confirm new password</label>
-                  <input
+                  <Input
                     id="confirm-pw"
                     type={showPassword ? 'text' : 'password'}
                     required
                     autoComplete="new-password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="block w-full rounded-lg border border-border bg-[var(--color-background)] px-3 py-2.5 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
                     placeholder="Confirm password"
+                    aria-describedby={confirmPassword && confirmPassword !== newPassword ? 'acct-confirm-mismatch' : undefined}
                   />
                   {confirmPassword && confirmPassword !== newPassword && (
-                    <p className="mt-1 text-[11px] text-[var(--color-destructive)]">Passwords do not match</p>
+                    <p id="acct-confirm-mismatch" className="mt-1 text-[11px] text-[var(--color-destructive)]" role="alert">Passwords do not match</p>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2 pt-1">
-                  <button
-                    type="submit"
-                    disabled={passwordLoading}
-                    className="flex items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-[13px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
-                  >
+                  <Button type="submit" size="sm" disabled={passwordLoading}>
                     {passwordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                     {passwordLoading ? 'Updating...' : 'Update Password'}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => {
                       setShowPasswordForm(false)
                       setPasswordError(null)
                       setNewPassword('')
                       setConfirmPassword('')
                     }}
-                    className="rounded-lg border border-border px-4 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}
@@ -278,13 +274,14 @@ export function AccountPage() {
                   <p className="text-[13px] font-medium text-foreground">Theme</p>
                   <p className="text-[11px] text-muted-foreground">Switch between light and dark mode</p>
                 </div>
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-[13px] font-medium text-foreground transition-colors hover:bg-[var(--color-bg-tertiary)]"
                 >
                   {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                   {theme === 'dark' ? 'Dark' : 'Light'}
-                </button>
+                </Button>
               </div>
 
               {/* Fiscal Year — custom dropdown */}
@@ -338,12 +335,12 @@ export function AccountPage() {
                   <label className="text-[12px] text-red-700 dark:text-red-300 block mb-1">
                     Type <span className="font-mono font-bold">DELETE</span> to confirm
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={deleteConfirmText}
                     onChange={(e) => setDeleteConfirmText(e.target.value)}
                     placeholder="DELETE"
-                    className="w-full rounded-md border border-red-300 dark:border-red-800 bg-white dark:bg-red-950/50 px-3 py-2 text-[13px] text-foreground outline-none focus:ring-2 focus:ring-red-400"
+                    className="border-red-300 dark:border-red-800 focus-visible:border-red-400 focus-visible:ring-red-400/50"
                   />
                 </div>
                 {deleteError && (

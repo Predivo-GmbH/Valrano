@@ -89,11 +89,11 @@ export default function ResetPasswordPage() {
                 className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 sm:text-sm"
                 placeholder="Confirm password" />
               {confirm && confirm !== password && (
-                <p className="mt-1 text-xs text-[var(--color-destructive)]">Passwords do not match</p>
+                <p className="mt-1 text-xs text-[var(--color-destructive)]" role="alert">Passwords do not match</p>
               )}
             </div>
             <button type="submit" disabled={loading}
-              className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-medium text-white transition-all hover:brightness-110 hover:shadow-lg hover:shadow-[var(--color-accent)]/25 active:scale-[0.98] disabled:opacity-50 cursor-pointer">
+              className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 min-h-[44px] text-sm font-medium text-white transition-all hover:brightness-110 hover:shadow-lg hover:shadow-[var(--color-accent)]/25 active:scale-[0.98] disabled:opacity-50 cursor-pointer">
               {loading ? 'Updating...' : 'Update Password'}
             </button>
           </form>

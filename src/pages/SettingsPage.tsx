@@ -1,17 +1,19 @@
-import { useMemo } from 'react'
+import { lazy, Suspense, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { BookOpen, Building2, FileBox, Settings, Shield, ShieldCheck, User, Users } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { SUPER_ADMIN_EMAIL } from '@/hooks/useSubscription'
-import { AccountPage } from './AccountPage'
-import { MyCompanyPage } from './MyCompanyPage'
-import { AccountingProfilePage } from './AccountingProfilePage'
-import { BenchmarkRulesPage } from './BenchmarkRulesPage'
-import { ApprovalChainsPage } from './ApprovalChainsPage'
-import { TeamPage } from './TeamPage'
-import { AdminPage } from './AdminPage'
-import { CorporateTemplatesPage } from './CorporateTemplatesPage'
+import { CardSkeleton } from '@/components/ui/page-skeleton'
+
+const AccountPage = lazy(() => import('./AccountPage').then(m => ({ default: m.AccountPage })))
+const MyCompanyPage = lazy(() => import('./MyCompanyPage').then(m => ({ default: m.MyCompanyPage })))
+const AccountingProfilePage = lazy(() => import('./AccountingProfilePage').then(m => ({ default: m.AccountingProfilePage })))
+const BenchmarkRulesPage = lazy(() => import('./BenchmarkRulesPage').then(m => ({ default: m.BenchmarkRulesPage })))
+const ApprovalChainsPage = lazy(() => import('./ApprovalChainsPage').then(m => ({ default: m.ApprovalChainsPage })))
+const TeamPage = lazy(() => import('./TeamPage').then(m => ({ default: m.TeamPage })))
+const AdminPage = lazy(() => import('./AdminPage').then(m => ({ default: m.AdminPage })))
+const CorporateTemplatesPage = lazy(() => import('./CorporateTemplatesPage').then(m => ({ default: m.CorporateTemplatesPage })))
 
 const BASE_TABS = [
   { id: 'account', label: 'Account', icon: User },
@@ -47,13 +49,15 @@ export function SettingsPage() {
 
   const activeTab = (searchParams.get('tab') as TabId) || 'account'
 
+  const activeLabel = tabs.find((t) => t.id === activeTab)?.label ?? 'Settings'
+
   function handleTabChange(tab: TabId) {
     setSearchParams({ tab })
   }
 
   return (
     <>
-      <Helmet><title>Settings - Valrano</title></Helmet>
+      <Helmet><title>{activeLabel} - Settings - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="section-fade-in mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Page header */}
         <div className="mb-6">
@@ -78,6 +82,7 @@ export function SettingsPage() {
               id={`tab-${tab.id}`}
               aria-selected={activeTab === tab.id}
               aria-controls={`tabpanel-${tab.id}`}
+              tabIndex={activeTab === tab.id ? 0 : -1}
               onClick={() => handleTabChange(tab.id)}
               className={tabCls(activeTab === tab.id)}
             >
@@ -93,14 +98,16 @@ export function SettingsPage() {
           id={`tabpanel-${activeTab}`}
           aria-labelledby={`tab-${activeTab}`}
         >
-          {activeTab === 'account' && <AccountPage />}
-          {activeTab === 'team' && <TeamPage />}
-          {activeTab === 'company' && <MyCompanyPage />}
-          {activeTab === 'accounting' && <AccountingProfilePage />}
-          {activeTab === 'rules' && <BenchmarkRulesPage />}
-          {activeTab === 'approvals' && <ApprovalChainsPage />}
-          {activeTab === 'templates' && <CorporateTemplatesPage />}
-          {activeTab === 'admin' && isSuperAdmin && <AdminPage />}
+          <Suspense fallback={<CardSkeleton />}>
+            {activeTab === 'account' && <AccountPage />}
+            {activeTab === 'team' && <TeamPage />}
+            {activeTab === 'company' && <MyCompanyPage />}
+            {activeTab === 'accounting' && <AccountingProfilePage />}
+            {activeTab === 'rules' && <BenchmarkRulesPage />}
+            {activeTab === 'approvals' && <ApprovalChainsPage />}
+            {activeTab === 'templates' && <CorporateTemplatesPage />}
+            {activeTab === 'admin' && isSuperAdmin && <AdminPage />}
+          </Suspense>
         </div>
       </div>
     </>

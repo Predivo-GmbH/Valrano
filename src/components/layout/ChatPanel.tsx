@@ -64,6 +64,7 @@ export function ChatPanel() {
   const [showHistory, setShowHistory] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
   const location = useLocation()
 
   const pageContext = getPageContext(location.pathname)
@@ -88,11 +89,27 @@ export function ChatPanel() {
     }
   }, [isOpen])
 
-  // Close on Escape key
+  // Close on Escape key + trap focus within panel
+  const panelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!isOpen) return
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false)
+      if (e.key === 'Escape') { setIsOpen(false); toggleRef.current?.focus(); return }
+      if (e.key === 'Tab' && panelRef.current) {
+        const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
@@ -142,6 +159,7 @@ export function ChatPanel() {
     <>
       {/* Toggle button — fixed bottom-right */}
       <button
+        ref={toggleRef}
         onClick={() => setIsOpen(!isOpen)}
         aria-label={isOpen ? 'Close AI assistant' : 'Open AI assistant'}
         className={cn(
@@ -150,13 +168,14 @@ export function ChatPanel() {
           isOpen && 'rotate-90 opacity-0 pointer-events-none',
         )}
       >
-        <MessageSquare className="h-5 w-5" />
+        <MessageSquare className="h-5 w-5" aria-hidden="true" />
       </button>
 
       {/* Panel */}
       <div
+        ref={panelRef}
         className={cn(
-          'fixed bottom-0 right-0 top-16 z-40 flex w-full sm:w-[400px] max-w-[100vw] flex-col border-l border-border bg-[var(--color-background)] shadow-2xl transition-transform duration-300',
+          'fixed right-0 top-16 z-40 flex w-full sm:w-[400px] max-w-[100vw] flex-col border-l border-border bg-[var(--color-background)] shadow-2xl transition-transform duration-300 h-[calc(100vh-4rem)] h-[calc(100dvh-4rem)]',
           isOpen ? 'translate-x-0' : 'translate-x-full',
         )}
         role="complementary"
@@ -174,7 +193,7 @@ export function ChatPanel() {
               aria-label="New chat"
               className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground transition-colors"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" aria-hidden="true" />
             </button>
             <button
               onClick={() => setShowHistory(!showHistory)}
@@ -186,14 +205,14 @@ export function ChatPanel() {
                   : 'text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground',
               )}
             >
-              <ChevronDown className={cn('h-4 w-4 transition-transform', showHistory && 'rotate-180')} />
+              <ChevronDown className={cn('h-4 w-4 transition-transform', showHistory && 'rotate-180')} aria-hidden="true" />
             </button>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => { setIsOpen(false); toggleRef.current?.focus() }}
               aria-label="Close AI assistant"
               className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground transition-colors"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -208,7 +227,7 @@ export function ChatPanel() {
                 <div
                   key={s.id}
                   className={cn(
-                    'group flex items-center justify-between px-4 py-2.5 cursor-pointer transition-colors',
+                    'group flex items-center justify-between px-4 py-2.5 min-h-[44px] cursor-pointer transition-colors',
                     activeSessionId === s.id
                       ? 'bg-[var(--color-primary)]/10'
                       : 'hover:bg-[var(--color-background)]',
@@ -251,7 +270,7 @@ export function ChatPanel() {
                   <button
                     key={i}
                     onClick={() => handleSend(q)}
-                    className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-left text-[12px] text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2.5 min-h-[44px] text-left text-[12px] text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
                   >
                     {q}
                   </button>
@@ -336,7 +355,7 @@ export function ChatPanel() {
       {isOpen && (
         <div
           className="fixed inset-0 top-16 z-30 bg-black/50 md:hidden"
-          onClick={() => setIsOpen(false)}
+          onClick={() => { setIsOpen(false); toggleRef.current?.focus() }}
           aria-hidden="true"
         />
       )}

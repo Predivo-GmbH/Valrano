@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { useVisibleCompanyIds } from './useVisibleCompanyIds'
 import type {
   Company,
   KpiDefinition,
@@ -10,21 +11,19 @@ import type {
 } from '@/types/database'
 
 export function useCompanies() {
-  return useQuery({
-    queryKey: ['companies'],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      // Only return companies in user's peer groups
-      const { data: visibleIds, error: visErr } = await supabase
-        .rpc('visible_company_ids')
-      if (visErr) throw visErr
+  const { data: visibleIds } = useVisibleCompanyIds()
 
+  return useQuery({
+    queryKey: ['companies', visibleIds],
+    staleTime: 5 * 60 * 1000,
+    enabled: !!visibleIds,
+    queryFn: async () => {
       if (!visibleIds || visibleIds.length === 0) return [] as Company[]
 
       const { data, error } = await supabase
         .from('companies')
         .select('*')
-        .in('id', visibleIds as string[])
+        .in('id', visibleIds)
         .eq('is_active', true)
         .order('name')
       if (error) throw error
@@ -124,9 +123,12 @@ export function useKpiValues(params: {
 }
 
 export function useReports(companyId?: string) {
+  const { data: visibleIds } = useVisibleCompanyIds()
+
   return useQuery({
-    queryKey: ['reports', companyId],
+    queryKey: ['reports', companyId, visibleIds],
     staleTime: 5 * 60 * 1000,
+    enabled: !!companyId || !!visibleIds,
     queryFn: async () => {
       let query = supabase
         .from('reports')
@@ -135,13 +137,10 @@ export function useReports(companyId?: string) {
 
       if (companyId) {
         query = query.eq('company_id', companyId)
+      } else if (visibleIds?.length) {
+        query = query.in('company_id', visibleIds)
       } else {
-        const { data: visibleIds } = await supabase.rpc('visible_company_ids')
-        if (visibleIds?.length) {
-          query = query.in('company_id', visibleIds)
-        } else {
-          return []
-        }
+        return []
       }
 
       const { data, error } = await query

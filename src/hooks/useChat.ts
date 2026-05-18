@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import type { ChatSession, ChatMessage } from '@/types/database'
 
 // ---------------------------------------------------------------------------
@@ -13,7 +14,7 @@ export function useChatSessions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('chat_sessions')
-        .select('*')
+        .select('id, title, page_context, created_at, last_message_at')
         .order('last_message_at', { ascending: false })
       if (error) throw error
       return data as ChatSession[]
@@ -27,7 +28,7 @@ export function useChatMessages(sessionId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('chat_messages')
-        .select('*')
+        .select('id, session_id, role, content, created_at')
         .eq('session_id', sessionId!)
         .order('created_at', { ascending: true })
       if (error) throw error
@@ -143,6 +144,9 @@ export function useDeleteChatSession() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-sessions'] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
     },
   })
 }

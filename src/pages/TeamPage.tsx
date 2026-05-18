@@ -98,15 +98,29 @@ export function TeamPage() {
 
   if (wsLoading || membersLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className="space-y-6 animate-pulse" role="status" aria-label="Loading team">
+        <div>
+          <div className="h-5 w-24 rounded bg-[var(--color-bg-tertiary)]" />
+          <div className="mt-2 h-3 w-64 rounded bg-[var(--color-bg-tertiary)]" />
+        </div>
+        <div className="h-16 rounded-lg border border-border bg-card" />
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+            <div className="h-9 w-9 rounded-full bg-[var(--color-bg-tertiary)]" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3.5 w-32 rounded bg-[var(--color-bg-tertiary)]" />
+              <div className="h-3 w-16 rounded bg-[var(--color-bg-tertiary)]" />
+            </div>
+          </div>
+        ))}
+        <span className="sr-only">Loading team...</span>
       </div>
     )
   }
 
   return (
     <div className="space-y-8">
-      <Helmet><title>Team - Valrano</title></Helmet>
+      <Helmet><title>Team - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       {/* Workspace info */}
       <div>
         <h2 className="text-[16px] font-semibold text-foreground">Team</h2>

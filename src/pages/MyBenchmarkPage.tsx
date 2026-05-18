@@ -91,7 +91,7 @@ export function MyBenchmarkPage() {
 
   return (
     <>
-      <Helmet><title>My Benchmark - Valrano</title></Helmet>
+      <Helmet><title>My Benchmark - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Header */}
         <div className="mb-6">
@@ -219,15 +219,15 @@ export function MyBenchmarkPage() {
                   <h3 className="font-semibold text-foreground">KPI Comparison</h3>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm" aria-label="My benchmark results">
                     <thead>
                       <tr className="border-b border-border text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        <th className="px-5 py-3 text-left">KPI</th>
-                        <th className="px-5 py-3 text-right">Your Value</th>
-                        <th className="px-5 py-3 text-right">Peer Median</th>
-                        <th className="px-5 py-3 text-right">Gap</th>
-                        <th className="px-5 py-3 text-center">Percentile</th>
-                        <th className="px-5 py-3 text-center">Signal</th>
+                        <th scope="col" className="px-5 py-3 text-left">KPI</th>
+                        <th scope="col" className="px-5 py-3 text-right">Your Value</th>
+                        <th scope="col" className="px-5 py-3 text-right">Peer Median</th>
+                        <th scope="col" className="px-5 py-3 text-right">Gap</th>
+                        <th scope="col" className="px-5 py-3 text-center">Percentile</th>
+                        <th scope="col" className="px-5 py-3 text-center">Signal</th>
                       </tr>
                     </thead>
                     <tbody>

@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-/** Build a Google Favicon URL from a full website URL (free, no API key). */
+/** Build a direct favicon URL from a website URL (domain/favicon.ico). */
 export function companyLogoUrl(websiteUrl: string | null | undefined): string | null {
   if (!websiteUrl) return null
   try {
-    const domain = new URL(websiteUrl).hostname.replace(/^www\./, '')
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
+    const domain = new URL(websiteUrl).hostname
+    return `https://${domain}/favicon.ico`
   } catch {
     return null
   }

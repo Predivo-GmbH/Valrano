@@ -10,11 +10,12 @@ export function useSubscription() {
 
   const { data: subscription, isLoading } = useQuery<Subscription | null>({
     queryKey: ['subscription', user?.id],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!user) return null
       const { data, error } = await supabase
         .from('subscriptions')
-        .select('*')
+        .select('id, user_id, tier, status, current_period_end')
         .eq('user_id', user.id)
         .maybeSingle()
       if (error) throw error

@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Upload, FileText, Loader2, Check, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { validateUploadFiles } from '@/lib/validation'
 
 interface UploadReportDialogProps {
   open: boolean
@@ -93,19 +94,13 @@ export function UploadReportDialog({
   )
 
   const addFiles = useCallback((files: File[]) => {
-    const MAX_FILE_SIZE = 250 * 1024 * 1024 // 250 MB
-    const pdfs = files.filter(f => f.type === 'application/pdf')
-    if (pdfs.length === 0) { toast.error('Only PDF files are supported'); return }
-    if (pdfs.length < files.length) toast.info(`${files.length - pdfs.length} non-PDF file(s) skipped`)
-
-    const oversized = pdfs.filter(f => f.size > MAX_FILE_SIZE)
-    if (oversized.length > 0) {
-      toast.error(`${oversized.map(f => f.name).join(', ')} exceed${oversized.length === 1 ? 's' : ''} the 250 MB file size limit`)
-      const valid = pdfs.filter(f => f.size <= MAX_FILE_SIZE)
-      if (valid.length === 0) return
-      pdfs.length = 0
-      pdfs.push(...valid)
+    // Validate files with Zod schema (type + size)
+    const { valid: pdfs, errors } = validateUploadFiles(files)
+    if (errors.size > 0) {
+      for (const [name, msg] of errors) toast.error(`${name}: ${msg}`)
     }
+    if (pdfs.length === 0) { if (errors.size === 0) toast.error('Only PDF files are supported'); return }
+    if (pdfs.length < files.length - errors.size) toast.info(`${files.length - pdfs.length - errors.size} non-PDF file(s) skipped`)
 
     // Check for duplicates against existing reports
     const duplicates: string[] = []
@@ -322,7 +317,7 @@ export function UploadReportDialog({
                       )}
                       <button
                         onClick={() => removeFile(item.id)}
-                        className="flex-shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        className="flex-shrink-0 flex min-h-[44px] min-w-[44px] items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         aria-label={`Remove ${item.file.name}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -376,9 +371,9 @@ export function UploadReportDialog({
                     'bg-muted text-muted-foreground/40',
                   )}>
                     {item.status === 'done' ? <Check className="h-3 w-3" /> :
-                     item.status === 'error' ? <span className="text-[9px] font-bold">!</span> :
+                     item.status === 'error' ? <span className="text-[10px] font-bold">!</span> :
                      (item.status === 'uploading' || item.status === 'extracting') ? <Loader2 className="h-3 w-3 animate-spin" /> :
-                     <span className="text-[9px]">{idx + 1}</span>}
+                     <span className="text-[10px]">{idx + 1}</span>}
                   </div>
                   <p className="truncate text-[12px] text-foreground flex-1">{item.file.name}</p>
                   <span className="text-[10px] text-muted-foreground flex-shrink-0">

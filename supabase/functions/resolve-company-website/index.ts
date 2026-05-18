@@ -268,10 +268,68 @@ async function validateDomainReachable(domain: string): Promise<{ reachable: boo
 }
 
 /**
+ * Extract the best favicon URL from HTML <link> tags.
+ * Prefers apple-touch-icon (highest res), then icon with largest size, then any icon.
+ */
+function extractFaviconUrl(html: string, domain: string): string | null {
+  const htmlLower = html.toLowerCase()
+
+  // Match all <link> tags with rel containing "icon"
+  const linkRegex = /<link\s+[^>]*rel=["']([^"']*)["'][^>]*>/gi
+  const icons: { href: string; rel: string; size: number }[] = []
+
+  let match
+  while ((match = linkRegex.exec(html)) !== null) {
+    const relValue = match[1].toLowerCase()
+    if (!relValue.includes('icon')) continue
+
+    const tag = match[0]
+    const hrefMatch = tag.match(/href=["']([^"']+)["']/)
+    if (!hrefMatch) continue
+
+    let href = hrefMatch[1].trim()
+    if (!href || href === '#') continue
+
+    // Resolve relative URLs to absolute
+    if (href.startsWith('//')) {
+      href = 'https:' + href
+    } else if (href.startsWith('/')) {
+      href = `https://${domain}${href}`
+    } else if (!href.startsWith('http')) {
+      href = `https://${domain}/${href}`
+    }
+
+    // Parse sizes attribute (e.g., "32x32", "180x180")
+    const sizesMatch = tag.match(/sizes=["'](\d+)x\d+["']/i)
+    const size = sizesMatch ? parseInt(sizesMatch[1], 10) : 0
+
+    icons.push({ href, rel: relValue, size })
+  }
+
+  if (icons.length === 0) return null
+
+  // Sort: apple-touch-icon first, then by size descending
+  icons.sort((a, b) => {
+    const aApple = a.rel.includes('apple-touch-icon') ? 1 : 0
+    const bApple = b.rel.includes('apple-touch-icon') ? 1 : 0
+    if (aApple !== bApple) return bApple - aApple
+    return b.size - a.size
+  })
+
+  return icons[0].href
+}
+
+interface PageVerifyResult {
+  nameFound: boolean
+  faviconUrl: string | null
+}
+
+/**
  * Strict page verification: company name must appear in <title>, <meta>, or <h1>.
+ * Also extracts favicon URL from <link rel="icon"> tags.
  * NO domain-derived word fallback.
  */
-async function verifyCompanyNameOnPage(domain: string, companyName: string): Promise<boolean> {
+async function verifyCompanyNameOnPage(domain: string, companyName: string): Promise<PageVerifyResult> {
   try {
     const resp = await fetch(`https://${domain}`, {
       method: 'GET',
@@ -279,10 +337,10 @@ async function verifyCompanyNameOnPage(domain: string, companyName: string): Pro
       signal: AbortSignal.timeout(8000),
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Valrano/1.0)' },
     })
-    if (!resp.ok) return false
+    if (!resp.ok) return { nameFound: false, faviconUrl: null }
 
     const reader = resp.body?.getReader()
-    if (!reader) return false
+    if (!reader) return { nameFound: false, faviconUrl: null }
     let html = ''
     const decoder = new TextDecoder()
     while (html.length < 50000) {
@@ -291,6 +349,9 @@ async function verifyCompanyNameOnPage(domain: string, companyName: string): Pro
       html += decoder.decode(value, { stream: true })
     }
     reader.cancel()
+
+    // Extract favicon from <link> tags
+    const faviconUrl = extractFaviconUrl(html, domain)
 
     const htmlLower = html.toLowerCase()
     const cleanName = stripLegalSuffix(companyName).toLowerCase()
@@ -308,29 +369,35 @@ async function verifyCompanyNameOnPage(domain: string, companyName: string): Pro
     ].join(' ')
 
     // Check full company name in structured elements
-    if (structuredText.includes(cleanName)) return true
+    if (structuredText.includes(cleanName)) return { nameFound: true, faviconUrl }
 
     // For multi-word names, check if ALL significant words appear in structured elements
     const words = cleanName.split(/\s+/).filter(w => w.length > 2)
-    if (words.length >= 2 && words.every(w => structuredText.includes(w))) return true
+    if (words.length >= 2 && words.every(w => structuredText.includes(w))) return { nameFound: true, faviconUrl }
 
     // Fallback: check full name anywhere in the HTML body (but NOT domain-derived words)
-    if (htmlLower.includes(cleanName)) return true
-    if (words.length >= 2 && words.every(w => htmlLower.includes(w))) return true
+    if (htmlLower.includes(cleanName)) return { nameFound: true, faviconUrl }
+    if (words.length >= 2 && words.every(w => htmlLower.includes(w))) return { nameFound: true, faviconUrl }
 
-    return false
+    return { nameFound: false, faviconUrl }
   } catch {
-    return false
+    return { nameFound: false, faviconUrl: null }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Phase 5: Logo — Google Favicon V2 (free, no API key)
+// Phase 5: Logo — Direct favicon from website (with fallback chain)
 // ---------------------------------------------------------------------------
 
-/** Build Google Favicon URL for a domain */
-function buildLogoUrl(domain: string): string {
-  return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
+/**
+ * Build logo URL for a domain. Fallback chain:
+ * 1. Scraped favicon from HTML (if provided)
+ * 2. Standard /favicon.ico path
+ * 3. Google Favicon V2 as last resort
+ */
+function buildLogoUrl(domain: string, scrapedFaviconUrl?: string | null): string {
+  if (scrapedFaviconUrl) return scrapedFaviconUrl
+  return `https://${domain}/favicon.ico`
 }
 
 // ---------------------------------------------------------------------------
@@ -447,6 +514,7 @@ Deno.serve(async (req: Request) => {
     // -----------------------------------------------------------------------
     // Step 3: Strict verification
     // -----------------------------------------------------------------------
+    let scrapedFavicon: string | null = null
     if (selectedDomain) {
       // 3a: HEAD reachability (200 only, not 403)
       const validation = await validateDomainReachable(selectedDomain)
@@ -496,19 +564,24 @@ Deno.serve(async (req: Request) => {
       }
 
       // 3c: Page content verification (strict — no domain-word fallback)
-      const nameOnPage = await verifyCompanyNameOnPage(selectedDomain, companyName)
-      if (!nameOnPage) {
+      // Also extracts favicon URL from page HTML (zero extra requests)
+      const pageResult = await verifyCompanyNameOnPage(selectedDomain, companyName)
+      if (!pageResult.nameFound) {
         console.log(`Page verification FAILED: "${companyName}" not found on ${selectedDomain}`)
         // Don't reject outright — lower confidence so frontend shows confirmation
         confidence = Math.min(confidence, 0.6)
         source = source + '_unverified'
       }
+      if (pageResult.faviconUrl) {
+        console.log(`Scraped favicon for ${selectedDomain}: ${pageResult.faviconUrl}`)
+      }
+      scrapedFavicon = pageResult.faviconUrl
     }
 
     // -----------------------------------------------------------------------
-    // Step 4: Logo — Google Favicon (always available for valid domains)
+    // Step 4: Logo — direct favicon from website (scraped > /favicon.ico > Google)
     // -----------------------------------------------------------------------
-    const logoUrl: string | null = selectedDomain ? buildLogoUrl(selectedDomain) : null
+    const logoUrl: string | null = selectedDomain ? buildLogoUrl(selectedDomain, scrapedFavicon) : null
 
     // -----------------------------------------------------------------------
     // Step 5: Confidence gating — decide whether to auto-save

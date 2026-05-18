@@ -97,7 +97,7 @@ export default function OtpInput({ length = 6, onComplete, disabled }: OtpInputP
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={i === 0 ? handlePaste : undefined}
-          className="h-14 w-11 rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-card)] text-center text-2xl font-bold text-[var(--color-foreground)] transition-all focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 disabled:opacity-50 sm:w-12"
+          className="h-14 w-10 max-w-12 flex-1 rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-card)] text-center text-xl font-bold text-[var(--color-foreground)] transition-all focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 disabled:opacity-50 sm:w-12 sm:text-2xl"
         />
       ))}
     </div>

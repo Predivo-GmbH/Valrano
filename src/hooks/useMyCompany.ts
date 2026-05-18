@@ -10,10 +10,11 @@ import type { KpiDefinition } from '@/types/database'
 export function useMyCompanies() {
   return useQuery({
     queryKey: ['my-companies'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('my_companies')
-        .select('*')
+        .select('id, user_id, company_id, name, sector, country, reporting_currency, headcount, founded_year, website_url, is_primary')
         .order('is_primary', { ascending: false })
       if (error) throw error
       return data as MyCompany[]
@@ -24,10 +25,11 @@ export function useMyCompanies() {
 export function useMyCompany(id: string | undefined) {
   return useQuery({
     queryKey: ['my-companies', id],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('my_companies')
-        .select('*')
+        .select('id, user_id, company_id, name, sector, country, reporting_currency, headcount, founded_year, website_url, is_primary')
         .eq('id', id!)
         .single()
       if (error) throw error
@@ -40,10 +42,11 @@ export function useMyCompany(id: string | undefined) {
 export function usePrimaryCompany() {
   return useQuery({
     queryKey: ['my-companies', 'primary'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('my_companies')
-        .select('*')
+        .select('id, user_id, company_id, name, sector, country, reporting_currency, headcount, founded_year, website_url, is_primary')
         .eq('is_primary', true)
         .maybeSingle()
       if (error) throw error

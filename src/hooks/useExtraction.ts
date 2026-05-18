@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 
 export function useUploadReport() {
   return useMutation({
@@ -40,6 +41,9 @@ export function useUploadReport() {
       }
 
       return res.json() as Promise<{ report_id: string; storage_path: string }>
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
     },
   })
 }

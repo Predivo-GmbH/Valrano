@@ -5,21 +5,7 @@ import { ArrowLeft, Download, FileText, CheckCircle2, Clock, AlertTriangle, Load
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Breadcrumbs } from '@/components/ui/breadcrumbs'
-
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
-    extracted: { icon: <CheckCircle2 className="h-3 w-3" />, label: 'Extracted', className: 'text-emerald-600 bg-emerald-500/10' },
-    processing: { icon: <Loader2 className="h-3 w-3 animate-spin" />, label: 'Processing', className: 'text-blue-600 bg-blue-500/10' },
-    pending: { icon: <Clock className="h-3 w-3" />, label: 'Pending', className: 'text-amber-600 bg-amber-500/10' },
-    error: { icon: <AlertTriangle className="h-3 w-3" />, label: 'Error', className: 'text-red-600 bg-red-500/10' },
-  }
-  const c = config[status] ?? config.pending
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${c.className}`}>
-      {c.icon} {c.label}
-    </span>
-  )
-}
+import { ReportStatusBadge as StatusBadge } from '@/components/ui/report-status-badge'
 
 export function UploadedReportPage() {
   const { id } = useParams<{ id: string }>()
@@ -87,7 +73,7 @@ export function UploadedReportPage() {
 
   return (
     <>
-      <Helmet><title>{report.title || 'Report'} - Valrano</title></Helmet>
+      <Helmet><title>{report.title || 'Report'} - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="section-fade-in mx-auto max-w-[1000px] px-4 py-8 sm:px-6">
         <Breadcrumbs items={[
           ...(company ? [{ label: company.name, href: `/companies/${company.id}` }] : []),
@@ -133,14 +119,14 @@ export function UploadedReportPage() {
               <h2 className="text-[13px] font-semibold text-foreground">Extracted KPIs ({kpis.length})</h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm" aria-label="Extracted KPI values">
                 <thead>
                   <tr className="border-b border-border text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                    <th className="px-5 py-2.5 text-left">KPI</th>
-                    <th className="px-5 py-2.5 text-right">Value</th>
-                    <th className="px-5 py-2.5 text-right">Currency</th>
-                    <th className="px-5 py-2.5 text-right">Confidence</th>
-                    <th className="px-5 py-2.5 text-left">Source</th>
+                    <th scope="col" className="px-5 py-2.5 text-left">KPI</th>
+                    <th scope="col" className="px-5 py-2.5 text-right">Value</th>
+                    <th scope="col" className="px-5 py-2.5 text-right">Currency</th>
+                    <th scope="col" className="px-5 py-2.5 text-right">Confidence</th>
+                    <th scope="col" className="px-5 py-2.5 text-left">Source</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">

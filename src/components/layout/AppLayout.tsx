@@ -32,11 +32,13 @@ export function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const userMenuTriggerRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false)
+        userMenuTriggerRef.current?.focus()
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -91,14 +93,16 @@ export function AppLayout() {
             </NavLink>
 
             {/* Center navigation — desktop */}
-            <div className="hidden items-center gap-1 md:flex">
+            <ul className="hidden items-center gap-1 md:flex" role="list">
               {NAV_ITEMS.map((item) => (
-                <NavLink key={item.to} to={item.to} className={({ isActive }) => navLinkCls(isActive)}>
-                  <item.icon className="h-4 w-4" aria-hidden="true" />
-                  {item.label}
-                </NavLink>
+                <li key={item.to}>
+                  <NavLink to={item.to} className={({ isActive }) => navLinkCls(isActive)}>
+                    <item.icon className="h-4 w-4" aria-hidden="true" />
+                    {item.label}
+                  </NavLink>
+                </li>
               ))}
-            </div>
+            </ul>
 
             {/* Right side — notifications + theme toggle + user menu + mobile hamburger */}
             <div className="flex items-center gap-1">
@@ -108,17 +112,18 @@ export function AppLayout() {
                 aria-label="Toggle theme"
                 className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
               >
-                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {theme === 'dark' ? <Sun className="h-5 w-5" aria-hidden="true" /> : <Moon className="h-5 w-5" aria-hidden="true" />}
               </button>
 
               <div className="relative" ref={menuRef}>
                 <button
+                  ref={userMenuTriggerRef}
                   onClick={() => setMenuOpen(!menuOpen)}
                   aria-label="User menu"
                   aria-expanded={menuOpen}
                   className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
                 >
-                  <User className="h-5 w-5" />
+                  <User className="h-5 w-5" aria-hidden="true" />
                 </button>
                 {menuOpen && (
                   <div
@@ -126,7 +131,7 @@ export function AppLayout() {
                     aria-label="User menu"
                     className="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-[var(--color-card)] py-1 shadow-lg"
                     onKeyDown={(e) => {
-                      if (e.key === 'Escape') { setMenuOpen(false); return }
+                      if (e.key === 'Escape') { setMenuOpen(false); userMenuTriggerRef.current?.focus(); return }
                       if (e.key === 'Tab') {
                         const items = e.currentTarget.querySelectorAll<HTMLElement>('button[role="menuitem"]')
                         if (items.length === 0) return
@@ -154,17 +159,17 @@ export function AppLayout() {
                     <button
                       role="menuitem"
                       onClick={() => { setMenuOpen(false); navigate('/account') }}
-                      className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
+                      className="flex w-full items-center gap-2 px-4 py-2.5 min-h-[44px] text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
                     >
-                      <User className="h-4 w-4" />
+                      <User className="h-4 w-4" aria-hidden="true" />
                       Account
                     </button>
                     <button
                       role="menuitem"
                       onClick={() => { setMenuOpen(false); navigate('/settings') }}
-                      className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
+                      className="flex w-full items-center gap-2 px-4 py-2.5 min-h-[44px] text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
                     >
-                      <Settings className="h-4 w-4" />
+                      <Settings className="h-4 w-4" aria-hidden="true" />
                       Settings
                     </button>
                     <div className="border-t border-border my-1" />
@@ -174,9 +179,9 @@ export function AppLayout() {
                         navigate('/')
                         try { await signOut() } catch { /* ignore */ }
                       }}
-                      className="flex w-full items-center gap-2 px-4 py-2.5 text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
+                      className="flex w-full items-center gap-2 px-4 py-2.5 min-h-[44px] text-[13px] text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
                     >
-                      <LogOut className="h-4 w-4" />
+                      <LogOut className="h-4 w-4" aria-hidden="true" />
                       Sign out
                     </button>
                   </div>
@@ -190,7 +195,7 @@ export function AppLayout() {
                 aria-expanded={mobileNavOpen}
                 className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)] hover:text-foreground md:hidden"
               >
-                {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                {mobileNavOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
               </button>
             </div>
           </div>
@@ -208,13 +213,34 @@ export function AppLayout() {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Navigation menu"
+                onKeyDown={(e) => {
+                  if (e.key === 'Tab') {
+                    const focusable = e.currentTarget.querySelectorAll<HTMLElement>(
+                      'a, button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                    )
+                    if (focusable.length === 0) return
+                    const first = focusable[0]
+                    const last = focusable[focusable.length - 1]
+                    if (e.shiftKey && document.activeElement === first) {
+                      e.preventDefault()
+                      last.focus()
+                    } else if (!e.shiftKey && document.activeElement === last) {
+                      e.preventDefault()
+                      first.focus()
+                    }
+                  }
+                }}
               >
-                {NAV_ITEMS.map((item) => (
-                  <NavLink key={item.to} to={item.to} onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
-                    <item.icon className="h-4 w-4" aria-hidden="true" />
-                    {item.label}
-                  </NavLink>
-                ))}
+                <ul role="list" className="space-y-0.5">
+                  {NAV_ITEMS.map((item) => (
+                    <li key={item.to}>
+                      <NavLink to={item.to} onClick={() => setMobileNavOpen(false)} className={({ isActive }) => navLinkCls(isActive)}>
+                        <item.icon className="h-4 w-4" aria-hidden="true" />
+                        {item.label}
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
                 <div className="mt-2 border-t border-border pt-3">
                   <p className="truncate px-3 text-xs text-muted-foreground">{user?.email}</p>
                   <button

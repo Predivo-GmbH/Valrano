@@ -22,6 +22,10 @@ export class ErrorBoundary extends Component<Props, State> {
     }
   }
 
+  resetError = () => {
+    this.setState({ hasError: false, error: null })
+  }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -31,12 +35,20 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="mb-6 text-sm text-muted-foreground">
               An unexpected error occurred. Please try refreshing the page.
             </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
-            >
-              Refresh Page
-            </button>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={this.resetError}
+                className="rounded-lg border border-border bg-card px-6 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
+              >
+                Refresh Page
+              </button>
+            </div>
           </div>
         </div>
       )

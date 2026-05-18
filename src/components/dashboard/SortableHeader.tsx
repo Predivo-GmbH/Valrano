@@ -40,7 +40,7 @@ export const SortableHeader = React.memo(function SortableHeader({
 
   if (description) {
     return (
-      <th className="px-2 py-2 text-right">
+      <th scope="col" className="px-2 py-2 text-right">
         <Tooltip>
           <TooltipTrigger className={btnClass} onClick={() => onSort(columnId)} aria-label={`Sort by ${label}`}>
             {label}
@@ -58,7 +58,7 @@ export const SortableHeader = React.memo(function SortableHeader({
   }
 
   return (
-    <th className="px-2 py-2 text-right">
+    <th scope="col" className="px-2 py-2 text-right">
       <button onClick={() => onSort(columnId)} className={btnClass} aria-label={`Sort by ${label}`}>
         {label}
         <SortIcon className={iconClass} />

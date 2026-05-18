@@ -6,6 +6,7 @@ import { Building2, Pencil, Upload, FileText, CheckCircle2, Clock, AlertCircle, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   useMyCompanies,
   useMyCompanyKpis,
@@ -15,9 +16,11 @@ import { useKpiDefinitions, useCompanies, useReports } from '@/hooks/useData'
 import { useExtractKpis, useNormalizeKpis } from '@/hooks/useExtraction'
 import { supabase } from '@/lib/supabase'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
+import { Badge } from '@/components/ui/badge'
 import { CompanyLogo, companyLogoUrl } from '@/components/ui/company-logo'
 import { UploadReportDialog } from '@/components/upload-report-dialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { ReportStatusBadge } from '@/components/ui/report-status-badge'
 
 
 export function MyCompanyPage() {
@@ -34,7 +37,7 @@ export function MyCompanyPage() {
 
   return (
     <>
-      <Helmet><title>{primaryCompany?.name ?? 'My Company'} - Valrano</title></Helmet>
+      <Helmet><title>{primaryCompany?.name ?? 'My Company'} - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -119,9 +122,9 @@ function CompanyCard({
               {company.sector && <span>{company.sector}</span>}
               {company.country && <span>· {company.country}</span>}
               {company.is_primary && (
-                <span className="rounded-full bg-[var(--color-primary)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-primary)]">
+                <Badge variant="secondary" className="bg-[var(--color-primary)]/10 text-[10px] text-[var(--color-primary)]">
                   Primary
-                </span>
+                </Badge>
               )}
             </div>
           </div>
@@ -224,25 +227,28 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {(report.status === 'pending' || report.status === 'error') && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => handleRetry(report.id)}
                     disabled={retryingId === report.id}
-                    className="rounded p-1 text-muted-foreground hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)] disabled:opacity-50"
                     aria-label="Retry extraction"
                     title="Retry extraction"
                   >
                     {retryingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => setDeleteTarget({ id: report.id, title: report.title ?? `Report FY ${report.fiscal_year}`, storagePath: report.pdf_storage_path })}
                   disabled={deletingId === report.id}
-                  className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                   aria-label="Delete report"
                   title="Delete report"
+                  className="hover:bg-destructive/10 hover:text-destructive"
                 >
                   {deletingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                </button>
+                </Button>
                 <ReportStatusBadge status={report.status} />
               </div>
             </div>
@@ -300,39 +306,7 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
   )
 }
 
-// ---------------------------------------------------------------------------
-// Report Status Badge
-// ---------------------------------------------------------------------------
-
-function ReportStatusBadge({ status }: { status: string }) {
-  switch (status) {
-    case 'extracted':
-    case 'reviewed':
-      return (
-        <span className="flex items-center gap-1 rounded-full bg-[var(--color-signal-green)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-signal-green)]">
-          <CheckCircle2 className="h-3 w-3" />
-          {status === 'reviewed' ? 'Reviewed' : 'Extracted'}
-        </span>
-      )
-    case 'pending':
-    case 'processing':
-      return (
-        <span className="flex items-center gap-1 rounded-full bg-[var(--color-accent)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
-          <Clock className="h-3 w-3" />
-          {status === 'processing' ? 'Processing' : 'Pending'}
-        </span>
-      )
-    case 'error':
-      return (
-        <span className="flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
-          <AlertCircle className="h-3 w-3" />
-          Error
-        </span>
-      )
-    default:
-      return null
-  }
-}
+// ReportStatusBadge imported from @/components/ui/report-status-badge
 
 // ---------------------------------------------------------------------------
 // KPI Editor
@@ -418,14 +392,13 @@ function KpiEditor({ companyId }: { companyId: string }) {
             <label htmlFor={`kpi-${kpi.id}`} className="w-32 truncate text-xs text-muted-foreground" title={kpi.name}>
               {kpi.name}
             </label>
-            <input
+            <Input
               id={`kpi-${kpi.id}`}
               type="number"
               step="any"
               value={getInitialValue(kpi.id)}
               onChange={(e) => setValues({ ...values, [kpi.id]: e.target.value })}
               placeholder="—"
-              className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm text-foreground"
             />
             <span className="text-[10px] text-muted-foreground">
               {kpi.unit_type === 'percentage' ? '%' : kpi.unit_type === 'currency' ? 'CHF' : ''}

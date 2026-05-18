@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,6 +56,7 @@ export interface CustomReport {
 export function useReportTemplates() {
   return useQuery({
     queryKey: ['report-templates'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('report_templates')
@@ -161,6 +163,9 @@ export function useDeleteReport() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom-reports'] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
     },
   })
 }

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 import type { PublicationEvent, MonitorCheck, Company } from '@/types/database'
 
 // ---------------------------------------------------------------------------
@@ -138,6 +139,9 @@ export function useDeletePublicationEvent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['publication-events'] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
     },
   })
 }

@@ -50,33 +50,58 @@ function useScrollReveal<T extends HTMLElement>() {
   return { ref, visible }
 }
 
-/* ── Mouse parallax hook (hero only) ──────────────── */
+/* ── Reduced-motion check ─────────────────────────── */
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+  useEffect(() => {
+    const mql = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches)
+    mql.addEventListener('change', handler)
+    return () => mql.removeEventListener('change', handler)
+  }, [])
+  return reduced
+}
+
+/* ── Mouse parallax hook (hero only) — throttled to ~60fps ── */
 function useMouseParallax() {
   const [offset, setOffset] = useState({ x: 0, y: 0 })
-  const handleMove = useCallback((e: MouseEvent) => {
-    const x = (e.clientX / window.innerWidth - 0.5) * 2
-    const y = (e.clientY / window.innerHeight - 0.5) * 2
-    setOffset({ x, y })
-  }, [])
+  const rafId = useRef(0)
+  const reducedMotion = usePrefersReducedMotion()
 
   useEffect(() => {
+    if (reducedMotion) return
+    const handleMove = (e: MouseEvent) => {
+      if (rafId.current) return
+      rafId.current = requestAnimationFrame(() => {
+        const x = (e.clientX / window.innerWidth - 0.5) * 2
+        const y = (e.clientY / window.innerHeight - 0.5) * 2
+        setOffset({ x, y })
+        rafId.current = 0
+      })
+    }
     window.addEventListener('mousemove', handleMove, { passive: true })
-    return () => window.removeEventListener('mousemove', handleMove)
-  }, [handleMove])
+    return () => {
+      window.removeEventListener('mousemove', handleMove)
+      if (rafId.current) cancelAnimationFrame(rafId.current)
+    }
+  }, [reducedMotion])
 
   return offset
 }
 
 /* ── Animated count-up hook ─────────────────────────── */
 function useCountUp(end: number, duration = 2000, startOnView = true) {
-  const [count, setCount] = useState(0)
+  const reducedMotion = usePrefersReducedMotion()
+  const [count, setCount] = useState(reducedMotion ? end : 0)
   const [started, setStarted] = useState(
-    !startOnView || typeof IntersectionObserver === 'undefined'
+    reducedMotion || !startOnView || typeof IntersectionObserver === 'undefined'
   )
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!startOnView || !ref.current || typeof IntersectionObserver === 'undefined') return
+    if (reducedMotion || !startOnView || !ref.current || typeof IntersectionObserver === 'undefined') return
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -88,9 +113,10 @@ function useCountUp(end: number, duration = 2000, startOnView = true) {
     )
     observer.observe(ref.current)
     return () => observer.disconnect()
-  }, [startOnView])
+  }, [startOnView, reducedMotion])
 
   useEffect(() => {
+    if (reducedMotion) { setCount(end); return }
     if (!started) return
     let start = 0
     const increment = Math.ceil(end / (duration / 16))
@@ -103,7 +129,7 @@ function useCountUp(end: number, duration = 2000, startOnView = true) {
       setCount(start)
     }, 16)
     return () => clearInterval(timer)
-  }, [started, end, duration])
+  }, [started, end, duration, reducedMotion])
 
   return { count, ref }
 }
@@ -190,15 +216,18 @@ function StatCard({
 function FloatingShape({ size, x, y, delay, rotation, color, mouseOffset }: {
   size: number; x: string; y: string; delay: number; rotation: number; color: string; mouseOffset: { x: number; y: number }
 }) {
+  const reducedMotion = usePrefersReducedMotion()
   const parallaxFactor = size / 100
   return (
     <div
       className="absolute opacity-[0.07] blur-[1px]"
       style={{
         width: size, height: size, left: x, top: y,
-        transform: `rotate(${rotation}deg) translate(${mouseOffset.x * parallaxFactor * 12}px, ${mouseOffset.y * parallaxFactor * 12}px)`,
-        transition: 'transform 0.3s ease-out',
-        animation: `landing-float ${6 + delay}s ease-in-out ${delay}s infinite`,
+        transform: reducedMotion
+          ? `rotate(${rotation}deg)`
+          : `rotate(${rotation}deg) translate(${mouseOffset.x * parallaxFactor * 12}px, ${mouseOffset.y * parallaxFactor * 12}px)`,
+        transition: reducedMotion ? 'none' : 'transform 0.3s ease-out',
+        animation: reducedMotion ? 'none' : `landing-float ${6 + delay}s ease-in-out ${delay}s infinite`,
       }}
     >
       <div className="h-full w-full rounded-[20%]" style={{ background: `linear-gradient(135deg, ${color}, transparent)` }} />
@@ -397,8 +426,8 @@ const FAQS = [
 const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'Organization', name: 'Valrano', url: 'https://valrano.com', logo: 'https://valrano.com/og-image.png', description: 'Fully automated competitive benchmarking platform for listed corporations. AI-powered KPI extraction from peer reports.', sameAs: [], parentOrganization: { '@type': 'Organization', name: 'Predivo GmbH', url: 'https://predivo.ch' } },
-    { '@type': 'SoftwareApplication', name: 'Valrano', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: 'AI-powered competitive benchmarking: extract financial and ESG KPIs from peer PDF reports, normalize across currencies and standards, deliver board-ready briefings automatically.', offers: { '@type': 'Offer', priceCurrency: 'CHF', price: '0', availability: 'https://schema.org/OnlineOnly', description: 'Contact us for enterprise pricing' } },
+    { '@type': 'Organization', name: 'Valrano', url: 'https://valrano.com', logo: 'https://valrano.com/favicon.svg', description: 'Fully automated competitive benchmarking platform for listed corporations. AI-powered KPI extraction from peer reports.', parentOrganization: { '@type': 'Organization', name: 'Predivo GmbH', url: 'https://predivo.ch' } },
+    { '@type': 'SoftwareApplication', name: 'Valrano', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: 'AI-powered competitive benchmarking: extract financial and ESG KPIs from peer PDF reports, normalize across currencies and standards, deliver board-ready briefings automatically.', offers: { '@type': 'AggregateOffer', priceCurrency: 'CHF', availability: 'https://schema.org/OnlineOnly', description: 'Contact us for enterprise pricing' } },
     { '@type': 'FAQPage', mainEntity: FAQS.map((faq) => ({ '@type': 'Question', name: faq.q, acceptedAnswer: { '@type': 'Answer', text: faq.a } })) },
   ],
 }
@@ -459,16 +488,21 @@ export default function LandingPage() {
   return (
     <>
       <Helmet>
-        <title>Valrano &mdash; AI-Powered Competitive Benchmarking for Listed Corporations</title>
-        <meta name="description" content="Replace 200 hours of manual analyst work with AI-powered peer benchmarking. Extract financial and ESG KPIs from competitor reports, normalize across currencies and standards, get board-ready briefings automatically." />
-        <meta property="og:title" content="Valrano &mdash; AI-Powered Competitive Benchmarking" />
+        <title>Valrano — AI-Powered Competitive Benchmarking for Listed Corporations</title>
+        <meta name="description" content="Replace 200 hours of manual analyst work with AI-powered peer benchmarking. Extract and compare financial and ESG KPIs from competitor reports automatically." />
+        <meta property="og:title" content="Valrano — AI-Powered Competitive Benchmarking" />
         <meta property="og:description" content="Extract financial and ESG KPIs from competitor PDF reports, normalize across currencies and standards, deliver board-ready briefings automatically." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://valrano.com" />
         <meta property="og:image" content="https://valrano.com/og-image.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
+        <meta property="og:locale" content="en_US" />
+        <meta property="og:site_name" content="Valrano" />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Valrano — AI-Powered Competitive Benchmarking" />
+        <meta name="twitter:description" content="AI-powered peer benchmarking. Extract and compare financial and ESG KPIs from competitor reports." />
+        <meta name="twitter:image" content="https://valrano.com/og-image.png" />
         <link rel="canonical" href="https://valrano.com" />
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </Helmet>
@@ -478,7 +512,7 @@ export default function LandingPage() {
 
       {/* Navbar */}
       <nav className="fixed top-0 z-50 w-full border-b border-[var(--color-border)]/50 bg-[var(--color-background)]/70 backdrop-blur-2xl backdrop-saturate-150" aria-label="Landing navigation">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link to="/" className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">Valrano</Link>
           <div className="hidden items-center gap-8 md:flex">
             <a href="#features" className="inline-flex min-h-[44px] items-center text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Features</a>
@@ -497,7 +531,7 @@ export default function LandingPage() {
           </div>
         </div>
         {mobileMenuOpen && (
-          <div className="border-t border-[var(--color-border)]/50 bg-[var(--color-background)]/95 px-6 pb-4 pt-2 backdrop-blur-2xl md:hidden">
+          <div className="border-t border-[var(--color-border)]/50 bg-[var(--color-background)]/95 px-4 sm:px-6 pb-4 pt-2 backdrop-blur-2xl md:hidden">
             <a href="#features" onClick={() => setMobileMenuOpen(false)} className="block min-h-[44px] py-3 text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Features</a>
             <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block min-h-[44px] py-3 text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Pricing</a>
             <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="block min-h-[44px] py-3 text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">FAQ</a>
@@ -523,7 +557,7 @@ export default function LandingPage() {
           <FloatingShape size={100} x="5%" y="70%" delay={2} rotation={-8} color="#06B6D4" mouseOffset={mouseOffset} />
           <FloatingShape size={50} x="45%" y="80%" delay={1.2} rotation={30} color="#F59E0B" mouseOffset={mouseOffset} />
           <div className="absolute left-1/2 top-1/3 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--color-accent)] opacity-[0.04] blur-[120px]" style={{ animation: 'landing-pulse-glow 4s ease-in-out infinite' }} />
-          <div className="relative mx-auto max-w-5xl px-6 py-24 text-center md:py-36">
+          <div className="relative mx-auto max-w-5xl px-4 sm:px-6 py-24 text-center md:py-36">
             <div className="landing-animate-in landing-delay-1">
               <span className="landing-gradient-badge inline-block rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-white">AI-Powered Competitive Intelligence</span>
             </div>
@@ -548,12 +582,12 @@ export default function LandingPage() {
 
         {/* Product Screenshot */}
         <section className="border-t border-[var(--color-border)] bg-gradient-to-b from-[var(--color-background)] to-[var(--color-card)]">
-          <div className="mx-auto max-w-6xl px-6 py-16 md:py-24"><BrowserFrame /></div>
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-16 md:py-24"><BrowserFrame /></div>
         </section>
 
         {/* Stats */}
         <section className="border-t border-[var(--color-border)] bg-[var(--color-card)]">
-          <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-20 md:py-24">
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {STATS.map((stat) => <StatCard key={stat.label} value={stat.value} suffix={stat.suffix} label={stat.label} icon={stat.icon} />)}
             </div>
@@ -562,7 +596,7 @@ export default function LandingPage() {
 
         {/* Problem */}
         <section className="border-t border-[var(--color-border)]">
-          <div className="mx-auto max-w-6xl px-6 py-24 md:py-28">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-24 md:py-28">
             <div className="text-center">
               <SectionLabel>The Problem</SectionLabel>
               <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Peer benchmarking is broken</h2>
@@ -576,7 +610,7 @@ export default function LandingPage() {
 
         {/* Solution */}
         <section className="border-t border-[var(--color-border)] bg-[var(--color-card)]">
-          <div className="mx-auto max-w-6xl px-6 py-24 md:py-28">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-24 md:py-28">
             <div className="text-center">
               <SectionLabel>The Solution</SectionLabel>
               <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">From publication to board briefing &mdash; fully automated</h2>
@@ -587,7 +621,7 @@ export default function LandingPage() {
 
         {/* How It Works */}
         <section id="how-it-works" className="border-t border-[var(--color-border)]">
-          <div className="mx-auto max-w-5xl px-6 py-24 md:py-28">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 py-24 md:py-28">
             <div className="text-center">
               <SectionLabel>How It Works</SectionLabel>
               <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Three steps to automated intelligence</h2>
@@ -604,7 +638,7 @@ export default function LandingPage() {
 
         {/* Features */}
         <section id="features" className="border-t border-[var(--color-border)] bg-[var(--color-card)]">
-          <div className="mx-auto max-w-6xl px-6 py-24 md:py-28">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-24 md:py-28">
             <div className="text-center">
               <SectionLabel>Features</SectionLabel>
               <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Built for corporate strategy teams</h2>
@@ -618,7 +652,7 @@ export default function LandingPage() {
 
         {/* Pricing */}
         <section id="pricing" className="border-t border-[var(--color-border)]">
-          <div className="mx-auto max-w-4xl px-6 py-24 md:py-28">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 py-24 md:py-28">
             <div className="text-center">
               <SectionLabel>Enterprise Solution</SectionLabel>
               <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Tailored to your organization</h2>
@@ -643,7 +677,7 @@ export default function LandingPage() {
 
         {/* FAQ */}
         <section id="faq" className="border-t border-[var(--color-border)] bg-[var(--color-card)]">
-          <div className="mx-auto max-w-3xl px-6 py-24 md:py-28">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 py-24 md:py-28">
             <div className="text-center">
               <SectionLabel>FAQ</SectionLabel>
               <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Frequently asked questions</h2>
@@ -656,7 +690,7 @@ export default function LandingPage() {
 
         {/* CTA */}
         <section className="border-t border-[var(--color-border)]">
-          <div className="relative mx-auto max-w-4xl overflow-hidden px-6 py-24 text-center md:py-28">
+          <div className="relative mx-auto max-w-4xl overflow-hidden px-4 sm:px-6 py-24 text-center md:py-28">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--color-accent)/8%,transparent_60%)]" />
             <div className="relative">
               <h2 className="text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Stop building peer comparisons manually</h2>
@@ -676,7 +710,7 @@ export default function LandingPage() {
         {/* Footer */}
         <footer className="border-t border-[var(--color-border)] bg-[var(--color-card)]">
           <div className="h-px bg-gradient-to-r from-transparent via-[var(--color-accent)]/30 to-transparent" />
-          <div className="mx-auto max-w-6xl px-6 py-16">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-16">
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <div className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">Valrano</div>
@@ -684,7 +718,7 @@ export default function LandingPage() {
                 <div className="mt-4 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]"><Shield className="h-3.5 w-3.5" /><span>Swiss-hosted &middot; GDPR compliant</span></div>
               </div>
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Product</h4>
+                <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Product</h3>
                 <ul className="mt-4 space-y-3">
                   <li><a href="#features" className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Features</a></li>
                   <li><a href="#how-it-works" className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">How It Works</a></li>
@@ -693,14 +727,14 @@ export default function LandingPage() {
                 </ul>
               </div>
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Company</h4>
+                <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Company</h3>
                 <ul className="mt-4 space-y-3">
                   <li><a href="https://predivo.ch" target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Predivo GmbH</a></li>
                   <li><a href="mailto:roger@predivo.ch" className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Contact</a></li>
                 </ul>
               </div>
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Access</h4>
+                <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Access</h3>
                 <ul className="mt-4 space-y-3">
                   <li><Link to="/login" className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Sign in</Link></li>
                   <li><a href="mailto:roger@predivo.ch?subject=Valrano%20Demo%20Request" className="inline-flex items-center gap-1.5 text-sm text-[var(--color-accent)] transition-colors hover:text-[var(--color-accent)]/80"><Mail className="h-3.5 w-3.5" />Request Demo</a></li>

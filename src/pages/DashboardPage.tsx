@@ -133,7 +133,7 @@ function SetupGuidanceState({
         <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
           <Building2 className="h-8 w-8 text-muted-foreground" />
         </div>
-        <h3 className="mb-2 text-[15px] font-semibold text-foreground">Set up your company profile first</h3>
+        <h2 className="mb-2 text-[15px] font-semibold text-foreground">Set up your company profile first</h2>
         <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
           Add your company details so we know who to benchmark against your peers.
         </p>
@@ -154,7 +154,7 @@ function SetupGuidanceState({
         <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
           <Users className="h-8 w-8 text-muted-foreground" />
         </div>
-        <h3 className="mb-2 text-[15px] font-semibold text-foreground">Add competitors to start benchmarking</h3>
+        <h2 className="mb-2 text-[15px] font-semibold text-foreground">Add competitors to start benchmarking</h2>
         <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
           Add peer companies and upload their annual reports to see how you compare.
         </p>
@@ -174,7 +174,7 @@ function SetupGuidanceState({
       <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
         <Upload className="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3 className="mb-2 text-[15px] font-semibold text-foreground">Upload reports to compare</h3>
+      <h2 className="mb-2 text-[15px] font-semibold text-foreground">Upload reports to compare</h2>
       <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
         Upload an annual report or enter KPI values manually so we can generate your benchmark position.
       </p>
@@ -200,7 +200,7 @@ function FilteredEmptyState({ fiscalYear, onClearYear, availableYears }: {
       <div className="mb-4 rounded-full bg-[var(--color-bg-tertiary)] p-4">
         <Upload className="h-8 w-8 text-muted-foreground" />
       </div>
-      <h3 className="mb-2 text-[15px] font-semibold text-foreground">No results for FY {fiscalYear}</h3>
+      <h2 className="mb-2 text-[15px] font-semibold text-foreground">No results for FY {fiscalYear}</h2>
       <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
         No data available for this fiscal year. Try a different year or upload a report.
       </p>
@@ -486,7 +486,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
       {showFilters && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
           <div className="flex flex-col gap-1">
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Focus</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Focus</span>
             <Select value={focus} onValueChange={(v) => setFocus(v as InsightFocus)}>
               <SelectTrigger className="h-7 w-[120px] rounded-md border-border bg-[var(--color-bg-tertiary)] text-[11px]">
                 <SelectValue>{FOCUS_OPTIONS.find((o) => o.value === focus)?.label}</SelectValue>
@@ -499,7 +499,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
             </Select>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Time Range</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Time Range</span>
             <Select value={timeRange} onValueChange={(v) => setTimeRange(v as InsightTimeRange)}>
               <SelectTrigger className="h-7 w-[100px] rounded-md border-border bg-[var(--color-bg-tertiary)] text-[11px]">
                 <SelectValue>{TIME_RANGE_OPTIONS.find((o) => o.value === timeRange)?.label}</SelectValue>
@@ -512,7 +512,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
             </Select>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Report Type</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Report Type</span>
             <Select value={reportType} onValueChange={(v) => setReportType(v as InsightReportType)}>
               <SelectTrigger className="h-7 w-[130px] rounded-md border-border bg-[var(--color-bg-tertiary)] text-[11px]">
                 <SelectValue>{REPORT_TYPE_OPTIONS.find((o) => o.value === reportType)?.label}</SelectValue>
@@ -622,9 +622,9 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                           {DELTA_BADGE[insight.delta_label].label}
                         </span>
                       )}
-                      <h3 className="text-[13px] font-medium text-foreground truncate flex-1">
+                      <h2 className="text-[13px] font-medium text-foreground truncate flex-1">
                         {insight.title}
-                      </h3>
+                      </h2>
                       {insight.data_confidence && (
                         <Tooltip>
                           <TooltipTrigger className="cursor-default bg-transparent border-none p-0" aria-label={`Data confidence: ${insight.data_confidence}`}>
@@ -633,7 +633,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                           <TooltipContent>Data confidence: {insight.data_confidence} — based on completeness of underlying KPI data</TooltipContent>
                         </Tooltip>
                       )}
-                      <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider flex-shrink-0 ${priorityClass}`}>
+                      <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 ${priorityClass}`}>
                         {insight.priority}
                       </span>
                     </div>
@@ -666,7 +666,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                       {insight.related_kpi_code && (
                         <Link
                           to={`/analytics?kpi=${encodeURIComponent(insight.related_kpi_code)}`}
-                          className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 text-[9px] font-medium hover:text-[var(--color-accent)] hover:underline transition-colors cursor-pointer"
+                          className="rounded bg-[var(--color-bg-tertiary)] px-1.5 py-0.5 text-[10px] font-medium hover:text-[var(--color-accent)] hover:underline transition-colors cursor-pointer"
                         >
                           {insight.related_kpi_code}
                         </Link>
@@ -691,7 +691,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                           className={`min-h-[44px] min-w-[44px] flex items-center justify-center transition-all cursor-pointer focus-visible:opacity-100 ${
                             insight.is_bookmarked
                               ? 'text-[var(--color-accent)] opacity-100'
-                              : 'text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground'
+                              : 'text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:text-foreground'
                           }`}
                           aria-label={insight.is_bookmarked ? 'Remove bookmark' : 'Bookmark insight'}
                         >
@@ -705,7 +705,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                         <TooltipTrigger>
                           <button
                             onClick={() => markActed.mutate({ id: insight.id })}
-                            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all hover:text-[var(--color-signal-green)] cursor-pointer"
+                            className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-all hover:text-[var(--color-signal-green)] cursor-pointer"
                             aria-label="Mark as acted upon"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -716,7 +716,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
                     )}
                     <button
                       onClick={() => dismissInsight.mutate(insight.id)}
-                      className="min-h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-muted-foreground hover:text-foreground cursor-pointer"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center flex-shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-muted-foreground hover:text-foreground cursor-pointer"
                       aria-label="Dismiss insight"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -732,6 +732,8 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
   )
 }
 
+const FALLBACK_YEAR = new Date().getFullYear() - 1
+
 export function DashboardPage() {
   const { defaultYear, availableYears, isLoading: yearLoading } = useSmartYear()
   const [fiscalYear, setFiscalYear] = useState<number | null>(null)
@@ -741,7 +743,9 @@ export function DashboardPage() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showRightFade, setShowRightFade] = useState(true)
 
-  const effectiveYear = fiscalYear ?? defaultYear
+  // Use FALLBACK_YEAR immediately so useKpiValues can fire without waiting
+  // for useSmartYear to resolve. Once defaultYear arrives, it takes over.
+  const effectiveYear = fiscalYear ?? (yearLoading ? FALLBACK_YEAR : defaultYear)
 
   const { data: primaryCompanyData } = usePrimaryCompany()
   const primaryCompanyName = primaryCompanyData?.name ?? null
@@ -1123,7 +1127,7 @@ export function DashboardPage() {
   return (
     <TooltipProvider>
     <>
-    <Helmet><title>Dashboard - Valrano</title></Helmet>
+    <Helmet><title>Dashboard - Valrano</title><meta name="robots" content="noindex" /></Helmet>
     <div className="section-fade-in mx-auto max-w-[1440px] px-4 py-8 sm:px-6">
 
       {/* Setup progress banner (shows when wizard dismissed but steps incomplete) */}
@@ -1164,7 +1168,7 @@ export function DashboardPage() {
       {/* ================================================================== */}
       {/* Section 2: Summary Metric Cards                                    */}
       {/* ================================================================== */}
-      <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" aria-live="polite" aria-busy={isLoading}>
         {isLoading ? (
           <>
             <CardSkeleton />
@@ -1242,7 +1246,7 @@ export function DashboardPage() {
               {pipelineStatusBar.map((stage) => (
                 <div key={stage.label} className="rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2.5 text-center border-t-2" style={{ borderTopColor: stage.borderColor }}>
                   <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                    <span className={`h-2 w-2 rounded-full ${stage.color}`} />
+                    <span className={`h-2 w-2 rounded-full ${stage.color}`} aria-label={`${stage.label}: ${stage.count}`} />
                     <span className="text-[18px] font-semibold tabular-nums text-foreground">{stage.count}</span>
                   </div>
                   <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{stage.label}</div>
@@ -1362,15 +1366,15 @@ export function DashboardPage() {
             </Tooltip>
             <div className="card-premium rounded-xl border border-border bg-card overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-[12px]">
+                <table className="w-full border-collapse text-[12px]" aria-label="KPI comparison">
                   <thead>
                     <tr className="border-b-2 border-border">
-                      <th className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">KPI</th>
-                      <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Your Value</th>
-                      <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Peer Avg</th>
-                      <th className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Peer Median</th>
-                      <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Rank</th>
-                      <th className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Signal</th>
+                      <th scope="col" className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">KPI</th>
+                      <th scope="col" className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Your Value</th>
+                      <th scope="col" className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Peer Avg</th>
+                      <th scope="col" className="px-3 py-2.5 text-right text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Peer Median</th>
+                      <th scope="col" className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Rank</th>
+                      <th scope="col" className="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Signal</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1502,6 +1506,7 @@ export function DashboardPage() {
             </div>
 
             {/* Table content */}
+            <div aria-live="polite" aria-busy={isLoading}>
             {isLoading ? (
               <div className="p-6">
                 <TableSkeleton />
@@ -1519,7 +1524,7 @@ export function DashboardPage() {
                 <div className="mb-3 rounded-full bg-amber-500/10 p-3">
                   <AlertTriangle className="h-6 w-6 text-amber-500" />
                 </div>
-                <h3 className="mb-1.5 text-[14px] font-semibold text-foreground">KPI data awaiting normalization</h3>
+                <h2 className="mb-1.5 text-[14px] font-semibold text-foreground">KPI data awaiting normalization</h2>
                 <p className="text-[12px] text-muted-foreground max-w-sm">
                   Reports have been extracted but currency conversion to CHF is pending. This usually resolves automatically — try refreshing in a moment.
                 </p>
@@ -1529,11 +1534,11 @@ export function DashboardPage() {
             ) : (
               <div className="relative">
                 <div ref={scrollRef} className="overflow-x-auto scrollbar-thin">
-                  <table className="table-premium w-full border-collapse" style={{ tableLayout: 'fixed' }}>
+                  <table className="table-premium w-full border-collapse" style={{ tableLayout: 'fixed' }} aria-label="Peer benchmarking data">
                     <thead>
                       <tr className="border-b-2 border-border">
                         {/* Company column header — sticky */}
-                        <th className="sticky left-0 z-30 bg-card px-3 py-2 text-left after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/40 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.3)]" style={{ width: '180px' }}>
+                        <th scope="col" className="sticky left-0 z-30 bg-card px-3 py-2 text-left after:absolute after:inset-y-0 after:right-0 after:w-px after:bg-border/40 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_6px_-2px_rgba(0,0,0,0.3)]" style={{ width: '180px' }}>
                           <button
                             onClick={() => handleSort('__name')}
                             aria-label="Sort by company name"
@@ -1591,7 +1596,7 @@ export function DashboardPage() {
                                     {company.name}
                                   </Link>
                                   {isPrimary && (
-                                    <span className="flex-shrink-0 rounded bg-[var(--color-accent)]/10 px-1 py-px text-[9px] font-bold uppercase leading-none text-[var(--color-accent)]">
+                                    <span className="flex-shrink-0 rounded bg-[var(--color-accent)]/10 px-1 py-px text-[10px] font-bold uppercase leading-none text-[var(--color-accent)]">
                                       You
                                     </span>
                                   )}
@@ -1634,6 +1639,7 @@ export function DashboardPage() {
                 )}
               </div>
             )}
+            </div>
 
             {/* Card footer: legend + category label */}
             {hasData && companiesWithData.length > 0 && (

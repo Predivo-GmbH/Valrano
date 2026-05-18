@@ -15,6 +15,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const { data: notifications } = useNotifications()
   const { data: unreadCount } = useUnreadCount()
   const markAsRead = useMarkAsRead()
@@ -24,6 +25,7 @@ export function NotificationBell() {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false)
+        triggerRef.current?.focus()
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -35,12 +37,13 @@ export function NotificationBell() {
   return (
     <div className="relative" ref={ref}>
       <button
+        ref={triggerRef}
         onClick={() => setOpen(!open)}
         aria-label={`Notifications${count > 0 ? ` (${count} unread)` : ''}`}
         aria-expanded={open}
         className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
       >
-        <Bell className="h-5 w-5" />
+        <Bell className="h-5 w-5" aria-hidden="true" />
         {count > 0 && (
           <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-destructive)] px-1 text-[10px] font-bold text-[var(--color-destructive-foreground)]">
             {count > 99 ? '99+' : count}
@@ -53,7 +56,24 @@ export function NotificationBell() {
           role="dialog"
           aria-modal="true"
           aria-label="Notifications"
-          onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') { setOpen(false); triggerRef.current?.focus(); return }
+            if (e.key === 'Tab') {
+              const focusable = e.currentTarget.querySelectorAll<HTMLElement>(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+              )
+              if (focusable.length === 0) return
+              const first = focusable[0]
+              const last = focusable[focusable.length - 1]
+              if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault()
+                last.focus()
+              } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault()
+                first.focus()
+              }
+            }
+          }}
           className="absolute right-0 mt-2 w-80 rounded-xl border border-border bg-card shadow-lg"
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">

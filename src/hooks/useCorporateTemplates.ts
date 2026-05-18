@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { toast } from 'sonner'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,6 +57,7 @@ export interface GeneratedExport {
 export function useCorporateTemplates() {
   return useQuery({
     queryKey: ['corporate-templates'],
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('corporate_templates')
@@ -239,6 +241,9 @@ export function useDeleteCorporateTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['corporate-templates'] })
       queryClient.invalidateQueries({ queryKey: ['generated-exports'] })
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
     },
   })
 }

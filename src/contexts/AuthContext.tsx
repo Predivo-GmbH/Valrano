@@ -1,4 +1,5 @@
-import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -19,15 +20,68 @@ export interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+// ---------------------------------------------------------------------------
+// Prefetch critical data on login — eliminates cold-start waterfalls on
+// Dashboard by warming the React Query cache before the page renders.
+// ---------------------------------------------------------------------------
+function prefetchCriticalData(queryClient: ReturnType<typeof useQueryClient>) {
+  // visible_company_ids — used by useCompanies, useSmartYear, useReports
+  queryClient.prefetchQuery({
+    queryKey: ['visible-company-ids'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('visible_company_ids')
+      if (error) throw error
+      return (data ?? []) as string[]
+    },
+  })
+
+  // Primary company — used by Dashboard for "my company" column
+  queryClient.prefetchQuery({
+    queryKey: ['my-companies', 'primary'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('my_companies')
+        .select('id, user_id, company_id, name, sector, country, reporting_currency, headcount, founded_year, website_url, is_primary')
+        .eq('is_primary', true)
+        .maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
+
+  // KPI definitions — static reference data, rarely changes
+  queryClient.prefetchQuery({
+    queryKey: ['kpi-definitions'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kpi_definitions')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order')
+      if (error) throw error
+      return data
+    },
+  })
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setLoading(false)
-    }).catch(() => {
+      // Prefetch critical data as soon as we know the user is logged in
+      if (session?.user) {
+        prefetchCriticalData(queryClient)
+      }
+    }).catch((err) => {
+      if (import.meta.env.DEV) console.error('Failed to get session:', err)
       setLoading(false)
     })
 
@@ -35,10 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      if (session?.user) {
+        prefetchCriticalData(queryClient)
+      }
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [queryClient])
 
   const signInWithPassword = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -113,23 +170,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error
   }, [])
 
+  const value = useMemo(() => ({
+    user,
+    loading,
+    signInWithPassword,
+    sendOtp,
+    sendLoginOtp,
+    verifyOtp,
+    hasCompletedProfile,
+    completeProfile,
+    resetPassword,
+    updatePassword,
+    deleteAccount,
+    signOut,
+  }), [user, loading, signInWithPassword, sendOtp, sendLoginOtp,
+    verifyOtp, hasCompletedProfile, completeProfile,
+    resetPassword, updatePassword, deleteAccount, signOut])
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        signInWithPassword,
-        sendOtp,
-        sendLoginOtp,
-        verifyOtp,
-        hasCompletedProfile,
-        completeProfile,
-        resetPassword,
-        updatePassword,
-        deleteAccount,
-        signOut,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )
