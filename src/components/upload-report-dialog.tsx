@@ -93,9 +93,19 @@ export function UploadReportDialog({
   )
 
   const addFiles = useCallback((files: File[]) => {
+    const MAX_FILE_SIZE = 250 * 1024 * 1024 // 250 MB
     const pdfs = files.filter(f => f.type === 'application/pdf')
     if (pdfs.length === 0) { toast.error('Only PDF files are supported'); return }
     if (pdfs.length < files.length) toast.info(`${files.length - pdfs.length} non-PDF file(s) skipped`)
+
+    const oversized = pdfs.filter(f => f.size > MAX_FILE_SIZE)
+    if (oversized.length > 0) {
+      toast.error(`${oversized.map(f => f.name).join(', ')} exceed${oversized.length === 1 ? 's' : ''} the 250 MB file size limit`)
+      const valid = pdfs.filter(f => f.size <= MAX_FILE_SIZE)
+      if (valid.length === 0) return
+      pdfs.length = 0
+      pdfs.push(...valid)
+    }
 
     // Check for duplicates against existing reports
     const duplicates: string[] = []
