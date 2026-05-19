@@ -198,10 +198,13 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
       if (storagePath) {
         await supabase.storage.from('reports').remove([storagePath])
       }
-      const { error } = await supabase.from('reports').delete().eq('id', id)
+      const { data, error } = await supabase.from('reports').delete().eq('id', id).select('id')
       if (error) throw error
+      if (!data || data.length === 0) throw new Error('Permission denied — you can only delete reports for your own company')
       toast.success('Report deleted')
       queryClient.invalidateQueries({ queryKey: ['reports'] })
+      queryClient.invalidateQueries({ queryKey: ['kpi-values'] })
+      queryClient.invalidateQueries({ queryKey: ['extractions'] })
     } catch (err) {
       toast.error(`Delete failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
