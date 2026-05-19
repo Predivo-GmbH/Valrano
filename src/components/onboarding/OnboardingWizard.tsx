@@ -401,6 +401,7 @@ export function OnboardingWizard() {
 // ---------------------------------------------------------------------------
 
 function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound: (competitors: Array<{ name: string; ticker?: string; context?: string }>, autoSelect: boolean) => void }) {
+  const queryClient = useQueryClient()
   const { data: profile, isLoading: profileLoading } = useAccountingProfile()
   const { data: reports, isLoading: reportsLoading } = useReports()
   const analyzeMutation = useAnalyzeAccountingProfile()
