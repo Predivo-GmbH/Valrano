@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -372,9 +373,22 @@ function ExtractedKpisSection({ companyId }: { companyId: string }) {
               className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--color-bg-tertiary)]"
             >
               <div className="w-[180px] min-w-0">
-                <p className="truncate text-[13px] font-medium text-foreground" title={def.name}>
-                  {def.name}
-                </p>
+                {def.description ? (
+                  <TooltipProvider delay={200}>
+                    <Tooltip>
+                      <TooltipTrigger className="truncate text-[13px] font-medium text-foreground cursor-help border-b border-dotted border-muted-foreground/40">
+                        {def.name}
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-[280px] text-left text-[12px] font-normal">
+                        {def.description}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <p className="truncate text-[13px] font-medium text-foreground">
+                    {def.name}
+                  </p>
+                )}
                 {latest.confidence != null && (
                   <p className="text-[10px] text-muted-foreground">
                     {Math.round(latest.confidence * 100)}% confidence
@@ -641,7 +655,7 @@ function BenchmarkPositionSection({ companyId }: { companyId: string }) {
       peerByDef.get(kv.kpi_definition_id)!.push(kv.normalized_value)
     }
 
-    const rows: { name: string; code: string; myValue: number; peerMedian: number; percentile: number; unitType: string }[] = []
+    const rows: { name: string; description: string | null; code: string; myValue: number; peerMedian: number; percentile: number; unitType: string }[] = []
 
     for (const [defId, myKpi] of myByDef) {
       const peerValues = peerByDef.get(defId)
@@ -660,6 +674,7 @@ function BenchmarkPositionSection({ companyId }: { companyId: string }) {
 
       rows.push({
         name: def.name,
+        description: def.description ?? null,
         code: def.code,
         myValue: myKpi.normalized_value,
         peerMedian: median,
@@ -701,7 +716,20 @@ function BenchmarkPositionSection({ companyId }: { companyId: string }) {
           return (
             <div key={row.code}>
               <div className="mb-1 flex items-center justify-between text-[12px]">
-                <span className="font-medium text-foreground">{row.name}</span>
+                {row.description ? (
+                  <TooltipProvider delay={200}>
+                    <Tooltip>
+                      <TooltipTrigger className="font-medium text-foreground cursor-help border-b border-dotted border-muted-foreground/40">
+                        {row.name}
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-[280px] text-left text-[12px] font-normal">
+                        {row.description}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <span className="font-medium text-foreground">{row.name}</span>
+                )}
                 <div className="flex items-center gap-2">
                   <span className="tabular-nums text-foreground">{formatKpiValue(row.myValue, row.unitType)}</span>
                   <span className="text-muted-foreground">vs</span>
