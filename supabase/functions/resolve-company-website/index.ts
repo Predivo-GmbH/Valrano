@@ -242,29 +242,36 @@ RULES:
 // Phase 3: Strict verification
 // ---------------------------------------------------------------------------
 
-/** HEAD-check that domain is reachable (200/301/302 only, NOT 403) */
+/** Check that domain is reachable. Tries HEAD first, then GET as fallback
+ *  (many corporate sites block HEAD but allow GET from datacenter IPs). */
 async function validateDomainReachable(domain: string): Promise<{ reachable: boolean; finalDomain: string | null }> {
-  try {
-    const resp = await fetch(`https://${domain}`, {
-      method: 'HEAD',
-      redirect: 'follow',
-      signal: AbortSignal.timeout(5000),
-    })
+  for (const method of ['HEAD', 'GET'] as const) {
+    try {
+      const resp = await fetch(`https://${domain}`, {
+        method,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(method === 'HEAD' ? 5000 : 8000),
+      })
 
-    let finalDomain: string | null = null
-    if (resp.url) {
-      const fd = new URL(resp.url).hostname.replace(/^www\./, '')
-      const orig = domain.replace(/^www\./, '')
-      if (fd !== orig && !fd.endsWith('.' + orig)) {
-        finalDomain = fd
+      let finalDomain: string | null = null
+      if (resp.url) {
+        const fd = new URL(resp.url).hostname.replace(/^www\./, '')
+        const orig = domain.replace(/^www\./, '')
+        if (fd !== orig && !fd.endsWith('.' + orig)) {
+          finalDomain = fd
+        }
       }
-    }
 
-    // Only accept 2xx — NOT 403/405 (can't verify a page that blocks us)
-    return { reachable: resp.ok, finalDomain }
-  } catch {
-    return { reachable: false, finalDomain: null }
+      if (resp.ok) return { reachable: true, finalDomain }
+      // If HEAD fails with 403/405, try GET before giving up
+      if (method === 'HEAD') continue
+      return { reachable: false, finalDomain: null }
+    } catch {
+      if (method === 'HEAD') continue
+      return { reachable: false, finalDomain: null }
+    }
   }
+  return { reachable: false, finalDomain: null }
 }
 
 /**
@@ -617,14 +624,24 @@ Deno.serve(async (req: Request) => {
     // Step 3: Strict verification
     // -----------------------------------------------------------------------
     let scrapedFavicon: string | null = null
+    // Track whether the selected domain came from Brandfetch (trusted source)
+    const selectedFromBrandfetch = selectedDomain
+      ? allCandidates.some(c => c.domain === selectedDomain && c.source === 'brandfetch')
+      : false
+
     if (selectedDomain) {
-      // 3a: HEAD reachability (200 only, not 403)
+      // 3a: Reachability check (HEAD then GET fallback)
       const validation = await validateDomainReachable(selectedDomain)
       if (!validation.reachable) {
-        console.log(`Domain unreachable: "${companyName}" → ${selectedDomain}`)
-        selectedDomain = null
-        source = 'domain_unreachable'
-        confidence = 0
+        if (selectedFromBrandfetch && confidence >= 0.8) {
+          // Brandfetch domains are verified real — trust them even if blocked from datacenter IPs
+          console.log(`Domain unreachable but trusted (Brandfetch, conf=${confidence}): "${companyName}" → ${selectedDomain}`)
+        } else {
+          console.log(`Domain unreachable: "${companyName}" → ${selectedDomain}`)
+          selectedDomain = null
+          source = 'domain_unreachable'
+          confidence = 0
+        }
       } else if (validation.finalDomain) {
         console.log(`Domain redirects: ${selectedDomain} → ${validation.finalDomain}`)
         // Accept redirect only if the final domain is also in our candidate list
@@ -669,10 +686,16 @@ Deno.serve(async (req: Request) => {
       // Also extracts favicon URL from page HTML (zero extra requests)
       const pageResult = await verifyCompanyNameOnPage(selectedDomain, companyName)
       if (!pageResult.nameFound) {
-        console.log(`Page verification FAILED: "${companyName}" not found on ${selectedDomain}`)
-        // Don't reject outright — lower confidence so frontend shows confirmation
-        confidence = Math.min(confidence, 0.6)
-        source = source + '_unverified'
+        if (selectedFromBrandfetch && confidence >= 0.85) {
+          // Brandfetch match with high LLM confidence — trust it even if page
+          // blocks our server-side fetch (WAF/Cloudflare common on corporate sites)
+          console.log(`Page verification failed but trusted (Brandfetch, conf=${confidence}): "${companyName}" → ${selectedDomain}`)
+        } else {
+          console.log(`Page verification FAILED: "${companyName}" not found on ${selectedDomain}`)
+          // Don't reject outright — lower confidence so frontend shows confirmation
+          confidence = Math.min(confidence, 0.6)
+          source = source + '_unverified'
+        }
       }
       if (pageResult.faviconUrl) {
         console.log(`Scraped favicon for ${selectedDomain}: ${pageResult.faviconUrl}`)
