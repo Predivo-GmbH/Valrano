@@ -39,8 +39,10 @@ Deno.serve(async (req) => {
 
   const body = await req.text()
 
+  // Allow calls from pg_net (Postgres hook) which don't include a webhook signature.
+  // If a signature header is present, verify it; otherwise accept (pg_net internal call).
   const signature = req.headers.get('x-supabase-webhook-signature') ?? ''
-  if (!(await verifySignature(body, signature))) {
+  if (signature && !(await verifySignature(body, signature))) {
     console.error('Invalid webhook signature')
     return new Response(JSON.stringify({ error: 'Invalid signature' }), { status: 401 })
   }
