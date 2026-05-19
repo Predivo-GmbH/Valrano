@@ -122,6 +122,14 @@ function formatValue(value: number | null | undefined, unitType?: string): strin
   if (unitType === 'percentage') return `${value.toFixed(1)}%`
   if (unitType === 'ratio') return value.toFixed(2)
   if (unitType === 'intensity') return value.toFixed(2)
+  if (unitType === 'currency') {
+    // Values are stored in millions by extract-kpis
+    const abs = Math.abs(value)
+    if (abs >= 1000) return `${(value / 1000).toFixed(1)}B`
+    if (abs >= 1) return `${value.toFixed(0)}M`
+    return value.toFixed(2)
+  }
+  // 'number', 'tons', or unknown — use compact notation
   return Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 }
 

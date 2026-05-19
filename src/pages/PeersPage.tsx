@@ -30,6 +30,9 @@ import {
   Table2,
   ArrowUpRight,
   ArrowDownRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   Trash2,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -78,16 +81,26 @@ const TABLE_KPI_LABELS: Record<string, string> = {
   ROIC: 'ROIC',
 }
 
+/** Format a currency value stored in millions (per extract-kpis convention) */
+function formatCurrencyMillions(v: number): string {
+  const abs = Math.abs(v)
+  if (abs >= 1000) return `${(v / 1000).toFixed(1)}B`
+  if (abs >= 1) return `${v.toFixed(0)}M`
+  return v.toFixed(2)
+}
+
 const TABLE_KPI_FORMATS: Record<string, (v: number) => string> = {
-  REVENUE: (v) => {
-    if (Math.abs(v) >= 1e9) return `${(v / 1e9).toFixed(1)}B`
-    if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(1)}M`
-    if (Math.abs(v) >= 1e3) return `${(v / 1e3).toFixed(0)}K`
-    return v.toFixed(0)
-  },
+  REVENUE: formatCurrencyMillions,
   EBITDA_MARGIN: (v) => `${v.toFixed(1)}%`,
   NET_DEBT_EBITDA: (v) => `${v.toFixed(1)}x`,
   ROIC: (v) => `${v.toFixed(1)}%`,
+}
+
+const TABLE_KPI_TOOLTIPS: Record<string, string> = {
+  REVENUE: 'Total net sales for the most recent fiscal year, normalized to CHF (in millions). Extracted from annual reports.',
+  EBITDA_MARGIN: 'Earnings Before Interest, Taxes, Depreciation & Amortization as % of revenue. Higher = more operationally efficient.',
+  NET_DEBT_EBITDA: 'Financial leverage ratio: net debt \u00F7 EBITDA. Lower = less leveraged, healthier balance sheet. Color coding is inverted (green = lower).',
+  ROIC: 'Return on Invested Capital: net operating profit after tax \u00F7 invested capital. Higher = better capital allocation.',
 }
 
 // ---------------------------------------------------------------------------
@@ -543,6 +556,7 @@ function PeerCard({
   isDeleting,
   totalKpiDefinitions,
   userSector,
+  kpiSummary,
 }: {
   peer: PeerCardData
   onUpload: (companyId: string) => void
@@ -552,6 +566,7 @@ function PeerCard({
   isDeleting: boolean
   totalKpiDefinitions: number
   userSector: string | null
+  kpiSummary?: { revenue?: { value: number; currency: string; year: number }; ebitdaMargin?: { value: number; year: number } }
 }) {
   const { company, isMonitoring, monitoringStatus, lastReport, nextExpectedDate, kpiExtracted, kpiPendingReview, nextEventId, scheduledCount } = peer
 
@@ -698,6 +713,38 @@ function PeerCard({
         </div>
       </div>
 
+      {/* Key KPIs or upload prompt */}
+      {(kpiSummary?.revenue || kpiSummary?.ebitdaMargin) ? (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {kpiSummary.revenue && (
+            <div className="rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2">
+              <div className="text-[10px] text-muted-foreground">Revenue</div>
+              <div className="text-[13px] font-semibold tabular-nums text-foreground">
+                {kpiSummary.revenue.currency} {formatCurrencyMillions(kpiSummary.revenue.value)}
+              </div>
+              <div className="text-[10px] text-muted-foreground">FY{String(kpiSummary.revenue.year).slice(-2)}</div>
+            </div>
+          )}
+          {kpiSummary.ebitdaMargin && (
+            <div className="rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2">
+              <div className="text-[10px] text-muted-foreground">EBITDA Margin</div>
+              <div className="text-[13px] font-semibold tabular-nums text-foreground">
+                {kpiSummary.ebitdaMargin.value.toFixed(1)}%
+              </div>
+              <div className="text-[10px] text-muted-foreground">FY{String(kpiSummary.ebitdaMargin.year).slice(-2)}</div>
+            </div>
+          )}
+        </div>
+      ) : kpiExtracted === 0 ? (
+        <button
+          onClick={() => onUpload(company.id)}
+          className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-3 text-[12px] text-muted-foreground transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/5"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          Upload report to see KPIs
+        </button>
+      ) : null}
+
       {/* Data completeness + Sector match */}
       <div className="mt-3 space-y-2">
         {/* Data completeness bar */}
@@ -771,9 +818,9 @@ function ComparisonTableView({
     kpiCodes: [...TABLE_KPI_CODES],
   })
 
-  // Build a lookup: companyId -> kpiCode -> latest value
+  // Build a lookup: companyId -> kpiCode -> latest value + metadata
   const kpiLookup = useMemo(() => {
-    const lookup: Record<string, Record<string, { value: number; year: number }>> = {}
+    const lookup: Record<string, Record<string, { value: number; year: number; currency: string }>> = {}
     for (const kv of kpiValues ?? []) {
       const code = kv.kpi_definitions?.code
       if (!code) continue
@@ -783,7 +830,7 @@ function ComparisonTableView({
       if (!lookup[kv.company_id]) lookup[kv.company_id] = {}
       const existing = lookup[kv.company_id][code]
       if (!existing || kv.fiscal_year > existing.year) {
-        lookup[kv.company_id][code] = { value: val, year: kv.fiscal_year }
+        lookup[kv.company_id][code] = { value: val, year: kv.fiscal_year, currency: kv.normalized_currency ?? kv.raw_currency ?? 'CHF' }
       }
     }
     return lookup
@@ -830,6 +877,46 @@ function ComparisonTableView({
     return result
   }, [peerCards, userCompanyId, userCompanyName, userCompanySector])
 
+  // Sorting
+  const [sortColumn, setSortColumn] = useState<string | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+
+  const toggleSort = (col: string) => {
+    if (sortColumn === col) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortColumn(col)
+      setSortDir('desc')
+    }
+  }
+
+  const sortedRows = useMemo(() => {
+    if (!sortColumn) return rows
+    return [...rows].sort((a, b) => {
+      // User's company always first
+      if (a.isUser) return -1
+      if (b.isUser) return 1
+
+      if (sortColumn === 'name') {
+        const cmp = a.name.localeCompare(b.name)
+        return sortDir === 'asc' ? cmp : -cmp
+      }
+      if (sortColumn === 'sector') {
+        const cmp = (a.sector ?? '').localeCompare(b.sector ?? '')
+        return sortDir === 'asc' ? cmp : -cmp
+      }
+      if (sortColumn === 'lastReport') {
+        const aY = lastReportYear[a.companyId] ?? 0
+        const bY = lastReportYear[b.companyId] ?? 0
+        return sortDir === 'asc' ? aY - bY : bY - aY
+      }
+      // KPI columns
+      const aVal = kpiLookup[a.companyId]?.[sortColumn]?.value ?? -Infinity
+      const bVal = kpiLookup[b.companyId]?.[sortColumn]?.value ?? -Infinity
+      return sortDir === 'asc' ? aVal - bVal : bVal - aVal
+    })
+  }, [rows, sortColumn, sortDir, kpiLookup, lastReportYear])
+
   if (kpiLoading) {
     return <CardSkeleton />
   }
@@ -843,11 +930,26 @@ function ComparisonTableView({
     )
   }
 
+  const sortIcon = (col: string) => {
+    if (sortColumn !== col) return <ArrowUpDown className="h-3 w-3 opacity-0 group-hover/sort:opacity-50 transition-opacity" />
+    return sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+  }
+
   const renderCellValue = (companyId: string, kpiCode: string, isUserRow: boolean) => {
     const entry = kpiLookup[companyId]?.[kpiCode]
-    if (!entry) return <span className="text-muted-foreground">--</span>
+    if (!entry) return <span className="text-muted-foreground text-[11px]">No data</span>
 
     const formatted = TABLE_KPI_FORMATS[kpiCode]?.(entry.value) ?? entry.value.toFixed(1)
+    // Show currency prefix for revenue
+    const prefix = kpiCode === 'REVENUE' ? `${entry.currency} ` : ''
+    const yearLabel = entry.year ? `FY${String(entry.year).slice(-2)}` : ''
+
+    const valueNode = (
+      <span className="inline-flex items-center gap-1">
+        <span>{prefix}{formatted}</span>
+        {yearLabel && <span className="text-[10px] text-muted-foreground font-normal">{yearLabel}</span>}
+      </span>
+    )
 
     // Color coding for peer rows vs user
     if (!isUserRow && userKpis?.[kpiCode]) {
@@ -860,7 +962,7 @@ function ComparisonTableView({
       if (isBetter) {
         return (
           <span className="inline-flex items-center gap-0.5 text-[var(--color-signal-green)]">
-            {formatted}
+            {valueNode}
             <ArrowUpRight className="h-3 w-3" />
           </span>
         )
@@ -868,23 +970,41 @@ function ComparisonTableView({
       if (isWorse) {
         return (
           <span className="inline-flex items-center gap-0.5 text-[var(--color-signal-red)]">
-            {formatted}
+            {valueNode}
             <ArrowDownRight className="h-3 w-3" />
           </span>
         )
       }
     }
 
-    return <span>{formatted}</span>
+    return valueNode
   }
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card">
-      <table className="w-full min-w-[800px] text-[13px]" aria-label="Peer companies">
+      <table className="w-full min-w-[900px] text-[13px]" aria-label="Peer companies">
         <thead>
           <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
             <th scope="col" className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-              Company
+              <button onClick={() => toggleSort('name')} className="group/sort inline-flex items-center gap-1 hover:text-foreground transition-colors">
+                Company
+                {sortIcon('name')}
+              </button>
+            </th>
+            <th scope="col" className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              <button onClick={() => toggleSort('sector')} className="group/sort inline-flex items-center gap-1 hover:text-foreground transition-colors">
+                <TooltipProvider delay={200}>
+                  <Tooltip>
+                    <TooltipTrigger className="inline-flex items-center gap-1 cursor-help border-b border-dotted border-muted-foreground/40">
+                      Sector
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[280px] text-left text-[12px] font-normal normal-case tracking-normal">
+                      Industry sector. Peers in the same sector as your company are most relevant for comparison.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {sortIcon('sector')}
+              </button>
             </th>
             {TABLE_KPI_CODES.map((code) => (
               <th
@@ -892,11 +1012,35 @@ function ComparisonTableView({
                 key={code}
                 className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground"
               >
-                {TABLE_KPI_LABELS[code]}
+                <button onClick={() => toggleSort(code)} className="group/sort inline-flex items-center gap-1 hover:text-foreground transition-colors ml-auto">
+                  <TooltipProvider delay={200}>
+                    <Tooltip>
+                      <TooltipTrigger className="inline-flex items-center gap-1 cursor-help border-b border-dotted border-muted-foreground/40">
+                        {TABLE_KPI_LABELS[code]}
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[280px] text-left text-[12px] font-normal normal-case tracking-normal">
+                        {TABLE_KPI_TOOLTIPS[code]}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  {sortIcon(code)}
+                </button>
               </th>
             ))}
             <th scope="col" className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-              Last Report
+              <button onClick={() => toggleSort('lastReport')} className="group/sort inline-flex items-center gap-1 hover:text-foreground transition-colors ml-auto">
+                <TooltipProvider delay={200}>
+                  <Tooltip>
+                    <TooltipTrigger className="inline-flex items-center gap-1 cursor-help border-b border-dotted border-muted-foreground/40">
+                      Last Report
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[280px] text-left text-[12px] font-normal normal-case tracking-normal">
+                      Fiscal year of the most recently uploaded annual report. Data may span different years across peers.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                {sortIcon('lastReport')}
+              </button>
             </th>
             <th scope="col" className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
               Actions
@@ -904,7 +1048,7 @@ function ComparisonTableView({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
+          {sortedRows.map((row) => {
             const peer = peerCards.find((p) => p.company.id === row.companyId)
             return (
               <tr
@@ -924,6 +1068,9 @@ function ComparisonTableView({
                       </span>
                     )}
                   </Link>
+                </td>
+                <td className="px-4 py-3 text-[12px] text-muted-foreground">
+                  {row.sector ?? <span className="text-muted-foreground/50">--</span>}
                 </td>
                 {TABLE_KPI_CODES.map((code) => (
                   <td key={code} className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
@@ -987,6 +1134,24 @@ function ComparisonTableView({
           })}
         </tbody>
       </table>
+
+      {/* Legend */}
+      {userCompanyId && (
+        <div className="flex items-center gap-4 px-4 py-2.5 border-t border-border text-[11px] text-muted-foreground">
+          <span className="font-medium">Legend:</span>
+          <span className="inline-flex items-center gap-1">
+            <ArrowUpRight className="h-3 w-3 text-[var(--color-signal-green)]" />
+            Peer outperforms you
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <ArrowDownRight className="h-3 w-3 text-[var(--color-signal-red)]" />
+            You outperform peer
+          </span>
+          <span className="ml-auto">
+            All currency values normalized to CHF · Revenue in millions/billions
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -1154,6 +1319,35 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
   const userSector = primaryCompany?.sector ?? null
   const userCompanyId = primaryCompany?.company_id ?? null
   const userCompanyName = primaryCompany?.name ?? null
+
+  // Fetch top KPI values for card view summaries
+  const companyIdsForKpis = useMemo(() => (companies ?? []).map((c) => c.id), [companies])
+  const { data: cardKpiValues } = useKpiValues({
+    companyIds: companyIdsForKpis.length > 0 ? companyIdsForKpis : undefined,
+    kpiCodes: ['REVENUE', 'EBITDA_MARGIN'],
+  })
+
+  // Build card KPI lookup: companyId -> { revenue, ebitdaMargin }
+  const cardKpiLookup = useMemo(() => {
+    const lookup: Record<string, { revenue?: { value: number; currency: string; year: number }; ebitdaMargin?: { value: number; year: number } }> = {}
+    for (const kv of cardKpiValues ?? []) {
+      const code = kv.kpi_definitions?.code
+      const val = kv.normalized_value ?? kv.raw_value
+      if (!code || val == null) continue
+      if (!lookup[kv.company_id]) lookup[kv.company_id] = {}
+      const entry = lookup[kv.company_id]
+      if (code === 'REVENUE') {
+        if (!entry.revenue || kv.fiscal_year > entry.revenue.year) {
+          entry.revenue = { value: val, currency: kv.normalized_currency ?? kv.raw_currency ?? 'CHF', year: kv.fiscal_year }
+        }
+      } else if (code === 'EBITDA_MARGIN') {
+        if (!entry.ebitdaMargin || kv.fiscal_year > entry.ebitdaMargin.year) {
+          entry.ebitdaMargin = { value: val, year: kv.fiscal_year }
+        }
+      }
+    }
+    return lookup
+  }, [cardKpiValues])
 
   // Fetch KPI review counts per company (scoped to visible companies only)
   const companyIds = useMemo(() => (companies ?? []).map((c) => c.id), [companies])
@@ -1478,6 +1672,7 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
                         isDeleting={deletingCompanyId === peer.company.id}
                         totalKpiDefinitions={totalKpiDefinitions}
                         userSector={userSector}
+                        kpiSummary={cardKpiLookup[peer.company.id]}
                       />
                     ))}
                   </div>
@@ -1503,6 +1698,7 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
                         isDeleting={deletingCompanyId === peer.company.id}
                         totalKpiDefinitions={totalKpiDefinitions}
                         userSector={userSector}
+                        kpiSummary={cardKpiLookup[peer.company.id]}
                       />
                     ))}
                   </div>
