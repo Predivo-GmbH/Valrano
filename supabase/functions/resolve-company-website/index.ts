@@ -475,7 +475,7 @@ async function uploadFaviconToStorage(domain: string, bytes: Uint8Array, content
  *
  * This guarantees every company gets a logo, even behind WAF/Cloudflare.
  */
-async function resolveLogoUrl(domain: string, scrapedFaviconUrl: string | null): Promise<string> {
+async function resolveLogoUrl(domain: string, scrapedFaviconUrl: string | null): Promise<string | null> {
   // 1. Try scraped favicon
   if (scrapedFaviconUrl) {
     if (await verifyFaviconLoads(scrapedFaviconUrl)) {
@@ -492,8 +492,29 @@ async function resolveLogoUrl(domain: string, scrapedFaviconUrl: string | null):
     return standardUrl
   }
 
-  // 3. Try DuckDuckGo cache → upload to Supabase Storage
-  console.log(`Direct favicon failed for ${domain} — trying DuckDuckGo cache`)
+  // 3. Try Google's favicon service (reliable, handles WAF-protected sites)
+  const googleFaviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
+  try {
+    const gResp = await fetch(googleFaviconUrl, { redirect: 'follow', signal: AbortSignal.timeout(5000) })
+    if (gResp.ok) {
+      const gCt = gResp.headers.get('content-type') ?? ''
+      if (gCt.includes('image')) {
+        const gBytes = new Uint8Array(await gResp.arrayBuffer())
+        // Reject Google's default globe icon (very small, ~726 bytes)
+        if (gBytes.length > 1000) {
+          const ct = gBytes[0] === 0x89 ? 'image/png' : 'image/vnd.microsoft.icon'
+          const storageUrl = await uploadFaviconToStorage(domain, gBytes, ct)
+          if (storageUrl) {
+            console.log(`Favicon self-hosted from Google: ${storageUrl}`)
+            return storageUrl
+          }
+        }
+      }
+    }
+  } catch { /* continue to next fallback */ }
+
+  // 4. Try DuckDuckGo cache → upload to Supabase Storage
+  console.log(`Google favicon failed for ${domain} — trying DuckDuckGo cache`)
   const ddgBytes = await fetchDuckDuckGoFavicon(domain)
   if (ddgBytes) {
     const ct = ddgBytes[0] === 0x89 ? 'image/png' : 'image/vnd.microsoft.icon'
@@ -504,9 +525,9 @@ async function resolveLogoUrl(domain: string, scrapedFaviconUrl: string | null):
     }
   }
 
-  // 4. Last resort — return standard URL, browser <img> tag may still load it
-  console.log(`All favicon sources failed for ${domain} — using standard URL as last resort`)
-  return standardUrl
+  // 5. Last resort — return null so UI shows Building2 fallback instead of broken image
+  console.log(`All favicon sources failed for ${domain} — no logo available`)
+  return null
 }
 
 // ---------------------------------------------------------------------------
