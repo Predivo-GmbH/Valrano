@@ -7,6 +7,7 @@ dist
 .DS_Store
 test-results/
 playwright-report/
+playwright/.auth/
 coverage/
 docs/Credentials.txt
 supabase/.temp/

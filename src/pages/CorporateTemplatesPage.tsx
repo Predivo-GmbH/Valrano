@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { Helmet } from 'react-helmet-async'
 import { useSearchParams } from 'react-router-dom'
 import {
   Upload,
@@ -125,6 +126,7 @@ export function CorporateTemplatesPage() {
 
   return (
     <div className="space-y-6">
+      <Helmet><title>Corporate Templates - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
