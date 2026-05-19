@@ -1,20 +1,27 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Building2, Pencil, Upload, FileText, RotateCw, Loader2, Trash2, AlertTriangle } from 'lucide-react'
+import {
+  Building2, Pencil, Upload, FileText, RotateCw, Loader2, Trash2,
+  AlertTriangle, Check, X, Globe, Users, Calendar, DollarSign,
+  TrendingUp, Leaf, Settings2, ChevronDown, ChevronRight,
+} from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   useMyCompanies,
   useMyCompanyKpis,
+  useUpdateMyCompany,
   useUpsertMyCompanyKpis,
 } from '@/hooks/useMyCompany'
-import { useKpiDefinitions, useCompanies, useReports } from '@/hooks/useData'
+import { useKpiDefinitions, useCompanies, useReports, useKpiValues } from '@/hooks/useData'
 import { useExtractKpis, useNormalizeKpis } from '@/hooks/useExtraction'
 import { supabase } from '@/lib/supabase'
+import { formatKpiValue } from '@/lib/format'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { Badge } from '@/components/ui/badge'
 import { CompanyLogo, companyLogoUrl } from '@/components/ui/company-logo'
@@ -27,13 +34,14 @@ export function MyCompanyPage() {
   const navigate = useNavigate()
   const { data: companies, isLoading } = useMyCompanies()
   const { data: allCompanies } = useCompanies()
-  const [editingKpis, setEditingKpis] = useState<string | null>(null)
   const [uploadCompanyId, setUploadCompanyId] = useState<string | null>(null)
 
-  const primaryCompanyId = companies?.find((c) => c.is_primary)?.company_id ?? companies?.[0]?.company_id
+  const primaryCompany = companies?.find((c) => c.is_primary) ?? companies?.[0]
+  const primaryCompanyId = primaryCompany?.company_id
   const { data: reports } = useReports(primaryCompanyId ?? undefined)
 
-  const primaryCompany = companies?.find((c) => c.is_primary) ?? companies?.[0]
+  const matchedCompany = allCompanies?.find((ac) => ac.id === primaryCompanyId)
+  const logoUrl = matchedCompany?.logo_url || companyLogoUrl(matchedCompany?.website_url)
 
   return (
     <>
@@ -46,9 +54,17 @@ export function MyCompanyPage() {
               {primaryCompany ? `Manage ${primaryCompany.name}'s data and benchmark against peers.` : 'Enter your company data to benchmark against peers.'}
             </p>
           </div>
-          {primaryCompany && (
-            <Button onClick={() => navigate('/my-company/benchmark')}>View Benchmark</Button>
-          )}
+          <div className="flex items-center gap-2">
+            {primaryCompany?.company_id && (
+              <Button variant="outline" onClick={() => setUploadCompanyId(primaryCompany.company_id)}>
+                <Upload className="h-3.5 w-3.5" />
+                Upload Report
+              </Button>
+            )}
+            {primaryCompany && (
+              <Button onClick={() => navigate('/my-company/benchmark')}>View Benchmark</Button>
+            )}
+          </div>
         </div>
 
         {isLoading ? (
@@ -61,26 +77,25 @@ export function MyCompanyPage() {
               Upload your annual report on the Dashboard to set up your company automatically.
             </p>
           </div>
-        ) : (
+        ) : primaryCompany ? (
           <div className="space-y-6">
-            {/* Company cards */}
-            {companies.map((company) => (
-              <CompanyCard
-                key={company.id}
-                company={company}
-                logoUrl={(() => { const c = allCompanies?.find((ac) => ac.id === company.company_id); return c?.logo_url || companyLogoUrl(c?.website_url) })()}
-                isEditingKpis={editingKpis === company.id}
-                onEditKpis={() => setEditingKpis(editingKpis === company.id ? null : company.id)}
-                onUpload={() => setUploadCompanyId(company.company_id)}
-              />
-            ))}
+            {/* Section 1: Company Profile */}
+            <CompanyProfileCard company={primaryCompany} logoUrl={logoUrl} />
 
-            {/* Recent Reports */}
+            {/* Section 2: Extracted KPIs */}
+            {primaryCompanyId && (
+              <ExtractedKpisSection companyId={primaryCompanyId} />
+            )}
+
+            {/* Section 3: Reports */}
             {reports && reports.length > 0 && (
               <RecentReports reports={reports} />
             )}
+
+            {/* Manual KPI Entry (collapsed by default) */}
+            <ManualKpiSection myCompanyId={primaryCompany.id} />
           </div>
-        )}
+        ) : null}
 
         {uploadCompanyId && (
           <UploadReportDialog
@@ -95,22 +110,64 @@ export function MyCompanyPage() {
 }
 
 // ---------------------------------------------------------------------------
-// Company Card
+// Section 1: Company Profile Card (Enhanced with inline editing)
 // ---------------------------------------------------------------------------
 
-function CompanyCard({
+const PROFILE_FIELDS = [
+  { key: 'sector', label: 'Sector', icon: Building2, placeholder: 'e.g. Building Materials', type: 'text' as const },
+  { key: 'country', label: 'Country', icon: Globe, placeholder: 'e.g. Switzerland', type: 'text' as const },
+  { key: 'reporting_currency', label: 'Currency', icon: DollarSign, placeholder: 'e.g. CHF', type: 'text' as const },
+  { key: 'headcount', label: 'Headcount', icon: Users, placeholder: 'e.g. 65000', type: 'number' as const },
+  { key: 'website_url', label: 'Website', icon: Globe, placeholder: 'e.g. https://example.com', type: 'text' as const },
+  { key: 'founded_year', label: 'Founded', icon: Calendar, placeholder: 'e.g. 1912', type: 'number' as const },
+] as const
+
+type ProfileFieldKey = typeof PROFILE_FIELDS[number]['key']
+
+function CompanyProfileCard({
   company,
   logoUrl,
-  isEditingKpis,
-  onEditKpis,
-  onUpload,
 }: {
-  company: { id: string; company_id: string | null; name: string; sector: string | null; country: string | null; reporting_currency: string | null; headcount: number | null; is_primary: boolean }
+  company: { id: string; company_id: string | null; name: string; sector: string | null; country: string | null; reporting_currency: string | null; headcount: number | null; website_url: string | null; founded_year: number | null; is_primary: boolean }
   logoUrl?: string | null
-  isEditingKpis: boolean
-  onEditKpis: () => void
-  onUpload: () => void
 }) {
+  const updateMutation = useUpdateMyCompany()
+  const [editingField, setEditingField] = useState<ProfileFieldKey | null>(null)
+  const [editValue, setEditValue] = useState('')
+
+  const filledCount = PROFILE_FIELDS.filter((f) => {
+    const val = company[f.key as keyof typeof company]
+    return val !== null && val !== undefined && val !== ''
+  }).length
+
+  function startEdit(field: ProfileFieldKey) {
+    const current = company[field as keyof typeof company]
+    setEditValue(current != null ? String(current) : '')
+    setEditingField(field)
+  }
+
+  function saveEdit(field: ProfileFieldKey) {
+    const fieldDef = PROFILE_FIELDS.find((f) => f.key === field)
+    const value = editValue.trim()
+    const parsed = fieldDef?.type === 'number' ? (value ? Number(value) : null) : (value || null)
+
+    updateMutation.mutate(
+      { id: company.id, [field]: parsed },
+      {
+        onSuccess: () => {
+          toast.success(`${fieldDef?.label} updated`)
+          setEditingField(null)
+        },
+        onError: (err) => toast.error(`Update failed: ${err.message}`),
+      },
+    )
+  }
+
+  function cancelEdit() {
+    setEditingField(null)
+    setEditValue('')
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -122,49 +179,246 @@ function CompanyCard({
               {company.sector && <span>{company.sector}</span>}
               {company.country && <span>· {company.country}</span>}
               {company.is_primary && (
-                <Badge variant="secondary" className="bg-[var(--color-primary)]/10 text-[10px] text-[var(--color-primary)]">
+                <Badge variant="secondary" className="bg-[var(--color-accent)]/10 text-[10px] text-[var(--color-accent)]">
                   Primary
                 </Badge>
               )}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {company.company_id && (
-            <Button variant="outline" size="sm" onClick={onUpload}>
-              <Upload className="h-3.5 w-3.5" />
-              Upload Report
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={onEditKpis}>
-            <Pencil className="h-3.5 w-3.5" />
-            {isEditingKpis ? 'Close' : 'Edit KPIs'}
-          </Button>
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[var(--color-bg-tertiary)]">
+              <div
+                className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-500"
+                style={{ width: `${(filledCount / PROFILE_FIELDS.length) * 100}%` }}
+              />
+            </div>
+            <span>{filledCount}/{PROFILE_FIELDS.length}</span>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-        <div>
-          <span className="text-xs text-muted-foreground">Currency</span>
-          <p className="font-medium text-foreground">{company.reporting_currency ?? 'CHF'}</p>
-        </div>
-        <div>
-          <span className="text-xs text-muted-foreground">Headcount</span>
-          <p className="font-medium text-foreground">{company.headcount?.toLocaleString() ?? '—'}</p>
-        </div>
-      </div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+        {PROFILE_FIELDS.map((field) => {
+          const Icon = field.icon
+          const rawValue = company[field.key as keyof typeof company]
+          const displayValue = rawValue != null
+            ? field.key === 'headcount' ? Number(rawValue).toLocaleString()
+            : field.key === 'website_url' ? String(rawValue).replace(/^https?:\/\//, '')
+            : String(rawValue)
+            : null
+          const isEditing = editingField === field.key
 
-      {isEditingKpis && (
-        <div className="mt-4 border-t border-border pt-4">
-          <KpiEditor companyId={company.id} />
-        </div>
-      )}
+          return (
+            <div key={field.key} className="group">
+              <span className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                <Icon className="h-3 w-3" />
+                {field.label}
+              </span>
+              {isEditing ? (
+                <div className="mt-0.5 flex items-center gap-1">
+                  <Input
+                    type={field.type ?? 'text'}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    placeholder={field.placeholder}
+                    className="h-7 text-[13px]"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveEdit(field.key)
+                      if (e.key === 'Escape') cancelEdit()
+                    }}
+                  />
+                  <Button variant="ghost" size="icon-xs" onClick={() => saveEdit(field.key)} disabled={updateMutation.isPending} aria-label="Save">
+                    <Check className="h-3.5 w-3.5 text-[var(--color-signal-green)]" />
+                  </Button>
+                  <Button variant="ghost" size="icon-xs" onClick={cancelEdit} aria-label="Cancel">
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => startEdit(field.key)}
+                  className="mt-0.5 flex w-full items-center gap-1 rounded px-0 text-left text-[13px] font-medium text-foreground transition-colors hover:text-[var(--color-accent)]"
+                >
+                  {displayValue ?? <span className="text-muted-foreground/40">Set {field.label.toLowerCase()}...</span>}
+                  <Pencil className="ml-auto h-3 w-3 opacity-0 group-hover:opacity-50" />
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Recent Reports
+// Section 2: Extracted KPIs Dashboard
+// ---------------------------------------------------------------------------
+
+const CATEGORY_LABELS: Record<string, string> = {
+  financial: 'Financial',
+  esg: 'ESG',
+  operational: 'Operational',
+}
+
+const CATEGORY_ICONS: Record<string, typeof TrendingUp> = {
+  financial: TrendingUp,
+  esg: Leaf,
+  operational: Settings2,
+}
+
+function ExtractedKpisSection({ companyId }: { companyId: string }) {
+  const { data: kpiValues, isLoading } = useKpiValues({ companyIds: [companyId] })
+  const [activeCategory, setActiveCategory] = useState<string>('all')
+
+  const grouped = useMemo(() => {
+    if (!kpiValues?.length) return {}
+    const map: Record<string, typeof kpiValues> = {}
+    for (const kv of kpiValues) {
+      const cat = kv.kpi_definitions?.category ?? 'other'
+      if (!map[cat]) map[cat] = []
+      map[cat].push(kv)
+    }
+    return map
+  }, [kpiValues])
+
+  const categories = Object.keys(grouped).sort()
+
+  const { years, kpisByDef } = useMemo(() => {
+    const filtered = activeCategory === 'all'
+      ? kpiValues ?? []
+      : grouped[activeCategory] ?? []
+
+    const yrs = [...new Set(filtered.map((kv) => kv.fiscal_year))].sort((a, b) => b - a)
+
+    const byDef = new Map<string, typeof filtered>()
+    for (const kv of filtered) {
+      const defId = kv.kpi_definition_id
+      if (!byDef.has(defId)) byDef.set(defId, [])
+      byDef.get(defId)!.push(kv)
+    }
+    for (const values of byDef.values()) {
+      values.sort((a, b) => b.fiscal_year - a.fiscal_year)
+    }
+
+    return { years: yrs, kpisByDef: byDef }
+  }, [kpiValues, activeCategory, grouped])
+
+  if (isLoading) return <CardSkeleton />
+
+  if (!kpiValues?.length) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-8 text-center">
+        <TrendingUp className="mx-auto h-10 w-10 text-muted-foreground/30" />
+        <h3 className="mt-3 text-sm font-semibold text-foreground">No KPIs extracted yet</h3>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          Upload an annual report to automatically extract financial, ESG, and operational KPIs.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Extracted KPIs</h3>
+          <p className="text-[11px] text-muted-foreground">
+            {kpiValues.length} KPIs from {years.length} fiscal year{years.length !== 1 ? 's' : ''} ({years.join(', ')})
+          </p>
+        </div>
+        {categories.length > 1 && (
+          <Tabs value={activeCategory} onValueChange={setActiveCategory}>
+            <TabsList className="h-8 bg-[var(--color-bg-tertiary)] p-0.5">
+              <TabsTrigger value="all" className="h-7 px-3 text-[11px]">All</TabsTrigger>
+              {categories.map((cat) => (
+                <TabsTrigger key={cat} value={cat} className="h-7 px-3 text-[11px]">
+                  {CATEGORY_LABELS[cat] ?? cat}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          <span className="w-[180px]">KPI</span>
+          <span className="w-[80px] text-right">Value</span>
+          <span className="w-[60px] text-right">Year</span>
+          <span className="flex-1 text-right">Category</span>
+        </div>
+
+        {[...kpisByDef.entries()].map(([defId, values]) => {
+          const latest = values[0]
+          const def = latest.kpi_definitions
+          if (!def) return null
+          const CatIcon = CATEGORY_ICONS[def.category] ?? TrendingUp
+
+          return (
+            <div
+              key={defId}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-[var(--color-bg-tertiary)]"
+            >
+              <div className="w-[180px] min-w-0">
+                <p className="truncate text-[13px] font-medium text-foreground" title={def.name}>
+                  {def.name}
+                </p>
+                {latest.confidence != null && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {Math.round(latest.confidence * 100)}% confidence
+                  </p>
+                )}
+              </div>
+              <div className="w-[80px] text-right">
+                <span className="text-[13px] font-semibold tabular-nums text-foreground">
+                  {formatKpiValue(latest.normalized_value ?? latest.raw_value, def.unit_type)}
+                </span>
+                {latest.raw_currency && latest.raw_currency !== 'CHF' && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {latest.raw_currency} {latest.raw_value}
+                  </p>
+                )}
+              </div>
+              <span className="w-[60px] text-right text-[12px] tabular-nums text-muted-foreground">
+                FY {latest.fiscal_year}
+              </span>
+              <div className="flex flex-1 items-center justify-end gap-1.5">
+                <CatIcon className="h-3 w-3 text-muted-foreground" />
+                <span className="text-[11px] text-muted-foreground">
+                  {CATEGORY_LABELS[def.category] ?? def.category}
+                </span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
+        <p className="text-[10px] text-muted-foreground">
+          Auto-extracted from uploaded reports via AI
+        </p>
+        <div className="flex items-center gap-2">
+          {categories.map((cat) => (
+            <span key={cat} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+              {CATEGORY_LABELS[cat] ?? cat}: {grouped[cat]?.length ?? 0}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ---------------------------------------------------------------------------
+// Section 3: Recent Reports (Enhanced)
 // ---------------------------------------------------------------------------
 
 function RecentReports({ reports }: { reports: { id: string; title: string | null; report_type: string; fiscal_year: number; fiscal_quarter: number | null; status: string; created_at: string; pdf_storage_path: string | null }[] }) {
@@ -182,6 +436,7 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
       try { await normalizeMutation.mutateAsync(reportId) } catch { /* non-fatal */ }
       toast.success(`Extracted ${extraction.total_kpis_extracted} KPIs`)
       queryClient.invalidateQueries({ queryKey: ['reports'] })
+      queryClient.invalidateQueries({ queryKey: ['kpi-values'] })
     } catch (err) {
       toast.error(`Extraction failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
@@ -215,7 +470,7 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
   return (
     <>
       <div className="rounded-xl border border-border bg-card p-5">
-        <h3 className="mb-3 text-sm font-semibold text-foreground">Recent Reports</h3>
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Reports ({reports.length})</h3>
         <div className="space-y-2">
           {reports.slice(0, 10).map((report) => (
             <div key={report.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)] px-3 py-2.5">
@@ -309,10 +564,38 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
   )
 }
 
-// ReportStatusBadge imported from @/components/ui/report-status-badge
+// ---------------------------------------------------------------------------
+// Manual KPI Entry (collapsible section)
+// ---------------------------------------------------------------------------
+
+function ManualKpiSection({ myCompanyId }: { myCompanyId: string }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <div className="rounded-xl border border-border bg-card">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between p-5 text-left"
+      >
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Manual KPI Entry</h3>
+          <p className="text-[11px] text-muted-foreground">Enter KPIs manually if you don't have a report to upload</p>
+        </div>
+        {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+      </button>
+      {isOpen && (
+        <div className="border-t border-border px-5 pb-5 pt-4">
+          <KpiEditor companyId={myCompanyId} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 
 // ---------------------------------------------------------------------------
-// KPI Editor
+// KPI Editor (Manual entry form)
 // ---------------------------------------------------------------------------
 
 function KpiEditor({ companyId }: { companyId: string }) {
@@ -325,7 +608,6 @@ function KpiEditor({ companyId }: { companyId: string }) {
 
   const [values, setValues] = useState<Record<string, string>>({})
 
-  // Initialize from existing data
   const getInitialValue = (kpiDefId: string): string => {
     if (values[kpiDefId] !== undefined) return values[kpiDefId]
     const existing = existingKpis?.find((k) => k.kpi_definition_id === kpiDefId)
@@ -333,7 +615,6 @@ function KpiEditor({ companyId }: { companyId: string }) {
   }
 
   function handleSave() {
-    // Merge existing KPI values with user edits
     const merged: Record<string, string> = {}
     if (existingKpis) {
       for (const kpi of existingKpis) {
