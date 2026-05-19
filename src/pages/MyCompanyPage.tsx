@@ -20,6 +20,7 @@ import {
 } from '@/hooks/useMyCompany'
 import { useKpiDefinitions, useCompanies, useReports, useKpiValues } from '@/hooks/useData'
 import { useExtractKpis, useNormalizeKpis } from '@/hooks/useExtraction'
+import { useVisibleCompanyIds } from '@/hooks/useVisibleCompanyIds'
 import { supabase } from '@/lib/supabase'
 import { formatKpiValue } from '@/lib/format'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
@@ -90,6 +91,11 @@ export function MyCompanyPage() {
             {/* Section 3: Reports */}
             {reports && reports.length > 0 && (
               <RecentReports reports={reports} />
+            )}
+
+            {/* Section 4: Quick Benchmark Position */}
+            {primaryCompanyId && (
+              <BenchmarkPositionSection companyId={primaryCompanyId} />
             )}
 
             {/* Manual KPI Entry (collapsed by default) */}
@@ -421,7 +427,19 @@ function ExtractedKpisSection({ companyId }: { companyId: string }) {
 // Section 3: Recent Reports (Enhanced)
 // ---------------------------------------------------------------------------
 
-function RecentReports({ reports }: { reports: { id: string; title: string | null; report_type: string; fiscal_year: number; fiscal_quarter: number | null; status: string; created_at: string; pdf_storage_path: string | null }[] }) {
+interface ReportWithExtraction {
+  id: string
+  title: string | null
+  report_type: string
+  fiscal_year: number
+  fiscal_quarter: number | null
+  status: string
+  created_at: string
+  pdf_storage_path: string | null
+  extractions?: { id: string; total_kpis_extracted: number; avg_confidence: number | null; model_used: string | null; status: string }[]
+}
+
+function RecentReports({ reports }: { reports: ReportWithExtraction[] }) {
   const queryClient = useQueryClient()
   const extractMutation = useExtractKpis()
   const normalizeMutation = useNormalizeKpis()
@@ -472,45 +490,61 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
       <div className="rounded-xl border border-border bg-card p-5">
         <h3 className="mb-3 text-sm font-semibold text-foreground">Reports ({reports.length})</h3>
         <div className="space-y-2">
-          {reports.slice(0, 10).map((report) => (
-            <div key={report.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)] px-3 py-2.5">
-              <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-foreground">
-                  {report.title ?? `Report FY ${report.fiscal_year}`}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {report.report_type} · FY {report.fiscal_year}{report.fiscal_quarter ? ` Q${report.fiscal_quarter}` : ''} · {new Date(report.created_at).toLocaleDateString()}
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                {(report.status === 'pending' || report.status === 'error') && (
+          {reports.slice(0, 10).map((report) => {
+            const extraction = report.extractions?.find((e) => e.status === 'completed')
+            return (
+            <div key={report.id} className="rounded-lg border border-border/50 bg-[var(--color-bg-tertiary)] px-3 py-2.5">
+              <div className="flex items-center gap-3">
+                <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium text-foreground">
+                    {report.title ?? `Report FY ${report.fiscal_year}`}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {report.report_type} · FY {report.fiscal_year}{report.fiscal_quarter ? ` Q${report.fiscal_quarter}` : ''} · {new Date(report.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {(report.status === 'pending' || report.status === 'error') && (
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => handleRetry(report.id)}
+                      disabled={retryingId === report.id}
+                      aria-label="Retry extraction"
+                      title="Retry extraction"
+                    >
+                      {retryingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    onClick={() => handleRetry(report.id)}
-                    disabled={retryingId === report.id}
-                    aria-label="Retry extraction"
-                    title="Retry extraction"
+                    onClick={() => setDeleteTarget({ id: report.id, title: report.title ?? `Report FY ${report.fiscal_year}`, storagePath: report.pdf_storage_path })}
+                    disabled={deletingId === report.id}
+                    aria-label="Delete report"
+                    title="Delete report"
+                    className="hover:bg-destructive/10 hover:text-destructive"
                   >
-                    {retryingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
+                    {deletingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => setDeleteTarget({ id: report.id, title: report.title ?? `Report FY ${report.fiscal_year}`, storagePath: report.pdf_storage_path })}
-                  disabled={deletingId === report.id}
-                  aria-label="Delete report"
-                  title="Delete report"
-                  className="hover:bg-destructive/10 hover:text-destructive"
-                >
-                  {deletingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                </Button>
-                <ReportStatusBadge status={report.status} />
+                  <ReportStatusBadge status={report.status} />
+                </div>
               </div>
+              {extraction && (
+                <div className="mt-1.5 flex items-center gap-3 pl-7 text-[10px] text-muted-foreground">
+                  <span>{extraction.total_kpis_extracted} KPIs extracted</span>
+                  {extraction.avg_confidence != null && (
+                    <span>· {Math.round(extraction.avg_confidence * 100)}% confidence</span>
+                  )}
+                  {extraction.model_used && (
+                    <span>· {extraction.model_used}</span>
+                  )}
+                </div>
+              )}
             </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
@@ -561,6 +595,140 @@ function RecentReports({ reports }: { reports: { id: string; title: string | nul
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Section 4: Quick Benchmark Position
+// ---------------------------------------------------------------------------
+
+const LOWER_IS_BETTER_CODES = new Set([
+  'CO2_EMISSIONS', 'CO2_INTENSITY', 'ENERGY_INTENSITY',
+  'WATER_INTENSITY', 'NET_DEBT', 'DEBT_TO_EQUITY',
+])
+
+function BenchmarkPositionSection({ companyId }: { companyId: string }) {
+  const navigate = useNavigate()
+  const { data: visibleIds } = useVisibleCompanyIds()
+
+  // Get my KPIs
+  const { data: myKpis } = useKpiValues({ companyIds: [companyId] })
+
+  // Get peer KPIs (all visible companies)
+  const peerIds = useMemo(
+    () => visibleIds?.filter((id) => id !== companyId) ?? [],
+    [visibleIds, companyId],
+  )
+  const { data: peerKpis } = useKpiValues({ companyIds: peerIds.length > 0 ? peerIds : undefined })
+
+  const benchmarkRows = useMemo(() => {
+    if (!myKpis?.length || !peerKpis?.length) return []
+
+    // Build map of my latest KPI per definition
+    const myByDef = new Map<string, typeof myKpis[0]>()
+    for (const kv of myKpis) {
+      const existing = myByDef.get(kv.kpi_definition_id)
+      if (!existing || kv.fiscal_year > existing.fiscal_year) {
+        myByDef.set(kv.kpi_definition_id, kv)
+      }
+    }
+
+    // Build map of peer values per definition
+    const peerByDef = new Map<string, number[]>()
+    for (const kv of peerKpis) {
+      if (kv.normalized_value == null) continue
+      if (!peerByDef.has(kv.kpi_definition_id)) peerByDef.set(kv.kpi_definition_id, [])
+      peerByDef.get(kv.kpi_definition_id)!.push(kv.normalized_value)
+    }
+
+    const rows: { name: string; code: string; myValue: number; peerMedian: number; percentile: number; unitType: string }[] = []
+
+    for (const [defId, myKpi] of myByDef) {
+      const peerValues = peerByDef.get(defId)
+      if (!peerValues?.length || myKpi.normalized_value == null) continue
+      const def = myKpi.kpi_definitions
+      if (!def) continue
+
+      const sorted = [...peerValues].sort((a, b) => a - b)
+      const mid = Math.floor(sorted.length / 2)
+      const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+
+      const allValues = [...peerValues, myKpi.normalized_value].sort((a, b) => a - b)
+      const rank = allValues.filter((v) => v < myKpi.normalized_value!).length
+      let pctile = allValues.length > 1 ? Math.round((rank / (allValues.length - 1)) * 100) : 50
+      if (LOWER_IS_BETTER_CODES.has(def.code)) pctile = 100 - pctile
+
+      rows.push({
+        name: def.name,
+        code: def.code,
+        myValue: myKpi.normalized_value,
+        peerMedian: median,
+        percentile: pctile,
+        unitType: def.unit_type,
+      })
+    }
+
+    // Sort by percentile — show strengths first
+    rows.sort((a, b) => b.percentile - a.percentile)
+    return rows.slice(0, 5)
+  }, [myKpis, peerKpis])
+
+  if (!benchmarkRows.length) return null
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Benchmark Position</h3>
+          <p className="text-[11px] text-muted-foreground">
+            Your position vs {peerIds.length} peer{peerIds.length !== 1 ? 's' : ''} — top 5 KPIs
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => navigate('/my-company/benchmark')}>
+          Full Benchmark
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {benchmarkRows.map((row) => {
+          const barColor = row.percentile >= 66
+            ? 'bg-[var(--color-signal-green)]'
+            : row.percentile >= 33
+              ? 'bg-[var(--color-signal-amber)]'
+              : 'bg-[var(--color-signal-red)]'
+          const signal = row.percentile >= 66 ? 'Strength' : row.percentile <= 33 ? 'Risk' : 'Average'
+
+          return (
+            <div key={row.code}>
+              <div className="mb-1 flex items-center justify-between text-[12px]">
+                <span className="font-medium text-foreground">{row.name}</span>
+                <div className="flex items-center gap-2">
+                  <span className="tabular-nums text-foreground">{formatKpiValue(row.myValue, row.unitType)}</span>
+                  <span className="text-muted-foreground">vs</span>
+                  <span className="tabular-nums text-muted-foreground">{formatKpiValue(row.peerMedian, row.unitType)}</span>
+                  <Badge
+                    variant="secondary"
+                    className={`text-[9px] ${
+                      row.percentile >= 66 ? 'bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)]'
+                      : row.percentile <= 33 ? 'bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)]'
+                      : 'bg-[var(--color-signal-amber)]/10 text-[var(--color-signal-amber)]'
+                    }`}
+                  >
+                    {signal}
+                  </Badge>
+                </div>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-bg-tertiary)]">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                  style={{ width: `${row.percentile}%` }}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 

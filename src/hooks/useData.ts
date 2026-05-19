@@ -8,6 +8,7 @@ import type {
   PeerGroup,
   PeerGroupMember,
   Report,
+  Extraction,
 } from '@/types/database'
 
 export function useCompanies() {
@@ -132,7 +133,7 @@ export function useReports(companyId?: string) {
     queryFn: async () => {
       let query = supabase
         .from('reports')
-        .select('*, companies(*)')
+        .select('*, companies(*), extractions(*)')
         .order('fiscal_year', { ascending: false })
 
       if (companyId) {
@@ -145,7 +146,7 @@ export function useReports(companyId?: string) {
 
       const { data, error } = await query
       if (error) throw error
-      return data as (Report & { companies: Company })[]
+      return data as (Report & { companies: Company; extractions: Extraction[] })[]
     },
   })
 }
