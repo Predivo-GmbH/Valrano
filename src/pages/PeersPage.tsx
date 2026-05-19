@@ -813,6 +813,7 @@ function ComparisonTableView({
   onDelete,
   deletingCompanyId,
   checkingEventId,
+  companies,
 }: {
   peerCards: PeerCardData[]
   userCompanyName: string | null

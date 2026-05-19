@@ -56,7 +56,7 @@ import { supabase } from '@/lib/supabase'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 import { cn } from '@/lib/utils'
 import { CompanyLogo } from '@/components/ui/company-logo'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ReportStatusBadge as StatusBadge } from '@/components/ui/report-status-badge'
 import type {
   KpiCategory,
@@ -1009,14 +1009,14 @@ export function CompanyProfilePage() {
                           <div className="col-span-2 sm:col-span-1">
                             {row.description ? (
                               <TooltipProvider delay={200}>
-                                <Tooltip>
+                                <UiTooltip>
                                   <TooltipTrigger className="text-[13px] font-medium text-foreground cursor-help border-b border-dotted border-muted-foreground/40">
                                     {row.name}
                                   </TooltipTrigger>
                                   <TooltipContent side="right" className="max-w-[280px] text-left text-[12px] font-normal">
                                     {row.description}
                                   </TooltipContent>
-                                </Tooltip>
+                                </UiTooltip>
                               </TooltipProvider>
                             ) : (
                               <p className="text-[13px] font-medium text-foreground">{row.name}</p>
@@ -1230,14 +1230,14 @@ export function CompanyProfilePage() {
                       <div>
                         {row.description ? (
                           <TooltipProvider delay={200}>
-                            <Tooltip>
+                            <UiTooltip>
                               <TooltipTrigger className="text-[13px] font-medium text-foreground cursor-help border-b border-dotted border-muted-foreground/40">
                                 {row.name}
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-[280px] text-left text-[12px] font-normal">
                                 {row.description}
                               </TooltipContent>
-                            </Tooltip>
+                            </UiTooltip>
                           </TooltipProvider>
                         ) : (
                           <p className="text-[13px] font-medium text-foreground">{row.name}</p>
@@ -1312,14 +1312,14 @@ export function CompanyProfilePage() {
                               <div className="min-w-0 flex-1">
                                 {row.description ? (
                                   <TooltipProvider delay={200}>
-                                    <Tooltip>
+                                    <UiTooltip>
                                       <TooltipTrigger className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground cursor-help border-b border-dotted border-muted-foreground/40">
                                         {row.name}
                                       </TooltipTrigger>
                                       <TooltipContent side="top" className="max-w-[280px] text-left text-[12px] font-normal normal-case tracking-normal">
                                         {row.description}
                                       </TooltipContent>
-                                    </Tooltip>
+                                    </UiTooltip>
                                   </TooltipProvider>
                                 ) : (
                                   <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
