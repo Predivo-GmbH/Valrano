@@ -140,3 +140,136 @@ jobs:
           FTP_HOST: ${{ secrets.FTP_HOST }}
           FTP_USER: ${{ secrets.FTP_USER }}
           FTP_PASS: ${{ secrets.FTP_PASS }}
+
+  deploy-staging:
+    needs: validate-staging
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24.13.0'
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_STAGING_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+
+      - name: Install lftp
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      - name: Write site-id marker
+        run: echo "valrano-staging" > dist/.site-id
+
+      - name: Create staging .htaccess
+        run: |
+          cat > dist/.htaccess << 'HTACCESS'
+          AuthType Basic
+          AuthName "Staging"
+          AuthUserFile /var/www/vhosts/valrano.com/staging.valrano.com/.htpasswd
+          Require valid-user
+
+          <IfModule mod_rewrite.c>
+            RewriteEngine On
+            RewriteBase /
+
+            RewriteCond %{HTTPS} off
+            RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+            RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteCond %{REQUEST_URI} (.+)/$
+            RewriteRule ^ %1 [R=301,L]
+
+            RewriteCond %{REQUEST_FILENAME} !-f
+            RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteCond %{REQUEST_FILENAME}.html -f
+            RewriteRule ^(.+)$ $1.html [L]
+
+            RewriteRule ^index\.html$ - [L]
+            RewriteCond %{REQUEST_FILENAME} !-f
+            RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteRule . /index.html [L]
+          </IfModule>
+
+          <IfModule mod_headers.c>
+            Header always set X-Robots-Tag "noindex, nofollow"
+            Header always set X-Content-Type-Options "nosniff"
+            Header always set X-Frame-Options "DENY"
+          </IfModule>
+
+          <IfModule mod_headers.c>
+            <FilesMatch "\.(js|css|woff2|png|jpg|webp|avif|svg|ico)$">
+              Header set Cache-Control "no-cache"
+            </FilesMatch>
+            <FilesMatch "\.html$">
+              Header set Cache-Control "no-cache, no-store, must-revalidate"
+            </FilesMatch>
+          </IfModule>
+          HTACCESS
+          sed -i 's/^          //' dist/.htaccess
+
+      - name: Verify deploy target (site-id guard)
+        run: |
+          REMOTE_ID=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "cat staging.valrano.com/.site-id; quit" 2>/dev/null || echo "")
+          if [ -n "$REMOTE_ID" ] && [ "$REMOTE_ID" != "valrano-staging" ]; then
+            echo "::error::DEPLOY ABORTED — remote .site-id is '$REMOTE_ID', expected 'valrano-staging'. Wrong FTP target!"
+            exit 1
+          fi
+          echo "Site-id guard passed (remote='${REMOTE_ID:-<none>}')"
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+
+      - name: Upload to staging
+        run: |
+          lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
+          set ftp:ssl-allow no
+          mirror --reverse --verbose --no-perms --delete \
+            --exclude .htpasswd --exclude cgi-bin/ \
+            ./dist/ staging.valrano.com/
+          bye
+          SCRIPT
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+
+  e2e-staging:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24.13.0'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests against staging
+        run: npm run test:e2e:staging
+        env:
+          STAGING_URL: https://staging.valrano.com
+          STAGING_HTTP_USER: staging
+          STAGING_HTTP_PASS: predivo2026
+          STAGING_TEST_EMAIL: e2e-test@valrano-test.local
+          STAGING_TEST_PASSWORD: IntegrationTest2026!
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-staging-report
+          path: playwright-report/
+          retention-days: 7
