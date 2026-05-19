@@ -9,7 +9,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Supabase CLI
+        run: npm install -g supabase@latest
+
+      - name: Push migrations to staging
+        run: supabase db push --db-url "${{ secrets.SUPABASE_STAGING_DB_URL }}"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Deploy edge functions to staging
+        run: supabase functions deploy --project-ref vfwpcgdkrwqhdivfzmrg --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Smoke-test staging
+        run: |
+          echo "=== Staging GraphQL ping ==="
+          gql_response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_STAGING_URL }}/graphql/v1" \
+            -X POST \
+            -H "apikey: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_STAGING_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"{ __typename }"}')
+          echo "GraphQL response: $gql_response"
+          if [ "$gql_response" != "200" ]; then
+            echo "::error::Staging smoke test FAILED (GraphQL returned $gql_response)"
+            exit 1
+          fi
+
+          echo "=== Staging edge function ping ==="
+          ef_response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_STAGING_URL }}/functions/v1/upload-report" \
+            -X OPTIONS \
+            -H "Origin: https://valrano.com")
+          echo "Edge function OPTIONS response: $ef_response"
+          if [ "$ef_response" = "000" ]; then
+            echo "::error::Staging edge functions unreachable"
+            exit 1
+          fi
+
+          echo "Staging validation passed"
+
   deploy:
+    needs: validate-staging
     runs-on: ubuntu-latest
 
     steps:
