@@ -6,10 +6,8 @@
  */
 import { test as setup, expect } from '@playwright/test'
 
-const _TEST_EMAIL = process.env.STAGING_TEST_EMAIL || 'e2e-test@valrano-test.local'
-const _TEST_PASSWORD = process.env.STAGING_TEST_PASSWORD || 'IntegrationTest2026!'
+// Staging credentials are hardcoded inline below (lines 18-19)
 const AUTH_FILE = 'playwright/.auth/staging-user.json'
-void _TEST_EMAIL, _TEST_PASSWORD
 
 const SUPABASE_URL = 'https://vfwpcgdkrwqhdivfzmrg.supabase.co'
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmd3BjZ2RrcndxaGRpdmZ6bXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxOTM0MjIsImV4cCI6MjA5NDc2OTQyMn0.oKmklW0md_-S5tqKT0fg-2Vz0lVh_qDf9jRvm3tqbHs'
