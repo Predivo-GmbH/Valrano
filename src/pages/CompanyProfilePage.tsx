@@ -265,15 +265,11 @@ export function CompanyProfilePage() {
   const [isRedetecting, setIsRedetecting] = useState(false)
 
   // Page readiness — tracks whether the company profile is fully set up
-  const [resolutionStatus, setResolutionStatus] = useState<'idle' | 'resolving' | 'resolved' | 'needs_action'>(
-    company?.website_url ? 'resolved' : 'idle'
-  )
-  // Sync resolved status when company data refreshes (e.g. after query invalidation)
-  const prevWebsiteUrl = useRef(company?.website_url)
-  if (company?.website_url && !prevWebsiteUrl.current) {
-    prevWebsiteUrl.current = company.website_url
-    if (resolutionStatus !== 'resolved') setResolutionStatus('resolved')
-  }
+  // Internal state tracks the resolution process; effective status also considers live company data
+  const [internalStatus, setInternalStatus] = useState<'idle' | 'resolving' | 'resolved' | 'needs_action'>('idle')
+  // If company already has a website_url (from DB or after query refresh), it's resolved regardless of internal state
+  const resolutionStatus = company?.website_url ? 'resolved' : internalStatus
+  const setResolutionStatus = setInternalStatus
 
   const redetectWebsite = async () => {
     if (!company) return
