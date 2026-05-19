@@ -301,13 +301,27 @@ If no sitemap, construct the most likely URL based on common patterns (confidenc
     }
 
     // ------------------------------------------------------------------
-    // 6. Store on company if validated
+    // 6. Store on company if validated + trigger IR catalog scan
     // ------------------------------------------------------------------
     if (validatedUrl) {
       await adminClient
         .from('companies')
         .update({ ir_page_url: validatedUrl })
         .eq('id', company_id)
+
+      // Auto-trigger IR catalog scan (server-side, no toggle gate — always catalog)
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      if (supabaseUrl && serviceKey) {
+        await fetch(`${supabaseUrl}/functions/v1/scan-ir-page`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${serviceKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ company_id }),
+        }).catch((e) => console.error('IR catalog scan trigger failed:', e))
+      }
     }
 
     // ------------------------------------------------------------------

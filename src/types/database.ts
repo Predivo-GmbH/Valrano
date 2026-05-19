@@ -839,6 +839,44 @@ export interface ComparabilityAdjustment {
 }
 
 // ---------------------------------------------------------------------------
+// IR Document Catalog types
+// ---------------------------------------------------------------------------
+
+export type IrDocumentType =
+  | 'annual_report'
+  | 'quarterly_report'
+  | 'half_year_report'
+  | 'sustainability_report'
+  | 'investor_presentation'
+  | 'press_release'
+  | 'financial_statements'
+  | 'other';
+
+export interface IrCatalogItem {
+  id: string;
+  company_id: string;
+  title: string | null;
+  document_url: string;
+  document_type: IrDocumentType | null;
+  fiscal_year: number | null;
+  fiscal_quarter: number | null;
+  language: string | null;
+  file_format: string | null;
+  file_size_bytes: number | null;
+  ai_classified: boolean;
+  classification_confidence: number | null;
+  detected_at: string;
+  report_id: string | null;
+  is_downloaded: boolean;
+  url_hash: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type IrCatalogItemInsert = Omit<IrCatalogItem, 'id' | 'url_hash' | 'created_at' | 'updated_at'>;
+export type IrCatalogItemUpdate = Partial<Omit<IrCatalogItemInsert, 'document_url'>>;
+
+// ---------------------------------------------------------------------------
 // Supabase Database shape (for createClient<Database> generic)
 // ---------------------------------------------------------------------------
 

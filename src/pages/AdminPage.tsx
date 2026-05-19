@@ -4,7 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { SUPER_ADMIN_EMAIL } from '@/hooks/useSubscription'
-import { getNewsDisabledUsers, setNewsDisabledUsers } from '@/lib/dev-flags'
+import {
+  getNewsDisabledUsers, setNewsDisabledUsers,
+  getIrCatalogDisabledUsers, setIrCatalogDisabledUsers,
+} from '@/lib/dev-flags'
 import type { SubscriptionTier } from '@/types/database'
 import { ShieldCheck, Trash2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -25,6 +28,7 @@ export function AdminPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [disabledUsers, setDisabledUsersState] = useState<Set<string>>(getNewsDisabledUsers)
+  const [irCatalogDisabled, setIrCatalogDisabledState] = useState<Set<string>>(getIrCatalogDisabledUsers)
 
   if (user?.email !== SUPER_ADMIN_EMAIL) {
     return (
@@ -40,7 +44,7 @@ export function AdminPage() {
         <title>Admin - Valrano</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
-      <AdminPanel disabledUsers={disabledUsers} setDisabledUsers={setDisabledUsersState} queryClient={queryClient} />
+      <AdminPanel disabledUsers={disabledUsers} setDisabledUsers={setDisabledUsersState} irCatalogDisabled={irCatalogDisabled} setIrCatalogDisabled={setIrCatalogDisabledState} queryClient={queryClient} />
     </>
   )
 }
@@ -48,10 +52,14 @@ export function AdminPage() {
 function AdminPanel({
   disabledUsers,
   setDisabledUsers,
+  irCatalogDisabled,
+  setIrCatalogDisabled,
   queryClient,
 }: {
   disabledUsers: Set<string>
   setDisabledUsers: React.Dispatch<React.SetStateAction<Set<string>>>
+  irCatalogDisabled: Set<string>
+  setIrCatalogDisabled: React.Dispatch<React.SetStateAction<Set<string>>>
   queryClient: ReturnType<typeof useQueryClient>
 }) {
   const { data: users, isLoading } = useQuery<AdminUser[]>({
@@ -120,6 +128,19 @@ function AdminPanel({
     })
   }
 
+  const toggleIrCatalog = (userId: string) => {
+    setIrCatalogDisabled((prev) => {
+      const next = new Set(prev)
+      if (next.has(userId)) {
+        next.delete(userId)
+      } else {
+        next.add(userId)
+      }
+      setIrCatalogDisabledUsers(next)
+      return next
+    })
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-6 animate-pulse" role="status" aria-label="Loading admin data">
@@ -148,6 +169,7 @@ function AdminPanel({
                 <div className="h-8 w-20 rounded-md bg-[var(--color-bg-tertiary)]" />
               </div>
               <div className="h-5 w-9 rounded-full bg-[var(--color-bg-tertiary)]" />
+              <div className="h-5 w-9 rounded-full bg-[var(--color-bg-tertiary)]" />
               <div className="h-8 w-16 rounded-md bg-[var(--color-bg-tertiary)]" />
             </div>
           ))}
@@ -166,16 +188,17 @@ function AdminPanel({
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Manage subscription tiers and news gathering for all registered accounts.
+        Manage subscription tiers, news gathering, and IR catalog auto-scanning for all registered accounts.
       </p>
 
       <Card className="overflow-x-auto p-0">
-        <table className="w-full min-w-[600px] text-sm" aria-label="User administration">
+        <table className="w-full min-w-[700px] text-sm" aria-label="User administration">
           <thead>
             <tr className="border-b border-border bg-[var(--color-bg-tertiary)]/30">
               <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">User</th>
               <th scope="col" className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tier</th>
               <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">News</th>
+              <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">IR Catalog</th>
               <th scope="col" className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
             </tr>
           </thead>
@@ -236,6 +259,28 @@ function AdminPanel({
                         }`}
                       />
                     </button>
+                  </td>
+
+                  {/* IR Catalog toggle */}
+                  <td className="px-4 py-3 text-center">
+                    {(() => {
+                      const irEnabled = !irCatalogDisabled.has(u.id)
+                      return (
+                        <button
+                          onClick={() => toggleIrCatalog(u.id)}
+                          className={`inline-flex h-5 w-9 items-center rounded-full px-0.5 transition-colors cursor-pointer ${
+                            irEnabled ? 'bg-[var(--color-signal-green)]' : 'bg-muted'
+                          }`}
+                          title={irEnabled ? 'IR Catalog auto-scan enabled — click to disable' : 'IR Catalog auto-scan disabled — click to enable'}
+                        >
+                          <div
+                            className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                              irEnabled ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      )
+                    })()}
                   </td>
 
                   {/* Erase account */}

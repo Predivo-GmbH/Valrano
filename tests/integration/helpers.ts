@@ -113,6 +113,15 @@ export async function cleanupTestUser(userId: string): Promise<void> {
     ).data?.map((r) => r.id) ?? []
   )
   await admin.from('peer_groups').delete().eq('owner_id', userId)
+  await admin.from('ir_catalog_items').delete().in(
+    'company_id',
+    (
+      await admin
+        .from('companies')
+        .select('id')
+        .eq('created_by', userId)
+    ).data?.map((r) => r.id) ?? []
+  )
   await admin.from('accounting_profiles').delete().eq('user_id', userId)
   await admin.from('my_companies').delete().eq('user_id', userId)
   await admin.from('companies').delete().eq('created_by', userId)

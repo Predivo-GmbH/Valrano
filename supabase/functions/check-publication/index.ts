@@ -78,7 +78,7 @@ serve(async (req: Request) => {
         errorMessage = `Fetch error: ${(fetchErr as Error).message}`
       }
     }
-    // 3. Else check IR page for new PDF links
+    // 3. Else check IR page — extract ALL PDFs, upsert to catalog, match event
     else {
       const irPageUrl = event.ir_page_url ?? company.ir_page_url
       if (irPageUrl && !isPublicUrl(irPageUrl)) {
@@ -89,16 +89,83 @@ serve(async (req: Request) => {
           if (pageResp.ok) {
             const html = await pageResp.text()
 
+            // Extract ALL PDF links from the page
+            const allPdfUrls = new Set<string>()
             for (const pattern of PDF_PATTERNS) {
               pattern.lastIndex = 0
-              const match = pattern.exec(html)
-              if (match?.[1]) {
-                const resolvedUrl = match[1].startsWith('http')
-                  ? match[1]
-                  : new URL(match[1], irPageUrl).href
-                foundUrl = resolvedUrl
+              let match: RegExpExecArray | null
+              while ((match = pattern.exec(html)) !== null) {
+                if (match[1]) {
+                  const resolved = match[1].startsWith('http')
+                    ? match[1]
+                    : new URL(match[1], irPageUrl).href
+                  if (isPublicUrl(resolved)) allPdfUrls.add(resolved)
+                }
+              }
+            }
+
+            // Also catch generic .pdf hrefs not matched by named patterns
+            const genericPdf = /href=["']([^"']+\.pdf)(?:[?#][^"']*)?["']/gi
+            let gMatch: RegExpExecArray | null
+            while ((gMatch = genericPdf.exec(html)) !== null) {
+              if (gMatch[1]) {
+                const resolved = gMatch[1].startsWith('http')
+                  ? gMatch[1]
+                  : new URL(gMatch[1], irPageUrl).href
+                if (isPublicUrl(resolved)) allPdfUrls.add(resolved)
+              }
+            }
+
+            // Upsert discovered PDFs into ir_catalog_items (incremental catalog update)
+            if (allPdfUrls.size > 0) {
+              const catalogRows = [...allPdfUrls].slice(0, 50).map((url) => {
+                // Derive title from filename
+                const filename = decodeURIComponent(url.split('/').pop() ?? '').replace(/\.pdf$/i, '').replace(/[-_]/g, ' ')
+                return {
+                  company_id: company.id,
+                  document_url: url,
+                  title: filename.slice(0, 200),
+                  document_type: 'other' as const,
+                  file_format: 'pdf' as const,
+                  detected_at: new Date().toISOString(),
+                  ai_classified: false,
+                }
+              })
+
+              await adminClient
+                .from('ir_catalog_items')
+                .upsert(catalogRows, { onConflict: 'company_id,url_hash', ignoreDuplicates: true })
+            }
+
+            // Match against event criteria: report_type + fiscal_year in URL/filename
+            const yearStr = String(event.fiscal_year)
+            const typeKeywords: Record<string, string[]> = {
+              annual: ['annual', 'jahres', 'geschaeft', 'yearly'],
+              quarterly: ['quarterly', 'quartals', 'halbjahres', 'q1', 'q2', 'q3', 'q4'],
+              half_year: ['half', 'halbjahr', 'h1', 'h2', 'semi'],
+              sustainability: ['sustain', 'esg', 'csr', 'nachhaltig'],
+            }
+            const keywords = typeKeywords[event.report_type] ?? [event.report_type]
+
+            for (const url of allPdfUrls) {
+              const lower = url.toLowerCase()
+              const hasYear = lower.includes(yearStr)
+              const hasType = keywords.some((k) => lower.includes(k))
+              if (hasYear && hasType) {
+                foundUrl = url
                 detected = true
                 break
+              }
+            }
+
+            // Fallback: if no exact match, use first PDF containing the year
+            if (!detected) {
+              for (const url of allPdfUrls) {
+                if (url.toLowerCase().includes(yearStr)) {
+                  foundUrl = url
+                  detected = true
+                  break
+                }
               }
             }
           } else {

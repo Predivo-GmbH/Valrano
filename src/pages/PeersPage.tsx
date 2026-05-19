@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useCompanies, useReports, useKpiDefinitions, useKpiValues } from '@/hooks/useData'
 import { usePrimaryCompany } from '@/hooks/useMyCompany'
 import { usePublicationEvents, useCheckPublication } from '@/hooks/useCalendar'
+import { useIrCatalogCount } from '@/hooks/useIrCatalog'
 import type { Company, ReportType, PublicationEventStatus } from '@/types/database'
 import { REPORT_TYPE_LABELS } from '@/lib/constants'
 import { CompanyAutocomplete, type CompanyResult } from '@/components/company-autocomplete'
@@ -569,6 +570,7 @@ function PeerCard({
   kpiSummary?: { revenue?: { value: number; currency: string; year: number }; ebitdaMargin?: { value: number; year: number } }
 }) {
   const { company, isMonitoring, monitoringStatus, lastReport, nextExpectedDate, kpiExtracted, kpiPendingReview, nextEventId, scheduledCount } = peer
+  const { data: catalogCount } = useIrCatalogCount(company.id)
 
   const completenessPercent = totalKpiDefinitions > 0
     ? Math.round((kpiExtracted / totalKpiDefinitions) * 100)
@@ -771,6 +773,17 @@ function PeerCard({
             Same sector
           </Badge>
         )}
+        {/* IR catalog badge */}
+        {typeof catalogCount === 'number' && catalogCount > 0 && (
+          <Badge variant="secondary" className="bg-[var(--color-bg-tertiary)] text-[10px] text-muted-foreground">
+            {catalogCount} IR doc{catalogCount !== 1 ? 's' : ''}
+          </Badge>
+        )}
+        {typeof catalogCount === 'number' && catalogCount === 0 && company.ir_page_url && (
+          <Badge variant="secondary" className="bg-amber-500/10 text-[10px] text-amber-500">
+            Not scanned
+          </Badge>
+        )}
       </div>
 
       {/* View Details link */}
@@ -811,6 +824,7 @@ function ComparisonTableView({
   onDelete: (companyId: string, companyName: string) => void
   deletingCompanyId: string | null
   checkingEventId: string | null
+  companies: { id: string; logo_url: string | null; website_url: string | null }[]
 }) {
   // Fetch KPI values for all companies (peers + user's company if linked)
   const { data: kpiValues, isLoading: kpiLoading } = useKpiValues({
@@ -1050,6 +1064,7 @@ function ComparisonTableView({
         <tbody>
           {sortedRows.map((row) => {
             const peer = peerCards.find((p) => p.company.id === row.companyId)
+            const companyData = peer?.company ?? companies.find((c) => c.id === row.companyId)
             return (
               <tr
                 key={row.companyId}
@@ -1060,7 +1075,7 @@ function ComparisonTableView({
               >
                 <td className="px-4 py-3">
                   <Link to={`/companies/${row.companyId}`} className="flex items-center gap-2.5 group">
-                    <CompanyLogo logoUrl={peer?.company.logo_url} websiteUrl={peer?.company.website_url} name={row.name} size="sm" />
+                    <CompanyLogo logoUrl={companyData?.logo_url} websiteUrl={companyData?.website_url} name={row.name} size="sm" />
                     <span className="font-medium text-foreground group-hover:text-[var(--color-accent)] transition-colors">{row.name}</span>
                     {row.isUser && (
                       <span className="rounded-full bg-[var(--color-accent)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-accent)]">
@@ -1642,6 +1657,7 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
                 onDelete={handleDeletePeer}
                 deletingCompanyId={deletingCompanyId}
                 checkingEventId={checkingEventId}
+                companies={companies ?? []}
               />
             )
           }

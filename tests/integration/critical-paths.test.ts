@@ -183,4 +183,92 @@ describe('Critical Path — Staging Integration', () => {
     expect(error).toBeNull()
     expect(data).toBeInstanceOf(Array)
   })
+
+  // ─── IR Catalog ────────────────────────────────────────────────────
+
+  it('can query ir_catalog_items table (empty for new user)', async () => {
+    const { data, error } = await client
+      .from('ir_catalog_items')
+      .select('id')
+      .limit(1)
+
+    expect(error).toBeNull()
+    expect(data).toBeInstanceOf(Array)
+    expect(data).toHaveLength(0)
+  })
+
+  it('can insert and read ir_catalog_items for visible company', async () => {
+    expect(companyId).toBeDefined()
+
+    // Need a peer group to make the company visible
+    const { data: pg } = await client
+      .from('peer_groups')
+      .select('id')
+      .limit(1)
+      .single()
+
+    if (pg) {
+      await client.from('peer_group_members').insert({
+        peer_group_id: pg.id,
+        company_id: companyId,
+      })
+    }
+
+    const { data, error } = await client
+      .from('ir_catalog_items')
+      .insert({
+        company_id: companyId,
+        document_url: 'https://example.com/test-annual-report-2025.pdf',
+        title: 'Test Annual Report 2025',
+        document_type: 'annual_report',
+        fiscal_year: 2025,
+        file_format: 'pdf',
+        detected_at: new Date().toISOString(),
+      })
+      .select('id, title, document_type, is_downloaded')
+      .single()
+
+    expect(error).toBeNull()
+    expect(data).not.toBeNull()
+    expect(data!.title).toBe('Test Annual Report 2025')
+    expect(data!.document_type).toBe('annual_report')
+    expect(data!.is_downloaded).toBe(false)
+
+    // Cleanup
+    if (data?.id) {
+      await client.from('ir_catalog_items').delete().eq('id', data.id)
+    }
+  })
+
+  // ─── Edge Functions — scan-ir-page & download-catalog-item ─────────
+
+  it('scan-ir-page edge function is reachable and authenticates', async () => {
+    const res = await callEdgeFunction('scan-ir-page', accessToken, {
+      company_id: companyId,
+    })
+
+    // Expect 400 (no IR URL set) — means auth passed and function ran
+    expect(res.status).not.toBe(401)
+    expect(res.status).not.toBe(403)
+    if (res.status >= 500) {
+      const body = await res.text()
+      expect(body).not.toContain('Invalid JWT')
+      expect(body).not.toContain('missing authorization')
+    }
+  })
+
+  it('download-catalog-item edge function is reachable and authenticates', async () => {
+    const res = await callEdgeFunction('download-catalog-item', accessToken, {
+      catalog_item_id: '00000000-0000-0000-0000-000000000000',
+    })
+
+    // Expect 404 (item not found) — means auth passed and function ran
+    expect(res.status).not.toBe(401)
+    expect(res.status).not.toBe(403)
+    if (res.status >= 500) {
+      const body = await res.text()
+      expect(body).not.toContain('Invalid JWT')
+      expect(body).not.toContain('missing authorization')
+    }
+  })
 })

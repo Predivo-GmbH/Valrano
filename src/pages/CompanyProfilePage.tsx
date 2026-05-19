@@ -49,10 +49,14 @@ import { usePrimaryCompany } from '@/hooks/useMyCompany'
 import { useAccountingProfile } from '@/hooks/useAccountingProfile'
 import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEvent } from '@/hooks/useCalendar'
 import { useSuggestDates } from '@/hooks/useAiSuggestions'
+import { IrCatalogPanel } from '@/components/ir-catalog/IrCatalogPanel'
+import { useScanIrPage } from '@/hooks/useIrCatalog'
+import { isIrCatalogEnabled } from '@/lib/dev-flags'
 import { supabase } from '@/lib/supabase'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 import { cn } from '@/lib/utils'
 import { CompanyLogo } from '@/components/ui/company-logo'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ReportStatusBadge as StatusBadge } from '@/components/ui/report-status-badge'
 import type {
   KpiCategory,
@@ -265,6 +269,9 @@ export function CompanyProfilePage() {
 
   const company = useMemo(() => companies?.find((c) => c.id === id), [companies, id])
 
+  // IR catalog auto-scan
+  const scanIrPage = useScanIrPage()
+
   // Inline URL editing state
   const [editingWebsite, setEditingWebsite] = useState(false)
   const [editingIr, setEditingIr] = useState(false)
@@ -351,6 +358,13 @@ export function CompanyProfilePage() {
     await supabase.from('companies').update({ ir_page_url: url }).eq('id', company.id)
     queryClient.invalidateQueries({ queryKey: ['companies-all'] })
     setEditingIr(false)
+
+    // Auto-scan IR page when URL is set (gated by admin toggle)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user?.id && isIrCatalogEnabled(session.user.id)) {
+      scanIrPage.mutate(company.id)
+      toast.info('Scanning IR page for documents...')
+    }
   }
 
   // Auto-resolve website URL if missing (fires once per company)
@@ -402,6 +416,7 @@ export function CompanyProfilePage() {
   type KpiRow = {
     code: string
     name: string
+    description: string | null
     category: KpiCategory
     unitType: string
     peerValues: Map<number, number>
@@ -421,6 +436,7 @@ export function CompanyProfilePage() {
         map.set(def.code, {
           code: def.code,
           name: def.name,
+          description: def.description ?? null,
           category: def.category,
           unitType: def.unit_type,
           peerValues: new Map(),
@@ -991,7 +1007,20 @@ export function CompanyProfilePage() {
                           className="grid grid-cols-2 sm:grid-cols-[1fr_100px_100px_90px_80px] gap-2 px-5 py-2.5 items-center"
                         >
                           <div className="col-span-2 sm:col-span-1">
-                            <p className="text-[13px] font-medium text-foreground">{row.name}</p>
+                            {row.description ? (
+                              <TooltipProvider delay={200}>
+                                <Tooltip>
+                                  <TooltipTrigger className="text-[13px] font-medium text-foreground cursor-help border-b border-dotted border-muted-foreground/40">
+                                    {row.name}
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right" className="max-w-[280px] text-left text-[12px] font-normal">
+                                    {row.description}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <p className="text-[13px] font-medium text-foreground">{row.name}</p>
+                            )}
                           </div>
                           <div className="text-right">
                             <span className="text-[13px] tabular-nums text-foreground">
@@ -1199,7 +1228,20 @@ export function CompanyProfilePage() {
                       className="grid grid-cols-[1fr_100px_100px_90px_100px] gap-2 px-5 py-2.5 items-center"
                     >
                       <div>
-                        <p className="text-[13px] font-medium text-foreground">{row.name}</p>
+                        {row.description ? (
+                          <TooltipProvider delay={200}>
+                            <Tooltip>
+                              <TooltipTrigger className="text-[13px] font-medium text-foreground cursor-help border-b border-dotted border-muted-foreground/40">
+                                {row.name}
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-[280px] text-left text-[12px] font-normal">
+                                {row.description}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <p className="text-[13px] font-medium text-foreground">{row.name}</p>
+                        )}
                       </div>
                       <div className="text-right">
                         <span className="text-[13px] tabular-nums text-foreground">
@@ -1268,9 +1310,22 @@ export function CompanyProfilePage() {
                           >
                             <div className="flex items-start justify-between">
                               <div className="min-w-0 flex-1">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                                  {row.name}
-                                </p>
+                                {row.description ? (
+                                  <TooltipProvider delay={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground cursor-help border-b border-dotted border-muted-foreground/40">
+                                        {row.name}
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-[280px] text-left text-[12px] font-normal normal-case tracking-normal">
+                                        {row.description}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                ) : (
+                                  <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                                    {row.name}
+                                  </p>
+                                )}
                                 <p className="mt-1 text-[22px] font-semibold tabular-nums tracking-tight text-foreground">
                                   {formatValue(current, row.unitType)}
                                 </p>
@@ -1457,7 +1512,16 @@ export function CompanyProfilePage() {
         />
 
         {/* ============================================================= */}
-        {/* SECTION 8: News Feed                                            */}
+        {/* SECTION 8: IR Document Catalog                                  */}
+        {/* ============================================================= */}
+        <IrCatalogPanel
+          companyId={id!}
+          companyName={company.name}
+          irPageUrl={company.ir_page_url}
+        />
+
+        {/* ============================================================= */}
+        {/* SECTION 9: News Feed                                            */}
         {/* ============================================================= */}
         <SectionHeader icon={Newspaper} title="News Feed" />
         {news && news.length > 0 ? (
