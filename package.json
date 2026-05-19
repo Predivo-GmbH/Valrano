@@ -14,7 +14,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "npx playwright test e2e/smoke.spec.ts e2e/features.spec.ts",
     "test:a11y": "npx playwright test e2e/accessibility.spec.ts",
-    "test:all": "vitest run && npx playwright test"
+    "test:all": "vitest run && npx playwright test",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

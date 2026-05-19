@@ -1,0 +1,145 @@
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+
+const STAGING_URL = process.env.SUPABASE_STAGING_URL!
+const STAGING_ANON_KEY = process.env.SUPABASE_STAGING_ANON_KEY!
+const STAGING_SERVICE_ROLE_KEY = process.env.SUPABASE_STAGING_SERVICE_ROLE_KEY!
+
+const TEST_PASSWORD = 'IntegrationTest2026!'
+
+if (!STAGING_URL || !STAGING_ANON_KEY || !STAGING_SERVICE_ROLE_KEY) {
+  throw new Error(
+    'Missing staging env vars: SUPABASE_STAGING_URL, SUPABASE_STAGING_ANON_KEY, SUPABASE_STAGING_SERVICE_ROLE_KEY'
+  )
+}
+
+/** Admin client with service_role — bypasses RLS */
+export function getAdminClient(): SupabaseClient {
+  return createClient(STAGING_URL, STAGING_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
+
+/** User-level client with anon key — respects RLS */
+export function getAnonClient(): SupabaseClient {
+  return createClient(STAGING_URL, STAGING_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
+
+/** Create test user via admin API, return authenticated anon client + user ID.
+ *  Each caller gets a unique email to avoid collision between test suites. */
+export async function createTestUser(
+  emailPrefix = 'integration-test'
+): Promise<{
+  client: SupabaseClient
+  userId: string
+  accessToken: string
+}> {
+  const admin = getAdminClient()
+  const testEmail = `${emailPrefix}@valrano-test.local`
+
+  // Delete existing test user if present (cleanup from previous failed run)
+  const { data: existingUsers } = await admin.auth.admin.listUsers()
+  const existing = existingUsers?.users?.find((u) => u.email === testEmail)
+  if (existing) {
+    await cleanupTestUser(existing.id)
+  }
+
+  // Create fresh test user
+  const { data: created, error: createErr } =
+    await admin.auth.admin.createUser({
+      email: testEmail,
+      password: TEST_PASSWORD,
+      email_confirm: true,
+    })
+  if (createErr || !created.user) {
+    throw new Error(
+      `Failed to create test user (${testEmail}): ${createErr?.message}`
+    )
+  }
+
+  // Sign in as the test user with an anon client
+  const client = getAnonClient()
+  const { data: session, error: signInErr } =
+    await client.auth.signInWithPassword({
+      email: testEmail,
+      password: TEST_PASSWORD,
+    })
+  if (signInErr || !session.session) {
+    throw new Error(`Failed to sign in test user: ${signInErr?.message}`)
+  }
+
+  return {
+    client,
+    userId: created.user.id,
+    accessToken: session.session.access_token,
+  }
+}
+
+/** Clean up all test user data and delete the user */
+export async function cleanupTestUser(userId: string): Promise<void> {
+  const admin = getAdminClient()
+
+  // Delete in dependency order: child tables first
+  await admin.from('chat_messages').delete().eq('session_id', userId) // best-effort
+  await admin.from('chat_sessions').delete().eq('user_id', userId)
+  await admin.from('ai_insights').delete().eq('user_id', userId)
+  await admin.from('publication_events').delete().eq('created_by', userId)
+  await admin.from('kpi_values').delete().in(
+    'company_id',
+    (
+      await admin
+        .from('my_companies')
+        .select('company_id')
+        .eq('user_id', userId)
+    ).data?.map((r) => r.company_id) ?? []
+  )
+  await admin.from('reports').delete().in(
+    'company_id',
+    (
+      await admin
+        .from('my_companies')
+        .select('company_id')
+        .eq('user_id', userId)
+    ).data?.map((r) => r.company_id) ?? []
+  )
+  await admin.from('peer_group_members').delete().in(
+    'peer_group_id',
+    (
+      await admin
+        .from('peer_groups')
+        .select('id')
+        .eq('owner_id', userId)
+    ).data?.map((r) => r.id) ?? []
+  )
+  await admin.from('peer_groups').delete().eq('owner_id', userId)
+  await admin.from('accounting_profiles').delete().eq('user_id', userId)
+  await admin.from('my_companies').delete().eq('user_id', userId)
+  await admin.from('companies').delete().eq('created_by', userId)
+  await admin.from('workspace_members').delete().eq('user_id', userId)
+  await admin.from('workspaces').delete().eq('owner_id', userId)
+  await admin.from('subscriptions').delete().eq('user_id', userId)
+
+  // Delete the auth user last
+  await admin.auth.admin.deleteUser(userId)
+}
+
+/** Call an edge function on staging with the user's JWT */
+export async function callEdgeFunction(
+  functionName: string,
+  accessToken: string,
+  body?: Record<string, unknown>,
+  method = 'POST'
+): Promise<Response> {
+  return fetch(`${STAGING_URL}/functions/v1/${functionName}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      apikey: STAGING_ANON_KEY,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+}
+
+export { STAGING_URL, STAGING_ANON_KEY }

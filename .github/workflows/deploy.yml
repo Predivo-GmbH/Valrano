@@ -37,19 +37,21 @@ jobs:
             echo "::error::Staging smoke test FAILED (GraphQL returned $gql_response)"
             exit 1
           fi
+          echo "Staging DB is alive"
 
-          echo "=== Staging edge function ping ==="
-          ef_response=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${{ secrets.SUPABASE_STAGING_URL }}/functions/v1/upload-report" \
-            -X OPTIONS \
-            -H "Origin: https://valrano.com")
-          echo "Edge function OPTIONS response: $ef_response"
-          if [ "$ef_response" = "000" ]; then
-            echo "::error::Staging edge functions unreachable"
-            exit 1
-          fi
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24.13.0'
+          cache: npm
 
-          echo "Staging validation passed"
+      - run: npm ci
+
+      - name: Integration tests against staging
+        run: npm run test:integration
+        env:
+          SUPABASE_STAGING_URL: ${{ secrets.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+          SUPABASE_STAGING_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_STAGING_SERVICE_ROLE_KEY }}
 
   deploy:
     needs: validate-staging
