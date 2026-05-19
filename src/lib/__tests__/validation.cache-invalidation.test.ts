@@ -79,6 +79,46 @@ describe('Cache invalidation safety', () => {
   })
 })
 
+describe('Data isolation safety', () => {
+  const srcDir = join(__dirname, '../..')
+
+  it('no code queries global companies table for name-matching reuse', () => {
+    const files = walkDir(srcDir, ['.ts', '.tsx'])
+    const violations: string[] = []
+
+    for (const file of files) {
+      const content = readFileSync(file, 'utf-8')
+
+      // Detect pattern: from('companies').select(...) followed by .find() with name matching
+      // This is the company reuse pattern that violates data isolation Rule E
+      if (
+        content.includes("from('companies').select(") &&
+        /\.find\(\s*\(?c\)?\s*=>\s*c\.name\.toLowerCase\(\)/.test(content) &&
+        // Exclude: filtering within selectedIds (that's safe — only current user's companies)
+        !file.includes('__tests__')
+      ) {
+        // Check if the find is scoped to selectedIds (safe) or global (violation)
+        const lines = content.split('\n')
+        for (let i = 0; i < lines.length; i++) {
+          if (/\.find\(\s*\(?c\)?\s*=>\s*c\.name\.toLowerCase\(\)/.test(lines[i])) {
+            // Check surrounding context for selectedIds filter
+            const context = lines.slice(Math.max(0, i - 5), i + 1).join('\n')
+            if (!context.includes('selectedIds') && !context.includes('filter')) {
+              const lineNum = i + 1
+              violations.push(`${file.replace(srcDir, 'src')}:${lineNum}`)
+            }
+          }
+        }
+      }
+    }
+
+    expect(
+      violations,
+      `These files query global companies and reuse records by name (violates data isolation Rule E):\n${violations.join('\n')}`,
+    ).toHaveLength(0)
+  })
+})
+
 describe('Page component safety', () => {
   const srcDir = join(__dirname, '../..')
 

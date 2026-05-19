@@ -299,9 +299,10 @@ export function useCreateApprovalChain() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (params: Record<string, unknown>) => {
+      const { data: { user } } = await supabase.auth.getUser()
       const { data, error } = await supabase
         .from('approval_chains')
-        .insert(params)
+        .insert({ ...params, created_by: user?.id })
         .select()
         .single()
       if (error) throw error

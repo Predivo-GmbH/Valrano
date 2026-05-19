@@ -301,40 +301,31 @@ export function OnboardingWizard() {
       <div className="mx-auto w-full max-w-[900px] flex-1 px-4 py-8 sm:px-6">
         {currentStep === 0 && <StepFramework onReportCompetitorsFound={(competitors, autoSelect) => {
           setReportCompetitors(competitors)
-          // Auto-select report competitors by inserting them into the DB if needed
+          // Auto-select report competitors — always create fresh company records (data isolation Rule E)
           if (autoSelect && competitors.length > 0) {
             void (async () => {
-              // Re-fetch companies fresh to avoid race conditions with parallel calls
-              const { data: freshCompanies } = await supabase.from('companies').select('id, name, ticker')
-              const existingCompanies = freshCompanies ?? []
               const { data: { user } } = await supabase.auth.getUser()
+              const session = (await supabase.auth.getSession()).data.session
               const newIds: string[] = [...selectedCompanyIdsRef.current]
               for (const rc of competitors) {
-                const match = existingCompanies.find(
-                  (c) => c.name.toLowerCase() === rc.name.toLowerCase() ||
-                    (rc.ticker && c.ticker && c.ticker.toLowerCase() === rc.ticker.toLowerCase()),
-                )
-                if (match) {
-                  if (!newIds.includes(match.id)) newIds.push(match.id)
-                } else {
-                  // Use upsert-like pattern: try insert, on conflict select existing
-                  const { data: inserted, error } = await supabase
-                    .from('companies')
-                    .insert({ name: rc.name, ticker: rc.ticker ?? null, created_by: user?.id })
-                    .select('id')
-                    .single()
-                  if (inserted) {
-                    newIds.push(inserted.id)
-                    existingCompanies.push({ id: inserted.id, name: rc.name, ticker: rc.ticker ?? null })
-                  } else if (error) {
-                    // If insert failed (e.g. race condition duplicate), find the existing one
-                    const { data: existing } = await supabase
-                      .from('companies')
-                      .select('id')
-                      .ilike('name', rc.name)
-                      .limit(1)
-                      .single()
-                    if (existing && !newIds.includes(existing.id)) newIds.push(existing.id)
+                const { data: inserted } = await supabase
+                  .from('companies')
+                  .insert({ name: rc.name, ticker: rc.ticker ?? null, created_by: user?.id })
+                  .select('id')
+                  .single()
+                if (inserted) {
+                  newIds.push(inserted.id)
+                  // Resolve website in background for logo display
+                  if (session) {
+                    fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                      },
+                      body: JSON.stringify({ name: rc.name, company_id: inserted.id }),
+                    }).catch(() => {})
                   }
                 }
               }
@@ -906,15 +897,28 @@ function StepCompetitors({
       if (error) { toast.error(`Failed to add ${item.name}`); return }
       onSelectedIdsChange([...selectedIds, inserted.id])
       await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+      // Resolve website in background for logo display
+      const session = (await supabase.auth.getSession()).data.session
+      if (session) {
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ name: item.name, company_id: inserted.id }),
+        }).catch(() => {})
+      }
       toast.success(`${item.name} added`)
     } catch { toast.error(`Failed to add ${item.name}`) }
     finally { setAddingIdx(null) }
   }
 
-  // Resolve DB id for a report suggestion by matching name against companies in DB
+  // Resolve DB id — only match against companies already selected by THIS user (data isolation)
   const resolveDbId = (item: typeof reportSuggestionItems[number]) => {
-    const allCompanies = companies ?? []
-    const match = allCompanies.find((c) => c.name.toLowerCase() === item.name.toLowerCase())
+    const selected = (companies ?? []).filter((c) => selectedIds.includes(c.id))
+    const match = selected.find((c) => c.name.toLowerCase() === item.name.toLowerCase())
     return match?.id
   }
 
@@ -1040,6 +1044,19 @@ function StepCompetitors({
               } else {
                 onSelectedIdsChange([...selectedIds, inserted.id])
                 await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                // Resolve website in background for logo display
+                const session = (await supabase.auth.getSession()).data.session
+                if (session) {
+                  fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${session.access_token}`,
+                      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                    },
+                    body: JSON.stringify({ name: result.name, company_id: inserted.id }),
+                  }).catch(() => {})
+                }
                 toast.success(`${result.name} added`)
               }
               setSearch('')
