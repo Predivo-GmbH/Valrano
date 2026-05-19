@@ -32,9 +32,8 @@ export default function AuthConfirmPage() {
       if (type === 'recovery') {
         navigate('/reset-password')
       } else if (data.session) {
-        const isNewUser = !data.session.user?.user_metadata?.full_name
         const safeRedirect = redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//') ? redirectTo : '/dashboard'
-        navigate(isNewUser ? '/signup' : safeRedirect)
+        navigate(safeRedirect)
       } else {
         navigate('/login')
       }

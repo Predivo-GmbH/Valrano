@@ -153,7 +153,7 @@ function otpBlock(token: string): string {
     '</td>',
     '</tr>',
     '</table>',
-    '<p style="margin:4px 0 0;font-family:' + FONT + ';font-size:13px;color:#a1a1aa;text-align:center;">Valid for 10 minutes. Or click the button below.</p>',
+    '<p style="margin:4px 0 0;font-family:' + FONT + ';font-size:13px;color:#a1a1aa;text-align:center;">Valid for 10 minutes.</p>',
   ].join('')
 }
 
@@ -193,24 +193,22 @@ export function getAuthEmailContent(payload: AuthEmailPayload): { subject: strin
   switch (email_action_type) {
     case 'signup':
       return {
-        subject: 'Valrano \u2013 Confirm your email',
+        subject: 'Valrano \u2013 Your verification code: ' + token,
         html: layout(
           '<h1 style="' + ST.h1 + '">Confirm your email</h1>' +
-          '<p style="' + ST.p + '">Enter this code to verify your email and create your Valrano account.</p>' +
+          '<p style="' + ST.p + '">Enter this code on the signup page to verify your email and create your Valrano account.</p>' +
           otpBlock(token) +
-          button('Confirm Email', actionUrl) +
           '<p style="' + ST.hint + '">If you didn&rsquo;t create an account, you can safely ignore this email.</p>'
         ),
       }
 
     case 'magiclink':
       return {
-        subject: 'Your Valrano login code',
+        subject: 'Your Valrano login code: ' + token,
         html: layout(
           '<h1 style="' + ST.h1 + '">Sign in</h1>' +
-          '<p style="' + ST.p + '">Use this code to sign in to your Valrano account.</p>' +
+          '<p style="' + ST.p + '">Enter this code on the login page to sign in to your Valrano account.</p>' +
           otpBlock(token) +
-          button('Sign In', actionUrl) +
           '<p style="' + ST.hint + '">If you didn&rsquo;t request this, you can safely ignore this email.</p>'
         ),
       }
