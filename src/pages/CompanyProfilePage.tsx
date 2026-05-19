@@ -265,7 +265,15 @@ export function CompanyProfilePage() {
   const [isRedetecting, setIsRedetecting] = useState(false)
 
   // Page readiness — tracks whether the company profile is fully set up
-  const [resolutionStatus, setResolutionStatus] = useState<'idle' | 'resolving' | 'resolved' | 'needs_action'>('idle')
+  const [resolutionStatus, setResolutionStatus] = useState<'idle' | 'resolving' | 'resolved' | 'needs_action'>(
+    company?.website_url ? 'resolved' : 'idle'
+  )
+  // Sync resolved status when company data refreshes (e.g. after query invalidation)
+  const prevWebsiteUrl = useRef(company?.website_url)
+  if (company?.website_url && !prevWebsiteUrl.current) {
+    prevWebsiteUrl.current = company.website_url
+    if (resolutionStatus !== 'resolved') setResolutionStatus('resolved')
+  }
 
   const redetectWebsite = async () => {
     if (!company) return
@@ -344,11 +352,7 @@ export function CompanyProfilePage() {
   // Auto-resolve website URL if missing (fires once per company)
   const resolvedRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!company || company.website_url || resolvedRef.current === company.id) {
-      // Already resolved or has website — mark as resolved
-      if (company?.website_url) setResolutionStatus('resolved')
-      return
-    }
+    if (!company || company.website_url || resolvedRef.current === company.id) return
     resolvedRef.current = company.id
     setResolutionStatus('resolving')
     ;(async () => {
