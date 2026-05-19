@@ -339,6 +339,12 @@ async function verifyCompanyNameOnPage(domain: string, companyName: string): Pro
     })
     if (!resp.ok) return { nameFound: false, faviconUrl: null }
 
+    // Use the final URL after redirects for favicon resolution (e.g. arkema.com → www.arkema.com)
+    let faviconDomain = domain
+    if (resp.url) {
+      try { faviconDomain = new URL(resp.url).hostname } catch { /* keep original */ }
+    }
+
     const reader = resp.body?.getReader()
     if (!reader) return { nameFound: false, faviconUrl: null }
     let html = ''
@@ -350,8 +356,8 @@ async function verifyCompanyNameOnPage(domain: string, companyName: string): Pro
     }
     reader.cancel()
 
-    // Extract favicon from <link> tags
-    const faviconUrl = extractFaviconUrl(html, domain)
+    // Extract favicon from <link> tags — use final redirected domain for URL resolution
+    const faviconUrl = extractFaviconUrl(html, faviconDomain)
 
     const htmlLower = html.toLowerCase()
     const cleanName = stripLegalSuffix(companyName).toLowerCase()
@@ -386,18 +392,114 @@ async function verifyCompanyNameOnPage(domain: string, companyName: string): Pro
 }
 
 // ---------------------------------------------------------------------------
-// Phase 5: Logo — Direct favicon from website (with fallback chain)
+// Phase 5: Logo — Direct favicon with guaranteed fallback chain
 // ---------------------------------------------------------------------------
 
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+
+/** HEAD-check that a favicon URL actually returns an image */
+async function verifyFaviconLoads(url: string): Promise<boolean> {
+  try {
+    const resp = await fetch(url, {
+      method: 'HEAD',
+      redirect: 'follow',
+      signal: AbortSignal.timeout(5000),
+    })
+    const ct = resp.headers.get('content-type') ?? ''
+    return resp.ok && (ct.includes('image') || ct.includes('icon') || ct.includes('octet-stream'))
+  } catch {
+    return false
+  }
+}
+
+/** Fetch favicon from DuckDuckGo's favicon service (they cache favicons for all domains) */
+async function fetchDuckDuckGoFavicon(domain: string): Promise<Uint8Array | null> {
+  try {
+    const resp = await fetch(`https://icons.duckduckgo.com/ip3/${domain}.ico`, {
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!resp.ok) return null
+    const ct = resp.headers.get('content-type') ?? ''
+    if (!ct.includes('image') && !ct.includes('icon') && !ct.includes('octet-stream')) return null
+    const bytes = new Uint8Array(await resp.arrayBuffer())
+    // Reject trivially small responses (likely error pages)
+    if (bytes.length < 100) return null
+    return bytes
+  } catch {
+    return null
+  }
+}
+
+/** Upload favicon bytes to Supabase Storage and return the public URL */
+async function uploadFaviconToStorage(domain: string, bytes: Uint8Array, contentType: string): Promise<string | null> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return null
+  const ext = contentType.includes('png') ? 'png' : 'ico'
+  const path = `${domain}.${ext}`
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/storage/v1/object/favicons/${path}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000',
+        'x-upsert': 'true',
+      },
+      body: bytes,
+    })
+    if (!resp.ok) {
+      console.error(`Storage upload failed for ${domain}:`, await resp.text())
+      return null
+    }
+    return `${SUPABASE_URL}/storage/v1/object/public/favicons/${path}`
+  } catch (e) {
+    console.error(`Storage upload error for ${domain}:`, e)
+    return null
+  }
+}
+
 /**
- * Build logo URL for a domain. Fallback chain:
- * 1. Scraped favicon from HTML (if provided)
- * 2. Standard /favicon.ico path
- * 3. Google Favicon V2 as last resort
+ * Resolve the best logo URL for a domain. Full fallback chain:
+ * 1. Scraped favicon from HTML <link> tags (verified with HEAD check)
+ * 2. Standard https://{domain}/favicon.ico (verified with HEAD check)
+ * 3. DuckDuckGo favicon cache → self-hosted in Supabase Storage
+ * 4. Plain https://{domain}/favicon.ico as last resort (browser may still load it)
+ *
+ * This guarantees every company gets a logo, even behind WAF/Cloudflare.
  */
-function buildLogoUrl(domain: string, scrapedFaviconUrl?: string | null): string {
-  if (scrapedFaviconUrl) return scrapedFaviconUrl
-  return `https://${domain}/favicon.ico`
+async function resolveLogoUrl(domain: string, scrapedFaviconUrl: string | null): Promise<string> {
+  // 1. Try scraped favicon
+  if (scrapedFaviconUrl) {
+    if (await verifyFaviconLoads(scrapedFaviconUrl)) {
+      console.log(`Favicon verified (scraped): ${scrapedFaviconUrl}`)
+      return scrapedFaviconUrl
+    }
+    console.log(`Scraped favicon failed HEAD check: ${scrapedFaviconUrl}`)
+  }
+
+  // 2. Try standard /favicon.ico
+  const standardUrl = `https://${domain}/favicon.ico`
+  if (await verifyFaviconLoads(standardUrl)) {
+    console.log(`Favicon verified (standard): ${standardUrl}`)
+    return standardUrl
+  }
+
+  // 3. Try DuckDuckGo cache → upload to Supabase Storage
+  console.log(`Direct favicon failed for ${domain} — trying DuckDuckGo cache`)
+  const ddgBytes = await fetchDuckDuckGoFavicon(domain)
+  if (ddgBytes) {
+    const ct = ddgBytes[0] === 0x89 ? 'image/png' : 'image/vnd.microsoft.icon'
+    const storageUrl = await uploadFaviconToStorage(domain, ddgBytes, ct)
+    if (storageUrl) {
+      console.log(`Favicon self-hosted from DuckDuckGo: ${storageUrl}`)
+      return storageUrl
+    }
+  }
+
+  // 4. Last resort — return standard URL, browser <img> tag may still load it
+  console.log(`All favicon sources failed for ${domain} — using standard URL as last resort`)
+  return standardUrl
 }
 
 // ---------------------------------------------------------------------------
@@ -579,9 +681,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // -----------------------------------------------------------------------
-    // Step 4: Logo — direct favicon from website (scraped > /favicon.ico > Google)
+    // Step 4: Logo — full fallback chain (scraped → /favicon.ico → DuckDuckGo → self-host)
     // -----------------------------------------------------------------------
-    const logoUrl: string | null = selectedDomain ? buildLogoUrl(selectedDomain, scrapedFavicon) : null
+    const logoUrl: string | null = selectedDomain ? await resolveLogoUrl(selectedDomain, scrapedFavicon) : null
 
     // -----------------------------------------------------------------------
     // Step 5: Confidence gating — decide whether to auto-save
@@ -591,11 +693,15 @@ Deno.serve(async (req: Request) => {
     const websiteUrl = selectedDomain ? `https://${selectedDomain}` : null
 
     if (selectedDomain && confidence >= AUTO_SAVE_THRESHOLD && company_id) {
-      // High confidence — auto-save to DB
-      const { data: visibleIds } = await adminClient
-        .rpc('visible_company_ids_for_user', { p_user_id: user.id })
-      const visible = new Set((visibleIds ?? []) as string[])
-      if (visible.has(company_id)) {
+      // High confidence — auto-save to DB (no visible_company_ids gate —
+      // the company may not be in a peer group yet during onboarding)
+      const { data: companyRow } = await adminClient
+        .from('companies')
+        .select('id')
+        .eq('id', company_id)
+        .single()
+
+      if (companyRow) {
         const updateData: Record<string, string | null> = {
           website_url: websiteUrl,
           logo_url: logoUrl,

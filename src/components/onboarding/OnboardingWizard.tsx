@@ -315,7 +315,7 @@ export function OnboardingWizard() {
                   .single()
                 if (inserted) {
                   newIds.push(inserted.id)
-                  // Resolve website in background for logo display
+                  // Resolve website in background — invalidate queries so logo appears
                   if (session) {
                     fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`, {
                       method: 'POST',
@@ -325,6 +325,8 @@ export function OnboardingWizard() {
                         'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
                       },
                       body: JSON.stringify({ name: rc.name, company_id: inserted.id }),
+                    }).then(() => {
+                      queryClient.invalidateQueries({ queryKey: ['companies-all'] })
                     }).catch(() => {})
                   }
                 }
@@ -516,7 +518,9 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
             },
             body: JSON.stringify({ name: placeholderName, company_id: companyId }),
           },
-        ).catch(() => {})
+        ).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+        }).catch(() => {})
       })
 
       setUploadProgress(5)
@@ -897,7 +901,7 @@ function StepCompetitors({
       if (error) { toast.error(`Failed to add ${item.name}`); return }
       onSelectedIdsChange([...selectedIds, inserted.id])
       await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-      // Resolve website in background for logo display
+      // Resolve website in background — invalidate queries so logo appears
       const session = (await supabase.auth.getSession()).data.session
       if (session) {
         fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`, {
@@ -908,6 +912,8 @@ function StepCompetitors({
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({ name: item.name, company_id: inserted.id }),
+        }).then(() => {
+          queryClient.invalidateQueries({ queryKey: ['companies-all'] })
         }).catch(() => {})
       }
       toast.success(`${item.name} added`)
@@ -1044,7 +1050,7 @@ function StepCompetitors({
               } else {
                 onSelectedIdsChange([...selectedIds, inserted.id])
                 await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-                // Resolve website in background for logo display
+                // Resolve website in background — invalidate queries so logo appears
                 const session = (await supabase.auth.getSession()).data.session
                 if (session) {
                   fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`, {
@@ -1055,6 +1061,8 @@ function StepCompetitors({
                       'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
                     },
                     body: JSON.stringify({ name: result.name, company_id: inserted.id }),
+                  }).then(() => {
+                    queryClient.invalidateQueries({ queryKey: ['companies-all'] })
                   }).catch(() => {})
                 }
                 toast.success(`${result.name} added`)

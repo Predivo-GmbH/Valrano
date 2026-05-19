@@ -264,9 +264,13 @@ export function CompanyProfilePage() {
   const [irInput, setIrInput] = useState('')
   const [isRedetecting, setIsRedetecting] = useState(false)
 
+  // Page readiness — tracks whether the company profile is fully set up
+  const [resolutionStatus, setResolutionStatus] = useState<'idle' | 'resolving' | 'resolved' | 'needs_action'>('idle')
+
   const redetectWebsite = async () => {
     if (!company) return
     setIsRedetecting(true)
+    setResolutionStatus('resolving')
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
@@ -292,15 +296,19 @@ export function CompanyProfilePage() {
       if (data.website_url && !data.needs_confirmation) {
         queryClient.invalidateQueries({ queryKey: ['companies-all'] })
         setEditingWebsite(false)
+        setResolutionStatus('resolved')
         toast.success(`Website updated to ${data.website_url}`)
       } else if (data.website_url && data.needs_confirmation) {
         setWebsiteInput(data.website_url)
+        setResolutionStatus('needs_action')
         toast.info('Suggested website — please verify and save')
       } else {
         setWebsiteInput('')
+        setResolutionStatus('needs_action')
         toast.info('Could not detect website — please enter manually')
       }
     } catch {
+      setResolutionStatus('needs_action')
       toast.error('Detection failed — please enter manually')
     } finally {
       setIsRedetecting(false)
@@ -319,6 +327,7 @@ export function CompanyProfilePage() {
     await supabase.from('companies').update({ website_url: url, logo_url: logoUrl }).eq('id', company.id)
     queryClient.invalidateQueries({ queryKey: ['companies-all'] })
     setEditingWebsite(false)
+    setResolutionStatus('resolved')
   }
 
   const saveIrUrl = async (url: string) => {
@@ -335,12 +344,17 @@ export function CompanyProfilePage() {
   // Auto-resolve website URL if missing (fires once per company)
   const resolvedRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!company || company.website_url || resolvedRef.current === company.id) return
+    if (!company || company.website_url || resolvedRef.current === company.id) {
+      // Already resolved or has website — mark as resolved
+      if (company?.website_url) setResolutionStatus('resolved')
+      return
+    }
     resolvedRef.current = company.id
+    setResolutionStatus('resolving')
     ;(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        if (!session) return
+        if (!session) { setResolutionStatus('needs_action'); return }
         const res = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`,
           {
@@ -353,7 +367,7 @@ export function CompanyProfilePage() {
             body: JSON.stringify({ name: company.name, company_id: company.id }),
           },
         )
-        if (!res.ok) return
+        if (!res.ok) { setResolutionStatus('needs_action'); return }
         const data = await res.json() as {
           website_url: string | null
           needs_confirmation?: boolean
@@ -361,14 +375,17 @@ export function CompanyProfilePage() {
         }
         if (data.website_url && !data.needs_confirmation) {
           queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+          setResolutionStatus('resolved')
         } else if (data.website_url && data.needs_confirmation) {
-          // Low confidence — show input pre-filled so user can confirm
+          // Low confidence — pre-fill and ask user to confirm
           setWebsiteInput(data.website_url)
-          setEditingWebsite(true)
-          toast.info(`Suggested website for ${company.name} — please verify and save`)
+          setResolutionStatus('needs_action')
+        } else {
+          // No website found — user must enter manually
+          setResolutionStatus('needs_action')
         }
       } catch {
-        // Silent — user can still click "Detect website" manually
+        setResolutionStatus('needs_action')
       }
     })()
   }, [company, queryClient])
@@ -593,6 +610,68 @@ export function CompanyProfilePage() {
         >
           <ArrowLeft className="h-4 w-4" /> Back to Peers
         </Link>
+
+        {/* Readiness banner — shown when page is still being set up */}
+        {resolutionStatus === 'resolving' && (
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 p-4">
+            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[var(--color-accent)]" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Setting up {company.name}...</p>
+              <p className="text-xs text-muted-foreground">Detecting website and logo. This usually takes a few seconds.</p>
+            </div>
+          </div>
+        )}
+        {resolutionStatus === 'needs_action' && !editingWebsite && !company.website_url && (
+          <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground">Website not found for {company.name}</p>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  We couldn't automatically detect the website. Please enter it below so we can load the company logo and enable full comparison features.
+                </p>
+                <form
+                  className="flex items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    if (websiteInput.trim()) {
+                      saveWebsiteUrl(websiteInput.trim())
+                      setResolutionStatus('resolved')
+                    }
+                  }}
+                >
+                  <div className="flex flex-1 items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5">
+                    <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <input
+                      autoFocus
+                      type="url"
+                      placeholder="https://www.acs-group.com"
+                      value={websiteInput}
+                      onChange={(e) => setWebsiteInput(e.target.value)}
+                      className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent)]/90"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      redetectWebsite()
+                      setResolutionStatus('resolving')
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" /> Retry
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ============================================================= */}
         {/* SECTION 1: Enhanced Company Identity Header                    */}
