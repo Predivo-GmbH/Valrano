@@ -136,6 +136,7 @@ export function useCreateMyCompany() {
           sector: params.sector ?? null,
           country: params.country ?? null,
           is_active: true,
+          created_by: user.id,
         })
         .select()
         .single()

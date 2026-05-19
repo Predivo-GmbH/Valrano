@@ -21,7 +21,7 @@ import { supabase } from '@/lib/supabase'
 import { useReports, usePeerGroups, useAllCompanies } from '@/hooks/useData'
 import { useAccountingProfile, useAnalyzeAccountingProfile } from '@/hooks/useAccountingProfile'
 import { useCreateMyCompany, usePrimaryCompany } from '@/hooks/useMyCompany'
-import { useUploadReport } from '@/hooks/useExtraction'
+import { useUploadReport, useExtractKpis, useNormalizeKpis } from '@/hooks/useExtraction'
 import { useCreatePublicationEvent, usePublicationEvents } from '@/hooks/useCalendar'
 import { useSuggestDates } from '@/hooks/useAiSuggestions'
 import { dismissOnboarding, useOnboarding } from '@/hooks/useOnboarding'
@@ -171,6 +171,8 @@ export function OnboardingWizard() {
           }))
           await supabase.from('peer_group_members').insert(members)
           queryClient.invalidateQueries({ queryKey: ['peer-groups'] })
+          queryClient.invalidateQueries({ queryKey: ['visible-company-ids'] })
+          queryClient.invalidateQueries({ queryKey: ['companies'] })
           setCompetitorsConfirmed(true)
         } catch (err) {
           if (import.meta.env.DEV) console.error('Failed to save peer group:', err)
@@ -305,6 +307,7 @@ export function OnboardingWizard() {
               // Re-fetch companies fresh to avoid race conditions with parallel calls
               const { data: freshCompanies } = await supabase.from('companies').select('id, name, ticker')
               const existingCompanies = freshCompanies ?? []
+              const { data: { user } } = await supabase.auth.getUser()
               const newIds: string[] = [...selectedCompanyIdsRef.current]
               for (const rc of competitors) {
                 const match = existingCompanies.find(
@@ -317,7 +320,7 @@ export function OnboardingWizard() {
                   // Use upsert-like pattern: try insert, on conflict select existing
                   const { data: inserted, error } = await supabase
                     .from('companies')
-                    .insert({ name: rc.name, ticker: rc.ticker ?? null })
+                    .insert({ name: rc.name, ticker: rc.ticker ?? null, created_by: user?.id })
                     .select('id')
                     .single()
                   if (inserted) {
@@ -409,6 +412,8 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
   const { data: reports, isLoading: reportsLoading } = useReports()
   const analyzeMutation = useAnalyzeAccountingProfile()
   const uploadMutation = useUploadReport()
+  const extractMutation = useExtractKpis()
+  const normalizeMutation = useNormalizeKpis()
   const createCompany = useCreateMyCompany()
   const { data: primaryCompany } = usePrimaryCompany()
 
@@ -488,9 +493,10 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
 
       let companyId = company?.company_id
       if (!companyId && company) {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
         const { data: created } = await supabase
           .from('companies')
-          .insert({ name: placeholderName, is_active: true })
+          .insert({ name: placeholderName, is_active: true, created_by: currentUser?.id })
           .select('id')
           .single()
         companyId = created?.id
@@ -569,6 +575,20 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
         onReportCompetitorsFound(analysisData.mentioned_competitors, true)
       }
 
+      // ── Step 6: Extract KPIs from the report ──
+      try {
+        await extractMutation.mutateAsync(result.report_id)
+        // Normalize KPIs (currency conversion) — DB trigger handles most, edge function catches edge cases
+        try {
+          await normalizeMutation.mutateAsync(result.report_id)
+        } catch (normErr) {
+          console.warn('Edge function normalization failed (DB trigger should have handled it):', normErr)
+        }
+      } catch (extractErr) {
+        console.warn('KPI extraction failed during onboarding:', extractErr)
+        toast.warning('Accounting profile saved, but KPI extraction failed. You can retry from My Company page.')
+      }
+
       // Ensure step 5 displayed for at least MIN_STEP_MS
       const elapsed5 = Date.now() - stepStart5
       if (elapsed5 < MIN_STEP_MS) await new Promise(r => setTimeout(r, MIN_STEP_MS - elapsed5))
@@ -599,9 +619,20 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
     if (file) processFile(file)
   }
 
-  const handleAnalyzeExisting = () => {
+  const handleAnalyzeExisting = async () => {
     if (!selectedReportId) return
-    analyzeMutation.mutate({ reportId: selectedReportId })
+    try {
+      await analyzeMutation.mutateAsync({ reportId: selectedReportId })
+      // Also extract KPIs so report moves from "pending" to "extracted"
+      try {
+        await extractMutation.mutateAsync(selectedReportId)
+        try { await normalizeMutation.mutateAsync(selectedReportId) } catch { /* DB trigger fallback */ }
+      } catch {
+        toast.warning('KPI extraction failed. You can retry from My Company page.')
+      }
+    } catch {
+      // analyzeMutation.onError already shows toast via hook
+    }
   }
 
   const isAnalyzing = analyzeMutation.isPending || uploading
@@ -866,9 +897,10 @@ function StepCompetitors({
   const addAndSelect = async (item: typeof reportSuggestionItems[number]) => {
     setAddingIdx(item.originalIdx)
     try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
       const { data: inserted, error } = await supabase
         .from('companies')
-        .insert({ name: item.name, ticker: item.ticker ?? null })
+        .insert({ name: item.name, ticker: item.ticker ?? null, created_by: currentUser?.id })
         .select('id')
         .single()
       if (error) { toast.error(`Failed to add ${item.name}`); return }
@@ -990,6 +1022,7 @@ function StepCompetitors({
             onChange={setSearch}
             onSelect={(result) => void (async () => {
               // ALWAYS create a new company — never reuse existing records from other accounts
+              const { data: { user: currentUser } } = await supabase.auth.getUser()
               const { data: inserted, error } = await supabase
                 .from('companies')
                 .insert({
@@ -998,6 +1031,7 @@ function StepCompetitors({
                   sector: result.sector ?? null,
                   country: result.country_code ?? null,
                   reporting_currency: result.currency ?? 'CHF',
+                  created_by: currentUser?.id,
                 })
                 .select('id')
                 .single()

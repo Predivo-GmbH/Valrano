@@ -292,6 +292,7 @@ function AddCompanyDialog({
         }
       }
 
+      const { data: { user } } = await supabase.auth.getUser()
       const { data: newCompany, error } = await supabase
         .from('companies')
         .insert({
@@ -301,6 +302,7 @@ function AddCompanyDialog({
           sector: sector || null,
           website_url: finalWebsiteUrl,
           ir_page_url: irUrl.trim() || null,
+          created_by: user?.id,
         })
         .select()
         .single()
@@ -319,7 +321,6 @@ function AddCompanyDialog({
         if (existingGroups?.length) {
           pgId = existingGroups[0].id
         } else {
-          const { data: { user } } = await supabase.auth.getUser()
           const { data: newPg, error: pgError } = await supabase
             .from('peer_groups')
             .insert({ name: 'Default', description: 'Auto-created peer group', owner_id: user?.id })
@@ -367,6 +368,8 @@ function AddCompanyDialog({
       }
 
       await queryClient.invalidateQueries({ queryKey: ['companies'] })
+      await queryClient.invalidateQueries({ queryKey: ['visible-company-ids'] })
+      await queryClient.invalidateQueries({ queryKey: ['peer-groups'] })
       toast.success(`Added "${name.trim()}" to peer group`)
       onClose()
       resetForm()
@@ -1321,6 +1324,7 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
         if (error) throw error
       }
       await queryClient.invalidateQueries({ queryKey: ['companies'] })
+      await queryClient.invalidateQueries({ queryKey: ['visible-company-ids'] })
       await queryClient.invalidateQueries({ queryKey: ['peer-groups'] })
       toast.success(`Removed "${companyName}" from peers`)
     } catch (err) {
