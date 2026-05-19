@@ -52,23 +52,10 @@ afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
 // ---------------------------------------------------------------------------
-// Real Supabase client (not mocked — MSW intercepts fetch)
+// Hooks — setup.ts already provides a real Supabase client at SUPABASE_URL
 // ---------------------------------------------------------------------------
-
-// We need to use the REAL hooks with a REAL Supabase client pointing at our MSW server.
-// Override the supabase module to use our test URL.
-vi.mock('@/lib/supabase', () => {
-  const { createClient } = require('@supabase/supabase-js')
-  return {
-    supabase: createClient(SUPABASE_URL, 'test-anon-key', {
-      auth: { persistSession: false, autoRefreshToken: false },
-    }),
-  }
-})
-
-// Import hooks AFTER mocking supabase
-const { useCompanies } = await import('@/hooks/useData')
-const { useVisibleCompanyIds } = await import('@/hooks/useVisibleCompanyIds')
+import { useCompanies } from '@/hooks/useData'
+import { useVisibleCompanyIds } from '@/hooks/useVisibleCompanyIds'
 
 // ---------------------------------------------------------------------------
 // Wrapper with fresh QueryClient per test

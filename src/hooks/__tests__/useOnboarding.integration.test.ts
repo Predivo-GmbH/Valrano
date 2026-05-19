@@ -27,16 +27,8 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }))
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
-vi.mock('@/lib/supabase', () => {
-  const { createClient } = require('@supabase/supabase-js')
-  return {
-    supabase: createClient(SUPABASE_URL, 'test-anon-key', {
-      auth: { persistSession: false, autoRefreshToken: false },
-    }),
-  }
-})
-
-const { useOnboarding } = await import('@/hooks/useOnboarding')
+// setup.ts already provides a real Supabase client at SUPABASE_URL
+import { useOnboarding } from '@/hooks/useOnboarding'
 
 function createWrapper() {
   const queryClient = new QueryClient({
