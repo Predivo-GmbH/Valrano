@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { SUPER_ADMIN_EMAIL } from '@/hooks/useSubscription'
 import {
   getNewsDisabledUsers, setNewsDisabledUsers,
-  getIrCatalogDisabledUsers, setIrCatalogDisabledUsers,
+  getIrCatalogEnabledUsers, setIrCatalogEnabledUsers,
 } from '@/lib/dev-flags'
 import type { SubscriptionTier } from '@/types/database'
 import { ShieldCheck, Trash2 } from 'lucide-react'
@@ -28,7 +28,7 @@ export function AdminPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [disabledUsers, setDisabledUsersState] = useState<Set<string>>(getNewsDisabledUsers)
-  const [irCatalogDisabled, setIrCatalogDisabledState] = useState<Set<string>>(getIrCatalogDisabledUsers)
+  const [irCatalogEnabled, setIrCatalogEnabledState] = useState<Set<string>>(getIrCatalogEnabledUsers)
 
   if (user?.email !== SUPER_ADMIN_EMAIL) {
     return (
@@ -44,7 +44,7 @@ export function AdminPage() {
         <title>Admin - Valrano</title>
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
-      <AdminPanel disabledUsers={disabledUsers} setDisabledUsers={setDisabledUsersState} irCatalogDisabled={irCatalogDisabled} setIrCatalogDisabled={setIrCatalogDisabledState} queryClient={queryClient} />
+      <AdminPanel disabledUsers={disabledUsers} setDisabledUsers={setDisabledUsersState} irCatalogEnabled={irCatalogEnabled} setIrCatalogEnabled={setIrCatalogEnabledState} queryClient={queryClient} />
     </>
   )
 }
@@ -52,14 +52,14 @@ export function AdminPage() {
 function AdminPanel({
   disabledUsers,
   setDisabledUsers,
-  irCatalogDisabled,
-  setIrCatalogDisabled,
+  irCatalogEnabled,
+  setIrCatalogEnabled,
   queryClient,
 }: {
   disabledUsers: Set<string>
   setDisabledUsers: React.Dispatch<React.SetStateAction<Set<string>>>
-  irCatalogDisabled: Set<string>
-  setIrCatalogDisabled: React.Dispatch<React.SetStateAction<Set<string>>>
+  irCatalogEnabled: Set<string>
+  setIrCatalogEnabled: React.Dispatch<React.SetStateAction<Set<string>>>
   queryClient: ReturnType<typeof useQueryClient>
 }) {
   const { data: users, isLoading } = useQuery<AdminUser[]>({
@@ -129,14 +129,14 @@ function AdminPanel({
   }
 
   const toggleIrCatalog = (userId: string) => {
-    setIrCatalogDisabled((prev) => {
+    setIrCatalogEnabled((prev) => {
       const next = new Set(prev)
       if (next.has(userId)) {
         next.delete(userId)
       } else {
         next.add(userId)
       }
-      setIrCatalogDisabledUsers(next)
+      setIrCatalogEnabledUsers(next)
       return next
     })
   }
@@ -264,7 +264,7 @@ function AdminPanel({
                   {/* IR Catalog toggle */}
                   <td className="px-4 py-3 text-center">
                     {(() => {
-                      const irEnabled = !irCatalogDisabled.has(u.id)
+                      const irEnabled = irCatalogEnabled.has(u.id)
                       return (
                         <button
                           onClick={() => toggleIrCatalog(u.id)}
