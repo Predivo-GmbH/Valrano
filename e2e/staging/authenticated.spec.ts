@@ -41,27 +41,25 @@ test.describe('Staging — Dashboard', () => {
 
 test.describe('Staging — Company Creation (regression: created_by)', () => {
   test('my company page loads', async ({ page }) => {
-    // /my-company may redirect to /settings?tab=company
     await page.goto('/my-company')
     await page.waitForLoadState('networkidle')
-    const url = page.url()
-    expect(url.includes('/my-company') || url.includes('/settings')).toBe(true)
+    expect(page.url()).toContain('/my-company')
 
     const body = await page.textContent('body')
     expect(body).toBeTruthy()
   })
 
-  test('peers page loads', async ({ page }) => {
-    await page.goto('/peers')
+  test('competitors page loads', async ({ page }) => {
+    await page.goto('/competitors')
     await page.waitForLoadState('networkidle')
-    expect(page.url()).toContain('/peers')
+    expect(page.url()).toContain('/competitors')
 
     const body = await page.textContent('body')
     expect(body).toBeTruthy()
   })
 
-  test('add peer button is visible on peers page', async ({ page }) => {
-    await page.goto('/peers')
+  test('add peer button is visible on competitors page', async ({ page }) => {
+    await page.goto('/competitors')
     await page.waitForLoadState('networkidle')
 
     const addButton = page.getByRole('button', { name: /add/i }).first()
@@ -76,8 +74,8 @@ test.describe('Staging — Navigation', () => {
     await page.waitForLoadState('networkidle')
 
     // Test navigation to each critical page — should NOT redirect to /login
-    // Note: /calendar and /review redirect to /peers in current routing
-    const routes = ['/peers', '/settings', '/account']
+    // Note: /peers redirects to /competitors in current routing
+    const routes = ['/competitors', '/my-company', '/settings', '/account']
     for (const route of routes) {
       await page.goto(route)
       await page.waitForLoadState('networkidle')
