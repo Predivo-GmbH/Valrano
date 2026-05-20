@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { Link, useNavigate } from 'react-router-dom'
 import {
@@ -42,11 +42,14 @@ import {
   useDownloadExport,
 } from '@/hooks/useCorporateTemplates'
 
+const CorporateTemplatesPage = lazy(() => import('./CorporateTemplatesPage').then(m => ({ default: m.CorporateTemplatesPage })))
+const BenchmarkRulesPage = lazy(() => import('./BenchmarkRulesPage').then(m => ({ default: m.BenchmarkRulesPage })))
+
 // ---------------------------------------------------------------------------
 // Tab filter type
 // ---------------------------------------------------------------------------
 
-type TabFilter = 'all' | 'benchmark' | 'custom'
+type TabFilter = 'all' | 'benchmark' | 'custom' | 'templates' | 'rules'
 
 // ---------------------------------------------------------------------------
 // Benchmark doc status badge styling — imported from shared status-config.ts
@@ -79,6 +82,8 @@ export function ReportBuilderPage() {
     { key: 'all', label: 'All' },
     { key: 'benchmark', label: 'Benchmark Docs' },
     { key: 'custom', label: 'Custom Reports' },
+    { key: 'templates', label: 'Templates' },
+    { key: 'rules', label: 'Rules' },
   ]
 
   const formatDate = (dateStr: string | null | undefined) => {
@@ -194,6 +199,16 @@ export function ReportBuilderPage() {
                 </Button>
               </div>
             )}
+            {activeTab === 'templates' && (
+              <Suspense fallback={<CardSkeleton />}>
+                <CorporateTemplatesPage />
+              </Suspense>
+            )}
+            {activeTab === 'rules' && (
+              <Suspense fallback={<CardSkeleton />}>
+                <BenchmarkRulesPage />
+              </Suspense>
+            )}
           </div>
         )}
 
@@ -228,7 +243,7 @@ function EmptyState({ onCreateReport }: { onCreateReport: () => void }) {
       </p>
       <div className="flex items-center gap-3">
         <Link
-          to="/peers?tab=upload"
+          to="/competitors?tab=competitors"
           className="inline-flex items-center gap-2 rounded-full border border-border px-6 py-2.5 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)]"
         >
           Upload a Report

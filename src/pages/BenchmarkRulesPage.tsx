@@ -148,7 +148,7 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
             <p className="mt-1 text-[13px] text-muted-foreground max-w-xs mx-auto">
               Before creating benchmark rules, set up your company in Settings so we know which entity to benchmark.
             </p>
-            <Button onClick={() => { onOpenChange(false); navigate('/settings/my-company') }} className="mt-4">
+            <Button onClick={() => { onOpenChange(false); navigate('/my-company') }} className="mt-4">
               Go to My Company
             </Button>
           </div>

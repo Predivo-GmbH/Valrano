@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -47,27 +46,18 @@ export function MyCompanyPage() {
 
   return (
     <>
-      <Helmet><title>{primaryCompany?.name ?? 'My Company'} - Valrano</title><meta name="robots" content="noindex" /></Helmet>
-      <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">{primaryCompany?.name ?? 'My Company'}</h1>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              {primaryCompany ? `Manage ${primaryCompany.name}'s data and benchmark against peers.` : 'Enter your company data to benchmark against peers.'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {primaryCompany?.company_id && (
-              <Button variant="outline" onClick={() => setUploadCompanyId(primaryCompany.company_id)}>
-                <Upload className="h-3.5 w-3.5" />
-                Upload Report
-              </Button>
-            )}
-            {primaryCompany && (
-              <Button onClick={() => navigate('/my-company/benchmark')}>View Benchmark</Button>
-            )}
-          </div>
-        </div>
+      {/* Action buttons — no page header (provided by MyCompanyTabsPage wrapper) */}
+      <div className="mb-6 flex items-center justify-end gap-2">
+        {primaryCompany?.company_id && (
+          <Button variant="outline" onClick={() => setUploadCompanyId(primaryCompany.company_id)}>
+            <Upload className="h-3.5 w-3.5" />
+            Upload Report
+          </Button>
+        )}
+        {primaryCompany && (
+          <Button onClick={() => navigate('/my-company?tab=benchmark')}>View Benchmark</Button>
+        )}
+      </div>
 
         {isLoading ? (
           <CardSkeleton />
@@ -111,7 +101,6 @@ export function MyCompanyPage() {
             companyId={uploadCompanyId}
           />
         )}
-      </div>
     </>
   )
 }
@@ -699,7 +688,7 @@ function BenchmarkPositionSection({ companyId }: { companyId: string }) {
             Your position vs {peerIds.length} peer{peerIds.length !== 1 ? 's' : ''} — top 5 KPIs
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => navigate('/my-company/benchmark')}>
+        <Button variant="outline" size="sm" onClick={() => navigate('/my-company?tab=benchmark')}>
           Full Benchmark
         </Button>
       </div>
@@ -840,7 +829,7 @@ function KpiEditor({ companyId }: { companyId: string }) {
         onSuccess: () => toast.success(`${kpis.length} KPIs saved for ${fiscalYear}`, {
           action: {
             label: 'See Your Position',
-            onClick: () => navigate('/my-company/benchmark'),
+            onClick: () => navigate('/my-company?tab=benchmark'),
           },
         }),
         onError: (err) => toast.error(`Failed: ${err.message}`),

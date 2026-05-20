@@ -138,7 +138,7 @@ function SetupGuidanceState({
           Add your company details so we know who to benchmark against your peers.
         </p>
         <Link
-          to="/settings?tab=company"
+          to="/my-company"
           className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
         >
           <Building2 className="h-4 w-4" />
@@ -159,7 +159,7 @@ function SetupGuidanceState({
           Add peer companies and upload their annual reports to see how you compare.
         </p>
         <Link
-          to="/peers"
+          to="/competitors"
           className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
         >
           <Users className="h-4 w-4" />
@@ -179,7 +179,7 @@ function SetupGuidanceState({
         Upload an annual report or enter KPI values manually so we can generate your benchmark position.
       </p>
       <Link
-        to="/peers"
+        to="/competitors"
         className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
       >
         <Upload className="h-4 w-4" />
@@ -214,7 +214,7 @@ function FilteredEmptyState({ fiscalYear, onClearYear, availableYears }: {
           </button>
         )}
         <Link
-          to="/peers"
+          to="/competitors"
           className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-2.5 text-[13px] font-medium text-background transition-all duration-200 hover:opacity-90"
         >
           <Upload className="h-4 w-4" />
@@ -376,7 +376,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
               : 'Add competitors and peers via the Peers page. AI will compare their KPIs against yours.'}
           </p>
           <Link
-            to={!hasCompany ? '/settings?tab=company' : '/peers'}
+            to={!hasCompany ? '/my-company' : '/competitors'}
             className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3.5 py-1.5 text-[11px] font-medium text-white transition-all hover:opacity-90 cursor-pointer"
           >
             {!hasCompany ? 'Go to Settings' : 'Add Peers'}
@@ -1236,7 +1236,7 @@ export function DashboardPage() {
                 <TooltipContent>Track how peer reports move through detection, ingestion, and benchmarking.</TooltipContent>
               </Tooltip>
               <Link
-                to="/peers?tab=calendar"
+                to="/competitors?tab=calendar"
                 className="text-[11px] font-medium text-[var(--color-accent)] hover:underline"
               >
                 View Calendar →
@@ -1270,7 +1270,7 @@ export function DashboardPage() {
               <TooltipContent>Scheduled peer report releases based on historical patterns and announcements.</TooltipContent>
             </Tooltip>
             <Link
-              to="/peers?tab=calendar"
+              to="/competitors?tab=calendar"
               className="text-[11px] font-medium text-[var(--color-accent)] hover:underline flex items-center gap-1"
             >
               View Calendar
@@ -1691,7 +1691,7 @@ export function DashboardPage() {
                       ))}
                     </div>
                     <p className="mt-2 text-[10px] text-muted-foreground">
-                      <Link to="/peers" className="text-[var(--color-accent)] hover:underline">
+                      <Link to="/competitors" className="text-[var(--color-accent)] hover:underline">
                         Upload reports
                       </Link>
                       {' '}to include them in your benchmark.

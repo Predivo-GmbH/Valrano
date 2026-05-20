@@ -41,7 +41,7 @@ const SUGGESTIONS: Record<string, string[]> = {
 function getPageContext(pathname: string): string {
   if (pathname.startsWith('/documents/')) return `document:${pathname.split('/')[2]}`
   if (pathname.startsWith('/dashboard')) return 'dashboard'
-  if (pathname.startsWith('/peers')) return 'peers'
+  if (pathname.startsWith('/competitors')) return 'peers'
   if (pathname.startsWith('/analytics')) return 'analytics'
   return pathname.slice(1) || 'dashboard'
 }

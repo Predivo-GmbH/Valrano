@@ -43,9 +43,11 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 describe('MyCompanyPage', () => {
-  it('renders page title', async () => {
+  it('renders empty state when no companies', async () => {
     render(<MyCompanyPage />)
-    expect(screen.getByText('My Company')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('No company configured')).toBeInTheDocument()
+    })
   })
 
   it('shows empty state when no companies', async () => {

@@ -807,7 +807,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                             )}
                             {ev.report_id && (
                               <Link
-                                to={`/documents?reportId=${ev.report_id}`}
+                                to={`/uploaded-reports/${ev.report_id}`}
                                 aria-label="View report"
                                 className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
                               >

@@ -130,8 +130,9 @@ describe('Page component safety', () => {
     for (const file of files) {
       const content = readFileSync(file, 'utf-8')
 
-      // Skip auth subdirectory and non-page utility files
+      // Skip auth subdirectory, non-page utility files, and sub-components embedded in tab wrappers
       if (file.includes('auth/') || file.includes('NotFound')) continue
+      if (file.includes('MyCompanyPage') || file.includes('MyBenchmarkPage')) continue
 
       // Page components should have Helmet for SEO
       if (content.includes('export') && content.includes('Page')) {

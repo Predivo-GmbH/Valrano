@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTheme } from 'next-themes'
-import { Sun, Moon, LayoutDashboard, Users, Settings, LogOut, User, Menu, X, BarChart3, FileBarChart, Newspaper } from 'lucide-react'
+import { Sun, Moon, LayoutDashboard, Users, Settings, LogOut, User, Menu, X, BarChart3, FileBarChart, Building2 } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
 import { ChatPanel } from './ChatPanel'
 // DevTierSwitcher removed — admin controls moved to Settings > Admin tab
@@ -11,11 +11,10 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/peers', label: 'Peers', icon: Users },
+  { to: '/my-company', label: 'My Company', icon: Building2 },
+  { to: '/competitors', label: 'Competitors', icon: Users },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/news', label: 'News', icon: Newspaper },
   { to: '/reports', label: 'Reports', icon: FileBarChart },
-  { to: '/settings', label: 'Settings', icon: Settings },
 ] as const
 
 const navLinkCls = (isActive: boolean) =>

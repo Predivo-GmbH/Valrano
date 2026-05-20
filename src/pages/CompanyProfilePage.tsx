@@ -603,7 +603,7 @@ export function CompanyProfilePage() {
         </Helmet>
         <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
           <Link
-            to="/peers"
+            to="/competitors"
             className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Peers
@@ -629,7 +629,7 @@ export function CompanyProfilePage() {
       <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Back link */}
         <Link
-          to="/peers"
+          to="/competitors"
           className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Peers
@@ -1106,7 +1106,7 @@ export function CompanyProfilePage() {
                   </span>
                 )}
                 <Link
-                  to={`/peers?tab=upload&company=${company.id}`}
+                  to={`/competitors?tab=competitors&company=${company.id}`}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[var(--color-accent)]/90"
                 >
                   <Upload className="h-3.5 w-3.5" /> Upload Report Manually
@@ -1454,7 +1454,7 @@ export function CompanyProfilePage() {
             </div>
             <div className="border-t border-border px-5 py-3 text-center">
               <Link
-                to={`/peers?tab=upload&company=${company.id}`}
+                to={`/competitors?tab=competitors&company=${company.id}`}
                 className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--color-accent)] hover:underline"
               >
                 <Upload className="h-3.5 w-3.5" /> Upload Report
@@ -1482,7 +1482,7 @@ export function CompanyProfilePage() {
               </div>
               <div className="mt-4 flex flex-wrap gap-2 justify-center">
                 <Link
-                  to={`/peers?tab=upload&company=${company.id}`}
+                  to={`/competitors?tab=competitors&company=${company.id}`}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 text-[12px] font-medium text-white transition-colors hover:bg-[var(--color-accent)]/90"
                 >
                   <Upload className="h-3.5 w-3.5" /> Upload Report Manually

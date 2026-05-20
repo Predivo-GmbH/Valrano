@@ -70,10 +70,10 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 describe('MyBenchmarkPage', () => {
-  it('renders company name in title', async () => {
+  it('renders with company loaded (no empty state)', async () => {
     render(<MyBenchmarkPage />)
     await waitFor(() => {
-      expect(screen.getByText(/Test Corp/)).toBeInTheDocument()
+      expect(screen.queryByText('No company set up')).not.toBeInTheDocument()
     })
   })
 

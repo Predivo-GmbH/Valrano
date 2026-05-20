@@ -1,23 +1,20 @@
-import { lazy, Suspense, useMemo } from 'react'
+import { lazy, Suspense } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
-import { Shield, ShieldCheck, Users } from 'lucide-react'
-import { useAuth } from '@/hooks/useAuth'
-import { SUPER_ADMIN_EMAIL } from '@/hooks/useSubscription'
+import { Building2, FileText, Target } from 'lucide-react'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 
-const ApprovalChainsPage = lazy(() => import('./ApprovalChainsPage').then(m => ({ default: m.ApprovalChainsPage })))
-const TeamPage = lazy(() => import('./TeamPage').then(m => ({ default: m.TeamPage })))
-const AdminPage = lazy(() => import('./AdminPage').then(m => ({ default: m.AdminPage })))
+const MyCompanyPage = lazy(() => import('./MyCompanyPage').then(m => ({ default: m.MyCompanyPage })))
+const AccountingProfilePage = lazy(() => import('./AccountingProfilePage').then(m => ({ default: m.AccountingProfilePage })))
+const MyBenchmarkPage = lazy(() => import('./MyBenchmarkPage').then(m => ({ default: m.MyBenchmarkPage })))
 
-const BASE_TABS = [
-  { id: 'team', label: 'Team', icon: Users },
-  { id: 'approvals', label: 'Approval Chains', icon: Shield },
+const TABS = [
+  { id: 'profile', label: 'Profile', icon: Building2 },
+  { id: 'kpis', label: 'KPIs & Reports', icon: FileText },
+  { id: 'benchmark', label: 'Benchmark', icon: Target },
 ] as const
 
-const ADMIN_TAB = { id: 'admin' as const, label: 'Admin', icon: ShieldCheck }
-
-type TabId = 'team' | 'approvals' | 'admin'
+type TabId = (typeof TABS)[number]['id']
 
 const tabCls = (isActive: boolean) =>
   `flex flex-shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] ${
@@ -26,20 +23,12 @@ const tabCls = (isActive: boolean) =>
       : 'text-muted-foreground hover:bg-[var(--color-bg-tertiary)] hover:text-foreground'
   }`
 
-export function SettingsPage() {
+export function MyCompanyTabsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const { user } = useAuth()
-  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL
 
-  const tabs = useMemo(() => {
-    const list: { id: TabId; label: string; icon: typeof Users }[] = [...BASE_TABS]
-    if (isSuperAdmin) list.push(ADMIN_TAB)
-    return list
-  }, [isSuperAdmin])
+  const activeTab = (searchParams.get('tab') as TabId) || 'profile'
 
-  const activeTab = (searchParams.get('tab') as TabId) || 'team'
-
-  const activeLabel = tabs.find((t) => t.id === activeTab)?.label ?? 'Settings'
+  const activeLabel = TABS.find((t) => t.id === activeTab)?.label ?? 'My Company'
 
   function handleTabChange(tab: TabId) {
     setSearchParams({ tab })
@@ -47,25 +36,25 @@ export function SettingsPage() {
 
   return (
     <>
-      <Helmet><title>{activeLabel} - Settings - Valrano</title><meta name="robots" content="noindex" /></Helmet>
+      <Helmet><title>{activeLabel} - My Company - Valrano</title><meta name="robots" content="noindex" /></Helmet>
       <div className="section-fade-in mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
         {/* Page header */}
         <div className="mb-6">
           <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">
-            Settings
+            My Company
           </h1>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Manage your team and workflows
+            Your company profile, KPIs, and benchmark position
           </p>
         </div>
 
         {/* Tab bar */}
         <div
           role="tablist"
-          aria-label="Settings sections"
+          aria-label="My Company sections"
           className="mb-6 flex items-center gap-1 overflow-x-auto border-b border-border pb-3 scrollbar-thin"
         >
-          {tabs.map((tab) => (
+          {TABS.map((tab) => (
             <button
               key={tab.id}
               role="tab"
@@ -89,9 +78,9 @@ export function SettingsPage() {
           aria-labelledby={`tab-${activeTab}`}
         >
           <Suspense fallback={<CardSkeleton />}>
-            {activeTab === 'team' && <TeamPage />}
-            {activeTab === 'approvals' && <ApprovalChainsPage />}
-            {activeTab === 'admin' && isSuperAdmin && <AdminPage />}
+            {activeTab === 'profile' && <MyCompanyPage />}
+            {activeTab === 'kpis' && <AccountingProfilePage />}
+            {activeTab === 'benchmark' && <MyBenchmarkPage />}
           </Suspense>
         </div>
       </div>

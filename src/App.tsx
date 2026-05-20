@@ -23,7 +23,8 @@ const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage').then(m => ({ de
 const ReportBuilderPage = lazy(() => import('@/pages/ReportBuilderPage').then(m => ({ default: m.ReportBuilderPage })))
 const ReportViewerPage = lazy(() => import('@/pages/ReportViewerPage').then(m => ({ default: m.ReportViewerPage })))
 const UploadedReportPage = lazy(() => import('@/pages/UploadedReportPage').then(m => ({ default: m.UploadedReportPage })))
-const PeersPage = lazy(() => import('@/pages/PeersPage').then(m => ({ default: m.PeersPage })))
+const CompetitorsPage = lazy(() => import('@/pages/CompetitorsPage').then(m => ({ default: m.CompetitorsPage })))
+const MyCompanyTabsPage = lazy(() => import('@/pages/MyCompanyTabsPage').then(m => ({ default: m.MyCompanyTabsPage })))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const AccountPage = lazy(() => import('@/pages/AccountPage').then(m => ({ default: m.AccountPage })))
 const OnboardingWizard = lazy(() => import('@/components/onboarding/OnboardingWizard').then(m => ({ default: m.OnboardingWizard })))
@@ -34,7 +35,7 @@ const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const AuthCallbackPage = lazy(() => import('@/pages/auth/AuthCallbackPage'))
 const AuthVerifyPage = lazy(() => import('@/pages/auth/AuthVerifyPage'))
 const AuthConfirmPage = lazy(() => import('@/pages/auth/AuthConfirmPage'))
-const NewsPage = lazy(() => import('@/pages/NewsPage'))
+// NewsPage removed from nav — redirect to dashboard (news is empty)
 const CompanyProfilePage = lazy(() => import('@/pages/CompanyProfilePage').then(m => ({ default: m.CompanyProfilePage })))
 
 const queryClient = new QueryClient({
@@ -84,9 +85,9 @@ function App() {
                         <Route element={<OnboardingGuard />}>
                         <Route element={<AppLayout />}>
                           <Route path="/dashboard" element={<DashboardPage />} />
-                          <Route path="/peers" element={<PeersPage />} />
+                          <Route path="/my-company" element={<MyCompanyTabsPage />} />
+                          <Route path="/competitors" element={<CompetitorsPage />} />
                           <Route path="/analytics" element={<AnalyticsPage />} />
-                          <Route path="/news" element={<NewsPage />} />
                           <Route path="/reports" element={<ReportBuilderPage />} />
                           <Route path="/reports/:id" element={<ReportViewerPage />} />
                           <Route path="/uploaded-reports/:id" element={<UploadedReportPage />} />
@@ -96,15 +97,17 @@ function App() {
                           <Route path="/settings" element={<SettingsPage />} />
 
                           {/* Legacy routes — redirect to new structure */}
-                          <Route path="/upload" element={<Navigate to="/peers" replace />} />
-                          <Route path="/review" element={<Navigate to="/peers" replace />} />
-                          <Route path="/calendar" element={<Navigate to="/peers" replace />} />
+                          <Route path="/peers" element={<Navigate to="/competitors" replace />} />
+                          <Route path="/upload" element={<Navigate to="/competitors" replace />} />
+                          <Route path="/review" element={<Navigate to="/competitors" replace />} />
+                          <Route path="/calendar" element={<Navigate to="/competitors?tab=calendar" replace />} />
+                          <Route path="/news" element={<Navigate to="/dashboard" replace />} />
                           <Route path="/documents" element={<Navigate to="/reports" replace />} />
                           <Route path="/trends" element={<Navigate to="/analytics" replace />} />
-                          <Route path="/my-company" element={<Navigate to="/settings?tab=company" replace />} />
-                          <Route path="/my-company/benchmark" element={<Navigate to="/settings?tab=company" replace />} />
-                          <Route path="/settings/benchmark-rules" element={<Navigate to="/settings?tab=rules" replace />} />
+                          <Route path="/my-company/benchmark" element={<Navigate to="/my-company?tab=benchmark" replace />} />
+                          <Route path="/settings/benchmark-rules" element={<Navigate to="/reports?tab=rules" replace />} />
                           <Route path="/settings/approval-chains" element={<Navigate to="/settings?tab=approvals" replace />} />
+                          <Route path="/settings?tab=company" element={<Navigate to="/my-company" replace />} />
                         </Route>
                         </Route>
                       </Route>

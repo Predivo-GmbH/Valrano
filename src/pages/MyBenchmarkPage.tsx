@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, TrendingDown, Minus, ArrowLeft, Zap, Target, AlertTriangle } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Zap, Target, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
@@ -47,7 +46,7 @@ export function MyBenchmarkPage() {
     }
     if (!kpis || kpis.length === 0) {
       toast.error('Enter KPI data first')
-      navigate('/my-company')
+      navigate('/my-company?tab=profile')
       return
     }
 
@@ -68,49 +67,23 @@ export function MyBenchmarkPage() {
   }
 
   if (companyLoading || benchmarkLoading) {
-    return (
-      <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
-        <CardSkeleton />
-      </div>
-    )
+    return <CardSkeleton />
   }
 
   if (!primaryCompany) {
     return (
-      <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
-        <div className="rounded-xl border border-border bg-card p-12 text-center">
+      <div className="rounded-xl border border-border bg-card p-12 text-center">
           <h3 className="text-lg font-semibold text-foreground">No company set up</h3>
           <p className="mt-2 text-sm text-muted-foreground">Add your company first to run a benchmark.</p>
-          <Button onClick={() => navigate('/my-company')} className="mt-4">
+          <Button onClick={() => navigate('/my-company?tab=profile')} className="mt-4">
             Add Company
           </Button>
         </div>
-      </div>
     )
   }
 
   return (
     <>
-      <Helmet><title>My Benchmark - Valrano</title><meta name="robots" content="noindex" /></Helmet>
-      <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
-        {/* Header */}
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/my-company')}
-            className="mb-3 -ml-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to My Company
-          </Button>
-          <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-foreground">
-            {primaryCompany.name} — Benchmark
-          </h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            See how your company compares against industry peers.
-          </p>
-        </div>
 
         {/* Controls */}
         <div className="mb-6 flex flex-wrap items-center gap-3">
@@ -295,7 +268,6 @@ export function MyBenchmarkPage() {
             </p>
           </div>
         )}
-      </div>
     </>
   )
 }

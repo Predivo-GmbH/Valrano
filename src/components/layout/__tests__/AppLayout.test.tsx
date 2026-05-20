@@ -18,10 +18,10 @@ describe('AppLayout', () => {
   it('renders navigation links', () => {
     render(<AppLayout />)
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByText('Peers')).toBeInTheDocument()
+    expect(screen.getByText('My Company')).toBeInTheDocument()
+    expect(screen.getByText('Competitors')).toBeInTheDocument()
     expect(screen.getByText('Analytics')).toBeInTheDocument()
     expect(screen.getByText('Reports')).toBeInTheDocument()
-    expect(screen.getByText('Settings')).toBeInTheDocument()
   })
 
   it('renders the outlet for child routes', () => {
@@ -47,15 +47,15 @@ describe('AppLayout', () => {
     expect(dashboardLink).toHaveAttribute('href', '/dashboard')
   })
 
-  it('peers nav link points to /peers', () => {
+  it('competitors nav link points to /competitors', () => {
     render(<AppLayout />)
-    const peersLink = screen.getByRole('link', { name: /peers/i })
-    expect(peersLink).toHaveAttribute('href', '/peers')
+    const competitorsLink = screen.getByRole('link', { name: /competitors/i })
+    expect(competitorsLink).toHaveAttribute('href', '/competitors')
   })
 
-  it('settings nav link points to /settings', () => {
+  it('my company nav link points to /my-company', () => {
     render(<AppLayout />)
-    const settingsLink = screen.getByRole('link', { name: /settings/i })
-    expect(settingsLink).toHaveAttribute('href', '/settings')
+    const myCompanyLink = screen.getByRole('link', { name: /my company/i })
+    expect(myCompanyLink).toHaveAttribute('href', '/my-company')
   })
 })

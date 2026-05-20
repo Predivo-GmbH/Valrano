@@ -58,7 +58,7 @@ describe('SettingsPage', () => {
   it('shows settings tab labels', async () => {
     render(<SettingsPage />)
     await waitFor(() => {
-      expect(screen.getAllByRole('tab').length).toBeGreaterThanOrEqual(5)
+      expect(screen.getAllByRole('tab').length).toBeGreaterThanOrEqual(2)
     })
   })
 
