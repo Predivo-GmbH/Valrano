@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
-import { getCorsHeaders } from '../_shared/cors.ts'
+import { getCorsHeaders, corsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
@@ -252,13 +252,15 @@ serve(async (req: Request) => {
         pageUrl = scrapeData.data?.metadata?.sourceURL ?? company.ir_page_url
 
         // Log Firecrawl usage
-        await adminClient.from('api_request_logs').insert({
-          service: 'firecrawl',
-          endpoint: '/v1/scrape',
-          call_count: 1,
-          user_id: user.id,
-          edge_function: 'scan-ir-page',
-        }).catch(() => {})
+        try {
+          await adminClient.from('api_request_logs').insert({
+            service: 'firecrawl',
+            endpoint: '/v1/scrape',
+            call_count: 1,
+            user_id: user.id,
+            edge_function: 'scan-ir-page',
+          })
+        } catch { /* non-blocking */ }
       } else {
         // Fallback to direct fetch
         const directRes = await fetch(company.ir_page_url, {
@@ -308,13 +310,15 @@ serve(async (req: Request) => {
       })
 
       // Track in ai_usage table
-      await adminClient.from('ai_usage').insert({
-        user_id: user.id,
-        feature: 'scan_ir_page',
-        model_used: GEMINI_MODEL,
-        input_tokens: result.usage.input_tokens,
-        output_tokens: result.usage.output_tokens,
-      }).catch(() => {})
+      try {
+        await adminClient.from('ai_usage').insert({
+          user_id: user.id,
+          feature: 'scan_ir_page',
+          model_used: GEMINI_MODEL,
+          input_tokens: result.usage.input_tokens,
+          output_tokens: result.usage.output_tokens,
+        })
+      } catch { /* non-blocking */ }
     } else {
       // No Gemini key — store unclassified
       classifiedDocs = documentLinks.map((d) => ({
@@ -385,6 +389,13 @@ serve(async (req: Request) => {
       items_updated: itemsUpdated,
     })
   } catch (err) {
-    return errorResponse(err)
+    const msg = err instanceof Error ? err.message : String(err)
+    const stack = err instanceof Error ? err.stack : ''
+    console.error('[scan-ir-page] Error:', msg, stack)
+    // Return detailed error for debugging (not just "Internal server error")
+    return new Response(
+      JSON.stringify({ error: `IR page scan failed: ${msg}` }),
+      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+    )
   }
 })
