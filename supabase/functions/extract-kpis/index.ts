@@ -66,6 +66,43 @@ const KPI_EXTRACTION_SCHEMA = {
   required: ['report_type', 'fiscal_year', 'fiscal_quarter', 'kpis'],
 } as const
 
+// Schema for optional company metadata extraction
+const COMPANY_METADATA_SCHEMA = {
+  type: 'object',
+  properties: {
+    company_metadata: {
+      type: 'object',
+      description: 'Company-level metadata extracted from the report. Only populate fields clearly stated in the report.',
+      properties: {
+        sector: {
+          type: 'string',
+          description: 'Industry sector (e.g. "Building Materials", "Pharmaceuticals", "Banking"). Use broad sector names.',
+        },
+        country: {
+          type: 'string',
+          description: 'Country of headquarters as full name (e.g. "Switzerland", "Germany", "United States").',
+        },
+        reporting_currency: {
+          type: 'string',
+          description: 'Primary reporting currency as ISO 4217 code (e.g. "CHF", "EUR", "USD").',
+        },
+        headcount: {
+          type: 'integer',
+          description: 'Total number of employees (FTE or headcount) as stated in the report.',
+        },
+        founded_year: {
+          type: 'integer',
+          description: 'Year the company was founded/incorporated, if mentioned.',
+        },
+        website_url: {
+          type: 'string',
+          description: 'Company website URL if stated in the report (e.g. "https://www.holcim.com").',
+        },
+      },
+    },
+  },
+} as const
+
 type KpiCode = typeof KPI_CODES[number]
 
 interface ExtractedKpi {
@@ -80,11 +117,21 @@ interface ExtractedKpi {
   source_text?: string
 }
 
+interface CompanyMetadata {
+  sector?: string
+  country?: string
+  reporting_currency?: string
+  headcount?: number
+  founded_year?: number
+  website_url?: string
+}
+
 interface ClaudeToolResult {
   report_type: 'annual' | 'quarterly' | 'half_year' | 'sustainability'
   fiscal_year: number
   fiscal_quarter: number
   kpis: ExtractedKpi[]
+  company_metadata?: CompanyMetadata
 }
 
 // ---------------------------------------------------------------------------
@@ -241,7 +288,16 @@ Important: Values are typically in millions unless stated otherwise. Convert all
 ALSO determine the report metadata:
 - report_type: "annual" for annual/yearly reports, "quarterly" for Q1-Q4 reports, "half_year" for H1/H2/semi-annual, "sustainability" for ESG/sustainability reports. If unclear, default to "annual".
 - fiscal_year: The primary fiscal year covered (e.g. 2025 for "Annual Report 2025"). Look at the cover page, title, or header.
-- fiscal_quarter: The quarter number (1-4) for quarterly reports, or 0 for annual/half_year/sustainability.`
+- fiscal_quarter: The quarter number (1-4) for quarterly reports, or 0 for annual/half_year/sustainability.
+
+ALSO extract company metadata if clearly stated in the report (populate company_metadata object):
+- sector: The company's industry sector (e.g. "Building Materials", "Pharmaceuticals", "Banking")
+- country: Country of headquarters as full name (e.g. "Switzerland", "Germany")
+- reporting_currency: The primary currency of the financial statements (CHF, EUR, USD) — infer from currency used for revenue
+- headcount: Total number of employees (FTE) if stated
+- founded_year: Year the company was founded, if mentioned
+- website_url: The company's website URL if printed in the report
+Only include fields you can extract with high confidence. Omit any you are unsure about.`
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
@@ -256,7 +312,13 @@ ALSO determine the report metadata:
           systemInstruction: { parts: [{ text: systemPrompt }] },
           generationConfig: {
             responseMimeType: 'application/json',
-            responseSchema: KPI_EXTRACTION_SCHEMA,
+            responseSchema: {
+              ...KPI_EXTRACTION_SCHEMA,
+              properties: {
+                ...KPI_EXTRACTION_SCHEMA.properties,
+                ...COMPANY_METADATA_SCHEMA.properties,
+              },
+            },
             temperature: 0,
           },
         }),
@@ -372,6 +434,46 @@ ALSO determine the report metadata:
       .update(reportUpdate)
       .eq('id', reportId)
 
+    // ------------------------------------------------------------------
+    // 10. Auto-populate my_companies metadata (only null fields)
+    // ------------------------------------------------------------------
+    let metadataFieldsPopulated = 0
+    if (parsed.company_metadata) {
+      try {
+        const { data: myCompany } = await adminClient
+          .from('my_companies')
+          .select('id, sector, country, reporting_currency, headcount, founded_year, website_url')
+          .eq('user_id', user.id)
+          .eq('company_id', company.id)
+          .maybeSingle()
+
+        if (myCompany) {
+          const meta = parsed.company_metadata
+          const metaUpdate: Record<string, unknown> = {}
+
+          if (!myCompany.sector && meta.sector) metaUpdate.sector = meta.sector
+          if (!myCompany.country && meta.country) metaUpdate.country = meta.country
+          if (!myCompany.reporting_currency && meta.reporting_currency) metaUpdate.reporting_currency = meta.reporting_currency
+          if (!myCompany.headcount && meta.headcount) metaUpdate.headcount = meta.headcount
+          if (!myCompany.founded_year && meta.founded_year) metaUpdate.founded_year = meta.founded_year
+          if (!myCompany.website_url && meta.website_url) metaUpdate.website_url = meta.website_url
+
+          if (Object.keys(metaUpdate).length > 0) {
+            await adminClient
+              .from('my_companies')
+              .update(metaUpdate)
+              .eq('id', myCompany.id)
+
+            metadataFieldsPopulated = Object.keys(metaUpdate).length
+            console.log(`[extract-kpis] Auto-populated ${metadataFieldsPopulated} metadata fields for my_company ${myCompany.id}`)
+          }
+        }
+      } catch (metaErr) {
+        // Non-blocking: metadata population is best-effort
+        console.warn('[extract-kpis] Failed to auto-populate metadata:', metaErr)
+      }
+    }
+
     return jsonResponse({
       extraction_id: extraction.id,
       total_kpis_extracted: totalExtracted,
@@ -379,6 +481,7 @@ ALSO determine the report metadata:
       needs_review_count: kpiValuesToInsert.filter((v) => v.needs_review).length,
       detected_report_type: parsed.report_type ?? null,
       detected_fiscal_year: parsed.fiscal_year ?? null,
+      metadata_fields_populated: metadataFieldsPopulated,
     })
   } catch (err) {
     return errorResponse(err)
