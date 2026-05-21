@@ -38,11 +38,25 @@ export const SortableHeader = React.memo(function SortableHeader({
   }`
   const iconClass = `h-2.5 w-2.5 flex-shrink-0 ${isActive ? 'opacity-100 text-foreground' : 'opacity-30 text-muted-foreground'}`
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSort(columnId)
+    }
+  }
+
   if (description) {
     return (
       <th scope="col" className="px-2 py-2 text-right">
         <Tooltip>
-          <TooltipTrigger className={btnClass} onClick={() => onSort(columnId)} aria-label={`Sort by ${label}`}>
+          <TooltipTrigger
+            className={btnClass}
+            onClick={() => onSort(columnId)}
+            onKeyDown={handleKeyDown}
+            tabIndex={0}
+            role="button"
+            aria-label={`Sort by ${label}`}
+          >
             {label}
             <SortIcon className={iconClass} />
           </TooltipTrigger>
@@ -59,7 +73,7 @@ export const SortableHeader = React.memo(function SortableHeader({
 
   return (
     <th scope="col" className="px-2 py-2 text-right">
-      <button onClick={() => onSort(columnId)} className={btnClass} aria-label={`Sort by ${label}`}>
+      <button onClick={() => onSort(columnId)} onKeyDown={handleKeyDown} tabIndex={0} role="button" className={btnClass} aria-label={`Sort by ${label}`}>
         {label}
         <SortIcon className={iconClass} />
       </button>

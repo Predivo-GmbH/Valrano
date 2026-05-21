@@ -33,8 +33,8 @@ describe('AccountPage', () => {
   it('shows theme toggle', async () => {
     render(<AccountPage />)
     await waitFor(() => {
-      const themeText = screen.queryByText(/theme/i) || screen.queryByText(/appearance/i)
-      expect(themeText).toBeTruthy()
+      const themeElements = screen.queryAllByText(/theme/i)
+      expect(themeElements.length).toBeGreaterThan(0)
     })
   })
 })

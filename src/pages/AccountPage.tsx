@@ -1,12 +1,13 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useTheme } from 'next-themes'
-import { User, Shield, CreditCard, SlidersHorizontal, Sun, Moon, Trash2, Eye, EyeOff, Check, KeyRound, Loader2 } from 'lucide-react'
+import { User, Shield, CreditCard, SlidersHorizontal, Sun, Moon, Trash2, Eye, EyeOff, Check, KeyRound, Loader2, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PremiumSelect } from '@/components/ui/premium-select'
 import { useAuth } from '@/hooks/useAuth'
 import { useSubscription } from '@/hooks/useSubscription'
+import { supabase } from '@/lib/supabase'
 import { getPasswordScore } from '@/components/auth/password-utils'
 import PasswordStrength from '@/components/auth/PasswordStrength'
 import { toast } from 'sonner'
@@ -35,6 +36,11 @@ export function AccountPage() {
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
+
+  // Change email state
+  const [showEmailForm, setShowEmailForm] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [emailLoading, setEmailLoading] = useState(false)
 
   // Delete account state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -79,6 +85,23 @@ export function AccountPage() {
       setPasswordError(err instanceof Error ? err.message : 'Failed to update password')
     } finally {
       setPasswordLoading(false)
+    }
+  }
+
+  async function handleChangeEmail(e: FormEvent) {
+    e.preventDefault()
+    if (!newEmail.trim()) return
+    setEmailLoading(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ email: newEmail.trim() })
+      if (error) throw error
+      toast.success(`Verification email sent to ${newEmail.trim()}. Check your inbox to confirm.`)
+      setNewEmail('')
+      setShowEmailForm(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update email')
+    } finally {
+      setEmailLoading(false)
     }
   }
 
@@ -135,6 +158,44 @@ export function AccountPage() {
                   <p className="text-[11px] text-muted-foreground">Last sign-in: {lastSignIn}</p>
                 )}
               </div>
+            </div>
+
+            {/* Change Email */}
+            <div className="mt-4 pt-4 border-t border-border">
+              {!showEmailForm ? (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[13px] font-medium text-foreground">Email Address</p>
+                    <p className="text-[11px] text-muted-foreground">Change the email associated with your account</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setShowEmailForm(true)}>
+                    <Mail className="h-3.5 w-3.5" />
+                    Change Email
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleChangeEmail} className="space-y-3">
+                  <label htmlFor="new-email" className="block text-[12px] font-medium text-muted-foreground">New email address</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="new-email"
+                      type="email"
+                      required
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="new@example.com"
+                      className="max-w-xs"
+                    />
+                    <Button type="submit" size="sm" disabled={emailLoading || !newEmail.trim()}>
+                      {emailLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      Update
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => { setShowEmailForm(false); setNewEmail('') }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              )}
             </div>
           </section>
 
@@ -273,6 +334,7 @@ export function AccountPage() {
                 <div>
                   <p className="text-[13px] font-medium text-foreground">Theme</p>
                   <p className="text-[11px] text-muted-foreground">Switch between light and dark mode</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">Theme preference is saved locally on this device.</p>
                 </div>
                 <Button
                   variant="outline"

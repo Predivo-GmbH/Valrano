@@ -13,7 +13,11 @@ export function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  if (status === 'loading') return null
+  if (status === 'loading') return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-accent)] border-t-transparent" role="status" aria-label="Loading" />
+    </div>
+  )
   if (status === 'authenticated') return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }

@@ -349,9 +349,23 @@ function AddCompanyDialog({
           pgId = newPg.id
         }
 
+        // Check for duplicate peer before inserting
+        const { data: existingMember } = await supabase
+          .from('peer_group_members')
+          .select('id')
+          .eq('peer_group_id', pgId)
+          .eq('company_id', newCompany.id)
+          .limit(1)
+
+        if (existingMember?.length) {
+          toast.error('This company is already in your peer group')
+          setIsSubmitting(false)
+          return
+        }
+
         await supabase
           .from('peer_group_members')
-          .upsert({ peer_group_id: pgId, company_id: newCompany.id }, { onConflict: 'peer_group_id,company_id' })
+          .insert({ peer_group_id: pgId, company_id: newCompany.id })
       }
 
       // Non-blocking: auto-resolve IR URL for the new company
@@ -527,9 +541,21 @@ function AddCompanyDialog({
                       {
                         onSuccess: (data) => {
                           if (data.ir_page_url) {
-                            setIrUrl(data.ir_page_url)
-                            setIrUrlSource('ai')
-                            toast.success(data.validated ? 'IR page found and validated' : 'IR page suggested (not validated)')
+                            if (data.validated) {
+                              setIrUrl(data.ir_page_url)
+                              setIrUrlSource('ai')
+                              toast.success('IR page discovered and validated')
+                            } else {
+                              toast('IR page found but not validated — verify before saving', {
+                                action: {
+                                  label: 'Use anyway',
+                                  onClick: () => {
+                                    setIrUrl(data.ir_page_url ?? '')
+                                    setIrUrlSource('ai')
+                                  },
+                                },
+                              })
+                            }
                           } else {
                             toast.info('Could not find IR page — enter manually')
                           }
@@ -618,7 +644,12 @@ function PeerCard({
   isDeleting: boolean
   totalKpiDefinitions: number
   userSector: string | null
-  kpiSummary?: { revenue?: { value: number; currency: string; year: number }; ebitdaMargin?: { value: number; year: number } }
+  kpiSummary?: {
+    revenue?: { value: number; currency: string; year: number }
+    ebitdaMargin?: { value: number; year: number }
+    netDebtEbitda?: { value: number; year: number }
+    roic?: { value: number; year: number }
+  }
 }) {
   const { company, isMonitoring, monitoringStatus, lastReport, nextExpectedDate, kpiExtracted, kpiPendingReview, nextEventId, scheduledCount } = peer
   const { data: catalogCount } = useIrCatalogCount(company.id)
@@ -767,28 +798,60 @@ function PeerCard({
       </div>
 
       {/* Key KPIs or upload prompt */}
-      {(kpiSummary?.revenue || kpiSummary?.ebitdaMargin) ? (
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {kpiSummary.revenue && (
-            <div className="rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2">
-              <div className="text-[10px] text-muted-foreground">Revenue</div>
-              <div className="text-[13px] font-semibold tabular-nums text-foreground">
-                {kpiSummary.revenue.currency} {formatCurrencyMillions(kpiSummary.revenue.value)}
-              </div>
-              <div className="text-[10px] text-muted-foreground">FY{String(kpiSummary.revenue.year).slice(-2)}</div>
+      {(kpiSummary?.revenue || kpiSummary?.ebitdaMargin || kpiSummary?.netDebtEbitda || kpiSummary?.roic) ? (() => {
+        const shownCount = [kpiSummary?.revenue, kpiSummary?.ebitdaMargin, kpiSummary?.netDebtEbitda, kpiSummary?.roic].filter(Boolean).length
+        const moreCount = kpiExtracted > shownCount ? kpiExtracted - shownCount : 0
+        return (
+          <div className="mt-3">
+            <div className="grid grid-cols-2 gap-2">
+              {kpiSummary?.revenue && (
+                <div className="rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2">
+                  <div className="text-[10px] text-muted-foreground">Revenue</div>
+                  <div className="text-[13px] font-semibold tabular-nums text-foreground">
+                    {kpiSummary.revenue.currency} {formatCurrencyMillions(kpiSummary.revenue.value)}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">FY{String(kpiSummary.revenue.year).slice(-2)}</div>
+                </div>
+              )}
+              {kpiSummary?.ebitdaMargin && (
+                <div className="rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2">
+                  <div className="text-[10px] text-muted-foreground">EBITDA Margin</div>
+                  <div className="text-[13px] font-semibold tabular-nums text-foreground">
+                    {kpiSummary.ebitdaMargin.value.toFixed(1)}%
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">FY{String(kpiSummary.ebitdaMargin.year).slice(-2)}</div>
+                </div>
+              )}
+              {kpiSummary?.netDebtEbitda && (
+                <div className="rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2">
+                  <div className="text-[10px] text-muted-foreground">Net Debt / EBITDA</div>
+                  <div className="text-[13px] font-semibold tabular-nums text-foreground">
+                    {kpiSummary.netDebtEbitda.value.toFixed(1)}x
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">FY{String(kpiSummary.netDebtEbitda.year).slice(-2)}</div>
+                </div>
+              )}
+              {kpiSummary?.roic && (
+                <div className="rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2">
+                  <div className="text-[10px] text-muted-foreground">ROIC</div>
+                  <div className="text-[13px] font-semibold tabular-nums text-foreground">
+                    {kpiSummary.roic.value.toFixed(1)}%
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">FY{String(kpiSummary.roic.year).slice(-2)}</div>
+                </div>
+              )}
             </div>
-          )}
-          {kpiSummary.ebitdaMargin && (
-            <div className="rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2">
-              <div className="text-[10px] text-muted-foreground">EBITDA Margin</div>
-              <div className="text-[13px] font-semibold tabular-nums text-foreground">
-                {kpiSummary.ebitdaMargin.value.toFixed(1)}%
-              </div>
-              <div className="text-[10px] text-muted-foreground">FY{String(kpiSummary.ebitdaMargin.year).slice(-2)}</div>
-            </div>
-          )}
-        </div>
-      ) : kpiExtracted === 0 ? (
+            {moreCount > 0 && (
+              <Link
+                to={`/companies/${company.id}`}
+                className="mt-1.5 block text-[10px] text-muted-foreground hover:text-[var(--color-accent)] transition-colors"
+              >
+                +{moreCount} more KPI{moreCount !== 1 ? 's' : ''}
+              </Link>
+            )}
+          </div>
+        )
+      })() : kpiExtracted === 0 ? (
         <button
           onClick={() => onUpload(company.id)}
           className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-3 text-[12px] text-muted-foreground transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/5"
@@ -1391,12 +1454,17 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
   const companyIdsForKpis = useMemo(() => (companies ?? []).map((c) => c.id), [companies])
   const { data: cardKpiValues } = useKpiValues({
     companyIds: companyIdsForKpis.length > 0 ? companyIdsForKpis : undefined,
-    kpiCodes: ['REVENUE', 'EBITDA_MARGIN'],
+    kpiCodes: ['REVENUE', 'EBITDA_MARGIN', 'NET_DEBT_EBITDA', 'ROIC'],
   })
 
-  // Build card KPI lookup: companyId -> { revenue, ebitdaMargin }
+  // Build card KPI lookup: companyId -> { revenue, ebitdaMargin, netDebtEbitda, roic }
   const cardKpiLookup = useMemo(() => {
-    const lookup: Record<string, { revenue?: { value: number; currency: string; year: number }; ebitdaMargin?: { value: number; year: number } }> = {}
+    const lookup: Record<string, {
+      revenue?: { value: number; currency: string; year: number }
+      ebitdaMargin?: { value: number; year: number }
+      netDebtEbitda?: { value: number; year: number }
+      roic?: { value: number; year: number }
+    }> = {}
     for (const kv of cardKpiValues ?? []) {
       const code = kv.kpi_definitions?.code
       const val = kv.normalized_value ?? kv.raw_value
@@ -1410,6 +1478,14 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
       } else if (code === 'EBITDA_MARGIN') {
         if (!entry.ebitdaMargin || kv.fiscal_year > entry.ebitdaMargin.year) {
           entry.ebitdaMargin = { value: val, year: kv.fiscal_year }
+        }
+      } else if (code === 'NET_DEBT_EBITDA') {
+        if (!entry.netDebtEbitda || kv.fiscal_year > entry.netDebtEbitda.year) {
+          entry.netDebtEbitda = { value: val, year: kv.fiscal_year }
+        }
+      } else if (code === 'ROIC') {
+        if (!entry.roic || kv.fiscal_year > entry.roic.year) {
+          entry.roic = { value: val, year: kv.fiscal_year }
         }
       }
     }
@@ -1797,7 +1873,7 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
             <DialogTitle>Remove Peer</DialogTitle>
           </DialogHeader>
           <p className="text-[13px] text-muted-foreground">
-            Are you sure you want to remove <span className="font-semibold text-foreground">{deleteConfirm?.name}</span> from your peer list? This will remove all associated data for this company.
+            This will remove <span className="font-semibold text-foreground">{deleteConfirm?.name}</span> from your peer group. Uploaded reports and calendar events will remain.
           </p>
           <DialogFooter className="mt-4 gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDeleteConfirm(null)}>

@@ -28,6 +28,7 @@ vi.mock('@/hooks/useBenchmark', () => ({
   }),
   useCreateBenchmarkRule: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteBenchmarkRule: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateBenchmarkRule: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 
 vi.mock('@/hooks/useData', () => ({

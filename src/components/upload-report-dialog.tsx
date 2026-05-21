@@ -50,6 +50,10 @@ export function UploadReportDialog({
   const displayProgress = useSmoothProgress(uploadProgress)
   const [currentProcessingIdx, setCurrentProcessingIdx] = useState(-1)
 
+  const [cancelRequested, setCancelRequested] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const cancelRef = useRef(false)
+
   const queryClient = useQueryClient()
   const uploadMutation = useUploadReport()
   const extractMutation = useExtractKpis()
@@ -152,6 +156,12 @@ export function UploadReportDialog({
     setQueuedFiles(prev => prev.map(f => f.id === id ? { ...f, companyId: companyIdVal } : f))
   }
 
+  const handleCancelUpload = () => {
+    cancelRef.current = true
+    setCancelRequested(true)
+    setShowCancelConfirm(false)
+  }
+
   const handleUpload = async () => {
     const toProcess = queuedFiles.filter(f => f.status === 'queued')
     if (toProcess.length === 0) { toast.error('No files to process'); return }
@@ -159,8 +169,11 @@ export function UploadReportDialog({
 
     setIsProcessing(true)
     setAllDone(false)
+    cancelRef.current = false
+    setCancelRequested(false)
 
     for (let i = 0; i < queuedFiles.length; i++) {
+      if (cancelRef.current) break
       const item = queuedFiles[i]
       if (item.status !== 'queued') continue
 
@@ -214,9 +227,20 @@ export function UploadReportDialog({
     }
 
     setIsProcessing(false)
-    setAllDone(true)
     setUploadProgress(0)
     setCurrentProcessingIdx(-1)
+
+    if (cancelRef.current) {
+      setCancelRequested(false)
+      toast.info('Upload cancelled')
+      // Keep successfully processed files visible, reset remaining to queued
+      setQueuedFiles(prev => prev.map(f =>
+        f.status === 'queued' ? f : f // already-processed files keep their status
+      ))
+      closeAndReset()
+    } else {
+      setAllDone(true)
+    }
   }
 
   return (
@@ -385,6 +409,31 @@ export function UploadReportDialog({
                 </div>
               ))}
             </div>
+
+            {/* Cancel button with inline confirmation */}
+            {!showCancelConfirm ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCancelConfirm(true)}
+                disabled={cancelRequested}
+                className="w-full mt-2"
+              >
+                {cancelRequested ? 'Cancelling...' : 'Cancel Upload'}
+              </Button>
+            ) : (
+              <div className="mt-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+                <p className="text-[12px] text-foreground">Cancel upload? Files in progress will be lost.</p>
+                <div className="flex gap-2">
+                  <Button variant="destructive" size="sm" onClick={handleCancelUpload} className="flex-1">
+                    Yes, Cancel
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowCancelConfirm(false)} className="flex-1">
+                    Continue
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

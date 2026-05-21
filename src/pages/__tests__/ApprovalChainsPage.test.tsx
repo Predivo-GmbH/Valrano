@@ -20,6 +20,8 @@ vi.mock('@/hooks/useBenchmark', () => ({
     isLoading: false,
   }),
   useCreateApprovalChain: () => ({ mutate: vi.fn() }),
+  useUpdateApprovalChain: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteApprovalChain: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useBenchmarkRules: () => ({
     data: [
       { id: 'r-1', name: 'Default Peer Benchmark' },

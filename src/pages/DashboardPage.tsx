@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Helmet } from 'react-helmet-async'
 import { Link } from 'react-router-dom'
 import { useCompanies, useKpiDefinitions, useKpiValues, useReports } from '@/hooks/useData'
@@ -67,6 +68,7 @@ import {
   CheckCircle2,
   Shield,
   Download,
+  RefreshCw,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -450,7 +452,18 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
             <SlidersHorizontal className="h-3 w-3" />
             Filters
             {(focus !== 'all' || timeRange !== '1y' || reportType !== 'all') && (
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+              <Tooltip>
+                <TooltipTrigger className="inline-flex">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-accent)]" />
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[220px] text-[11px]">
+                  Active filters: {[
+                    focus !== 'all' && `Focus: ${focus}`,
+                    timeRange !== '1y' && `Range: ${timeRange}`,
+                    reportType !== 'all' && `Type: ${reportType}`,
+                  ].filter(Boolean).join(', ')}
+                </TooltipContent>
+              </Tooltip>
             )}
           </button>
           {insights && insights.length > 0 && (
@@ -735,6 +748,7 @@ function AiInsightsSection({ hasCompany, hasPeers }: { hasCompany: boolean; hasP
 const FALLBACK_YEAR = new Date().getFullYear() - 1
 
 export function DashboardPage() {
+  const queryClient = useQueryClient()
   const { defaultYear, availableYears, isLoading: yearLoading } = useSmartYear()
   const [fiscalYear, setFiscalYear] = useState<number | null>(null)
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>('financial')
@@ -1152,7 +1166,7 @@ export function DashboardPage() {
           value={String(effectiveYear)}
           onValueChange={(v) => { if (v) setFiscalYear(Number(v)) }}
         >
-          <SelectTrigger className="w-[120px] rounded-lg border-border bg-card text-[13px] text-foreground">
+          <SelectTrigger className={`w-[120px] rounded-lg border-border bg-card text-[13px] text-foreground${yearLoading ? ' animate-pulse' : ''}`}>
             <SelectValue>FY {effectiveYear}</SelectValue>
           </SelectTrigger>
           <SelectContent align="end" className="rounded-lg border-border bg-card text-[13px]">
@@ -1537,6 +1551,13 @@ export function DashboardPage() {
                 <p className="text-[12px] text-muted-foreground max-w-sm">
                   Reports have been extracted but currency conversion to CHF is pending. This usually resolves automatically — try refreshing in a moment.
                 </p>
+                <button
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['kpi-values'] })}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-[11px] font-medium text-white transition-all hover:opacity-90 cursor-pointer"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Refresh
+                </button>
               </div>
             ) : companiesWithData.length === 0 ? (
               <SetupGuidanceState hasCompany={hasCompany} hasPeers={hasPeers} />
@@ -1774,6 +1795,11 @@ export function DashboardPage() {
               })
             )}
           </div>
+          {recentDocuments.length > 0 && (
+            <Link to="/reports" className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[var(--color-accent)] hover:underline">
+              View all documents <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
         </div>
 
         {/* Recent Activity */}

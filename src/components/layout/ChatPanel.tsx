@@ -62,6 +62,7 @@ export function ChatPanel() {
   const [activeSessionId, setActiveSessionId] = useState<string | undefined>()
   const [input, setInput] = useState('')
   const [showHistory, setShowHistory] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)
@@ -145,7 +146,20 @@ export function ChatPanel() {
     setInput('')
   }
 
+  // 2-click delete confirmation: first click shows "Confirm?", second executes
+  const confirmDeleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const handleDeleteSession = async (id: string) => {
+    if (confirmDeleteId !== id) {
+      setConfirmDeleteId(id)
+      // Reset after 3 seconds if not confirmed
+      if (confirmDeleteTimerRef.current) clearTimeout(confirmDeleteTimerRef.current)
+      confirmDeleteTimerRef.current = setTimeout(() => setConfirmDeleteId(null), 3000)
+      return
+    }
+    // Second click — execute delete
+    setConfirmDeleteId(null)
+    if (confirmDeleteTimerRef.current) clearTimeout(confirmDeleteTimerRef.current)
     try {
       await deleteSession.mutateAsync(id)
       if (activeSessionId === id) setActiveSessionId(undefined)
@@ -244,10 +258,19 @@ export function ChatPanel() {
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id) }}
-                    className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-[var(--color-signal-red)]"
-                    aria-label="Delete chat"
+                    className={cn(
+                      'ml-2 transition-opacity text-muted-foreground',
+                      confirmDeleteId === s.id
+                        ? 'opacity-100 !text-[var(--color-signal-red)] font-medium text-[11px]'
+                        : 'opacity-0 group-hover:opacity-100 hover:text-[var(--color-signal-red)]',
+                    )}
+                    aria-label={confirmDeleteId === s.id ? 'Confirm delete chat' : 'Delete chat'}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    {confirmDeleteId === s.id ? (
+                      <span>Confirm?</span>
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
                   </button>
                 </div>
               ))

@@ -150,6 +150,13 @@ export function NotificationBell() {
               ))
             )}
           </div>
+
+          {/* Footer: show count hint when there are 20 notifications */}
+          {(notifications ?? []).length >= 20 && (
+            <div className="border-t border-border px-4 py-2 text-center">
+              <span className="text-[10px] text-muted-foreground">Showing latest 20 notifications</span>
+            </div>
+          )}
         </div>
       )}
     </div>

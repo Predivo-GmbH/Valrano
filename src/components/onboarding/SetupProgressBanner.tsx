@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { useOnboarding, useOnboardingDismissed, resetOnboarding } from '@/hooks/useOnboarding'
+import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { BookOpen, Building2, Calendar, Check, X } from 'lucide-react'
 
@@ -35,6 +36,16 @@ export function SetupProgressBanner() {
     }
   })
 
+  // Hydrate dismissal from user metadata (survives across devices)
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.user_metadata?.setup_banner_dismissed) {
+        setDismissed(true)
+        try { localStorage.setItem(DISMISS_KEY, 'true') } catch { /* ignore */ }
+      }
+    })
+  }, [])
+
   // Reset dismissal if the user hasn't completed setup and starts a new session
   useEffect(() => {
     if (status.isComplete) {
@@ -59,6 +70,10 @@ export function SetupProgressBanner() {
     } catch {
       // ignore
     }
+    // Persist dismissal to user metadata so it survives across devices/browsers
+    supabase.auth.updateUser({ data: { setup_banner_dismissed: true } }).catch(() => {
+      // Non-critical — localStorage is the primary mechanism, backend sync is best-effort
+    })
   }
 
   return (
@@ -69,6 +84,7 @@ export function SetupProgressBanner() {
           <p className="text-sm font-medium text-foreground">
             Setup {status.completedSteps}/{status.totalSteps} complete
           </p>
+          {/* Desktop: full step labels */}
           <div className="hidden items-center gap-3 sm:flex">
             {STEPS.map((step) => {
               const StepIcon = step.icon
@@ -88,6 +104,22 @@ export function SetupProgressBanner() {
                   )}
                   <span>{step.label}</span>
                 </div>
+              )
+            })}
+          </div>
+          {/* Mobile: compact dot indicators */}
+          <div className="flex items-center gap-1.5 sm:hidden">
+            {STEPS.map((step) => {
+              const done = status[step.key]
+              return (
+                <div
+                  key={step.key}
+                  className={cn(
+                    'size-2 rounded-full',
+                    done ? 'bg-accent' : 'bg-muted-foreground/30',
+                  )}
+                  title={step.label}
+                />
               )
             })}
           </div>

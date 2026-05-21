@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
                 placeholder="you@company.com" />
             </div>
             <button type="submit" disabled={loading}
-              className="w-full rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90 disabled:opacity-50">
+              className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-medium text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50">
               {loading ? 'Sending...' : 'Send Reset Link'}
             </button>
           </form>

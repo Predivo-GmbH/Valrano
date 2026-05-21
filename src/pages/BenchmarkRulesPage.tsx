@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useNavigate } from 'react-router-dom'
-import { useBenchmarkRules, useCreateBenchmarkRule, useDeleteBenchmarkRule } from '@/hooks/useBenchmark'
+import { useBenchmarkRules, useCreateBenchmarkRule, useUpdateBenchmarkRule, useDeleteBenchmarkRule } from '@/hooks/useBenchmark'
 import { useCompanies, useKpiDefinitions } from '@/hooks/useData'
 import { useMyCompanies } from '@/hooks/useMyCompany'
 import type { NarrativeStyle, KpiSelectionItem } from '@/types/database'
@@ -19,7 +19,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { CompanyLogo } from '@/components/ui/company-logo'
-import { Settings, Plus, Trash2, Loader2, FileText, Zap } from 'lucide-react'
+import { Settings, Plus, Trash2, Loader2, FileText, Zap, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state'
 
@@ -57,14 +57,24 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 interface CreateRuleDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  editingRule?: {
+    id: string
+    name: string
+    description?: string | null
+    customer_company_id: string
+    narrative_style: NarrativeStyle
+    auto_generate: boolean
+    kpi_selection: KpiSelectionItem[]
+  } | null
 }
 
-function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
+function CreateRuleDialog({ open, onOpenChange, editingRule }: CreateRuleDialogProps) {
   const navigate = useNavigate()
   const { data: companies } = useCompanies()
   const { data: myCompanies } = useMyCompanies()
   const { data: kpiDefs } = useKpiDefinitions()
   const createMutation = useCreateBenchmarkRule()
+  const updateMutation = useUpdateBenchmarkRule()
   const hasCompany = (myCompanies ?? []).length > 0
 
   // Derive default customer company from my_companies primary record
@@ -75,18 +85,20 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
     return match?.id ?? ''
   })()
 
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [customerCompanyId, setCustomerCompanyId] = useState('')
+  const [name, setName] = useState(editingRule?.name ?? '')
+  const [description, setDescription] = useState(editingRule?.description ?? '')
+  const [customerCompanyId, setCustomerCompanyId] = useState(editingRule?.customer_company_id ?? '')
 
-  const [narrativeStyle, setNarrativeStyle] = useState<NarrativeStyle>('executive_brief')
+  const [narrativeStyle, setNarrativeStyle] = useState<NarrativeStyle>(editingRule?.narrative_style ?? 'executive_brief')
 
   // The effective company ID: user's selection takes priority, otherwise derived default
   const effectiveCompanyId = customerCompanyId || defaultCustomerCompanyId
-  const [autoGenerate, setAutoGenerate] = useState(true)
-  const [selectedKpis, setSelectedKpis] = useState<Set<string>>(new Set())
+  const [autoGenerate, setAutoGenerate] = useState(editingRule?.auto_generate ?? true)
+  const [selectedKpis, setSelectedKpis] = useState<Set<string>>(
+    new Set(editingRule?.kpi_selection.map((k) => k.kpi_definition_id) ?? [])
+  )
 
-  const handleCreate = async () => {
+  const handleSubmit = async () => {
     if (!name.trim()) { toast.error('Enter a rule name'); return }
     if (!effectiveCompanyId) { toast.error('Select a customer company'); return }
     if (selectedKpis.size === 0) { toast.error('Select at least one KPI'); return }
@@ -101,21 +113,33 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
       }))
 
     try {
-      await createMutation.mutateAsync({
-        customer_company_id: effectiveCompanyId,
-        name: name.trim(),
-        description: description.trim() || undefined,
-        kpi_selection: kpiSelection,
-        narrative_style: narrativeStyle,
-        auto_generate: autoGenerate,
-      })
-      toast.success('Benchmark rule created')
+      if (editingRule) {
+        await updateMutation.mutateAsync({
+          id: editingRule.id,
+          name: name.trim(),
+          description: description.trim() || undefined,
+          kpi_selection: kpiSelection,
+          narrative_style: narrativeStyle,
+          auto_generate: autoGenerate,
+        })
+        toast.success('Benchmark rule updated')
+      } else {
+        await createMutation.mutateAsync({
+          customer_company_id: effectiveCompanyId,
+          name: name.trim(),
+          description: description.trim() || undefined,
+          kpi_selection: kpiSelection,
+          narrative_style: narrativeStyle,
+          auto_generate: autoGenerate,
+        })
+        toast.success('Benchmark rule created')
+      }
       onOpenChange(false)
       setName('')
       setDescription('')
       setSelectedKpis(new Set())
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create rule')
+      toast.error(err instanceof Error ? err.message : editingRule ? 'Failed to update rule' : 'Failed to create rule')
     }
   }
 
@@ -136,7 +160,7 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Benchmark Rule</DialogTitle>
+          <DialogTitle>{editingRule ? 'Edit Rule' : 'Create Benchmark Rule'}</DialogTitle>
           <DialogDescription>
             Define how competitive benchmark documents are generated.
           </DialogDescription>
@@ -270,14 +294,14 @@ function CreateRuleDialog({ open, onOpenChange }: CreateRuleDialogProps) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleCreate} disabled={createMutation.isPending}>
-            {createMutation.isPending ? (
+          <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
+            {(createMutation.isPending || updateMutation.isPending) ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Creating…
+                {editingRule ? 'Saving…' : 'Creating…'}
               </>
             ) : (
-              'Create Rule'
+              editingRule ? 'Save Changes' : 'Create Rule'
             )}
           </Button>
         </DialogFooter>
@@ -296,6 +320,7 @@ export function BenchmarkRulesPage() {
   const { data: rules, isLoading } = useBenchmarkRules()
   const deleteMutation = useDeleteBenchmarkRule()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingRule, setEditingRule] = useState<Parameters<typeof CreateRuleDialog>[0]['editingRule']>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
 
   const handleDelete = (id: string, name: string) => {
@@ -327,7 +352,7 @@ export function BenchmarkRulesPage() {
             Configure how competitive benchmark documents are generated from extracted KPI data.
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button onClick={() => { setEditingRule(null); setDialogOpen(true) }}>
           <Plus className="h-4 w-4" />
           Create Rule
         </Button>
@@ -372,22 +397,50 @@ export function BenchmarkRulesPage() {
                     )}
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(rule.id, rule.name)}
-                  disabled={deleteMutation.isPending}
-                  aria-label={`Delete rule ${rule.name}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setEditingRule({
+                        id: rule.id,
+                        name: rule.name,
+                        description: rule.description,
+                        customer_company_id: rule.customer_company_id,
+                        narrative_style: rule.narrative_style,
+                        auto_generate: rule.auto_generate,
+                        kpi_selection: rule.kpi_selection,
+                      })
+                      setDialogOpen(true)
+                    }}
+                    aria-label={`Edit rule ${rule.name}`}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDelete(rule.id, rule.name)}
+                    disabled={deleteMutation.isPending}
+                    aria-label={`Delete rule ${rule.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      <CreateRuleDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <CreateRuleDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) setEditingRule(null)
+        }}
+        editingRule={editingRule}
+      />
 
       <ConfirmDeleteDialog
         open={deleteTarget !== null}

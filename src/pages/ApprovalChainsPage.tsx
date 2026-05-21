@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Pencil } from 'lucide-react'
 import { PremiumSelect } from '@/components/ui/premium-select'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { useApprovalChains, useCreateApprovalChain } from '@/hooks/useBenchmark'
+import { useApprovalChains, useCreateApprovalChain, useUpdateApprovalChain, useDeleteApprovalChain } from '@/hooks/useBenchmark'
 import { useBenchmarkRules } from '@/hooks/useBenchmark'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import type { ApprovalRole, ApprovalChainStep } from '@/types/database'
 
 const ROLE_LABELS: Record<ApprovalRole, string> = {
@@ -19,7 +20,15 @@ const ROLE_LABELS: Record<ApprovalRole, string> = {
 export function ApprovalChainsPage() {
   const { data: chains, isLoading } = useApprovalChains()
   const { data: rules } = useBenchmarkRules()
+  const deleteMutation = useDeleteApprovalChain()
   const [showCreate, setShowCreate] = useState(false)
+  const [editingChain, setEditingChain] = useState<{
+    id: string
+    name: string
+    benchmark_rule_id: string | null
+    steps: ApprovalChainStep[]
+  } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
 
   return (
     <>
@@ -66,9 +75,34 @@ export function ApprovalChainsPage() {
                         </p>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {steps.length} step{steps.length !== 1 ? 's' : ''}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground mr-2">
+                        {steps.length} step{steps.length !== 1 ? 's' : ''}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setEditingChain({
+                            id: chain.id,
+                            name: chain.name,
+                            benchmark_rule_id: chain.benchmark_rule_id ?? null,
+                            steps,
+                          })
+                          setShowCreate(true)
+                        }}
+                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+                        aria-label={`Edit chain ${chain.name}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget({ id: chain.id, name: chain.name })}
+                        disabled={deleteMutation.isPending}
+                        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]"
+                        aria-label={`Delete chain ${chain.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {steps.map((step, i) => (
@@ -92,9 +126,28 @@ export function ApprovalChainsPage() {
         {showCreate && (
           <CreateChainDialog
             rules={(rules ?? []).map((r) => ({ id: r.id, name: r.name }))}
-            onClose={() => setShowCreate(false)}
+            editingChain={editingChain}
+            onClose={() => { setShowCreate(false); setEditingChain(null) }}
           />
         )}
+
+        <ConfirmDeleteDialog
+          open={deleteTarget !== null}
+          onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+          title="Delete Approval Chain"
+          description={deleteTarget ? `Delete chain "${deleteTarget.name}"? This action cannot be undone.` : ''}
+          onConfirm={async () => {
+            if (!deleteTarget) return
+            try {
+              await deleteMutation.mutateAsync(deleteTarget.id)
+              toast.success('Approval chain deleted')
+              setDeleteTarget(null)
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : 'Failed to delete')
+            }
+          }}
+          isPending={deleteMutation.isPending}
+        />
       </div>
     </>
   )
@@ -102,18 +155,28 @@ export function ApprovalChainsPage() {
 
 function CreateChainDialog({
   rules,
+  editingChain,
   onClose,
 }: {
   rules: { id: string; name: string }[]
+  editingChain?: {
+    id: string
+    name: string
+    benchmark_rule_id: string | null
+    steps: ApprovalChainStep[]
+  } | null
   onClose: () => void
 }) {
-  const [name, setName] = useState('')
-  const [ruleId, setRuleId] = useState('')
-  const [steps, setSteps] = useState<ApprovalChainStep[]>([
-    { step_number: 1, role: 'analyst', user_id: null, is_optional: false },
-    { step_number: 2, role: 'manager', user_id: null, is_optional: false },
-  ])
+  const [name, setName] = useState(editingChain?.name ?? '')
+  const [ruleId, setRuleId] = useState(editingChain?.benchmark_rule_id ?? '')
+  const [steps, setSteps] = useState<ApprovalChainStep[]>(
+    editingChain?.steps ?? [
+      { step_number: 1, role: 'analyst', user_id: null, is_optional: false },
+      { step_number: 2, role: 'manager', user_id: null, is_optional: false },
+    ]
+  )
   const createMutation = useCreateApprovalChain()
+  const updateMutation = useUpdateApprovalChain()
 
   function addStep() {
     const roles: ApprovalRole[] = ['analyst', 'manager', 'director', 'c_suite']
@@ -127,26 +190,44 @@ function CreateChainDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    createMutation.mutate(
-      {
-        name,
-        benchmark_rule_id: ruleId || null,
-        steps,
-      },
-      {
-        onSuccess: () => {
-          toast.success('Approval chain created')
-          onClose()
+    if (editingChain) {
+      updateMutation.mutate(
+        {
+          id: editingChain.id,
+          name,
+          benchmark_rule_id: ruleId || null,
+          steps,
         },
-        onError: (err) => toast.error(`Failed: ${err.message}`),
-      }
-    )
+        {
+          onSuccess: () => {
+            toast.success('Approval chain updated')
+            onClose()
+          },
+          onError: (err) => toast.error(`Failed: ${err.message}`),
+        }
+      )
+    } else {
+      createMutation.mutate(
+        {
+          name,
+          benchmark_rule_id: ruleId || null,
+          steps,
+        },
+        {
+          onSuccess: () => {
+            toast.success('Approval chain created')
+            onClose()
+          },
+          onError: (err) => toast.error(`Failed: ${err.message}`),
+        }
+      )
+    }
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6" onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-4 text-lg font-semibold text-foreground">Create Approval Chain</h2>
+        <h2 className="mb-4 text-lg font-semibold text-foreground">{editingChain ? 'Edit Approval Chain' : 'Create Approval Chain'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="chain-name" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Name</label>
@@ -226,8 +307,8 @@ function CreateChainDialog({
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="min-h-[44px] rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]">Cancel</button>
-            <button type="submit" disabled={createMutation.isPending} className="min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2">
-              {createMutation.isPending ? 'Creating...' : 'Create Chain'}
+            <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="min-h-[44px] rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-[var(--color-primary-foreground)] transition-colors hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2">
+              {(createMutation.isPending || updateMutation.isPending) ? (editingChain ? 'Saving...' : 'Creating...') : (editingChain ? 'Save Changes' : 'Create Chain')}
             </button>
           </div>
         </form>

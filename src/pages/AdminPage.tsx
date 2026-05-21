@@ -9,8 +9,9 @@ import {
   getIrCatalogEnabledUsers, setIrCatalogEnabledUsers,
 } from '@/lib/dev-flags'
 import type { SubscriptionTier } from '@/types/database'
-import { ShieldCheck, Trash2 } from 'lucide-react'
+import { ShieldCheck, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { toast } from 'sonner'
 
 const TIERS: SubscriptionTier[] = ['starter', 'professional', 'enterprise']
@@ -97,6 +98,10 @@ function AdminPanel({
   })
 
   const [confirmWipe, setConfirmWipe] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [confirmTier, setConfirmTier] = useState<{ userId: string; email: string; currentTier: string; newTier: string } | null>(null)
+  const PAGE_SIZE = 20
 
   const wipeAccount = useMutation({
     mutationFn: async (userId: string) => {
@@ -191,6 +196,18 @@ function AdminPanel({
         Manage subscription tiers, news gathering, and IR catalog auto-scanning for all registered accounts.
       </p>
 
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
+          placeholder="Search by email or company name..."
+          className="h-10 w-full max-w-sm rounded-lg border border-border bg-card pl-10 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-[var(--color-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+        />
+      </div>
+
       <Card className="overflow-x-auto p-0">
         <table className="w-full min-w-[700px] text-sm" aria-label="User administration">
           <thead>
@@ -203,7 +220,13 @@ function AdminPanel({
             </tr>
           </thead>
           <tbody>
-            {users?.map((u) => {
+            {(() => {
+              const q = searchQuery.toLowerCase()
+              const filtered = (users ?? []).filter(u =>
+                !q || u.email.toLowerCase().includes(q) || (u.company_name ?? '').toLowerCase().includes(q)
+              )
+              const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+              return paginated.map((u) => {
               const newsEnabled = !disabledUsers.has(u.id)
               return (
                 <tr key={u.id} className="border-b border-border/50 last:border-0 hover:bg-[var(--color-bg-tertiary)]/20 transition-colors">
@@ -230,7 +253,10 @@ function AdminPanel({
                       {TIERS.map((tier) => (
                         <button
                           key={tier}
-                          onClick={() => updateTier.mutate({ userId: u.id, tier })}
+                          onClick={() => {
+                            if (u.tier === tier) return
+                            setConfirmTier({ userId: u.id, email: u.email, currentTier: u.tier, newTier: tier })
+                          }}
                           disabled={updateTier.isPending}
                           className={`rounded-md px-2.5 py-1.5 min-h-[44px] text-[11px] font-medium transition-colors cursor-pointer ${
                             u.tier === tier
@@ -314,10 +340,61 @@ function AdminPanel({
                   </td>
                 </tr>
               )
-            })}
+            })
+          })()}
           </tbody>
         </table>
       </Card>
+
+      {/* Pagination */}
+      {(() => {
+        const q = searchQuery.toLowerCase()
+        const totalFiltered = (users ?? []).filter(u =>
+          !q || u.email.toLowerCase().includes(q) || (u.company_name ?? '').toLowerCase().includes(q)
+        ).length
+        const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE))
+        if (totalPages <= 1) return null
+        return (
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] text-muted-foreground">
+              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, totalFiltered)}–{Math.min(currentPage * PAGE_SIZE, totalFiltered)} of {totalFiltered}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="flex h-8 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Previous
+              </button>
+              <span className="text-[12px] text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="flex h-8 items-center gap-1 rounded-md border border-border bg-card px-2.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+              >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Tier change confirmation */}
+      <ConfirmDeleteDialog
+        open={!!confirmTier}
+        onOpenChange={(open) => { if (!open) setConfirmTier(null) }}
+        title="Change subscription tier"
+        description={confirmTier ? `Change ${confirmTier.email}'s tier from ${confirmTier.currentTier} to ${confirmTier.newTier}?` : ''}
+        onConfirm={() => {
+          if (!confirmTier) return
+          updateTier.mutate({ userId: confirmTier.userId, tier: confirmTier.newTier as SubscriptionTier })
+          setConfirmTier(null)
+        }}
+        isPending={updateTier.isPending}
+      />
     </div>
   )
 }

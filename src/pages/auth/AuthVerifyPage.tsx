@@ -46,10 +46,15 @@ export default function AuthVerifyPage() {
             </svg>
           </div>
           <p className="text-sm text-[var(--color-muted-foreground)]">{error}</p>
-          <a href={type === 'signup' ? '/signup' : '/login'}
-            className="mt-4 inline-block text-sm font-medium text-[var(--color-accent)] hover:underline">
-            {type === 'signup' ? 'Try signing up again' : 'Go to login'}
-          </a>
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <a href={type === 'signup' ? '/signup' : '/login'}
+              className="inline-block text-sm font-medium text-[var(--color-accent)] hover:underline">
+              {type === 'signup' ? 'Try signing up again' : 'Go to login'}
+            </a>
+            <p className="text-xs text-[var(--color-muted-foreground)]">
+              You can request a new code from the {type === 'signup' ? 'sign up' : 'login'} page.
+            </p>
+          </div>
         </div>
       </div>
     )

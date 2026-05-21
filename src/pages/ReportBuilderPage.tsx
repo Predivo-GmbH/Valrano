@@ -14,6 +14,7 @@ import {
   Loader2,
   Pencil,
   Presentation,
+  Search,
 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -71,6 +72,8 @@ export function ReportBuilderPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabFilter>('all')
   const [showCreate, setShowCreate] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'name'>('newest')
 
   // Data fetching
   const { data: documents, isLoading: docsLoading } = useBenchmarkDocuments({})
@@ -98,8 +101,26 @@ export function ReportBuilderPage() {
   const showBenchmarkDocs = activeTab === 'all' || activeTab === 'benchmark'
   const showCustomReports = activeTab === 'all' || activeTab === 'custom'
 
-  const hasDocs = (documents ?? []).length > 0
-  const hasReports = (reports ?? []).length > 0
+  // Filter + sort benchmark docs
+  const filteredDocs = (documents ?? [])
+    .filter((d) => !searchQuery || d.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrder === 'name') return a.title.localeCompare(b.title)
+      if (sortOrder === 'oldest') return (a.generated_at ?? '').localeCompare(b.generated_at ?? '')
+      return (b.generated_at ?? '').localeCompare(a.generated_at ?? '') // newest
+    })
+
+  // Filter + sort custom reports
+  const filteredReports = (reports ?? [])
+    .filter((r) => !searchQuery || r.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrder === 'name') return a.title.localeCompare(b.title)
+      if (sortOrder === 'oldest') return (a.created_at ?? '').localeCompare(b.created_at ?? '')
+      return (b.created_at ?? '').localeCompare(a.created_at ?? '') // newest
+    })
+
+  const hasDocs = filteredDocs.length > 0
+  const hasReports = filteredReports.length > 0
   const hasAny = hasDocs || hasReports
 
   return (
@@ -162,6 +183,32 @@ export function ReportBuilderPage() {
           ))}
         </div>
 
+        {/* Search + Sort */}
+        {(activeTab === 'all' || activeTab === 'benchmark' || activeTab === 'custom') && (
+          <div className="mb-6 flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search reports..."
+                className="w-full rounded-lg border border-border bg-card pl-9 pr-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50"
+              />
+            </div>
+            <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'newest' | 'oldest' | 'name')}>
+              <SelectTrigger className="w-[160px] text-[13px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+                <SelectItem value="name">Name A-Z</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {/* Content */}
         {isLoading ? (
           <CardSkeleton />
@@ -170,12 +217,12 @@ export function ReportBuilderPage() {
         ) : (
           <div className="space-y-3">
             {/* Benchmark Documents */}
-            {showBenchmarkDocs && (documents ?? []).map((doc) => (
+            {showBenchmarkDocs && filteredDocs.map((doc) => (
               <BenchmarkDocCard key={`doc-${doc.id}`} doc={doc} formatDate={formatDate} />
             ))}
 
             {/* Custom Reports */}
-            {showCustomReports && (reports ?? []).map((report) => (
+            {showCustomReports && filteredReports.map((report) => (
               <CustomReportCard
                 key={`report-${report.id}`}
                 report={report}
@@ -215,9 +262,9 @@ export function ReportBuilderPage() {
         {/* Count */}
         {hasAny && !isLoading && (
           <p className="mt-4 text-[11px] text-muted-foreground">
-            {activeTab === 'all' && `${(documents ?? []).length + (reports ?? []).length} total`}
-            {activeTab === 'benchmark' && `${(documents ?? []).length} document${(documents ?? []).length !== 1 ? 's' : ''}`}
-            {activeTab === 'custom' && `${(reports ?? []).length} report${(reports ?? []).length !== 1 ? 's' : ''}`}
+            {activeTab === 'all' && `${filteredDocs.length + filteredReports.length} total`}
+            {activeTab === 'benchmark' && `${filteredDocs.length} document${filteredDocs.length !== 1 ? 's' : ''}`}
+            {activeTab === 'custom' && `${filteredReports.length} report${filteredReports.length !== 1 ? 's' : ''}`}
           </p>
         )}
 

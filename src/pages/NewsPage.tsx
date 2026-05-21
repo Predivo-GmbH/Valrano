@@ -91,6 +91,7 @@ function weekLabel(weekStart: string): string {
 export default function NewsPage() {
   const [selectedCompany, setSelectedCompany] = useState<string>('')
   const [selectedTopic, setSelectedTopic] = useState<string>('')
+  const [selectedSentiment, setSelectedSentiment] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState('')
 
   const { data: companies } = useCompanies()
@@ -106,32 +107,42 @@ export default function NewsPage() {
     if (!companies?.length) return
     setFetchingAll(true)
     let totalNew = 0
+    const failedNames: string[] = []
     try {
       for (const company of companies) {
         try {
           const result = await fetchNews.mutateAsync(company.id)
           totalNew += result?.new_articles ?? 0
         } catch {
-          // Skip failures for individual companies
+          failedNames.push(company.name)
         }
       }
       toast.success(`Fetched ${totalNew} new article${totalNew !== 1 ? 's' : ''} across ${companies.length} companies`)
+      if (failedNames.length > 0) {
+        toast.error('Failed to fetch news for: ' + failedNames.join(', '))
+      }
     } finally {
       setFetchingAll(false)
     }
   }
 
-  // Filter by search
+  // Filter by search + sentiment
   const filteredNews = useMemo(() => {
     if (!news) return []
-    if (!searchQuery.trim()) return news
-    const q = searchQuery.toLowerCase()
-    return news.filter(a =>
-      a.title.toLowerCase().includes(q) ||
-      a.ai_summary?.toLowerCase().includes(q) ||
-      a.snippet?.toLowerCase().includes(q)
-    )
-  }, [news, searchQuery])
+    let result = news
+    if (selectedSentiment) {
+      result = result.filter(a => (a.sentiment ?? 'neutral') === selectedSentiment)
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(a =>
+        a.title.toLowerCase().includes(q) ||
+        a.ai_summary?.toLowerCase().includes(q) ||
+        a.snippet?.toLowerCase().includes(q)
+      )
+    }
+    return result
+  }, [news, searchQuery, selectedSentiment])
 
   const weekGroups = useMemo(() => groupByWeek(filteredNews), [filteredNews])
 
@@ -195,6 +206,21 @@ export default function NewsPage() {
           triggerClassName="h-10"
         />
 
+        {/* Sentiment filter */}
+        <PremiumSelect
+          value={selectedSentiment}
+          onChange={setSelectedSentiment}
+          options={[
+            { value: '', label: 'All Sentiments' },
+            { value: 'positive', label: 'Positive' },
+            { value: 'negative', label: 'Negative' },
+            { value: 'neutral', label: 'Neutral' },
+            { value: 'mixed', label: 'Mixed' },
+          ]}
+          icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+          triggerClassName="h-10"
+        />
+
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
@@ -232,6 +258,7 @@ export default function NewsPage() {
         <span>{weekGroups.length} weeks</span>
         {selectedCompany && <span>Company: {companyMap.get(selectedCompany)}</span>}
         {selectedTopic && <span>Topic: {selectedTopic}</span>}
+        {selectedSentiment && <span>Sentiment: {selectedSentiment}</span>}
       </div>
 
       {/* Loading */}

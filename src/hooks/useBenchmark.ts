@@ -314,6 +314,42 @@ export function useCreateApprovalChain() {
   })
 }
 
+export function useUpdateApprovalChain() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (params: { id: string; name?: string; benchmark_rule_id?: string | null; steps?: unknown[] }) => {
+      const { id, ...updates } = params
+      const { data, error } = await supabase
+        .from('approval_chains')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['approval-chains'] })
+    },
+  })
+}
+
+export function useDeleteApprovalChain() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('approval_chains')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['approval-chains'] })
+    },
+  })
+}
+
 export function useApprovalSteps(documentId: string | undefined) {
   return useQuery({
     queryKey: ['approval-steps', documentId],

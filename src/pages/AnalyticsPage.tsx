@@ -11,6 +11,7 @@ import {
   Table2,
   ScatterChart as ScatterIcon,
   Grid3X3,
+  Download,
 } from 'lucide-react'
 import { CompanyLogo } from '@/components/ui/company-logo'
 import { Card, CardContent } from '@/components/ui/card'
@@ -103,7 +104,26 @@ const SCATTER_COLORS = [
   '#84cc16',
   '#f97316',
   '#6366f1',
+  '#D946EF',
+  '#0EA5E9',
+  '#A3E635',
+  '#F472B6',
+  '#2DD4BF',
 ]
+
+function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
+  const escape = (v: string | number) => {
+    const s = String(v)
+    return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const csv = [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
 
 export function AnalyticsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -470,9 +490,27 @@ function TrendsPanel({
     <div className="space-y-6 section-fade-in">
       {/* Line Chart */}
       <div className="card-premium card-accent-top rounded-xl border border-border bg-card p-5">
-        <h3 className="mb-4 font-semibold text-foreground">
-          {trends[0].kpi_name} — Multi-Year Trend
-        </h3>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="font-semibold text-foreground">
+            {trends[0].kpi_name} — Multi-Year Trend
+          </h3>
+          <button
+            type="button"
+            onClick={() => {
+              const headers = ['Year', ...companyNames.slice(0, 8), 'Peer Median']
+              const csvRows = chartData.map(row => [
+                row.year as number,
+                ...companyNames.slice(0, 8).map(name => (row[name] as number) ?? ''),
+                (row['Peer Median'] as number) ?? '',
+              ])
+              downloadCsv('trends.csv', headers, csvRows)
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
+            aria-label="Download trends as CSV"
+          >
+            <Download className="h-3.5 w-3.5" /> Export
+          </button>
+        </div>
         <div className="h-[350px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
@@ -515,15 +553,36 @@ function TrendsPanel({
             </LineChart>
           </ResponsiveContainer>
         </div>
+        {companyNames.length > 8 && (
+          <p className="mt-2 text-xs text-muted-foreground">Showing 8 of {companyNames.length} companies</p>
+        )}
       </div>
 
       {/* CAGR Table */}
       {cagrData && cagrData.length > 0 && (
         <div className="card-premium rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-5 py-3">
+          <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <h3 className="font-semibold text-foreground">
               CAGR ({startYear}–{endYear})
             </h3>
+            <button
+              type="button"
+              onClick={() => {
+                const headers = ['Company', 'KPI', String(startYear), String(endYear), 'CAGR %']
+                const csvRows = cagrData.map(row => [
+                  row.company_name,
+                  row.kpi_name,
+                  row.start_value,
+                  row.end_value,
+                  row.cagr_pct,
+                ])
+                downloadCsv('cagr.csv', headers, csvRows)
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
+              aria-label="Download CAGR as CSV"
+            >
+              <Download className="h-3.5 w-3.5" /> Export
+            </button>
           </div>
           <ScrollFadeWrapper>
             <table className="table-premium w-full text-sm" aria-label="Compound annual growth rate">
@@ -557,6 +616,9 @@ function TrendsPanel({
               </tbody>
             </table>
           </ScrollFadeWrapper>
+          {cagrData.length > 20 && (
+            <p className="px-5 py-2 text-xs text-muted-foreground">Showing 20 of {cagrData.length} rows</p>
+          )}
         </div>
       )}
 
@@ -581,6 +643,9 @@ function TrendsPanel({
               </div>
             ))}
           </div>
+          {momentumData.length > 12 && (
+            <p className="mt-2 text-xs text-muted-foreground">Showing 12 of {momentumData.length} indicators</p>
+          )}
         </div>
       )}
     </div>
@@ -619,63 +684,86 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
   const visibleKpis = data.kpis
 
   return (
-    <ScrollFadeWrapper className="card-premium rounded-xl border border-border bg-card">
-      <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }} aria-label="Peer comparison heatmap">
-        <thead>
-          <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
-            <th scope="col" className="sticky left-0 z-10 bg-[var(--color-bg-tertiary)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground" style={{ width: '180px' }}>
-              Company
-            </th>
-            {visibleKpis.map((kpi) => (
-              <th scope="col" key={kpi.code} className="px-3 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                <TooltipProvider delay={200}>
-                  <UiTooltip>
-                    <TooltipTrigger className="cursor-help">
-                      {shortKpiLabel(kpi.name)}
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                      <p className="text-xs font-medium">{kpi.name}</p>
-                    </TooltipContent>
-                  </UiTooltip>
-                </TooltipProvider>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.companies.map((company, idx) => (
-            <tr
-              key={company.id}
-              className={cn(
-                'border-b border-border/50 last:border-0 transition-colors hover:bg-[var(--color-accent)]/5',
-                idx % 2 === 1 && 'bg-[var(--color-bg-tertiary)]/30',
-              )}
-            >
-              <td className="sticky left-0 z-10 bg-card px-4 py-3" style={{ width: '180px' }}>
-                {(() => { const full = allCompanies?.find(c => c.id === company.id); return (
-                <Link to={`/companies/${company.id}`} className="flex items-center gap-2 group min-w-0">
-                  <CompanyLogo logoUrl={full?.logo_url} websiteUrl={full?.website_url} name={company.name} size="xs" />
-                  <span className="font-medium text-foreground truncate group-hover:text-[var(--color-accent)] transition-colors">
-                    {company.name}
-                  </span>
-                </Link>
-                ) })()}
-              </td>
-              {visibleKpis.map((kpi) => {
+    <div className="card-premium rounded-xl border border-border bg-card">
+      <div className="flex items-center justify-between border-b border-border px-5 py-3">
+        <h3 className="font-semibold text-foreground">Pivot Table ({fiscalYear})</h3>
+        <button
+          type="button"
+          onClick={() => {
+            const headers = ['Company', ...visibleKpis.map(k => k.name)]
+            const csvRows = data.companies.map(company => [
+              company.name,
+              ...visibleKpis.map(kpi => {
                 const val = lookup.get(company.id)?.get(kpi.code)
-                return (
-                  <td key={kpi.code} className="px-3 py-3 text-right tabular-nums text-foreground">
-                    {val !== null && val !== undefined
-                      ? val.toLocaleString(undefined, { maximumFractionDigits: 1 })
-                      : <span className="text-muted-foreground/50">—</span>}
-                  </td>
-                )
-              })}
+                return val !== null && val !== undefined ? val : ''
+              }),
+            ])
+            downloadCsv('pivot-table.csv', headers, csvRows)
+          }}
+          className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
+          aria-label="Download pivot table as CSV"
+        >
+          <Download className="h-3.5 w-3.5" /> Export
+        </button>
+      </div>
+      <ScrollFadeWrapper>
+        <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }} aria-label="Peer comparison heatmap">
+          <thead>
+            <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
+              <th scope="col" className="sticky left-0 z-10 bg-[var(--color-bg-tertiary)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground" style={{ width: '180px' }}>
+                Company
+              </th>
+              {visibleKpis.map((kpi) => (
+                <th scope="col" key={kpi.code} className="px-3 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                  <TooltipProvider delay={200}>
+                    <UiTooltip>
+                      <TooltipTrigger className="cursor-help">
+                        {shortKpiLabel(kpi.name)}
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p className="text-xs font-medium">{kpi.name}</p>
+                      </TooltipContent>
+                    </UiTooltip>
+                  </TooltipProvider>
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </ScrollFadeWrapper>
+          </thead>
+          <tbody>
+            {data.companies.map((company, idx) => (
+              <tr
+                key={company.id}
+                className={cn(
+                  'border-b border-border/50 last:border-0 transition-colors hover:bg-[var(--color-accent)]/5',
+                  idx % 2 === 1 && 'bg-[var(--color-bg-tertiary)]/30',
+                )}
+              >
+                <td className="sticky left-0 z-10 bg-card px-4 py-3" style={{ width: '180px' }}>
+                  {(() => { const full = allCompanies?.find(c => c.id === company.id); return (
+                  <Link to={`/companies/${company.id}`} className="flex items-center gap-2 group min-w-0">
+                    <CompanyLogo logoUrl={full?.logo_url} websiteUrl={full?.website_url} name={company.name} size="xs" />
+                    <span className="font-medium text-foreground truncate group-hover:text-[var(--color-accent)] transition-colors">
+                      {company.name}
+                    </span>
+                  </Link>
+                  ) })()}
+                </td>
+                {visibleKpis.map((kpi) => {
+                  const val = lookup.get(company.id)?.get(kpi.code)
+                  return (
+                    <td key={kpi.code} className="px-3 py-3 text-right tabular-nums text-foreground">
+                      {val !== null && val !== undefined
+                        ? val.toLocaleString(undefined, { maximumFractionDigits: 1 })
+                        : <span className="text-muted-foreground/50">—</span>}
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </ScrollFadeWrapper>
+    </div>
   )
 }
 
@@ -821,7 +909,33 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
 
   return (
     <div className="space-y-4">
-      <ScrollFadeWrapper className="card-premium rounded-xl border border-border bg-card">
+      <div className="card-premium rounded-xl border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <h3 className="font-semibold text-foreground">Heatmap ({fiscalYear})</h3>
+          <button
+            type="button"
+            onClick={() => {
+              const headers = ['Company', ...visibleKpis.map(k => `${k.name} (Value)`), ...visibleKpis.map(k => `${k.name} (Percentile)`)]
+              const csvRows = data.companies.map(company => [
+                company.name,
+                ...visibleKpis.map(kpi => {
+                  const cell = lookup.get(company.id)?.get(kpi.code)
+                  return cell?.value !== null && cell?.value !== undefined ? cell.value : ''
+                }),
+                ...visibleKpis.map(kpi => {
+                  const cell = lookup.get(company.id)?.get(kpi.code)
+                  return cell?.percentile !== undefined ? cell.percentile : ''
+                }),
+              ])
+              downloadCsv('heatmap.csv', headers, csvRows)
+            }}
+            className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-[var(--color-bg-tertiary)] hover:text-foreground"
+            aria-label="Download heatmap as CSV"
+          >
+            <Download className="h-3.5 w-3.5" /> Export
+          </button>
+        </div>
+      <ScrollFadeWrapper>
         <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }} aria-label="Percentile ranking">
           <thead>
             <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
@@ -892,6 +1006,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
           </tbody>
         </table>
       </ScrollFadeWrapper>
+      </div>
 
       {/* Legend — smooth gradient bar */}
       <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">

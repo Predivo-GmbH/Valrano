@@ -4,9 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { KpiValue, KpiDefinition, Company } from '@/types/database'
 import { formatKpiValue, formatConfidence, confidenceColor } from '@/lib/format'
-import { CheckCircle2, Loader2, ClipboardCheck } from 'lucide-react'
+import { CheckCircle2, Loader2, ClipboardCheck, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CompanyLogo } from '@/components/ui/company-logo'
 
 // ---------------------------------------------------------------------------
@@ -67,6 +68,10 @@ function EmptyReviewState() {
 export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
   const queryClient = useQueryClient()
   const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set())
+  const [bulkApproving, setBulkApproving] = useState(false)
+  const [confidenceFilter, setConfidenceFilter] = useState<string>('all')
 
   // Fetch all KPI values that need review
   const { data: reviewItems, isLoading } = useQuery({
@@ -109,6 +114,62 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
     await approveMutation.mutateAsync(id)
   }
 
+  const handleBulkApprove = async () => {
+    if (selectedIds.size === 0) return
+    setBulkApproving(true)
+    const ids = Array.from(selectedIds)
+    for (const id of ids) {
+      try {
+        await approveMutation.mutateAsync(id)
+      } catch {
+        // continue with remaining
+      }
+    }
+    setSelectedIds(new Set())
+    setBulkApproving(false)
+  }
+
+  const handleFlag = (id: string) => {
+    setFlaggedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+        toast('Flag removed')
+      } else {
+        next.add(id)
+        toast('Value flagged for re-extraction')
+      }
+      return next
+    })
+  }
+
+  // Filter by confidence range
+  const filteredItems = (reviewItems ?? []).filter((row) => {
+    if (confidenceFilter === 'all') return true
+    const c = row.confidence ?? 0
+    if (confidenceFilter === 'low') return c < 0.65
+    if (confidenceFilter === 'medium') return c >= 0.65 && c < 0.85
+    if (confidenceFilter === 'high') return c >= 0.85
+    return true
+  })
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredItems.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredItems.map((r) => r.id)))
+    }
+  }
+
   const pendingCount = reviewItems?.length ?? 0
 
   const content = (
@@ -142,6 +203,38 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
         </div>
       )}
 
+      {/* Toolbar: Confidence filter + Bulk approve */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <Select value={confidenceFilter} onValueChange={(v) => v && setConfidenceFilter(v)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue>
+              {confidenceFilter === 'all' ? 'All confidence' : confidenceFilter === 'low' ? 'Low (<65%)' : confidenceFilter === 'medium' ? 'Medium (65-85%)' : 'High (≥85%)'}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All confidence</SelectItem>
+            <SelectItem value="low">Low (&lt;65%)</SelectItem>
+            <SelectItem value="medium">Medium (65-85%)</SelectItem>
+            <SelectItem value="high">High (&ge;85%)</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {selectedIds.size > 0 && (
+          <Button
+            size="sm"
+            onClick={handleBulkApprove}
+            disabled={bulkApproving}
+          >
+            {bulkApproving ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-3 w-3" />
+            )}
+            Approve selected ({selectedIds.size})
+          </Button>
+        )}
+      </div>
+
       {/* Table card */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
 
@@ -158,12 +251,21 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
             <table className="w-full min-w-max border-collapse" aria-label="KPI review">
               <thead>
                 <tr className="border-b border-border">
+                  <th scope="col" className="w-10 px-3 py-4">
+                    <input
+                      type="checkbox"
+                      checked={filteredItems.length > 0 && selectedIds.size === filteredItems.length}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-border"
+                      aria-label="Select all"
+                    />
+                  </th>
                   {['Company', 'KPI', 'Category', 'Raw Value', 'Normalized (CHF)', 'Confidence', 'Source', ''].map((h) => (
                     <th
                       scope="col"
                       key={h}
                       className={`px-6 py-4 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground ${
-                        h === '' ? 'w-28 text-right' : 'text-left'
+                        h === '' ? 'w-36 text-right' : 'text-left'
                       }`}
                     >
                       {h}
@@ -173,11 +275,22 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
               </thead>
 
               <tbody>
-                {reviewItems.map((row) => (
+                {filteredItems.map((row) => (
                   <tr
                     key={row.id}
-                    className="border-b border-border transition-colors duration-200 last:border-0 hover:bg-[var(--color-bg-tertiary)]"
+                    className={`border-b border-border transition-colors duration-200 last:border-0 hover:bg-[var(--color-bg-tertiary)] ${flaggedIds.has(row.id) ? 'bg-[var(--color-signal-amber)]/5' : ''}`}
                   >
+                    {/* Select */}
+                    <td className="w-10 px-3 py-5">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(row.id)}
+                        onChange={() => toggleSelect(row.id)}
+                        className="h-4 w-4 rounded border-border"
+                        aria-label={`Select ${row.companies?.name ?? 'row'}`}
+                      />
+                    </td>
+
                     {/* Company */}
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-2">
@@ -255,21 +368,37 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
                       )}
                     </td>
 
-                    {/* Approve action */}
+                    {/* Actions */}
                     <td className="px-6 py-5 text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleApprove(row.id)}
-                        disabled={approvingId === row.id}
-                      >
-                        {approvingId === row.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="h-3 w-3" />
+                      <div className="flex items-center justify-end gap-2">
+                        {flaggedIds.has(row.id) && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-signal-amber)]/10 px-2 py-0.5 text-[11px] font-semibold text-[var(--color-signal-amber)]">
+                            <AlertTriangle className="h-3 w-3" />
+                            Flagged
+                          </span>
                         )}
-                        Approve
-                      </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleFlag(row.id)}
+                          title={flaggedIds.has(row.id) ? 'Remove flag' : 'Flag for re-extraction'}
+                        >
+                          <AlertTriangle className={`h-3 w-3 ${flaggedIds.has(row.id) ? 'text-[var(--color-signal-amber)]' : ''}`} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleApprove(row.id)}
+                          disabled={approvingId === row.id}
+                        >
+                          {approvingId === row.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="h-3 w-3" />
+                          )}
+                          Approve
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}

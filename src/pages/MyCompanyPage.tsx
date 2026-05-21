@@ -447,13 +447,16 @@ function RecentReports({ reports }: { reports: ReportWithExtraction[] }) {
   const extractMutation = useExtractKpis()
   const normalizeMutation = useNormalizeKpis()
   const [retryingId, setRetryingId] = useState<string | null>(null)
+  const [extractionStep, setExtractionStep] = useState<'idle' | 'extracting' | 'normalizing'>('idle')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string; storagePath: string | null } | null>(null)
 
   async function handleRetry(reportId: string) {
     setRetryingId(reportId)
+    setExtractionStep('extracting')
     try {
       const extraction = await extractMutation.mutateAsync(reportId)
+      setExtractionStep('normalizing')
       try { await normalizeMutation.mutateAsync(reportId) } catch { /* non-fatal */ }
       toast.success(`Extracted ${extraction.total_kpis_extracted} KPIs`)
       queryClient.invalidateQueries({ queryKey: ['reports'] })
@@ -462,6 +465,7 @@ function RecentReports({ reports }: { reports: ReportWithExtraction[] }) {
       toast.error(`Extraction failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setRetryingId(null)
+      setExtractionStep('idle')
     }
   }
 
@@ -509,16 +513,23 @@ function RecentReports({ reports }: { reports: ReportWithExtraction[] }) {
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {(report.status === 'pending' || report.status === 'error') && (
+                    retryingId === report.id ? (
+                      <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        {extractionStep === 'extracting' ? 'Extracting KPIs...' : extractionStep === 'normalizing' ? 'Normalizing...' : 'Processing...'}
+                      </span>
+                    ) : (
                     <Button
                       variant="ghost"
                       size="icon-xs"
                       onClick={() => handleRetry(report.id)}
-                      disabled={retryingId === report.id}
+                      disabled={!!retryingId}
                       aria-label="Retry extraction"
                       title="Retry extraction"
                     >
-                      {retryingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
+                      <RotateCw className="h-3.5 w-3.5" />
                     </Button>
+                    )
                   )}
                   <Button
                     variant="ghost"
@@ -792,6 +803,7 @@ function KpiEditor({ companyId }: { companyId: string }) {
   const upsertMutation = useUpsertMyCompanyKpis()
 
   const [values, setValues] = useState<Record<string, string>>({})
+  const [formError, setFormError] = useState<string | null>(null)
 
   const getInitialValue = (kpiDefId: string): string => {
     if (values[kpiDefId] !== undefined) return values[kpiDefId]
@@ -819,10 +831,11 @@ function KpiEditor({ companyId }: { companyId: string }) {
       }))
 
     if (kpis.length === 0) {
-      toast.error('Enter at least one KPI value')
+      setFormError('Enter at least one KPI value')
       return
     }
 
+    setFormError(null)
     upsertMutation.mutate(
       { my_company_id: companyId, kpis },
       {
@@ -876,10 +889,13 @@ function KpiEditor({ companyId }: { companyId: string }) {
         ))}
       </div>
 
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex flex-col items-end gap-1.5">
         <Button onClick={handleSave} disabled={upsertMutation.isPending}>
           {upsertMutation.isPending ? 'Saving...' : 'Save KPIs'}
         </Button>
+        {formError && (
+          <p className="text-[12px] text-destructive">{formError}</p>
+        )}
       </div>
     </div>
   )

@@ -124,6 +124,10 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const [suggestingEventId, setSuggestingEventId] = useState<string | null>(null)
   const [bulkSuggesting, setBulkSuggesting] = useState(false)
 
+  // Pagination for upcoming list view
+  const EVENTS_PER_PAGE = 20
+  const [listPage, setListPage] = useState(0)
+
   // Upcoming events (sorted from today forward)
   const upcomingEvents = useMemo(() => {
     if (!events) return []
@@ -188,10 +192,17 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
         onSuccess: (data) => {
           const time = data.suggestion.suggested_time
           if (time) {
+            const sourceLabel = data.suggestion.source?.replace(/_/g, ' ') ?? 'estimated'
+            const reasoning = data.suggestion.reasoning
             updateMutation.mutate(
               { id: ev.id, expected_time: time },
               {
-                onSuccess: () => { toast.success(`Time set to ${time.slice(0, 5)} (${data.suggestion.source})`); setSuggestingEventId(null) },
+                onSuccess: () => {
+                  toast.success(`Time set to ${time.slice(0, 5)}`, {
+                    description: reasoning || `Based on ${sourceLabel}`,
+                  })
+                  setSuggestingEventId(null)
+                },
                 onError: () => setSuggestingEventId(null),
               },
             )
@@ -396,7 +407,8 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                 <p className="mt-2 text-sm text-muted-foreground">All events are in the past or there are none scheduled.</p>
               </div>
             ) : (
-              upcomingEvents.map((ev) => {
+              <>
+              {upcomingEvents.slice(listPage * EVENTS_PER_PAGE, (listPage + 1) * EVENTS_PER_PAGE).map((ev) => {
                 const company = ev.companies as { id: string; name: string; ticker: string | null; logo_url: string | null; website_url: string | null } | undefined
                 const timeStr = ev.expected_time ? ev.expected_time.slice(0, 5) : null
                 const isEditingTime = editingTimeEventId === ev.id
@@ -543,7 +555,35 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
                     </span>
                   </div>
                 )
-              })
+              })}
+
+              {/* Pagination */}
+              {upcomingEvents.length > EVENTS_PER_PAGE && (
+                <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setListPage((p) => Math.max(0, p - 1))}
+                    disabled={listPage === 0}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Previous
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Page {listPage + 1} of {Math.ceil(upcomingEvents.length / EVENTS_PER_PAGE)}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setListPage((p) => Math.min(Math.ceil(upcomingEvents.length / EVENTS_PER_PAGE) - 1, p + 1))}
+                    disabled={listPage >= Math.ceil(upcomingEvents.length / EVENTS_PER_PAGE) - 1}
+                  >
+                    Next
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+              </>
             )}
           </div>
         ) : (
@@ -1145,13 +1185,23 @@ function CreateEventDialog({
           </Button>
 
           {/* AI Reasoning (if suggestion was made) */}
-          {aiReasoning && (
+          {(aiReasoning || suggestDatesMutation.data?.suggestion) && (
             <div className="rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-green-400">
                 <Sparkles className="h-3 w-3" />
                 AI Suggestion Applied
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{aiReasoning}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {aiReasoning || 'Based on historical publication patterns'}
+              </p>
+              {suggestDatesMutation.data?.suggestion?.source && (
+                <p className="mt-0.5 text-[10px] text-muted-foreground/60">
+                  Source: {suggestDatesMutation.data.suggestion.source.replace(/_/g, ' ')}
+                  {suggestDatesMutation.data.suggestion.confidence != null && (
+                    <> &middot; Confidence: {Math.round(suggestDatesMutation.data.suggestion.confidence * 100)}%</>
+                  )}
+                </p>
+              )}
             </div>
           )}
 

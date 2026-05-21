@@ -13,6 +13,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Crown, Mail, MoreHorizontal, Shield, Eye, Pencil, Trash2, UserPlus, Loader2 } from 'lucide-react'
 import { PremiumSelect } from '@/components/ui/premium-select'
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import type { WorkspaceRole } from '@/types/database'
 
 const ROLE_CONFIG: Record<WorkspaceRole, { label: string; icon: typeof Shield; color: string }> = {
@@ -40,6 +41,7 @@ export function TeamPage() {
   const [inviteRole, setInviteRole] = useState<WorkspaceRole>('viewer')
   const [inviting, setInviting] = useState(false)
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
+  const [confirmRemove, setConfirmRemove] = useState<{ id: string; email: string } | null>(null)
 
   const maxMembers = TIER_LIMITS[tier] ?? 1
   const isOwner = workspace?.owner_id === user?.id
@@ -183,14 +185,19 @@ export function TeamPage() {
               triggerClassName="h-10"
             />
           </div>
-          <button
-            type="submit"
-            disabled={inviting || members.length >= maxMembers}
-            className="flex h-10 items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-            Add
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={inviting || members.length >= maxMembers}
+              className="flex h-10 items-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 text-[13px] font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              Add
+            </button>
+            <span className="text-[12px] text-muted-foreground whitespace-nowrap">
+              {members.length}/{maxMembers} seats used
+            </span>
+          </div>
         </form>
       )}
 
@@ -250,9 +257,9 @@ export function TeamPage() {
                       <hr className="my-1 border-border" />
                       <button
                         onClick={() => {
-                          removeMember.mutate({ memberId: member.id, workspaceId: workspace!.id })
+                          const memberEmail = ('display_name' in member && member.display_name) || member.user_id.slice(0, 8) + '...'
+                          setConfirmRemove({ id: member.id, email: String(memberEmail) })
                           setMenuOpen(null)
-                          toast.success('Member removed')
                         }}
                         className="flex w-full items-center gap-2 px-3 py-2.5 min-h-[44px] text-left text-[12px] text-red-500 transition-colors hover:bg-red-500/10"
                       >
@@ -266,6 +273,21 @@ export function TeamPage() {
           )
         })}
       </div>
+
+      {/* Remove member confirmation */}
+      <ConfirmDeleteDialog
+        open={!!confirmRemove}
+        onOpenChange={(open) => { if (!open) setConfirmRemove(null) }}
+        title="Remove team member"
+        description={`Remove ${confirmRemove?.email ?? ''} from your team? They will lose access to this workspace.`}
+        onConfirm={() => {
+          if (!confirmRemove || !workspace) return
+          removeMember.mutate({ memberId: confirmRemove.id, workspaceId: workspace.id })
+          setConfirmRemove(null)
+          toast.success('Member removed')
+        }}
+        isPending={removeMember.isPending}
+      />
 
       {/* Role explanation */}
       <div className="rounded-lg border border-border bg-[var(--color-bg-secondary)] p-4">

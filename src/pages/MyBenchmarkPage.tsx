@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, TrendingDown, Minus, Zap, Target, AlertTriangle } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Zap, Target, AlertTriangle, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
@@ -10,6 +10,7 @@ import {
   useLatestSelfBenchmark,
 } from '@/hooks/useMyCompany'
 import { usePeerGroups } from '@/hooks/useData'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { CardSkeleton } from '@/components/ui/page-skeleton'
 import { Button } from '@/components/ui/button'
 
@@ -114,6 +115,36 @@ export function MyBenchmarkPage() {
             <Zap className="h-4 w-4" />
             {runBenchmark.isPending ? 'Analyzing...' : 'Run Benchmark'}
           </Button>
+
+          {benchmarkData && (benchmarkData.kpi_percentiles as unknown[]).length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                const rows = (benchmarkData.kpi_percentiles as Array<{
+                  kpi_name: string
+                  my_value: number
+                  peer_median: number
+                  gap_to_median_pct: number | null
+                  percentile: number
+                  signal: string
+                }>).map((kpi) => {
+                  const gap = kpi.gap_to_median_pct != null ? `${kpi.gap_to_median_pct}%` : ''
+                  return `"${kpi.kpi_name}",${kpi.my_value},${kpi.peer_median},${gap},${kpi.percentile},${kpi.signal}`
+                })
+                const csv = ['KPI,Your Value,Peer Median,Gap,Percentile,Signal', ...rows].join('\n')
+                const blob = new Blob([csv], { type: 'text/csv' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `benchmark-FY${benchmarkData.fiscal_year}.csv`
+                a.click()
+                URL.revokeObjectURL(url)
+              }}
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          )}
         </div>
 
         {/* Results */}
@@ -123,13 +154,22 @@ export function MyBenchmarkPage() {
             {benchmarkData.overall_percentile !== null && (
               <div className="rounded-xl border border-border bg-card p-6 text-center">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Overall Percentile</p>
-                <p className={`mt-2 text-5xl font-bold ${
-                  benchmarkData.overall_percentile >= 70 ? 'text-[var(--color-signal-green)]' :
-                  benchmarkData.overall_percentile <= 30 ? 'text-[var(--color-signal-red)]' :
-                  'text-foreground'
-                }`}>
-                  P{benchmarkData.overall_percentile}
-                </p>
+                <TooltipProvider delay={200}>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <p className={`mt-2 cursor-help text-5xl font-bold ${
+                        benchmarkData.overall_percentile >= 70 ? 'text-[var(--color-signal-green)]' :
+                        benchmarkData.overall_percentile <= 30 ? 'text-[var(--color-signal-red)]' :
+                        'text-foreground'
+                      }`}>
+                        P{benchmarkData.overall_percentile}
+                      </p>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[280px] text-center text-[12px] font-normal">
+                      Percentile {benchmarkData.overall_percentile} — you outperform {benchmarkData.overall_percentile}% of peers in this benchmark.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <p className="mt-1 text-sm text-muted-foreground">
                   vs. {benchmarkData.peer_count} peer companies · FY{benchmarkData.fiscal_year}
                 </p>
@@ -222,11 +262,12 @@ export function MyBenchmarkPage() {
                             {kpi.peer_median.toLocaleString()}
                           </td>
                           <td className={`px-5 py-3 text-right tabular-nums font-medium ${
+                            kpi.gap_to_median_pct == null ? 'text-muted-foreground/50' :
                             kpi.gap_to_median_pct > 0 ? 'text-[var(--color-signal-green)]' :
                             kpi.gap_to_median_pct < 0 ? 'text-[var(--color-signal-red)]' :
                             'text-muted-foreground'
                           }`}>
-                            {kpi.gap_to_median_pct > 0 ? '+' : ''}{kpi.gap_to_median_pct}%
+                            {kpi.gap_to_median_pct == null ? '—' : kpi.gap_to_median_pct === 0 ? '0%' : `${kpi.gap_to_median_pct > 0 ? '+' : ''}${kpi.gap_to_median_pct}%`}
                           </td>
                           <td className="px-5 py-3 text-center">
                             <PercentileBar value={kpi.percentile} />

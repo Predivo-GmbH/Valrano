@@ -78,21 +78,35 @@ function EditableText({ value, onSave, multiline = false, className = '' }: {
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
+  const [showSaved, setShowSaved] = useState(false)
 
   if (!editing) {
     return (
-      <span
-        className={cn('cursor-pointer rounded px-1 -mx-1 hover:bg-[var(--color-accent)]/5 hover:ring-1 hover:ring-[var(--color-accent)]/20 transition-all', className)}
-        onClick={() => { setDraft(value); setEditing(true) }}
-        title="Click to edit"
-      >
-        {value}
+      <span className={cn('relative inline-flex items-center gap-1', className)}>
+        <span
+          className="cursor-pointer rounded px-1 -mx-1 hover:bg-[var(--color-accent)]/5 hover:ring-1 hover:ring-[var(--color-accent)]/20 transition-all"
+          onClick={() => { setDraft(value); setEditing(true) }}
+          title="Click to edit"
+        >
+          {value}
+        </span>
+        {showSaved && (
+          <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-[var(--color-signal-green)] transition-opacity duration-300">
+            <CheckCircle2 className="h-3 w-3" />
+            Saved
+          </span>
+        )}
       </span>
     )
   }
 
   const handleSave = () => {
-    if (draft.trim() && draft !== value) onSave(draft.trim())
+    const changed = draft.trim() && draft !== value
+    if (changed) {
+      onSave(draft.trim())
+      setShowSaved(true)
+      setTimeout(() => setShowSaved(false), 1500)
+    }
     setEditing(false)
   }
 
@@ -584,14 +598,23 @@ export function DocumentViewerPage() {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrint}
-              disabled={!doc.content_html}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)] disabled:opacity-40"
-            >
-              <Printer className="h-4 w-4" />
-              Print / PDF
-            </button>
+            <TooltipProvider delay={200}>
+              <Tooltip>
+                <TooltipTrigger>
+                  <button
+                    onClick={handlePrint}
+                    disabled={!doc.content_html}
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-[13px] font-medium text-foreground transition-all duration-200 hover:bg-[var(--color-bg-tertiary)] disabled:opacity-40"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Print / Save as PDF
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">Use your browser's Print dialog to save as PDF</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </div>

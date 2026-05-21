@@ -279,6 +279,19 @@ function TemplateCard({
   const isGenerating = generateMutation.isPending || generateGoogleMutation.isPending
 
   const handleGenerate = () => {
+    const unmappedCount = template.placeholders.filter(
+      (p) => !template.placeholder_mapping[p],
+    ).length
+    if (unmappedCount > 0) {
+      toast(`Warning: ${unmappedCount} placeholder${unmappedCount !== 1 ? 's are' : ' is'} unmapped — output may have gaps`, {
+        action: { label: 'Generate anyway', onClick: () => doGenerate() },
+      })
+      return
+    }
+    doGenerate()
+  }
+
+  const doGenerate = () => {
     if (isGoogle) {
       // Google templates: generate via Google API, download PDF
       generateGoogleMutation.mutate(
@@ -341,13 +354,19 @@ function TemplateCard({
                 </span>
               )}
               {template.placeholders.length > 0 && (
-                <span className="text-[11px] text-muted-foreground">
-                  {template.placeholders.length} placeholders
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Zap className="h-3 w-3" />
+                  {template.placeholders.length} placeholder{template.placeholders.length !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
             {template.description && (
               <p className="mt-1 text-[12px] text-muted-foreground truncate max-w-[400px]">{template.description}</p>
+            )}
+            {(template.status === 'ready' || template.status === 'google_linked') && (
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Last modified: {new Date(template.updated_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
             )}
             {template.error_message && (
               <p className="mt-1 text-[12px] text-[var(--color-signal-red)]">{template.error_message}</p>
@@ -608,20 +627,29 @@ function PlaceholderMappingDialog({
                   {`{{${placeholder}}}`}
                 </code>
                 <span className="text-muted-foreground text-[12px]">&rarr;</span>
-                <select
-                  value={mapping[placeholder] ?? ''}
-                  onChange={(e) => setMapping({ ...mapping, [placeholder]: e.target.value })}
-                  className="flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-[12px] text-foreground"
-                >
-                  <option value="">— Not mapped —</option>
-                  {DATA_SOURCES.map((group) => (
-                    <optgroup key={group.group} label={group.group}>
-                      {group.items.map((item) => (
-                        <option key={item.value} value={item.value}>{item.label}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                <div className="flex-1">
+                  <select
+                    value={mapping[placeholder] ?? ''}
+                    onChange={(e) => setMapping({ ...mapping, [placeholder]: e.target.value })}
+                    className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-[12px] text-foreground"
+                  >
+                    <option value="">— Not mapped —</option>
+                    {DATA_SOURCES.map((group) => (
+                      <optgroup key={group.group} label={group.group}>
+                        {group.items.map((item) => (
+                          <option key={item.value} value={item.value}>{item.label}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  {mapping[placeholder] && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {mapping[placeholder].startsWith('company.') && 'e.g., Holcim Ltd'}
+                      {mapping[placeholder].startsWith('kpi.') && 'e.g., 12.5%'}
+                      {mapping[placeholder].startsWith('date.') && 'e.g., FY 2025'}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>

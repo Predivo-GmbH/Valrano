@@ -59,7 +59,7 @@ export default function PasswordGate({ children }: { children: ReactNode }) {
                 id="gate-password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setError(false) }}
                 placeholder="Enter access code"
                 autoFocus
                 required

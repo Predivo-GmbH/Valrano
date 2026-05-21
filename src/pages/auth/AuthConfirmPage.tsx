@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { supabase } from '@/lib/supabase'
+import { friendlyAuthError } from '@/lib/utils'
 
 export default function AuthConfirmPage() {
   const navigate = useNavigate()
@@ -25,7 +26,7 @@ export default function AuthConfirmPage() {
       })
 
       if (verifyError) {
-        setError(verifyError.message)
+        setError(friendlyAuthError(verifyError, 'Verification failed'))
         return
       }
 
