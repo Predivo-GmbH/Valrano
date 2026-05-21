@@ -15,7 +15,7 @@ describe('LandingPage', () => {
   it('renders hero headline', () => {
     renderLanding()
     expect(
-      screen.getByText(/board-ready peer benchmarking/i),
+      screen.getByText(/board-ready competitive benchmarking/i),
     ).toBeInTheDocument()
   })
 
@@ -28,7 +28,7 @@ describe('LandingPage', () => {
     expect(screen.getByText(/enterprise solution/i)).toBeInTheDocument()
     expect(screen.getAllByText('FAQ').length).toBeGreaterThanOrEqual(2)
     expect(
-      screen.getByText(/stop building peer comparisons manually/i),
+      screen.getByText(/stop building competitor comparisons manually/i),
     ).toBeInTheDocument()
   })
 
