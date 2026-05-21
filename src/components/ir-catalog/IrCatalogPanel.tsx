@@ -1,4 +1,4 @@
-import { createElement, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   FileText,
   Download,
@@ -111,12 +111,12 @@ function DocumentRow({
   onDownload: () => void
   downloadDisabled: boolean
 }) {
-  const icon = useMemo(() => getDocumentIcon(item.document_type), [item.document_type])
+  const Icon = getDocumentIcon(item.document_type)
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--color-bg-tertiary)]/20 transition-colors">
       <div className="flex-shrink-0">
-        {createElement(icon, { className: 'h-5 w-5 text-muted-foreground' })}
+        <Icon className="h-5 w-5 text-muted-foreground" />
       </div>
 
       <div className="min-w-0 flex-1">
