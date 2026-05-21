@@ -737,7 +737,7 @@ export function CompanyProfilePage() {
               </div>
 
               {/* Links */}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
+              <div id="company-urls" className="mt-3 flex flex-wrap items-center gap-2">
                 {/* Website pill */}
                 {editingWebsite ? (
                   <form
@@ -1518,6 +1518,10 @@ export function CompanyProfilePage() {
           companyId={id!}
           companyName={company.name}
           irPageUrl={company.ir_page_url}
+          onSetIrUrl={() => {
+            document.getElementById('company-urls')?.scrollIntoView({ behavior: 'smooth' })
+            setTimeout(() => { setIrInput(''); setEditingIr(true) }, 400)
+          }}
         />
 
         {/* ============================================================= */}

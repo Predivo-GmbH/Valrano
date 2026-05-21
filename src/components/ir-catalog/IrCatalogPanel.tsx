@@ -10,6 +10,7 @@ import {
   Presentation,
   Newspaper,
   File,
+  Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -21,6 +22,7 @@ interface IrCatalogPanelProps {
   companyId: string
   companyName: string
   irPageUrl: string | null
+  onSetIrUrl?: () => void
 }
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
@@ -69,7 +71,7 @@ function formatFileSize(bytes: number | null): string {
 
 type FilterType = 'all' | IrDocumentType
 
-export function IrCatalogPanel({ companyId, companyName, irPageUrl }: IrCatalogPanelProps) {
+export function IrCatalogPanel({ companyId, companyName, irPageUrl, onSetIrUrl }: IrCatalogPanelProps) {
   const { data: items, isLoading } = useIrCatalogItems(companyId)
   const scanMutation = useScanIrPage()
   const downloadMutation = useDownloadCatalogItem()
@@ -106,7 +108,7 @@ export function IrCatalogPanel({ companyId, companyName, irPageUrl }: IrCatalogP
     }
   }
 
-  // No IR URL → prompt to set one
+  // No IR URL → rich empty state with guidance
   if (!irPageUrl) {
     return (
       <div className="mb-6">
@@ -114,10 +116,33 @@ export function IrCatalogPanel({ companyId, companyName, irPageUrl }: IrCatalogP
           <Search className="h-4 w-4 text-[var(--color-accent)]" />
           <h3 className="text-sm font-semibold text-foreground">IR Document Catalog</h3>
         </div>
-        <div className="card-premium rounded-xl border border-border bg-card px-5 py-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            No IR page URL set for {companyName}. Set an IR page URL first to scan for available documents.
-          </p>
+        <div className="card-premium rounded-xl border border-border bg-card p-6">
+          <div className="flex flex-col items-center text-center max-w-md mx-auto">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent)]/10 mb-3">
+              <Search className="h-6 w-6 text-[var(--color-accent)]" />
+            </div>
+            <h3 className="text-[15px] font-semibold text-foreground">No IR Page URL Set</h3>
+            <p className="mt-1.5 text-[12px] text-muted-foreground leading-relaxed">
+              Set an Investor Relations page URL for {companyName} to discover and catalog all available documents.
+            </p>
+            <div className="mt-4 w-full rounded-lg bg-[var(--color-bg-tertiary)] p-3 text-left">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground mb-2">What you'll get</p>
+              <ul className="space-y-1.5 text-[12px] text-muted-foreground">
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-[var(--color-accent)] shrink-0" /> Automatic discovery of annual reports, presentations, and filings</li>
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-[var(--color-accent)] shrink-0" /> AI-powered classification by type, year, and language</li>
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-[var(--color-accent)] shrink-0" /> One-click download and KPI extraction</li>
+              </ul>
+            </div>
+            {onSetIrUrl && (
+              <button
+                type="button"
+                onClick={onSetIrUrl}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2 min-h-[44px] text-[12px] font-medium text-white transition-colors hover:bg-[var(--color-accent)]/90 cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" /> Set IR Page URL
+              </button>
+            )}
+          </div>
         </div>
       </div>
     )
