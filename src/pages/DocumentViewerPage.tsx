@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Info,
+  Undo2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -70,6 +71,16 @@ function SignalBadge({ signal }: { signal: string }) {
 // Document content renderer
 // ---------------------------------------------------------------------------
 
+// Version history entry
+interface HistoryEntry {
+  value: string
+  savedAt: Date
+}
+
+function formatHistoryTime(date: Date): string {
+  return date.toLocaleTimeString('en-CH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
 function EditableText({ value, onSave, multiline = false, className = '' }: {
   value: string
   onSave: (newValue: string) => void
@@ -79,10 +90,36 @@ function EditableText({ value, onSave, multiline = false, className = '' }: {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
   const [showSaved, setShowSaved] = useState(false)
+  // Undo stack: newest entry at index 0
+  const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+
+  const pushHistory = (prev: string) => {
+    setHistory((h) => [{ value: prev, savedAt: new Date() }, ...h].slice(0, 10))
+  }
+
+  const handleUndo = () => {
+    if (history.length === 0) return
+    const [latest, ...rest] = history
+    onSave(latest.value)
+    setHistory(rest)
+    setDraft(latest.value)
+    setShowHistory(false)
+  }
+
+  const handleRestoreEntry = (entry: HistoryEntry, idx: number) => {
+    // Push current value before jumping back
+    pushHistory(value)
+    onSave(entry.value)
+    // Remove this entry and everything after it (entries newer than this restore point)
+    setHistory((h) => h.slice(idx + 1))
+    setDraft(entry.value)
+    setShowHistory(false)
+  }
 
   if (!editing) {
     return (
-      <span className={cn('relative inline-flex items-center gap-1', className)}>
+      <span className={cn('relative inline-flex items-start gap-1.5', className)}>
         <span
           className="cursor-pointer rounded px-1 -mx-1 hover:bg-[var(--color-accent)]/5 hover:ring-1 hover:ring-[var(--color-accent)]/20 transition-all"
           onClick={() => { setDraft(value); setEditing(true) }}
@@ -90,24 +127,79 @@ function EditableText({ value, onSave, multiline = false, className = '' }: {
         >
           {value}
         </span>
-        {showSaved && (
-          <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-[var(--color-signal-green)] transition-opacity duration-300">
-            <CheckCircle2 className="h-3 w-3" />
-            Saved
-          </span>
-        )}
+        <span className="inline-flex shrink-0 items-center gap-0.5">
+          {showSaved && (
+            <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-[var(--color-signal-green)] transition-opacity duration-300">
+              <CheckCircle2 className="h-3 w-3" />
+              Saved
+            </span>
+          )}
+          {history.length > 0 && (
+            <div className="relative">
+              <TooltipProvider delay={200}>
+                <Tooltip>
+                  <TooltipTrigger
+                    onClick={() => setShowHistory((s) => !s)}
+                    className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] cursor-pointer transition-colors"
+                  >
+                    <Undo2 className="h-3 w-3" />
+                    <span>{history.length}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p className="text-xs">Undo history ({history.length} edit{history.length !== 1 ? 's' : ''}). Click to view.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              {showHistory && (
+                <div className="absolute left-0 top-6 z-50 min-w-[220px] rounded-lg border border-border bg-card shadow-lg">
+                  <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Edit History</span>
+                    <button
+                      onClick={() => setShowHistory(false)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <ul className="max-h-[200px] overflow-y-auto divide-y divide-border">
+                    {history.map((entry, idx) => (
+                      <li key={idx}>
+                        <button
+                          onClick={() => handleRestoreEntry(entry, idx)}
+                          className="w-full px-3 py-2 text-left hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                        >
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-[11px] text-muted-foreground">{formatHistoryTime(entry.savedAt)}</span>
+                            {idx === 0 && (
+                              <span className="rounded-full bg-[var(--color-accent)]/10 px-1.5 py-0 text-[10px] font-medium text-[var(--color-accent)]">latest</span>
+                            )}
+                          </div>
+                          <p className="truncate text-[12px] text-foreground">{entry.value}</p>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </span>
       </span>
     )
   }
 
   const handleSave = () => {
-    const changed = draft.trim() && draft !== value
+    const trimmed = draft.trim()
+    const changed = trimmed && trimmed !== value
     if (changed) {
-      onSave(draft.trim())
+      pushHistory(value)
+      onSave(trimmed)
       setShowSaved(true)
       setTimeout(() => setShowSaved(false), 1500)
     }
     setEditing(false)
+    setShowHistory(false)
   }
 
   if (multiline) {
@@ -120,23 +212,58 @@ function EditableText({ value, onSave, multiline = false, className = '' }: {
           autoFocus
           onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false) }}
         />
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button onClick={handleSave} className="rounded-md bg-[var(--color-accent)] px-3 py-1 text-[11px] font-medium text-white hover:brightness-110">Save</button>
           <button onClick={() => setEditing(false)} className="rounded-md border border-border px-3 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground">Cancel</button>
+          {history.length > 0 && (
+            <TooltipProvider delay={200}>
+              <Tooltip>
+                <TooltipTrigger
+                  onClick={handleUndo}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] cursor-pointer transition-colors"
+                >
+                  <Undo2 className="h-3 w-3" />
+                  Undo
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p className="text-xs">Restore: "{history[0].value.slice(0, 60)}{history[0].value.length > 60 ? '…' : ''}"</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Saved at {formatHistoryTime(history[0].savedAt)}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
     )
   }
 
+  // Single-line: undo shown as inline button after the input
   return (
-    <input
-      className="w-full rounded-lg border border-[var(--color-accent)]/30 bg-card px-3 py-2 text-[13px] text-foreground outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      autoFocus
-      onBlur={handleSave}
-      onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false) }}
-    />
+    <div className="flex items-center gap-1.5">
+      <input
+        className="flex-1 rounded-lg border border-[var(--color-accent)]/30 bg-card px-3 py-2 text-[13px] text-foreground outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        autoFocus
+        onBlur={handleSave}
+        onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false) }}
+      />
+      {history.length > 0 && (
+        <TooltipProvider delay={200}>
+          <Tooltip>
+            <TooltipTrigger
+              onMouseDown={(e) => { e.preventDefault(); handleUndo() }}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] cursor-pointer transition-colors shrink-0"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p className="text-xs">Undo last save</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+    </div>
   )
 }
 

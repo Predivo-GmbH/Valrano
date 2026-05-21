@@ -14,6 +14,9 @@ import { toast } from 'sonner'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 const LandingPage = lazy(() => import('@/pages/LandingPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'))
+const TermsPage = lazy(() => import('@/pages/TermsPage'))
+const ImprintPage = lazy(() => import('@/pages/ImprintPage'))
 import { PageSkeleton } from '@/components/ui/page-skeleton'
 
 // Route-level code splitting — each page loads on demand
@@ -64,6 +67,11 @@ function App() {
             <Routes>
               {/* Public landing page — redirect to dashboard if logged in */}
               <Route path="/" element={<RedirectIfAuthenticated><LandingPage /></RedirectIfAuthenticated>} />
+
+              {/* Public legal pages */}
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/imprint" element={<ImprintPage />} />
 
               {/* Everything else behind PasswordGate */}
               <Route path="*" element={

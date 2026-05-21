@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from 'next-themes'
 import { Sun, Moon, LayoutDashboard, Users, Settings, LogOut, User, Menu, X, BarChart3, FileBarChart, Building2 } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
@@ -8,6 +8,7 @@ import { ChatPanel } from './ChatPanel'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { Breadcrumbs } from '@/components/ui/breadcrumbs'
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -16,6 +17,47 @@ const NAV_ITEMS = [
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/reports', label: 'Reports', icon: FileBarChart },
 ] as const
+
+// Maps every known static route segment to a human-readable label.
+// Any path segment NOT in this map is treated as a dynamic ID — the auto
+// breadcrumbs are suppressed so the page can render its own custom crumbs.
+const ROUTE_LABELS: Record<string, string> = {
+  dashboard: 'Dashboard',
+  'my-company': 'My Company',
+  competitors: 'Competitors',
+  analytics: 'Analytics',
+  reports: 'Reports',
+  account: 'Account',
+  settings: 'Settings',
+  companies: 'Companies',
+  documents: 'Documents',
+  'uploaded-reports': 'Uploaded Reports',
+}
+
+/**
+ * Builds breadcrumb items from the current pathname.
+ * Returns null when the path contains a dynamic segment (UUID / numeric ID),
+ * which signals that the individual page is rendering its own breadcrumbs.
+ */
+function useAutoBreadcrumbs() {
+  const { pathname } = useLocation()
+  // Strip leading slash and split into segments
+  const segments = pathname.replace(/^\//, '').split('/').filter(Boolean)
+
+  // If any segment is not in ROUTE_LABELS it's a dynamic ID — suppress
+  const hasDynamicSegment = segments.some((seg) => !(seg in ROUTE_LABELS))
+  if (hasDynamicSegment) return null
+
+  // Single top-level segment with no parent — no breadcrumbs needed
+  if (segments.length <= 1) return null
+
+  // Build items: every segment except the last gets an href
+  return segments.map((seg, i) => {
+    const label = ROUTE_LABELS[seg] ?? seg
+    const href = i < segments.length - 1 ? '/' + segments.slice(0, i + 1).join('/') : undefined
+    return { label, href }
+  })
+}
 
 const navLinkCls = (isActive: boolean) =>
   `flex items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 min-h-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] ${
@@ -32,6 +74,7 @@ export function AppLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const userMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  const autoBreadcrumbs = useAutoBreadcrumbs()
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -261,6 +304,13 @@ export function AppLayout() {
 
         {/* Content area offset below fixed nav */}
         <main id="main-content" className="pt-16">
+          {/* Auto-generated breadcrumbs — shown on multi-segment static routes.
+              Suppressed on dynamic /:id routes where pages render their own crumbs. */}
+          {autoBreadcrumbs && (
+            <div className="mx-auto max-w-[1440px] px-4 pt-4 sm:px-6">
+              <Breadcrumbs items={autoBreadcrumbs} />
+            </div>
+          )}
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>
