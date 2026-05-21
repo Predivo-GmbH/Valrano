@@ -272,8 +272,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 /* ── FAQ accordion item ──────────────────────────────── */
-function FaqItem({ q, a }: { q: string; a: string }) {
-  const [open, setOpen] = useState(false)
+function FaqItem({ q, a, defaultOpen = false }: { q: string; a: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <div
       className={`border-b border-[var(--color-border)] transition-colors duration-200 ${
@@ -535,11 +535,6 @@ function FeatureCard({ f, index, visible }: {
         </div>
         <h3 className={`mt-4 font-semibold text-[var(--color-foreground)] ${f.featured ? 'text-xl' : 'text-[15px]'}`}>{f.title}</h3>
         <p className={`mt-2 leading-relaxed text-[var(--color-muted-foreground)] ${f.featured ? 'text-[15px]' : 'text-sm'}`}>{f.desc}</p>
-        {f.featured && (
-          <div className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-accent)] transition-all group-hover:gap-2.5">
-            Learn more <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-          </div>
-        )}
       </div>
     </div>
   )
@@ -549,7 +544,7 @@ function FeatureCard({ f, index, visible }: {
 const PAIN_POINTS = [
   { icon: Clock, title: '3-5 weeks per cycle', desc: 'Strategy teams spend weeks every quarter collecting, normalizing, and reconciling competitor data from published reports across multiple departments.' },
   { icon: AlertCircle, title: 'Definitional chaos', desc: 'One competitor reports "Recurring EBIT", another calls it "RCO", a third uses "Adjusted EBITDA" — every company uses different KPI definitions, currencies, and accounting standards.' },
-  { icon: Globe, title: 'Asynchronous publications', desc: 'Competitors publish at different times in different formats across SIX, NYSE, XETRA, and Euronext. By the time your team compiles the data, it's already stale.' },
+  { icon: Globe, title: 'Asynchronous publications', desc: "Competitors publish at different times in different formats across SIX, NYSE, XETRA, and Euronext. By the time your team compiles the data, it's already stale." },
 ]
 
 const FEATURES = [
@@ -687,6 +682,7 @@ export default function LandingPage() {
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
             <Link to="/login" className="inline-flex min-h-[44px] items-center text-sm font-medium text-[var(--color-foreground)] transition-colors hover:text-[var(--color-accent)]">Sign in</Link>
+            <button onClick={() => setDemoModalOpen(true)} className="inline-flex min-h-[44px] items-center rounded-full bg-[var(--color-accent)] px-5 py-2 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 cursor-pointer">Request a Demo</button>
           </div>
           <div className="flex items-center gap-2 md:hidden">
             <Link to="/signup" className="rounded-full bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90">Get Started</Link>
@@ -848,7 +844,7 @@ export default function LandingPage() {
               <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Frequently asked questions</h2>
             </div>
             <div className="mt-14">
-              {FAQS.map((faq) => <FaqItem key={faq.q} q={faq.q} a={faq.a} />)}
+              {FAQS.map((faq, i) => <FaqItem key={faq.q} q={faq.q} a={faq.a} defaultOpen={i < 2} />)}
             </div>
           </div>
         </section>
