@@ -41,10 +41,10 @@ describe('LandingPage', () => {
     expect(screen.queryByText('Professional')).not.toBeInTheDocument()
   })
 
-  it('renders Schedule a Consultation mailto link', () => {
+  it('renders Schedule a Consultation as a button', () => {
     renderLanding()
-    const ctaLink = screen.getByText(/schedule a consultation/i).closest('a')
-    expect(ctaLink?.href).toContain('mailto:')
+    const ctaButton = screen.getByText(/schedule a consultation/i).closest('button')
+    expect(ctaButton).toBeInTheDocument()
   })
 
   it('renders FAQ items and toggles them', async () => {
