@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useTheme } from 'next-themes'
@@ -22,7 +22,136 @@ import {
   Moon,
   Lock,
   Mail,
+  CheckCircle,
+  Loader2,
 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+
+/* ── Demo Request Modal ──────────────────────────────── */
+function DemoRequestModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [form, setForm] = useState({ name: '', email: '', company: '', role: '', message: '' })
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.name.trim() || !form.email.trim() || !form.company.trim()) return
+
+    setStatus('sending')
+    setErrorMsg('')
+
+    try {
+      const { data, error } = await supabase.functions.invoke('request-demo', {
+        body: {
+          name: form.name.trim(),
+          email: form.email.trim(),
+          company: form.company.trim(),
+          role: form.role.trim() || undefined,
+          message: form.message.trim() || undefined,
+        },
+      })
+      if (error) throw error
+      if (data?.error) throw new Error(data.error)
+      setStatus('success')
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+      setStatus('error')
+    }
+  }, [form])
+
+  const handleClose = useCallback(() => {
+    onClose()
+    // Reset after animation
+    setTimeout(() => {
+      setForm({ name: '', email: '', company: '', role: '', message: '' })
+      setStatus('idle')
+      setErrorMsg('')
+    }, 200)
+  }, [onClose])
+
+  if (!open) return null
+
+  const inputClass = 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3.5 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)]/60 outline-none transition-colors focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="demo-modal-title">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in-0 duration-200" onClick={handleClose} />
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 sm:p-8">
+        <button onClick={handleClose} className="absolute right-4 top-4 rounded-md p-1 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)] cursor-pointer" aria-label="Close">
+          <X className="h-4 w-4" />
+        </button>
+
+        {status === 'success' ? (
+          <div className="flex flex-col items-center gap-4 py-6 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10">
+              <CheckCircle className="h-7 w-7 text-emerald-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-[var(--color-foreground)]">Demo request received</h3>
+            <p className="text-sm leading-relaxed text-[var(--color-muted-foreground)]">
+              Thank you! We&rsquo;ll reach out within one business day to schedule your personalized walkthrough. Check your inbox for a confirmation email.
+            </p>
+            <button onClick={handleClose} className="mt-2 rounded-full bg-[var(--color-accent)] px-6 py-2.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-[var(--color-accent)]/90 cursor-pointer">
+              Close
+            </button>
+          </div>
+        ) : (
+          <>
+            <h3 id="demo-modal-title" className="text-lg font-semibold text-[var(--color-foreground)]">Request a Demo</h3>
+            <p className="mt-1.5 text-sm text-[var(--color-muted-foreground)]">Tell us about your organization and we&rsquo;ll schedule a personalized walkthrough.</p>
+
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              <div>
+                <label htmlFor="demo-name" className="mb-1.5 block text-xs font-medium text-[var(--color-foreground)]">Full name *</label>
+                <input id="demo-name" type="text" required value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} className={inputClass} placeholder="Jane Smith" />
+              </div>
+              <div>
+                <label htmlFor="demo-email" className="mb-1.5 block text-xs font-medium text-[var(--color-foreground)]">Work email *</label>
+                <input id="demo-email" type="email" required value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} className={inputClass} placeholder="jane@company.com" />
+              </div>
+              <div>
+                <label htmlFor="demo-company" className="mb-1.5 block text-xs font-medium text-[var(--color-foreground)]">Company name *</label>
+                <input id="demo-company" type="text" required value={form.company} onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))} className={inputClass} placeholder="Acme Corp" />
+              </div>
+              <div>
+                <label htmlFor="demo-role" className="mb-1.5 block text-xs font-medium text-[var(--color-muted-foreground)]">Role / Title</label>
+                <input id="demo-role" type="text" value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))} className={inputClass} placeholder="Head of Corporate Strategy" />
+              </div>
+              <div>
+                <label htmlFor="demo-message" className="mb-1.5 block text-xs font-medium text-[var(--color-muted-foreground)]">Message</label>
+                <textarea id="demo-message" rows={3} value={form.message} onChange={(e) => setForm((p) => ({ ...p, message: e.target.value }))} className={inputClass + ' resize-none'} placeholder="Tell us about your benchmarking needs..." />
+              </div>
+
+              {status === 'error' && (
+                <p className="flex items-center gap-1.5 text-sm text-red-500">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  {errorMsg}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={status === 'sending'}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--color-accent)] px-6 py-3 text-sm font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/20 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/30 disabled:opacity-60 cursor-pointer min-h-[44px]"
+              >
+                {status === 'sending' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4" />
+                    Submit Request
+                  </>
+                )}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 
 /* ── Scroll-reveal hook ────────────────────────────── */
 function useScrollReveal<T extends HTMLElement>() {
@@ -462,6 +591,7 @@ function useAnimationStyles() {
 /* ── Landing Page ─────────────────────────────────────── */
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [demoModalOpen, setDemoModalOpen] = useState(false)
   const { theme, setTheme } = useTheme()
   const mouseOffset = useMouseParallax()
   useAnimationStyles()
@@ -568,11 +698,11 @@ export default function LandingPage() {
               Replace CHF 300K consulting engagements and 200 hours of manual analyst work with a single platform that extracts, normalizes, and compares financial and ESG KPIs from peer reports automatically.
             </p>
             <div className="landing-animate-in landing-delay-4 mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <a href="#pricing" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35">
+              <button onClick={() => setDemoModalOpen(true)} className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35 cursor-pointer">
                 <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', backgroundSize: '200% 100%', animation: 'landing-shimmer 1.5s infinite' }} />
                 <span className="relative">Request a Demo</span>
                 <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-              </a>
+              </button>
               <a href="#how-it-works" className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-card)]/50 px-8 py-4 text-[15px] font-medium text-[var(--color-foreground)] backdrop-blur-sm transition-all hover:bg-[var(--color-card)]">See How It Works</a>
             </div>
             <p className="landing-animate-in landing-delay-5 mt-8 text-xs text-[var(--color-muted-foreground)]/70">Trusted by corporate strategy teams at listed companies</p>
@@ -663,11 +793,11 @@ export default function LandingPage() {
                 {ENTERPRISE_INCLUDES.map((item, i) => <EnterpriseItem key={item.text} item={item} index={i} />)}
               </div>
               <div className="mt-10 flex flex-col items-center gap-4 border-t border-[var(--color-border)] pt-8 sm:flex-row sm:justify-center">
-                <a href="mailto:roger@predivo.ch?subject=Valrano%20Demo%20Request" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-3.5 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/20 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/30">
+                <button onClick={() => setDemoModalOpen(true)} className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-3.5 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/20 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/30 cursor-pointer">
                   <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', backgroundSize: '200% 100%', animation: 'landing-shimmer 1.5s infinite' }} />
                   <span className="relative">Schedule a Consultation</span>
                   <ArrowRight className="relative h-4 w-4" aria-hidden="true" />
-                </a>
+                </button>
                 <span className="text-sm text-[var(--color-muted-foreground)]">Typical onboarding: 2 weeks</span>
               </div>
             </div>
@@ -695,11 +825,11 @@ export default function LandingPage() {
               <h2 className="text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Stop building peer comparisons manually</h2>
               <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg md:text-xl">Your team spends 3-5 days building peer comparisons that are outdated before the board meeting. Valrano builds them automatically and continuously \u2014 your analysts review insights instead of collecting data.</p>
               <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-                <a href="mailto:roger@predivo.ch?subject=Valrano%20Demo%20Request" className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35">
+                <button onClick={() => setDemoModalOpen(true)} className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35 cursor-pointer">
                   <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', backgroundSize: '200% 100%', animation: 'landing-shimmer 1.5s infinite' }} />
                   <span className="relative">Request a Demo</span>
                   <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                </a>
+                </button>
                 <Link to="/signup" className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-card)]/50 px-8 py-4 text-[15px] font-medium text-[var(--color-foreground)] backdrop-blur-sm transition-all hover:bg-[var(--color-card)]">Create Account</Link>
               </div>
             </div>
@@ -729,14 +859,14 @@ export default function LandingPage() {
                 <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Company</h3>
                 <ul className="mt-4 space-y-3">
                   <li><a href="https://predivo.ch" target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Predivo GmbH</a></li>
-                  <li><a href="mailto:roger@predivo.ch" className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Contact</a></li>
+                  <li><a href="mailto:hello@valrano.com" className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Contact</a></li>
                 </ul>
               </div>
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Access</h3>
                 <ul className="mt-4 space-y-3">
                   <li><Link to="/login" className="text-sm text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Sign in</Link></li>
-                  <li><a href="mailto:roger@predivo.ch?subject=Valrano%20Demo%20Request" className="inline-flex items-center gap-1.5 text-sm text-[var(--color-accent)] transition-colors hover:text-[var(--color-accent)]/80"><Mail className="h-3.5 w-3.5" />Request Demo</a></li>
+                  <li><button onClick={() => setDemoModalOpen(true)} className="inline-flex items-center gap-1.5 text-sm text-[var(--color-accent)] transition-colors hover:text-[var(--color-accent)]/80 cursor-pointer"><Mail className="h-3.5 w-3.5" />Request Demo</button></li>
                 </ul>
               </div>
             </div>
@@ -747,6 +877,8 @@ export default function LandingPage() {
           </div>
         </footer>
       </main>
+
+      <DemoRequestModal open={demoModalOpen} onClose={() => setDemoModalOpen(false)} />
     </>
   )
 }
