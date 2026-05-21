@@ -120,6 +120,8 @@ jobs:
           put ./dist/sitemap.xml -o httpdocs/sitemap.xml
           put ./dist/og-image.svg -o httpdocs/og-image.svg
           put ./dist/og-image.png -o httpdocs/og-image.png
+          put ./dist/apple-touch-icon.png -o httpdocs/apple-touch-icon.png
+          put ./dist/favicon.svg -o httpdocs/favicon.svg
           put ./dist/.site-id -o httpdocs/.site-id
           bye
           SCRIPT
