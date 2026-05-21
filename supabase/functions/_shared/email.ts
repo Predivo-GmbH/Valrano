@@ -38,6 +38,7 @@ interface SendEmailOptions {
   subject: string
   html: string
   text?: string
+  replyTo?: string
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
@@ -59,6 +60,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
     await client.send({
       from: config.from,
       to: options.to,
+      replyTo: options.replyTo,
       subject: options.subject,
       content: options.text ?? options.subject,
       html: options.html,
@@ -264,6 +266,20 @@ export function welcomeEmail(userName: string): { subject: string; html: string 
       '</ol>' +
       button('Go to Dashboard', APP_URL + '/dashboard') +
       '<p style="' + ST.hint + '">Need help? Just reply to this email &mdash; we read every message.</p>'
+    ),
+  }
+}
+
+export function demoConfirmationEmail(userName: string): { subject: string; html: string } {
+  const firstName = userName.split(' ')[0]
+  return {
+    subject: 'Valrano — Your demo request has been received',
+    html: layout(
+      '<h1 style="' + ST.h1 + '">Thank you for your interest in Valrano</h1>' +
+      '<p style="' + ST.p + '">Dear ' + firstName + ',</p>' +
+      '<p style="' + ST.p + '">We have received your demo request and appreciate your interest in our platform. A member of our team will reach out to you within one business day to schedule a personalized walkthrough tailored to your organization.</p>' +
+      '<p style="' + ST.p + '">During the demo, we will walk you through how Valrano automates peer benchmarking for your specific peer group and KPI taxonomy &mdash; from automated report detection to board-ready briefings.</p>' +
+      '<p style="' + ST.hint + '">If you have any questions in the meantime, please contact us at <a href="mailto:hello@valrano.com" style="color:' + ACCENT + ';text-decoration:none;">hello@valrano.com</a>.</p>'
     ),
   }
 }
