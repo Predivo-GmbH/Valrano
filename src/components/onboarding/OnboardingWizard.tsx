@@ -50,7 +50,12 @@ export function OnboardingWizard() {
   const { status } = useOnboarding()
   const { data: peerGroups } = usePeerGroups()
   const { data: existingEvents } = usePublicationEvents()
-  const [currentStep, setCurrentStep] = useState(0)
+  // User-driven step (null = auto-detect from status)
+  const [userStep, setUserStep] = useState<number | null>(null)
+  const autoStep = status.hasFramework && status.hasCompetitors && status.hasSchedule ? 3
+    : status.hasFramework && status.hasCompetitors ? 2
+    : status.hasFramework ? 1 : 0
+  const currentStep = userStep ?? autoStep
 
   // Pre-populate from existing data
   const existingCompetitorIds = (peerGroups ?? [])
@@ -203,13 +208,13 @@ export function OnboardingWizard() {
           toast.success(`${saved} publication event${saved !== 1 ? 's' : ''} scheduled`)
         }
       }
-      setCurrentStep((s) => s + 1)
+      setUserStep(currentStep + 1)
     }
   }
 
   const handleBack = () => {
     if (currentStep > 0) {
-      setCurrentStep((s) => s - 1)
+      setUserStep(currentStep - 1)
     }
   }
 
@@ -261,7 +266,7 @@ export function OnboardingWizard() {
             return (
               <div key={step.id} className="flex flex-1 items-center gap-1">
                 <button
-                  onClick={() => clickable ? setCurrentStep(i) : undefined}
+                  onClick={() => clickable ? setUserStep(i) : undefined}
                   className={cn(
                     'flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-medium transition-all',
                     active
@@ -351,7 +356,7 @@ export function OnboardingWizard() {
             schedules={schedules}
             onSchedulesChange={setSchedules}
             onConfirmSchedule={(id) => setUserConfirmedScheduleIds((prev) => new Set(prev).add(id))}
-            onSkip={() => setCurrentStep(3)}
+            onSkip={() => setUserStep(3)}
           />
         )}
         {currentStep === 3 && (
