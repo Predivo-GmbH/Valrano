@@ -124,7 +124,7 @@ ${documentList}
 For each document, return a JSON object with:
 - "index": the document number (1-based)
 - "title": a clean, human-readable title (use link text if good, otherwise derive from URL)
-- "document_type": one of: "annual_report", "quarterly_report", "half_year_report", "sustainability_report", "investor_presentation", "press_release", "financial_statements", "other"
+- "document_type": one of: "annual_report", "quarterly_report", "half_year_report", "sustainability_report", "investor_presentation", "press_release", "financial_statements", "conference_call", "factsheet", "consensus", "other"
 - "fiscal_year": the fiscal year as integer (e.g. 2025), or null if unclear
 - "fiscal_quarter": quarter number 1-4 for quarterly reports, or null
 - "language": ISO 639-1 code (e.g. "en", "de", "fr"), or null
@@ -177,7 +177,8 @@ Return a JSON array of objects. Only valid JSON, no markdown.`
 
   const validTypes = new Set([
     'annual_report', 'quarterly_report', 'half_year_report', 'sustainability_report',
-    'investor_presentation', 'press_release', 'financial_statements', 'other',
+    'investor_presentation', 'press_release', 'financial_statements',
+    'conference_call', 'factsheet', 'consensus', 'other',
   ])
 
   const classified: ClassifiedDocument[] = parsed

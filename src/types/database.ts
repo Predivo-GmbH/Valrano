@@ -850,6 +850,9 @@ export type IrDocumentType =
   | 'investor_presentation'
   | 'press_release'
   | 'financial_statements'
+  | 'conference_call'
+  | 'factsheet'
+  | 'consensus'
   | 'other';
 
 export interface IrCatalogItem {

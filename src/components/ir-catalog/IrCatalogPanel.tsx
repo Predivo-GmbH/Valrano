@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   FileText,
   Download,
@@ -11,12 +11,17 @@ import {
   Newspaper,
   File,
   Plus,
+  ChevronDown,
+  ChevronRight,
+  Phone,
+  ClipboardList,
+  BarChart3,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useIrCatalogItems, useScanIrPage, useDownloadCatalogItem } from '@/hooks/useIrCatalog'
 import { useSmoothProgress } from '@/hooks/useSmoothProgress'
-import type { IrDocumentType } from '@/types/database'
+import type { IrCatalogItem, IrDocumentType } from '@/types/database'
 
 interface IrCatalogPanelProps {
   companyId: string
@@ -33,6 +38,9 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   investor_presentation: 'Presentation',
   press_release: 'Press Release',
   financial_statements: 'Financial Statements',
+  conference_call: 'Conference Call',
+  factsheet: 'Factsheet',
+  consensus: 'Consensus',
   other: 'Other',
 }
 
@@ -57,6 +65,12 @@ function getDocumentIcon(docType: string | null) {
       return Presentation
     case 'press_release':
       return Newspaper
+    case 'conference_call':
+      return Phone
+    case 'factsheet':
+      return ClipboardList
+    case 'consensus':
+      return BarChart3
     default:
       return File
   }
@@ -69,7 +83,122 @@ function formatFileSize(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+/** Sort items: fiscal_year DESC, fiscal_quarter DESC (nulls last), title ASC */
+function sortItems(a: IrCatalogItem, b: IrCatalogItem): number {
+  const ya = a.fiscal_year ?? 0
+  const yb = b.fiscal_year ?? 0
+  if (yb !== ya) return yb - ya
+  const qa = a.fiscal_quarter ?? 99
+  const qb = b.fiscal_quarter ?? 99
+  if (qb !== qa) return qb - qa
+  return (a.title ?? '').localeCompare(b.title ?? '')
+}
+
 type FilterType = 'all' | IrDocumentType
+
+function DocumentRow({
+  item,
+  canAnalyze,
+  isDownloading,
+  isAnalyzed,
+  onDownload,
+  downloadDisabled,
+}: {
+  item: IrCatalogItem
+  canAnalyze: boolean
+  isDownloading: boolean
+  isAnalyzed: boolean
+  onDownload: () => void
+  downloadDisabled: boolean
+}) {
+  const Icon = getDocumentIcon(item.document_type)
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--color-bg-tertiary)]/20 transition-colors">
+      <div className="flex-shrink-0">
+        <Icon className="h-5 w-5 text-muted-foreground" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-foreground truncate">
+          {item.title || 'Untitled document'}
+        </p>
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span>{DOCUMENT_TYPE_LABELS[item.document_type ?? 'other'] ?? 'Other'}</span>
+          {item.fiscal_year && (
+            <>
+              <span>·</span>
+              <span>
+                {item.fiscal_quarter ? `Q${item.fiscal_quarter} ` : 'FY '}
+                {item.fiscal_year}
+              </span>
+            </>
+          )}
+          {item.file_size_bytes && (
+            <>
+              <span>·</span>
+              <span>{formatFileSize(item.file_size_bytes)}</span>
+            </>
+          )}
+          {item.language && (
+            <>
+              <span>·</span>
+              <span className="uppercase">{item.language}</span>
+            </>
+          )}
+          {item.file_format && (
+            <>
+              <span>·</span>
+              <span className="uppercase">{item.file_format}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {isAnalyzed ? (
+          <span className="flex items-center gap-1 text-[11px] text-[var(--color-signal-green)] font-medium">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Analyzed
+          </span>
+        ) : canAnalyze ? (
+          <button
+            onClick={onDownload}
+            disabled={isDownloading || downloadDisabled}
+            className="flex items-center gap-1 rounded-md bg-[var(--color-accent)]/10 px-2.5 py-1.5 min-h-[44px] text-[11px] font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent)]/20 disabled:opacity-50 cursor-pointer"
+          >
+            {isDownloading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Download className="h-3 w-3" />
+            )}
+            Download & Analyze
+          </button>
+        ) : (
+          <a
+            href={item.document_url}
+            download
+            className="flex items-center gap-1 rounded-md bg-[var(--color-bg-tertiary)] px-2.5 py-1.5 min-h-[44px] text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-[var(--color-bg-tertiary)]/80 cursor-pointer"
+            title="Download document"
+          >
+            <Download className="h-3 w-3" />
+            Download
+          </a>
+        )}
+
+        <a
+          href={item.document_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center h-8 w-8 min-h-[44px] min-w-[44px] rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-[var(--color-bg-tertiary)]"
+          title="Open in new tab"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
+      </div>
+    </div>
+  )
+}
 
 export function IrCatalogPanel({ companyId, companyName, irPageUrl, onSetIrUrl }: IrCatalogPanelProps) {
   const { data: items, isLoading } = useIrCatalogItems(companyId)
@@ -78,16 +207,85 @@ export function IrCatalogPanel({ companyId, companyName, irPageUrl, onSetIrUrl }
   const [filterType, setFilterType] = useState<FilterType>('all')
   const [filterYear, setFilterYear] = useState<string>('all')
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [referenceCollapsed, setReferenceCollapsed] = useState(false)
 
   const progress = useSmoothProgress(scanMutation.isPending ? 20 : scanMutation.isSuccess ? 100 : 0)
 
-  const filteredItems = (items ?? []).filter((item) => {
+  // Split items into analyzable and reference
+  const { analyzableItems, referenceItems, typeCounts, availableTypes, availableYears, stats } = useMemo(() => {
+    const all = items ?? []
+    const analyzable: IrCatalogItem[] = []
+    const reference: IrCatalogItem[] = []
+    const counts = new Map<string, number>()
+    const yearSet = new Set<number>()
+
+    for (const item of all) {
+      const type = item.document_type ?? 'other'
+      counts.set(type, (counts.get(type) ?? 0) + 1)
+      if (item.fiscal_year) yearSet.add(item.fiscal_year)
+
+      if (ANALYZABLE_TYPES.has(type)) {
+        analyzable.push(item)
+      } else {
+        reference.push(item)
+      }
+    }
+
+    analyzable.sort(sortItems)
+    reference.sort(sortItems)
+
+    // Build available types (only types that exist in data)
+    const types = [...counts.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([type, count]) => ({ type, count, label: DOCUMENT_TYPE_LABELS[type] ?? type }))
+
+    const years = [...yearSet].sort((a, b) => b - a)
+
+    return {
+      analyzableItems: analyzable,
+      referenceItems: reference,
+      typeCounts: counts,
+      availableTypes: types,
+      availableYears: years,
+      stats: { total: all.length, analyzable: analyzable.length, reference: reference.length, years: years.length },
+    }
+  }, [items])
+
+  // Cross-filter: when type is selected, only show years that have items of that type (and vice versa)
+  const filteredYears = useMemo(() => {
+    if (filterType === 'all') return availableYears
+    return availableYears.filter((y) =>
+      (items ?? []).some((i) => i.document_type === filterType && i.fiscal_year === y),
+    )
+  }, [items, filterType, availableYears])
+
+  const filteredTypes = useMemo(() => {
+    if (filterYear === 'all') return availableTypes
+    const yr = parseInt(filterYear)
+    return availableTypes.filter(({ type }) =>
+      (items ?? []).some((i) => i.document_type === type && i.fiscal_year === yr),
+    )
+  }, [items, filterYear, availableTypes])
+
+  // Reset year filter if it becomes invalid after type change
+  if (filterYear !== 'all' && !filteredYears.includes(parseInt(filterYear))) {
+    setFilterYear('all')
+  }
+
+  // Apply filters to both sections
+  const filterFn = (item: IrCatalogItem) => {
     if (filterType !== 'all' && item.document_type !== filterType) return false
     if (filterYear !== 'all' && item.fiscal_year !== parseInt(filterYear)) return false
     return true
-  })
+  }
 
-  const years = [...new Set((items ?? []).map((i) => i.fiscal_year).filter(Boolean) as number[])].sort((a, b) => b - a)
+  const filteredAnalyzable = analyzableItems.filter(filterFn)
+  const filteredReference = referenceItems.filter(filterFn)
+  const totalFiltered = filteredAnalyzable.length + filteredReference.length
+
+  // Auto-collapse reference when there are analyzable results
+  const showAnalyzable = filterType === 'all' || ANALYZABLE_TYPES.has(filterType)
+  const showReference = filterType === 'all' || !ANALYZABLE_TYPES.has(filterType)
 
   const handleScan = async () => {
     const result = await scanMutation.mutateAsync(companyId)
@@ -155,9 +353,9 @@ export function IrCatalogPanel({ companyId, companyName, irPageUrl, onSetIrUrl }
         <div className="flex items-center gap-2">
           <Search className="h-4 w-4 text-[var(--color-accent)]" />
           <h3 className="text-sm font-semibold text-foreground">IR Document Catalog</h3>
-          {items && items.length > 0 && (
+          {stats.total > 0 && (
             <span className="text-xs text-muted-foreground">
-              ({items.length} document{items.length !== 1 ? 's' : ''})
+              ({stats.total} document{stats.total !== 1 ? 's' : ''})
             </span>
           )}
         </div>
@@ -202,135 +400,117 @@ export function IrCatalogPanel({ companyId, companyName, irPageUrl, onSetIrUrl }
         ) : !items || items.length === 0 ? (
           <div className="px-5 py-8 text-center">
             <p className="text-sm text-muted-foreground">
-              No documents cataloged yet. Click "Scan IR Page" to discover available documents.
+              No documents cataloged yet. Click &quot;Scan IR Page&quot; to discover available documents.
             </p>
           </div>
         ) : (
           <>
-            {/* Filters */}
+            {/* Stats bar + Filters */}
             <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-[var(--color-bg-tertiary)]/30">
               <Select value={filterType} onValueChange={(v) => v && setFilterType(v as FilterType)}>
-                <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectTrigger className="w-[180px] h-8 text-xs">
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All types</SelectItem>
-                  <SelectItem value="annual_report">Annual Reports</SelectItem>
-                  <SelectItem value="quarterly_report">Quarterly Reports</SelectItem>
-                  <SelectItem value="half_year_report">Half-Year Reports</SelectItem>
-                  <SelectItem value="sustainability_report">Sustainability</SelectItem>
-                  <SelectItem value="investor_presentation">Presentations</SelectItem>
-                  <SelectItem value="financial_statements">Financial Statements</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="all">All types ({stats.total})</SelectItem>
+                  {filteredTypes.map(({ type, count, label }) => (
+                    <SelectItem key={type} value={type}>{label} ({count})</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              {years.length > 0 && (
+              {availableYears.length > 0 && (
                 <Select value={filterYear} onValueChange={(v) => v && setFilterYear(v)}>
                   <SelectTrigger className="w-[120px] h-8 text-xs">
                     <SelectValue placeholder="All years" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All years</SelectItem>
-                    {years.map((y) => (
+                    {filteredYears.map((y) => (
                       <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               )}
-              <span className="ml-auto text-[11px] text-muted-foreground">
-                {filteredItems.length} of {items.length}
-              </span>
+              <div className="ml-auto flex items-center gap-3 text-[11px] text-muted-foreground">
+                <span>{totalFiltered} of {stats.total}</span>
+                <span className="hidden sm:inline">·</span>
+                <span className="hidden sm:inline text-[var(--color-accent)]">{stats.analyzable} analyzable</span>
+                <span className="hidden sm:inline">·</span>
+                <span className="hidden sm:inline">{stats.reference} reference</span>
+              </div>
             </div>
 
-            {/* Document list */}
-            <div className="divide-y divide-border/30">
-              {filteredItems.map((item) => {
-                const Icon = getDocumentIcon(item.document_type)
-                const canAnalyze = ANALYZABLE_TYPES.has(item.document_type ?? '')
-                const isDownloading = downloadingId === item.id
-                const isAnalyzed = item.is_downloaded && item.report_id
+            {/* Reports for Analysis section */}
+            {showAnalyzable && filteredAnalyzable.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 px-4 py-2 border-b border-border/50 bg-[var(--color-accent)]/5">
+                  <FileText className="h-3.5 w-3.5 text-[var(--color-accent)]" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[var(--color-accent)]">
+                    Reports for Analysis
+                  </span>
+                  <span className="text-[11px] text-[var(--color-accent)]/60">({filteredAnalyzable.length})</span>
+                </div>
+                <div className="divide-y divide-border/30">
+                  {filteredAnalyzable.map((item) => (
+                    <DocumentRow
+                      key={item.id}
+                      item={item}
+                      canAnalyze
+                      isDownloading={downloadingId === item.id}
+                      isAnalyzed={!!(item.is_downloaded && item.report_id)}
+                      onDownload={() => handleDownload(item.id)}
+                      downloadDisabled={downloadMutation.isPending}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
-                return (
-                  <div key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--color-bg-tertiary)]/20 transition-colors">
-                    {/* Icon */}
-                    <div className="flex-shrink-0">
-                      <Icon className="h-5 w-5 text-muted-foreground" />
-                    </div>
-
-                    {/* Info */}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {item.title || 'Untitled document'}
-                      </p>
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span>{DOCUMENT_TYPE_LABELS[item.document_type ?? 'other'] ?? 'Other'}</span>
-                        {item.fiscal_year && (
-                          <>
-                            <span>·</span>
-                            <span>
-                              {item.fiscal_quarter ? `Q${item.fiscal_quarter} ` : 'FY '}
-                              {item.fiscal_year}
-                            </span>
-                          </>
-                        )}
-                        {item.file_size_bytes && (
-                          <>
-                            <span>·</span>
-                            <span>{formatFileSize(item.file_size_bytes)}</span>
-                          </>
-                        )}
-                        {item.language && (
-                          <>
-                            <span>·</span>
-                            <span className="uppercase">{item.language}</span>
-                          </>
-                        )}
-                        {item.file_format && (
-                          <>
-                            <span>·</span>
-                            <span className="uppercase">{item.file_format}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Status / Actions */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {isAnalyzed ? (
-                        <span className="flex items-center gap-1 text-[11px] text-[var(--color-signal-green)] font-medium">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Analyzed
-                        </span>
-                      ) : canAnalyze ? (
-                        <button
-                          onClick={() => handleDownload(item.id)}
-                          disabled={isDownloading || downloadMutation.isPending}
-                          className="flex items-center gap-1 rounded-md bg-[var(--color-accent)]/10 px-2.5 py-1.5 min-h-[44px] text-[11px] font-medium text-[var(--color-accent)] transition-colors hover:bg-[var(--color-accent)]/20 disabled:opacity-50 cursor-pointer"
-                        >
-                          {isDownloading ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Download className="h-3 w-3" />
-                          )}
-                          Download & Analyze
-                        </button>
-                      ) : null}
-
-                      {/* External link */}
-                      <a
-                        href={item.document_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center h-8 w-8 min-h-[44px] min-w-[44px] rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-[var(--color-bg-tertiary)]"
-                        title="Open document in new tab"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    </div>
+            {/* Reference Documents section */}
+            {showReference && filteredReference.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setReferenceCollapsed(!referenceCollapsed)}
+                  className="flex items-center gap-2 w-full px-4 py-2 border-b border-border/50 bg-[var(--color-bg-tertiary)]/20 hover:bg-[var(--color-bg-tertiary)]/40 transition-colors cursor-pointer text-left"
+                >
+                  {referenceCollapsed ? (
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                  <File className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                    Reference Documents
+                  </span>
+                  <span className="text-[11px] text-muted-foreground/60">({filteredReference.length})</span>
+                </button>
+                {!referenceCollapsed && (
+                  <div className="divide-y divide-border/30">
+                    {filteredReference.map((item) => (
+                      <DocumentRow
+                        key={item.id}
+                        item={item}
+                        canAnalyze={false}
+                        isDownloading={false}
+                        isAnalyzed={false}
+                        onDownload={() => {}}
+                        downloadDisabled={false}
+                      />
+                    ))}
                   </div>
-                )
-              })}
-            </div>
+                )}
+              </div>
+            )}
+
+            {/* No results after filtering */}
+            {totalFiltered === 0 && (
+              <div className="px-5 py-8 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No documents match the selected filters.
+                </p>
+              </div>
+            )}
           </>
         )}
       </div>
