@@ -104,7 +104,16 @@ function layout(body: string): string {
     '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="480" style="max-width:480px;width:100%;">',
     '<tr>',
     '<td align="center" style="padding-bottom:28px;">',
+    '<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">',
+    '<tr>',
+    '<td style="vertical-align:middle;padding-right:10px;">',
+    '<img src="https://valrano.com/apple-touch-icon.png" alt="" width="28" height="28" style="display:block;width:28px;height:28px;border-radius:6px;" />',
+    '</td>',
+    '<td style="vertical-align:middle;">',
     '<span style="font-family:' + FONT + ';font-size:20px;font-weight:700;color:#18181b;letter-spacing:-0.02em;">Valrano</span>',
+    '</td>',
+    '</tr>',
+    '</table>',
     '</td>',
     '</tr>',
     '<tr>',
@@ -257,15 +266,31 @@ export function welcomeEmail(userName: string): { subject: string; html: string 
   return {
     subject: 'Welcome to Valrano, ' + firstName + '!',
     html: layout(
-      '<h1 style="' + ST.h1 + '">Welcome aboard, ' + firstName + '!</h1>' +
-      '<p style="' + ST.p + '">Your Valrano account is ready. Here&rsquo;s how to get started:</p>' +
-      '<ol style="margin:0 0 12px;padding-left:20px;font-family:' + FONT + ';font-size:15px;color:#3f3f46;line-height:1.8;">' +
-      '<li>Upload your first annual report (PDF)</li>' +
-      '<li>AI extracts and normalizes your KPIs automatically</li>' +
-      '<li>Review benchmarks against industry peers</li>' +
-      '</ol>' +
-      button('Go to Dashboard', APP_URL + '/dashboard') +
-      '<p style="' + ST.hint + '">Need help? Just reply to this email &mdash; we read every message.</p>'
+      '<h1 style="' + ST.h1 + '">Welcome to Valrano, ' + firstName + '</h1>' +
+      '<p style="' + ST.p + '">Your benchmarking workspace is ready. Valrano automates peer benchmarking &mdash; from report ingestion to board-ready briefings.</p>' +
+      '<p style="' + ST.p + 'margin-bottom:4px;">Here&rsquo;s what happens next:</p>' +
+      '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 16px;">' +
+      '<tr>' +
+      '<td style="padding:12px 0;border-bottom:1px solid #f4f4f5;font-family:' + FONT + ';font-size:15px;color:#3f3f46;line-height:1.6;">' +
+      '<span style="' + ST.strong + '">1. Set up your peer group</span><br />' +
+      'Select your accounting framework and add the companies you benchmark against.' +
+      '</td>' +
+      '</tr>' +
+      '<tr>' +
+      '<td style="padding:12px 0;border-bottom:1px solid #f4f4f5;font-family:' + FONT + ';font-size:15px;color:#3f3f46;line-height:1.6;">' +
+      '<span style="' + ST.strong + '">2. Upload or schedule reports</span><br />' +
+      'Drop a PDF or let Valrano monitor IR pages automatically.' +
+      '</td>' +
+      '</tr>' +
+      '<tr>' +
+      '<td style="padding:12px 0;font-family:' + FONT + ';font-size:15px;color:#3f3f46;line-height:1.6;">' +
+      '<span style="' + ST.strong + '">3. Get AI-powered benchmarks</span><br />' +
+      'KPIs are extracted, normalized, and compared across your peer group.' +
+      '</td>' +
+      '</tr>' +
+      '</table>' +
+      button('Complete Setup', APP_URL + '/dashboard') +
+      '<p style="' + ST.hint + '">Questions? Contact us at <a href="mailto:hello@valrano.com" style="color:' + ACCENT + ';text-decoration:none;">hello@valrano.com</a></p>'
     ),
   }
 }
