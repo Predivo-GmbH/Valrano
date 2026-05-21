@@ -1183,9 +1183,18 @@ export function DashboardPage() {
                 icon={<Zap className="h-4 w-4 text-[var(--color-accent)]" />}
                 label="Pipeline Active"
                 value={String(pipelineActive + activeMonitored)}
-                subtitle={`${activeMonitored} monitored · ${pipelineActive} processing`}
+                subtitle={
+                  pipelineActive + activeMonitored === 0 && peerCompanies.length > 0 && (!publicationEvents || publicationEvents.length === 0)
+                    ? 'Add publication dates to start monitoring'
+                    : `${activeMonitored} monitored · ${pipelineActive} processing`
+                }
                 accentColor="bg-[var(--color-accent)]/10"
                 tooltip="Reports currently being monitored or processed through the ingestion pipeline."
+                actionLink={
+                  pipelineActive + activeMonitored === 0 && peerCompanies.length > 0 && (!publicationEvents || publicationEvents.length === 0)
+                    ? '/calendar'
+                    : undefined
+                }
               />
             </div>
             <div className="stagger-child" style={{ '--stagger': 1 } as React.CSSProperties}>

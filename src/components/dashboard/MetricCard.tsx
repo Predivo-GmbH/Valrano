@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 export interface MetricCardProps {
@@ -8,9 +9,10 @@ export interface MetricCardProps {
   subtitle: string
   accentColor: string
   tooltip?: string
+  actionLink?: string
 }
 
-export const MetricCard = React.memo(function MetricCard({ icon, label, value, subtitle, accentColor, tooltip }: MetricCardProps) {
+export const MetricCard = React.memo(function MetricCard({ icon, label, value, subtitle, accentColor, tooltip, actionLink }: MetricCardProps) {
   const labelEl = (
     <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
       {label}
@@ -36,7 +38,11 @@ export const MetricCard = React.memo(function MetricCard({ icon, label, value, s
         {value}
       </div>
       <div className="text-[11px] text-muted-foreground">
-        {subtitle}
+        {actionLink ? (
+          <Link to={actionLink} className="text-[var(--color-accent)] hover:underline">
+            {subtitle}
+          </Link>
+        ) : subtitle}
       </div>
     </div>
   )

@@ -9,7 +9,6 @@ import {
   ChevronRight,
   FileText,
   Loader2,
-  Rocket,
   Search,
   Sparkles,
   Upload,
@@ -37,7 +36,6 @@ const STEPS = [
   { id: 'framework', label: 'Accounting Framework', icon: BookOpen },
   { id: 'competitors', label: 'Add Competitors', icon: Building2 },
   { id: 'schedule', label: 'Publication Schedule', icon: Calendar },
-  { id: 'activate', label: 'Activate Pipeline', icon: Rocket },
 ] as const
 
 // ---------------------------------------------------------------------------
@@ -52,8 +50,7 @@ export function OnboardingWizard() {
   const { data: existingEvents } = usePublicationEvents()
   // User-driven step (null = auto-detect from status)
   const [userStep, setUserStep] = useState<number | null>(null)
-  const autoStep = status.hasFramework && status.hasCompetitors && status.hasSchedule ? 3
-    : status.hasFramework && status.hasCompetitors ? 2
+  const autoStep = status.hasFramework && status.hasCompetitors ? 2
     : status.hasFramework ? 1 : 0
   const currentStep = userStep ?? autoStep
 
@@ -117,8 +114,7 @@ export function OnboardingWizard() {
     switch (step) {
       case 0: return status.hasFramework
       case 1: return status.hasCompetitors || competitorsConfirmed
-      case 2: return currentStep > 2 || Object.values(schedules).some(s => s.expectedDate)
-      case 3: return status.isComplete
+      case 2: return status.hasSchedule || Object.values(schedules).some(s => s.expectedDate)
       default: return false
     }
   }
@@ -218,14 +214,55 @@ export function OnboardingWizard() {
     }
   }
 
-  const handleComplete = async () => {
+  const handleFinishSetup = async () => {
+    // Save schedules if any were entered (same as handleNext for step 2)
+    if (currentStep === 2) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        let saved = 0
+        for (const [companyId, schedule] of Object.entries(schedules)) {
+          if (schedule.expectedDate) {
+            const { error } = await supabase.from('publication_events').upsert(
+              {
+                company_id: companyId,
+                report_type: schedule.reportType || 'annual',
+                expected_date: schedule.expectedDate,
+                status: 'scheduled',
+                created_by: user.id,
+              },
+              { onConflict: 'company_id,report_type,expected_date' },
+            )
+            if (!error) saved++
+          }
+        }
+        if (saved > 0) {
+          queryClient.invalidateQueries({ queryKey: ['publication-events'] })
+        }
+      }
+    }
     try {
       await dismissOnboarding()
       queryClient.setQueryData(['onboarding-dismissed'], true)
-      toast.success('Pipeline activated! Your competitors will be monitored automatically.')
+      const hasSchedules = Object.values(schedules).some(s => s.expectedDate)
+      if (hasSchedules) {
+        toast.success('Setup complete! Your competitors will be monitored automatically.')
+      } else {
+        toast.success('Setup complete! Add publication dates on the Calendar page to start monitoring.')
+      }
       navigate('/dashboard', { replace: true })
     } catch {
-      toast.error('Failed to complete onboarding')
+      toast.error('Failed to complete setup')
+    }
+  }
+
+  const handleSkipSchedule = async () => {
+    try {
+      await dismissOnboarding()
+      queryClient.setQueryData(['onboarding-dismissed'], true)
+      toast.success('Setup complete! Add publication dates on the Calendar page to start monitoring.')
+      navigate('/dashboard', { replace: true })
+    } catch {
+      toast.error('Failed to complete setup')
     }
   }
 
@@ -356,13 +393,7 @@ export function OnboardingWizard() {
             schedules={schedules}
             onSchedulesChange={setSchedules}
             onConfirmSchedule={(id) => setUserConfirmedScheduleIds((prev) => new Set(prev).add(id))}
-            onSkip={() => setUserStep(3)}
-          />
-        )}
-        {currentStep === 3 && (
-          <StepActivate
-            competitorCount={selectedCompanyIds.length}
-            scheduleCount={Object.keys(schedules).length}
+            onSkip={handleSkipSchedule}
           />
         )}
       </div>
@@ -388,11 +419,11 @@ export function OnboardingWizard() {
             </button>
           ) : (
             <button
-              onClick={handleComplete}
+              onClick={handleFinishSetup}
               className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-[var(--color-accent)] px-5 py-2.5 text-[13px] font-medium text-white transition-all hover:opacity-90"
             >
-              <Rocket className="h-4 w-4" />
-              Activate Pipeline
+              <Check className="h-4 w-4" />
+              Finish Setup
             </button>
           )}
         </div>
@@ -1331,68 +1362,3 @@ function StepSchedule({
 // Step 4: Activate Pipeline
 // ---------------------------------------------------------------------------
 
-function StepActivate({
-  competitorCount,
-  scheduleCount,
-}: {
-  competitorCount: number
-  scheduleCount: number
-}) {
-  const { data: profile } = useAccountingProfile()
-
-  return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-accent)]/10 mb-4">
-          <Rocket className="h-8 w-8 text-[var(--color-accent)]" />
-        </div>
-        <h2 className="text-[22px] font-semibold text-foreground">You're Ready!</h2>
-        <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed max-w-md mx-auto">
-          Here's what Valrano will do automatically:
-        </p>
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
-        <div className="rounded-xl border border-border bg-card p-4 text-center">
-          <BookOpen className="mx-auto h-5 w-5 text-[var(--color-accent)] mb-2" />
-          <p className="text-[20px] font-bold text-foreground">
-            {profile ? '1' : '0'}
-          </p>
-          <p className="text-[11px] text-muted-foreground">Accounting Framework</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 text-center">
-          <Building2 className="mx-auto h-5 w-5 text-[var(--color-accent)] mb-2" />
-          <p className="text-[20px] font-bold text-foreground">{competitorCount}</p>
-          <p className="text-[11px] text-muted-foreground">Competitors</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 text-center">
-          <Calendar className="mx-auto h-5 w-5 text-[var(--color-accent)] mb-2" />
-          <p className="text-[20px] font-bold text-foreground">{scheduleCount}</p>
-          <p className="text-[11px] text-muted-foreground">Scheduled Events</p>
-        </div>
-      </div>
-
-      {/* What happens next */}
-      <div className="max-w-lg mx-auto space-y-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          What happens next
-        </p>
-        {[
-          'Monitor competitor IR pages automatically before expected publication dates',
-          'Download and extract KPIs from new reports using AI',
-          'Normalize data to your accounting framework for true comparisons',
-          'Generate board-ready benchmark documents automatically',
-          'Notify you when documents are ready for review',
-        ].map((text, i) => (
-          <div key={i} className="flex items-start gap-3">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-accent)]/10 flex-shrink-0 mt-0.5">
-              <Check className="h-3 w-3 text-[var(--color-accent)]" />
-            </div>
-            <p className="text-[13px] text-foreground leading-relaxed">{text}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}

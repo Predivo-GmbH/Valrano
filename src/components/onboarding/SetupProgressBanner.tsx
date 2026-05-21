@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
-import { useOnboarding, resetOnboarding } from '@/hooks/useOnboarding'
+import { useOnboarding, useOnboardingDismissed, resetOnboarding } from '@/hooks/useOnboarding'
 import { cn } from '@/lib/utils'
 import { BookOpen, Building2, Calendar, Check, X } from 'lucide-react'
 
@@ -26,6 +26,7 @@ export function SetupProgressBanner() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { status, isLoading } = useOnboarding()
+  const { data: onboardingDismissed, isLoading: dismissedLoading } = useOnboardingDismissed()
   const [dismissed, setDismissed] = useState(() => {
     try {
       return localStorage.getItem(DISMISS_KEY) === 'true'
@@ -46,7 +47,8 @@ export function SetupProgressBanner() {
     }
   }, [status.isComplete])
 
-  if (isLoading || status.isComplete || dismissed) {
+  // Hide if: loading, all steps complete, user dismissed banner, OR user finished the wizard
+  if (isLoading || dismissedLoading || status.isComplete || dismissed || onboardingDismissed) {
     return null
   }
 
