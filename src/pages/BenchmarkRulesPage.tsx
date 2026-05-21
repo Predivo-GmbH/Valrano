@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
+import { CompanyLogo } from '@/components/ui/company-logo'
 import { Settings, Plus, Trash2, Loader2, FileText, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state'
@@ -360,7 +361,7 @@ export function BenchmarkRulesPage() {
                     <p className="text-[13px] text-muted-foreground ml-7 mb-2">{rule.description}</p>
                   )}
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 ml-7 text-[11px] text-muted-foreground">
-                    <span>Customer: <span className="text-foreground font-medium">{rule.companies?.name ?? '—'}</span></span>
+                    <span className="inline-flex items-center gap-1.5">Customer: <CompanyLogo logoUrl={rule.companies?.logo_url} websiteUrl={rule.companies?.website_url} name={rule.companies?.name} size="xs" /><span className="text-foreground font-medium">{rule.companies?.name ?? '—'}</span>{rule.companies?.ticker && <span className="text-muted-foreground">({rule.companies.ticker})</span>}</span>
                     <span>Style: <span className="text-foreground font-medium">{STYLE_LABELS[rule.narrative_style]}</span></span>
                     <span>KPIs: <span className="text-foreground font-medium">{rule.kpi_selection.length}</span></span>
                     {rule.auto_generate && (

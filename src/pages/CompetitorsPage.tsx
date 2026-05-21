@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useCompanies, useReports, useKpiDefinitions, useKpiValues } from '@/hooks/useData'
 import { usePrimaryCompany } from '@/hooks/useMyCompany'
 import { usePublicationEvents, useCheckPublication } from '@/hooks/useCalendar'
+import { useSuggestIrUrl } from '@/hooks/useAiSuggestions'
 import { useIrCatalogCount } from '@/hooks/useIrCatalog'
 import type { Company, ReportType, PublicationEventStatus } from '@/types/database'
 import { REPORT_TYPE_LABELS } from '@/lib/constants'
@@ -35,6 +36,7 @@ import {
   ArrowUp,
   ArrowDown,
   Trash2,
+  Globe,
 } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
@@ -159,8 +161,10 @@ function AddCompanyDialog({
   const [isResolvingWebsite, setIsResolvingWebsite] = useState(false)
   const [isEnriching, setIsEnriching] = useState(false)
   const [irUrl, setIrUrl] = useState('')
+  const [irUrlSource, setIrUrlSource] = useState<'enriched' | 'ai' | 'manual' | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [nameError, setNameError] = useState(false)
+  const suggestIrUrlMutation = useSuggestIrUrl()
 
   const resolveWebsite = async (companyName: string) => {
     if (!companyName.trim() || companyName.trim().length < 2) return
@@ -220,7 +224,7 @@ function AddCompanyDialog({
       if (data.ticker) setTicker(data.ticker)
       if (data.exchange) setExchange(data.exchange)
       if (data.sector) setSector(data.sector)
-      if (data.ir_url) setIrUrl(data.ir_url)
+      if (data.ir_url) { setIrUrl(data.ir_url); setIrUrlSource('enriched') }
     } catch {
       // Silently fail — user can enter manually
     } finally {
@@ -252,6 +256,7 @@ function AddCompanyDialog({
     setSector('')
     setWebsiteUrl('')
     setIrUrl('')
+    setIrUrlSource(null)
     setNameError(false)
     setIsEnriching(false)
   }
@@ -508,16 +513,62 @@ function AddCompanyDialog({
 
           {/* IR Page URL */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-              IR Page URL
-            </Label>
-            <Input
-              type="url"
-              value={irUrl}
-              onChange={(e) => setIrUrl(e.target.value)}
-              placeholder="https://www.example.com/investors"
-              className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
-            />
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+                IR Page URL
+              </Label>
+              {name.trim() && !irUrl && !suggestIrUrlMutation.isPending && !isEnriching && (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--color-accent)] hover:underline"
+                  onClick={() => {
+                    suggestIrUrlMutation.mutate(
+                      { company_id: '', company_name: name.trim() },
+                      {
+                        onSuccess: (data) => {
+                          if (data.ir_page_url) {
+                            setIrUrl(data.ir_page_url)
+                            setIrUrlSource('ai')
+                            toast.success(data.validated ? 'IR page found and validated' : 'IR page suggested (not validated)')
+                          } else {
+                            toast.info('Could not find IR page — enter manually')
+                          }
+                        },
+                        onError: () => toast.error('Could not find IR page'),
+                      },
+                    )
+                  }}
+                >
+                  <Globe className="h-3 w-3" />
+                  Auto-discover
+                </button>
+              )}
+            </div>
+            <div className="relative">
+              <Input
+                type="url"
+                value={irUrl}
+                onChange={(e) => { setIrUrl(e.target.value); setIrUrlSource(e.target.value ? 'manual' : null) }}
+                placeholder={websiteUrl ? `e.g., ${websiteUrl}/investors` : 'https://www.example.com/investors'}
+                className="rounded-lg border-border bg-[var(--color-bg-tertiary)] text-[13px] text-foreground"
+                disabled={suggestIrUrlMutation.isPending}
+              />
+              {suggestIrUrlMutation.isPending && (
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              )}
+            </div>
+            {irUrl && irUrlSource === 'enriched' && (
+              <p className="text-[10px] text-green-400">Auto-filled from company data</p>
+            )}
+            {irUrl && irUrlSource === 'ai' && suggestIrUrlMutation.data?.validated && (
+              <p className="text-[10px] text-green-400">AI-discovered — page validated</p>
+            )}
+            {irUrl && irUrlSource === 'ai' && suggestIrUrlMutation.data && !suggestIrUrlMutation.data.validated && (
+              <p className="text-[10px] text-[var(--color-signal-amber)]">AI-suggested — not validated</p>
+            )}
+            {irUrl && irUrlSource === 'manual' && (
+              <p className="text-[10px] text-muted-foreground">Manual entry</p>
+            )}
           </div>
         </div>
 

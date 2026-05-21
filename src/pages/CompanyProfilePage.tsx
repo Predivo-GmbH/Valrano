@@ -48,7 +48,7 @@ import { useAllCompanies, useKpiValues, useReports } from '@/hooks/useData'
 import { usePrimaryCompany } from '@/hooks/useMyCompany'
 import { useAccountingProfile } from '@/hooks/useAccountingProfile'
 import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEvent } from '@/hooks/useCalendar'
-import { useSuggestDates } from '@/hooks/useAiSuggestions'
+import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
 import { IrCatalogPanel } from '@/components/ir-catalog/IrCatalogPanel'
 import { useScanIrPage } from '@/hooks/useIrCatalog'
 import { isIrCatalogEnabled } from '@/lib/dev-flags'
@@ -278,6 +278,7 @@ export function CompanyProfilePage() {
   const [websiteInput, setWebsiteInput] = useState('')
   const [irInput, setIrInput] = useState('')
   const [isRedetecting, setIsRedetecting] = useState(false)
+  const suggestIrUrlMutation = useSuggestIrUrl()
 
   // Page readiness — tracks whether the company profile is fully set up
   // Internal state tracks the resolution process; effective status also considers live company data
@@ -882,14 +883,50 @@ export function CompanyProfilePage() {
                     </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-                    onClick={() => { setIrInput(''); setEditingIr(true) }}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add IR page
-                  </button>
+                  <div className="inline-flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-1.5 text-[12px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                      onClick={() => { setIrInput(''); setEditingIr(true) }}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add IR page
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--color-accent)]/30 px-3 py-1.5 text-[12px] text-[var(--color-accent)] transition-colors hover:border-[var(--color-accent)]/60 hover:bg-[var(--color-accent)]/5"
+                      disabled={suggestIrUrlMutation.isPending}
+                      onClick={() => {
+                        suggestIrUrlMutation.mutate(
+                          { company_id: company.id, company_name: company.name },
+                          {
+                            onSuccess: (data) => {
+                              if (data.ir_page_url) {
+                                saveIrUrl(data.ir_page_url)
+                                toast.success(data.validated ? 'IR page discovered and validated' : 'IR page suggested — please verify')
+                              } else {
+                                toast.info('Could not auto-detect IR page — add manually')
+                                setIrInput('')
+                                setEditingIr(true)
+                              }
+                            },
+                            onError: () => {
+                              toast.error('Auto-detect failed')
+                              setIrInput('')
+                              setEditingIr(true)
+                            },
+                          },
+                        )
+                      }}
+                    >
+                      {suggestIrUrlMutation.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Globe className="h-3.5 w-3.5" />
+                      )}
+                      {suggestIrUrlMutation.isPending ? 'Detecting...' : 'Auto-detect'}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

@@ -7,6 +7,7 @@ import { formatKpiValue, formatConfidence, confidenceColor } from '@/lib/format'
 import { CheckCircle2, Loader2, ClipboardCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { CompanyLogo } from '@/components/ui/company-logo'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -179,12 +180,17 @@ export function ReviewPage({ embedded = false }: { embedded?: boolean }) {
                   >
                     {/* Company */}
                     <td className="px-6 py-5">
-                      <div className="text-[13px] font-medium text-foreground">
-                        {row.companies?.name ?? '—'}
+                      <div className="flex items-center gap-2">
+                        <CompanyLogo logoUrl={row.companies?.logo_url} websiteUrl={row.companies?.website_url} name={row.companies?.name} size="xs" />
+                        <div>
+                          <div className="text-[13px] font-medium text-foreground">
+                            {row.companies?.name ?? '—'}
+                          </div>
+                          {row.companies?.ticker && (
+                            <div className="text-[11px] text-muted-foreground">{row.companies.ticker}</div>
+                          )}
+                        </div>
                       </div>
-                      {row.companies?.ticker && (
-                        <div className="text-[11px] text-muted-foreground">{row.companies.ticker}</div>
-                      )}
                     </td>
 
                     {/* KPI name */}

@@ -566,7 +566,11 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
     return (
       <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
         <Table2 className="mx-auto h-8 w-8 text-muted-foreground/50" />
-        <p className="mt-3 text-sm text-muted-foreground">No data available for {fiscalYear}</p>
+        <h3 className="mt-3 text-lg font-semibold text-foreground">No comparison data</h3>
+        <p className="mt-1 text-sm text-muted-foreground">No data available for {fiscalYear}</p>
+        <Link to="/competitors" className="mt-3 inline-flex items-center gap-1.5 text-sm text-[var(--color-accent)] hover:underline">
+          Upload reports to populate data
+        </Link>
       </div>
     )
   }
@@ -658,6 +662,7 @@ function ScatterPanel({
   kpiDefs: Array<{ code: string; name: string }> | undefined
 }) {
   const { data: points, isLoading } = useScatterData({ companyIds, xKpiCode: xKpi, yKpiCode: yKpi, fiscalYear })
+  const { data: allCompanies } = useCompanies()
 
   if (!xKpi || !yKpi) {
     return (
@@ -675,6 +680,9 @@ function ScatterPanel({
         <ScatterIcon className="mx-auto h-10 w-10 text-muted-foreground/50" />
         <h3 className="mt-3 text-lg font-semibold text-foreground">No data points</h3>
         <p className="mt-1 text-sm text-muted-foreground">No data points available for these KPIs in {fiscalYear}</p>
+        <Link to="/competitors" className="mt-3 inline-flex items-center gap-1.5 text-sm text-[var(--color-accent)] hover:underline">
+          Upload reports to populate data
+        </Link>
       </div>
     )
   }
@@ -731,12 +739,16 @@ function ScatterPanel({
       </div>
       {/* Legend */}
       <div className="mt-3 flex flex-wrap gap-3">
-        {points.map((p, i) => (
-          <div key={p.company_id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: SCATTER_COLORS[i % SCATTER_COLORS.length] }} />
-            {p.company_name}
-          </div>
-        ))}
+        {points.map((p, i) => {
+          const full = allCompanies?.find(c => c.id === p.company_id)
+          return (
+            <div key={p.company_id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: SCATTER_COLORS[i % SCATTER_COLORS.length] }} />
+              <CompanyLogo logoUrl={full?.logo_url} websiteUrl={full?.website_url} name={p.company_name} size="xs" />
+              {p.company_name}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -755,7 +767,11 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
     return (
       <div className="card-premium rounded-xl border border-border bg-card p-12 text-center">
         <Grid3X3 className="mx-auto h-8 w-8 text-muted-foreground/50" />
-        <p className="mt-3 text-sm text-muted-foreground">No data available for {fiscalYear}</p>
+        <h3 className="mt-3 text-lg font-semibold text-foreground">No heatmap data</h3>
+        <p className="mt-1 text-sm text-muted-foreground">No data available for {fiscalYear}</p>
+        <Link to="/competitors" className="mt-3 inline-flex items-center gap-1.5 text-sm text-[var(--color-accent)] hover:underline">
+          Upload reports to populate data
+        </Link>
       </div>
     )
   }
