@@ -20,7 +20,6 @@ import {
 import { toast } from 'sonner'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useIrCatalogItems, useScanIrPage, useDownloadCatalogItem } from '@/hooks/useIrCatalog'
-import { useSmoothProgress } from '@/hooks/useSmoothProgress'
 import type { IrCatalogItem, IrDocumentType } from '@/types/database'
 
 interface IrCatalogPanelProps {
@@ -52,27 +51,27 @@ const ANALYZABLE_TYPES = new Set([
   'financial_statements',
 ])
 
-function getDocumentIcon(docType: string | null) {
+function DocumentIcon({ docType, className }: { docType: string | null; className?: string }) {
   switch (docType) {
     case 'annual_report':
     case 'quarterly_report':
     case 'half_year_report':
     case 'sustainability_report':
-      return FileText
+      return <FileText className={className} />
     case 'financial_statements':
-      return FileSpreadsheet
+      return <FileSpreadsheet className={className} />
     case 'investor_presentation':
-      return Presentation
+      return <Presentation className={className} />
     case 'press_release':
-      return Newspaper
+      return <Newspaper className={className} />
     case 'conference_call':
-      return Phone
+      return <Phone className={className} />
     case 'factsheet':
-      return ClipboardList
+      return <ClipboardList className={className} />
     case 'consensus':
-      return BarChart3
+      return <BarChart3 className={className} />
     default:
-      return File
+      return <File className={className} />
   }
 }
 
@@ -111,12 +110,10 @@ function DocumentRow({
   onDownload: () => void
   downloadDisabled: boolean
 }) {
-  const Icon = getDocumentIcon(item.document_type)
-
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--color-bg-tertiary)]/20 transition-colors">
       <div className="flex-shrink-0">
-        <Icon className="h-5 w-5 text-muted-foreground" />
+        <DocumentIcon docType={item.document_type} className="h-5 w-5 text-muted-foreground" />
       </div>
 
       <div className="min-w-0 flex-1">
@@ -209,7 +206,7 @@ export function IrCatalogPanel({ companyId, companyName, irPageUrl, onSetIrUrl }
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [referenceCollapsed, setReferenceCollapsed] = useState(false)
 
-  const progress = useSmoothProgress(scanMutation.isPending ? 20 : scanMutation.isSuccess ? 100 : 0)
+  // Removed fake progress (was jumping 20% → 100%). Using indeterminate indicator instead.
 
   // Split items into analyzable and reference
   const { analyzableItems, referenceItems, availableTypes, availableYears, stats } = useMemo(() => {
@@ -377,16 +374,24 @@ export function IrCatalogPanel({ companyId, companyName, irPageUrl, onSetIrUrl }
         </button>
       </div>
 
-      {/* Scanning progress */}
+      {/* Scanning progress — indeterminate bar */}
       {scanMutation.isPending && (
         <div className="mb-3 space-y-1">
-          <div className="h-1.5 w-full rounded-full bg-[var(--color-bg-tertiary)]">
+          <div className="h-1.5 w-full rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
             <div
-              className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-300"
-              style={{ width: `${progress}%` }}
+              className="h-full w-1/3 rounded-full bg-[var(--color-accent)] animate-[indeterminate_1.5s_ease-in-out_infinite]"
             />
           </div>
-          <p className="text-[11px] text-muted-foreground">Scanning IR page for documents...</p>
+          <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Scanning IR page for documents...
+          </p>
+          <style>{`
+            @keyframes indeterminate {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(400%); }
+            }
+          `}</style>
         </div>
       )}
 
