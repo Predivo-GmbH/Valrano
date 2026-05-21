@@ -278,6 +278,9 @@ export function CompanyProfilePage() {
   const [websiteInput, setWebsiteInput] = useState('')
   const [irInput, setIrInput] = useState('')
   const [isRedetecting, setIsRedetecting] = useState(false)
+  const [websiteConfidence, setWebsiteConfidence] = useState<number | null>(null)
+  const [websiteError, setWebsiteError] = useState<string | null>(null)
+  const [irError, setIrError] = useState<string | null>(null)
   const suggestIrUrlMutation = useSuggestIrUrl()
 
   // Page readiness — tracks whether the company profile is fully set up
@@ -312,15 +315,18 @@ export function CompanyProfilePage() {
       const data = await res.json() as {
         website_url: string | null
         needs_confirmation?: boolean
+        confidence?: number
       }
       if (data.website_url && !data.needs_confirmation) {
         queryClient.invalidateQueries({ queryKey: ['companies-all'] })
         setEditingWebsite(false)
         setResolutionStatus('resolved')
+        if (data.confidence != null) setWebsiteConfidence(data.confidence)
         toast.success(`Website updated to ${data.website_url}`)
       } else if (data.website_url && data.needs_confirmation) {
         setWebsiteInput(data.website_url)
         setResolutionStatus('needs_action')
+        if (data.confidence != null) setWebsiteConfidence(data.confidence)
         toast.info('Suggested website — please verify and save')
       } else {
         setWebsiteInput('')
@@ -339,9 +345,10 @@ export function CompanyProfilePage() {
     if (!company) return
     let parsed: URL
     try { parsed = new URL(url) } catch {
-      toast.error('Invalid URL — include https:// (e.g. https://www.example.com)')
+      setWebsiteError('Invalid URL — include https:// (e.g. https://www.example.com)')
       return
     }
+    setWebsiteError(null)
     const domain = parsed.hostname
     const logoUrl = `https://${domain}/favicon.ico`
     await supabase.from('companies').update({ website_url: url, logo_url: logoUrl }).eq('id', company.id)
@@ -353,9 +360,10 @@ export function CompanyProfilePage() {
   const saveIrUrl = async (url: string) => {
     if (!company) return
     try { new URL(url) } catch {
-      toast.error('Invalid URL — include https://')
+      setIrError('Invalid URL — include https://')
       return
     }
+    setIrError(null)
     await supabase.from('companies').update({ ir_page_url: url }).eq('id', company.id)
     queryClient.invalidateQueries({ queryKey: ['companies-all'] })
     setEditingIr(false)
@@ -399,10 +407,12 @@ export function CompanyProfilePage() {
         if (data.website_url && !data.needs_confirmation) {
           queryClient.invalidateQueries({ queryKey: ['companies-all'] })
           setResolutionStatus('resolved')
+          if (data.confidence != null) setWebsiteConfidence(data.confidence)
         } else if (data.website_url && data.needs_confirmation) {
           // Low confidence — pre-fill and ask user to confirm
           setWebsiteInput(data.website_url)
           setResolutionStatus('needs_action')
+          if (data.confidence != null) setWebsiteConfidence(data.confidence)
         } else {
           // No website found — user must enter manually
           setResolutionStatus('needs_action')
@@ -741,8 +751,12 @@ export function CompanyProfilePage() {
               <div id="company-urls" className="mt-3 flex flex-wrap items-center gap-2">
                 {/* Website pill */}
                 {editingWebsite ? (
+                  <div className="flex flex-col gap-1">
                   <form
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-accent)] bg-secondary/50 px-2 py-1"
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-lg border bg-secondary/50 px-2 py-1',
+                      websiteError ? 'border-[var(--color-signal-red)]' : 'border-[var(--color-accent)]',
+                    )}
                     onSubmit={(e) => {
                       e.preventDefault()
                       if (websiteInput.trim()) saveWebsiteUrl(websiteInput.trim())
@@ -754,9 +768,9 @@ export function CompanyProfilePage() {
                       type="url"
                       placeholder="https://www.example.com"
                       value={websiteInput}
-                      onChange={(e) => setWebsiteInput(e.target.value)}
+                      onChange={(e) => { setWebsiteInput(e.target.value); setWebsiteError(null) }}
                       className="w-56 bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50"
-                      onKeyDown={(e) => { if (e.key === 'Escape') setEditingWebsite(false) }}
+                      onKeyDown={(e) => { if (e.key === 'Escape') { setEditingWebsite(false); setWebsiteError(null) } }}
                     />
                     <button type="submit" className="text-[11px] font-medium text-[var(--color-accent)] hover:underline">Save</button>
                     <button
@@ -769,27 +783,41 @@ export function CompanyProfilePage() {
                       {isRedetecting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                       {isRedetecting ? 'Detecting...' : 'Re-detect'}
                     </button>
-                    <button type="button" onClick={() => setEditingWebsite(false)} className="text-[11px] text-muted-foreground hover:text-foreground">Cancel</button>
+                    <button type="button" onClick={() => { setEditingWebsite(false); setWebsiteError(null) }} className="text-[11px] text-muted-foreground hover:text-foreground">Cancel</button>
                   </form>
+                  {websiteError && <p className="text-[11px] text-[var(--color-signal-red)]">{websiteError}</p>}
+                  </div>
                 ) : company.website_url ? (
-                  <div className="inline-flex items-center rounded-lg border border-border text-[12px]">
-                    <a
-                      href={company.website_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      <Globe className="h-3.5 w-3.5" /> Website <ExternalLink className="h-3 w-3" />
-                    </a>
-                    <span className="h-5 w-px bg-border" />
-                    <button
-                      type="button"
-                      title="Edit website URL"
-                      className="inline-flex items-center px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
-                      onClick={() => { setWebsiteInput(company.website_url ?? ''); setEditingWebsite(true) }}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </button>
+                  <div className="inline-flex items-center gap-1.5">
+                    <div className="inline-flex items-center rounded-lg border border-border text-[12px]">
+                      <a
+                        href={company.website_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <Globe className="h-3.5 w-3.5" /> Website <ExternalLink className="h-3 w-3" />
+                      </a>
+                      <span className="h-5 w-px bg-border" />
+                      <button
+                        type="button"
+                        title="Edit website URL"
+                        className="inline-flex items-center px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                        onClick={() => { setWebsiteInput(company.website_url ?? ''); setEditingWebsite(true) }}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    </div>
+                    {websiteConfidence != null && (
+                      <span className={cn(
+                        'rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums',
+                        websiteConfidence >= 0.85 ? 'bg-[var(--color-signal-green)]/10 text-[var(--color-signal-green)]'
+                          : websiteConfidence >= 0.65 ? 'bg-[var(--color-signal-amber)]/10 text-[var(--color-signal-amber)]'
+                          : 'bg-[var(--color-signal-red)]/10 text-[var(--color-signal-red)]',
+                      )}>
+                        {Math.round(websiteConfidence * 100)}% match
+                      </span>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -842,8 +870,12 @@ export function CompanyProfilePage() {
 
                 {/* IR pill */}
                 {editingIr ? (
+                  <div className="flex flex-col gap-1">
                   <form
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-accent)] bg-secondary/50 px-2 py-1"
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-lg border bg-secondary/50 px-2 py-1',
+                      irError ? 'border-[var(--color-signal-red)]' : 'border-[var(--color-accent)]',
+                    )}
                     onSubmit={(e) => {
                       e.preventDefault()
                       if (irInput.trim()) saveIrUrl(irInput.trim())
@@ -855,13 +887,15 @@ export function CompanyProfilePage() {
                       type="url"
                       placeholder="https://www.example.com/investors"
                       value={irInput}
-                      onChange={(e) => setIrInput(e.target.value)}
+                      onChange={(e) => { setIrInput(e.target.value); setIrError(null) }}
                       className="w-64 bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground/50"
-                      onKeyDown={(e) => { if (e.key === 'Escape') setEditingIr(false) }}
+                      onKeyDown={(e) => { if (e.key === 'Escape') { setEditingIr(false); setIrError(null) } }}
                     />
                     <button type="submit" className="text-[11px] font-medium text-[var(--color-accent)] hover:underline">Save</button>
-                    <button type="button" onClick={() => setEditingIr(false)} className="text-[11px] text-muted-foreground hover:text-foreground">Cancel</button>
+                    <button type="button" onClick={() => { setEditingIr(false); setIrError(null) }} className="text-[11px] text-muted-foreground hover:text-foreground">Cancel</button>
                   </form>
+                  {irError && <p className="text-[11px] text-[var(--color-signal-red)]">{irError}</p>}
+                  </div>
                 ) : company.ir_page_url ? (
                   <div className="inline-flex items-center rounded-lg border border-border text-[12px]">
                     <a

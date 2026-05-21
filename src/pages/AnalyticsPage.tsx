@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactNode } from 'react'
+import { useState, useMemo, useRef, useEffect, type ReactNode } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { shortKpiLabel } from '@/lib/kpi-labels'
@@ -34,6 +34,41 @@ import { usePivotData, useScatterData, useHeatmapData } from '@/hooks/useAnalyti
 import { useCompanies, useKpiDefinitions, usePeerGroups } from '@/hooks/useData'
 import { useSmartYear } from '@/hooks/useSmartYear'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
+
+// ---------------------------------------------------------------------------
+// Scroll-fade wrapper — shows right gradient when table overflows
+// ---------------------------------------------------------------------------
+
+function ScrollFadeWrapper({ children, className }: { children: React.ReactNode; className?: string }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [showRightFade, setShowRightFade] = useState(false)
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const check = () => {
+      setShowRightFade(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+    }
+    check()
+    el.addEventListener('scroll', check, { passive: true })
+    window.addEventListener('resize', check)
+    return () => {
+      el.removeEventListener('scroll', check)
+      window.removeEventListener('resize', check)
+    }
+  }, [children])
+
+  return (
+    <div className={cn('relative', className)}>
+      <div ref={scrollRef} className="overflow-x-auto scrollbar-thin">
+        {children}
+      </div>
+      {showRightFade && (
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-card to-transparent" />
+      )}
+    </div>
+  )
+}
 
 type TabId = 'trends' | 'pivot' | 'scatter' | 'heatmap'
 
@@ -490,7 +525,7 @@ function TrendsPanel({
               CAGR ({startYear}–{endYear})
             </h3>
           </div>
-          <div className="overflow-x-auto">
+          <ScrollFadeWrapper>
             <table className="table-premium w-full text-sm" aria-label="Compound annual growth rate">
               <thead>
                 <tr className="border-b border-border text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -521,7 +556,7 @@ function TrendsPanel({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollFadeWrapper>
         </div>
       )}
 
@@ -584,7 +619,7 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
   const visibleKpis = data.kpis
 
   return (
-    <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
+    <ScrollFadeWrapper className="card-premium rounded-xl border border-border bg-card">
       <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }} aria-label="Peer comparison heatmap">
         <thead>
           <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
@@ -640,7 +675,7 @@ function PivotPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscalYe
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollFadeWrapper>
   )
 }
 
@@ -786,7 +821,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
 
   return (
     <div className="space-y-4">
-      <div className="card-premium rounded-xl border border-border bg-card overflow-x-auto">
+      <ScrollFadeWrapper className="card-premium rounded-xl border border-border bg-card">
         <table className="table-premium w-full text-sm" style={{ tableLayout: 'fixed' }} aria-label="Percentile ranking">
           <thead>
             <tr className="border-b border-border bg-[var(--color-bg-tertiary)]">
@@ -856,7 +891,7 @@ function HeatmapPanel({ companyIds, fiscalYear }: { companyIds: string[]; fiscal
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollFadeWrapper>
 
       {/* Legend — smooth gradient bar */}
       <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">

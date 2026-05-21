@@ -22,10 +22,11 @@ import { useAccountingProfile, useAnalyzeAccountingProfile } from '@/hooks/useAc
 import { useCreateMyCompany, usePrimaryCompany } from '@/hooks/useMyCompany'
 import { useUploadReport, useExtractKpis, useNormalizeKpis } from '@/hooks/useExtraction'
 import { useCreatePublicationEvent, usePublicationEvents } from '@/hooks/useCalendar'
-import { useSuggestDates } from '@/hooks/useAiSuggestions'
+import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
 import { dismissOnboarding, useOnboarding } from '@/hooks/useOnboarding'
 import { useSmoothProgress } from '@/hooks/useSmoothProgress'
 import { CompanyAutocomplete } from '@/components/company-autocomplete'
+import { CompanyLogo } from '@/components/ui/company-logo'
 import type { Company } from '@/types/database'
 
 // ---------------------------------------------------------------------------
@@ -992,16 +993,24 @@ function StepCompetitors({
           isAdding && 'opacity-60',
         )}
       >
-        <div
-          className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-lg text-[11px] font-bold flex-shrink-0',
-            isSelected
-              ? 'bg-[var(--color-accent)] text-white'
-              : 'bg-[var(--color-bg-tertiary)] text-muted-foreground',
-          )}
-        >
-          {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : isSelected ? <Check className="h-4 w-4" /> : item.name.slice(0, 2).toUpperCase()}
-        </div>
+        {isAdding ? (
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-bg-tertiary)] flex-shrink-0">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : isSelected ? (
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent)] text-white flex-shrink-0">
+            <Check className="h-4 w-4" />
+          </div>
+        ) : (() => {
+          const matchedCompany = dbId ? (companies ?? []).find(c => c.id === dbId) : undefined
+          return matchedCompany ? (
+            <CompanyLogo logoUrl={matchedCompany.logo_url} websiteUrl={matchedCompany.website_url} name={matchedCompany.name} size="lg" className="rounded-lg" />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-bg-tertiary)] text-[11px] font-bold text-muted-foreground flex-shrink-0">
+              {item.name.slice(0, 2).toUpperCase()}
+            </div>
+          )
+        })()}
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-medium text-foreground truncate">{item.name}</p>
           <p className="text-[11px] text-muted-foreground">
@@ -1131,8 +1140,9 @@ function StepCompetitors({
                   <button
                     key={company.id}
                     onClick={() => toggleCompany(company.id)}
-                    className="group inline-flex items-center gap-1.5 rounded-full border border-[var(--color-accent)]/30 bg-background px-3 py-1.5 text-[12px] font-medium text-foreground transition-all hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
+                    className="group inline-flex items-center gap-1.5 rounded-full border border-[var(--color-accent)]/30 bg-background px-2 py-1 text-[12px] font-medium text-foreground transition-all hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
                   >
+                    <CompanyLogo logoUrl={company.logo_url} websiteUrl={company.website_url} name={company.name} size="xs" />
                     <span className={cn(
                       'inline-block h-1.5 w-1.5 rounded-full',
                       source === 'report' ? 'bg-emerald-500' : 'bg-amber-500',
@@ -1172,8 +1182,11 @@ function StepSchedule({
   onSkip: () => void
 }) {
   const { data: companies } = useAllCompanies()
+  const { data: existingEvents } = usePublicationEvents()
   const suggestDates = useSuggestDates()
+  const suggestIrUrl = useSuggestIrUrl()
   const [suggestingCompanyId, setSuggestingCompanyId] = useState<string | null>(null)
+  const [discoveringIrForId, setDiscoveringIrForId] = useState<string | null>(null)
 
   const selectedCompanies = (companies ?? []).filter((c) => selectedCompanyIds.includes(c.id))
 
@@ -1293,57 +1306,116 @@ function StepSchedule({
         {selectedCompanies.map((company) => {
           const schedule = schedules[company.id] ?? { reportType: 'annual', expectedDate: '' }
           const justSuggested = suggestedIds.has(company.id)
+          const isDuplicate = schedule.expectedDate && existingEvents?.some(
+            e => e.company_id === company.id && e.report_type === schedule.reportType && e.expected_date === schedule.expectedDate
+          )
           return (
             <div
               key={company.id}
               className={cn(
-                'rounded-lg border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3 transition-colors duration-700',
+                'rounded-lg border bg-card p-4 space-y-3 transition-colors duration-700',
                 justSuggested ? 'border-emerald-500/50' : 'border-border',
               )}
             >
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
-                <p className="text-[11px] text-muted-foreground">{company.ticker ?? ''}</p>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <CompanyLogo logoUrl={company.logo_url} websiteUrl={company.website_url} name={company.name} size="sm" />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
+                    {company.ticker && <p className="text-[11px] text-muted-foreground">{company.ticker}</p>}
+                  </div>
+                </div>
+
+                <PremiumSelect
+                  value={schedule.reportType}
+                  onChange={(v) => updateSchedule(company.id, 'reportType', v)}
+                  options={[
+                    { value: 'annual', label: 'Annual' },
+                    { value: 'half_year', label: 'Half-Year' },
+                    { value: 'quarterly', label: 'Quarterly' },
+                  ]}
+                  triggerClassName="w-36 text-[12px]"
+                />
+
+                <input
+                  type="date"
+                  value={schedule.expectedDate}
+                  onChange={(e) => { updateSchedule(company.id, 'expectedDate', e.target.value); onConfirmSchedule(company.id) }}
+                  className={cn(
+                    'rounded-lg border bg-[var(--color-bg-tertiary)] px-3 py-2 text-[12px] text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] w-40',
+                    isDuplicate ? 'border-[var(--color-signal-amber)]' : 'border-border',
+                  )}
+                />
+
+                {justSuggested && suggestingCompanyId !== company.id ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex-shrink-0 animate-in fade-in duration-300">
+                    <Check className="h-3 w-3" />
+                    Done
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleSuggestDate(company)}
+                    disabled={suggestingCompanyId !== null}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] transition-colors disabled:opacity-40 flex-shrink-0"
+                    title="AI suggest date"
+                  >
+                    {suggestingCompanyId === company.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3" />
+                    )}
+                    Suggest
+                  </button>
+                )}
               </div>
 
-              <PremiumSelect
-                value={schedule.reportType}
-                onChange={(v) => updateSchedule(company.id, 'reportType', v)}
-                options={[
-                  { value: 'annual', label: 'Annual' },
-                  { value: 'half_year', label: 'Half-Year' },
-                  { value: 'quarterly', label: 'Quarterly' },
-                ]}
-                triggerClassName="w-36 text-[12px]"
-              />
-
-              <input
-                type="date"
-                value={schedule.expectedDate}
-                onChange={(e) => { updateSchedule(company.id, 'expectedDate', e.target.value); onConfirmSchedule(company.id) }}
-                className="rounded-lg border border-border bg-[var(--color-bg-tertiary)] px-3 py-2 text-[12px] text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] w-40"
-              />
-
-              {justSuggested && suggestingCompanyId !== company.id ? (
-                <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex-shrink-0 animate-in fade-in duration-300">
-                  <Check className="h-3 w-3" />
-                  Done
-                </span>
-              ) : (
-                <button
-                  onClick={() => handleSuggestDate(company)}
-                  disabled={suggestingCompanyId !== null}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] transition-colors disabled:opacity-40 flex-shrink-0"
-                  title="AI suggest date"
-                >
-                  {suggestingCompanyId === company.id ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3 w-3" />
-                  )}
-                  Suggest
-                </button>
-              )}
+              {/* IR URL status + duplicate warning */}
+              <div className="flex flex-wrap items-center gap-2 pl-8">
+                {company.ir_page_url ? (
+                  <a href={company.ir_page_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                    <FileText className="h-3 w-3" />
+                    IR page set
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={discoveringIrForId === company.id}
+                    onClick={() => {
+                      setDiscoveringIrForId(company.id)
+                      suggestIrUrl.mutate(
+                        { company_id: company.id, company_name: company.name },
+                        {
+                          onSuccess: (data) => {
+                            if (data.ir_page_url) {
+                              toast.success(`IR page found for ${company.name}`)
+                            } else {
+                              toast.info(`No IR page found for ${company.name}`)
+                            }
+                            setDiscoveringIrForId(null)
+                          },
+                          onError: () => {
+                            toast.error(`IR discovery failed for ${company.name}`)
+                            setDiscoveringIrForId(null)
+                          },
+                        },
+                      )
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] text-[var(--color-accent)] hover:underline disabled:opacity-50"
+                  >
+                    {discoveringIrForId === company.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3" />
+                    )}
+                    {discoveringIrForId === company.id ? 'Discovering...' : 'Discover IR page'}
+                  </button>
+                )}
+                {isDuplicate && (
+                  <span className="text-[11px] text-[var(--color-signal-amber)]">
+                    Event already exists for this date & type
+                  </span>
+                )}
+              </div>
             </div>
           )
         })}
