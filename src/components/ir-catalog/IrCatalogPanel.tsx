@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { createElement, useMemo, useState } from 'react'
 import {
   FileText,
   Download,
@@ -111,12 +111,12 @@ function DocumentRow({
   onDownload: () => void
   downloadDisabled: boolean
 }) {
-  const Icon = getDocumentIcon(item.document_type)
+  const icon = useMemo(() => getDocumentIcon(item.document_type), [item.document_type])
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--color-bg-tertiary)]/20 transition-colors">
       <div className="flex-shrink-0">
-        <Icon className="h-5 w-5 text-muted-foreground" />
+        {createElement(icon, { className: 'h-5 w-5 text-muted-foreground' })}
       </div>
 
       <div className="min-w-0 flex-1">
@@ -212,7 +212,7 @@ export function IrCatalogPanel({ companyId, companyName, irPageUrl, onSetIrUrl }
   const progress = useSmoothProgress(scanMutation.isPending ? 20 : scanMutation.isSuccess ? 100 : 0)
 
   // Split items into analyzable and reference
-  const { analyzableItems, referenceItems, typeCounts, availableTypes, availableYears, stats } = useMemo(() => {
+  const { analyzableItems, referenceItems, availableTypes, availableYears, stats } = useMemo(() => {
     const all = items ?? []
     const analyzable: IrCatalogItem[] = []
     const reference: IrCatalogItem[] = []
@@ -244,7 +244,6 @@ export function IrCatalogPanel({ companyId, companyName, irPageUrl, onSetIrUrl }
     return {
       analyzableItems: analyzable,
       referenceItems: reference,
-      typeCounts: counts,
       availableTypes: types,
       availableYears: years,
       stats: { total: all.length, analyzable: analyzable.length, reference: reference.length, years: years.length },
