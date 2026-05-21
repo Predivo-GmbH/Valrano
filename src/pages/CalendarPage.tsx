@@ -8,7 +8,7 @@ import { usePublicationEvents, useCreatePublicationEvent, useDeletePublicationEv
 import { useCompanies } from '@/hooks/useData'
 import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
 import { useSubscription } from '@/hooks/useSubscription'
-import type { PublicationEventStatus, ReportType } from '@/types/database'
+import type { PublicationEventStatus, ReportType, Company } from '@/types/database'
 import { REPORT_TYPE_LABELS_SHORT as REPORT_TYPE_LABELS } from '@/lib/constants'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -852,6 +852,7 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
         <CreateEventDialog
           open={showCreateDialog}
           companies={companies ?? []}
+          existingEvents={events?.map(e => ({ company_id: e.company_id, report_type: e.report_type, fiscal_year: e.fiscal_year }))}
           onClose={() => setShowCreateDialog(false)}
         />
 
@@ -890,10 +891,12 @@ export function CalendarPage({ embedded = false }: { embedded?: boolean }) {
 function CreateEventDialog({
   open,
   companies,
+  existingEvents,
   onClose,
 }: {
   open: boolean
-  companies: { id: string; name: string }[]
+  companies: Company[]
+  existingEvents?: Array<{ company_id: string; report_type: string; fiscal_year: number }>
   onClose: () => void
 }) {
   const [companyId, setCompanyId] = useState('')
@@ -903,6 +906,7 @@ function CreateEventDialog({
   const [expectedDate, setExpectedDate] = useState('')
   const [expectedTime, setExpectedTime] = useState('07:00')
   const [irPageUrl, setIrPageUrl] = useState('')
+  const [irUrlSource, setIrUrlSource] = useState<'saved' | 'ai' | 'manual' | null>(null)
   const [directPdfUrl, setDirectPdfUrl] = useState('')
   const [notes, setNotes] = useState('')
   const [aiReasoning, setAiReasoning] = useState<string | null>(null)
@@ -917,25 +921,48 @@ function CreateEventDialog({
   const suggestIrUrlMutation = useSuggestIrUrl()
   const { tier } = useSubscription()
 
-  const selectedCompanyName = companies.find(c => c.id === companyId)?.name ?? ''
+  const selectedCompany = companies.find(c => c.id === companyId)
+  const selectedCompanyName = selectedCompany?.name ?? ''
+
+  // Duplicate detection
+  const isDuplicate = !!(companyId && existingEvents?.some(
+    e => e.company_id === companyId && e.report_type === reportType && e.fiscal_year === fiscalYear
+  ))
 
   // Auto-fill IR URL when company is selected
   const handleCompanyChange = useCallback((newCompanyId: string) => {
     setCompanyId(newCompanyId)
+    // Reset all form fields for new company
+    setExpectedDate('')
+    setExpectedTime('07:00')
     setAiReasoning(null)
-    // Auto-suggest IR URL for the selected company
-    if (newCompanyId) {
-      const name = companies.find(c => c.id === newCompanyId)?.name ?? ''
-      suggestIrUrlMutation.mutate(
-        { company_id: newCompanyId, company_name: name },
-        {
-          onSuccess: (data) => {
-            if (data.ir_page_url) {
-              setIrPageUrl(data.ir_page_url)
-            }
-          },
-        }
-      )
+    setDirectPdfUrl('')
+    setNotes('')
+    setTouched({})
+    setSubmitAttempted(false)
+
+    // Pre-fill IR URL from saved company data (instant, no network call)
+    const company = companies.find(c => c.id === newCompanyId)
+    if (company?.ir_page_url) {
+      setIrPageUrl(company.ir_page_url)
+      setIrUrlSource('saved')
+    } else {
+      setIrPageUrl('')
+      setIrUrlSource(null)
+      // Only call edge function if no saved IR URL
+      if (newCompanyId) {
+        suggestIrUrlMutation.mutate(
+          { company_id: newCompanyId, company_name: company?.name ?? '' },
+          {
+            onSuccess: (data) => {
+              if (data.ir_page_url) {
+                setIrPageUrl(data.ir_page_url)
+                setIrUrlSource('ai')
+              }
+            },
+          }
+        )
+      }
     }
   }, [companies, suggestIrUrlMutation])
 
@@ -959,6 +986,8 @@ function CreateEventDialog({
             setExpectedTime(data.suggestion.suggested_time)
             setAiReasoning(data.suggestion.reasoning)
             toast.success('Date suggested by AI')
+            // Focus the date field so user can review/adjust
+            setTimeout(() => document.getElementById('event-expected-date')?.focus(), 100)
           }
         },
         onError: (err) => {
@@ -1022,16 +1051,39 @@ function CreateEventDialog({
             <label htmlFor="event-company" className="mb-1 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Company</label>
             <Select value={companyId} onValueChange={(v) => { if (v) { handleCompanyChange(v); setTouched((t) => ({ ...t, company: true })) } }}>
               <SelectTrigger id="event-company" className={`w-full ${companyInvalid ? 'border-[var(--color-signal-red)]' : ''}`} aria-invalid={companyInvalid}>
-                <span className="truncate">{selectedCompanyName || 'Select company'}</span>
+                <span className="flex items-center gap-2 truncate">
+                  {selectedCompany ? (
+                    <>
+                      <CompanyLogo logoUrl={selectedCompany.logo_url} websiteUrl={selectedCompany.website_url} name={selectedCompany.name} size="xs" />
+                      <span className="truncate">{selectedCompany.name}</span>
+                      {selectedCompany.ticker && <span className="text-xs text-muted-foreground">({selectedCompany.ticker})</span>}
+                    </>
+                  ) : 'Select company'}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 {companies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>
+                    <span className="flex items-center gap-2">
+                      <CompanyLogo logoUrl={c.logo_url} websiteUrl={c.website_url} name={c.name} size="xs" />
+                      <span className="truncate">{c.name}</span>
+                      {c.ticker && <span className="text-xs text-muted-foreground">({c.ticker})</span>}
+                    </span>
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {companyInvalid && <p className="mt-1 text-[12px] text-[var(--color-signal-red)]">Company is required.</p>}
           </div>
+
+          {/* Duplicate warning */}
+          {isDuplicate && (
+            <div className="rounded-lg border border-[var(--color-signal-amber)]/30 bg-[var(--color-signal-amber)]/5 px-3 py-2">
+              <p className="text-xs text-[var(--color-signal-amber)]">
+                You already have a {REPORT_TYPE_LABELS[reportType]} {fiscalYear} event for {selectedCompanyName}. Creating another will result in duplicates.
+              </p>
+            </div>
+          )}
 
           {/* Report Type + Fiscal Year */}
           <div className="grid grid-cols-2 gap-4">
@@ -1135,7 +1187,7 @@ function CreateEventDialog({
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label htmlFor="event-ir-url" className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">IR Page URL</label>
-              {companyId && !irPageUrl && (
+              {companyId && !irPageUrl && !suggestIrUrlMutation.isPending && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -1147,6 +1199,7 @@ function CreateEventDialog({
                         onSuccess: (data) => {
                           if (data.ir_page_url) {
                             setIrPageUrl(data.ir_page_url)
+                            setIrUrlSource('ai')
                             toast.success(data.validated ? 'IR page found and validated' : 'IR page suggested (not validated)')
                           }
                         },
@@ -1154,27 +1207,37 @@ function CreateEventDialog({
                       }
                     )
                   }}
-                  disabled={suggestIrUrlMutation.isPending}
                 >
-                  {suggestIrUrlMutation.isPending ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Globe className="h-3 w-3" />
-                  )}
+                  <Globe className="h-3 w-3" />
                   Auto-discover
                 </Button>
               )}
             </div>
-            <input
-              id="event-ir-url"
-              type="url"
-              value={irPageUrl}
-              onChange={(e) => setIrPageUrl(e.target.value)}
-              placeholder="https://www.company.com/investors"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base md:text-sm text-foreground"
-            />
-            {irPageUrl && suggestIrUrlMutation.data?.validated && (
-              <p className="mt-1 text-[10px] text-green-400">Validated — page exists</p>
+            <div className="relative">
+              <input
+                id="event-ir-url"
+                type="url"
+                value={irPageUrl}
+                onChange={(e) => { setIrPageUrl(e.target.value); setIrUrlSource(e.target.value ? 'manual' : null) }}
+                placeholder={selectedCompany ? `e.g., ${selectedCompany.website_url ?? 'https://company.com'}/investors` : 'Select a company first'}
+                className={`w-full rounded-lg border border-border bg-background px-3 py-2 text-base md:text-sm text-foreground ${suggestIrUrlMutation.isPending ? 'pr-8' : ''}`}
+                disabled={suggestIrUrlMutation.isPending}
+              />
+              {suggestIrUrlMutation.isPending && (
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              )}
+            </div>
+            {irPageUrl && irUrlSource === 'saved' && (
+              <p className="mt-1 text-[10px] text-green-400">From saved competitor data</p>
+            )}
+            {irPageUrl && irUrlSource === 'ai' && suggestIrUrlMutation.data?.validated && (
+              <p className="mt-1 text-[10px] text-green-400">AI-discovered — page validated</p>
+            )}
+            {irPageUrl && irUrlSource === 'ai' && suggestIrUrlMutation.data && !suggestIrUrlMutation.data.validated && (
+              <p className="mt-1 text-[10px] text-[var(--color-signal-amber)]">AI-suggested — not validated</p>
+            )}
+            {irPageUrl && irUrlSource === 'manual' && (
+              <p className="mt-1 text-[10px] text-muted-foreground">Manual entry</p>
             )}
           </div>
 
@@ -1186,9 +1249,10 @@ function CreateEventDialog({
               type="url"
               value={directPdfUrl}
               onChange={(e) => setDirectPdfUrl(e.target.value)}
-              placeholder="https://www.company.com/report.pdf"
+              placeholder="Link to the report PDF, if known"
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-base md:text-sm text-foreground"
             />
+            <p className="mt-1 text-[10px] text-muted-foreground">Usually found on the IR page above</p>
           </div>
 
           {/* Notes */}
