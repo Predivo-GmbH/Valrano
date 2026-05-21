@@ -386,12 +386,13 @@ function BrowserFrame() {
             <div className="flex items-center gap-4"><div className="h-6 w-6 rounded bg-[var(--color-accent)]/20" /><div className="h-3 w-24 rounded bg-[var(--color-muted-foreground)]/20" /></div>
             <div className="flex gap-3"><div className="h-3 w-16 rounded bg-[var(--color-muted-foreground)]/15" /><div className="h-3 w-16 rounded bg-[var(--color-muted-foreground)]/15" /><div className="h-3 w-16 rounded bg-[var(--color-muted-foreground)]/15" /></div>
           </div>
+          {/* Metric cards — matches real dashboard */}
           <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label: 'Revenue', val: 'CHF 2.4B', color: 'var(--color-signal-green)' },
-              { label: 'EBITDA Margin', val: '24.3%', color: 'var(--color-accent)' },
-              { label: 'Peers Updated', val: '12/15', color: 'var(--color-signal-amber)' },
-              { label: 'Accuracy', val: '98.2%', color: 'var(--color-accent)' },
+              { label: 'Pipeline Active', val: '3', color: 'var(--color-accent)' },
+              { label: 'Next Report', val: 'in 5d', color: 'var(--color-signal-green)' },
+              { label: 'Documents Ready', val: '4', color: 'var(--color-signal-green)' },
+              { label: 'Pending Reviews', val: '1', color: 'var(--color-signal-amber)' },
             ].map((kpi) => (
               <div key={kpi.label} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3">
                 <div className="text-[10px] text-[var(--color-muted-foreground)]">{kpi.label}</div>
@@ -400,22 +401,57 @@ function BrowserFrame() {
               </div>
             ))}
           </div>
-          <div className="flex gap-3">
-            <div className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4">
-              <div className="mb-3 flex items-center justify-between"><div className="h-3 w-32 rounded bg-[var(--color-muted-foreground)]/20" /><div className="h-3 w-16 rounded bg-[var(--color-accent)]/20" /></div>
-              <div className="flex h-24 items-end gap-1.5">
-                {[65, 45, 78, 52, 90, 68, 82, 55, 73, 88, 60, 75].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-t" style={{ height: `${h}%`, backgroundColor: 'var(--color-accent)', opacity: i === 4 || i === 9 ? 0.8 : 0.25 }} />
-                ))}
-              </div>
+          {/* Pipeline status bar — matches real dashboard */}
+          <div className="mb-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[10px] font-medium text-[var(--color-muted-foreground)]">Pipeline Status</span>
+              <span className="text-[10px] text-[var(--color-accent)]">4 stages</span>
             </div>
+            <div className="flex gap-1">
+              {[
+                { label: 'Scheduled', w: '30%', opacity: 0.25 },
+                { label: 'Detected', w: '25%', opacity: 0.45 },
+                { label: 'Ingested', w: '25%', opacity: 0.65 },
+                { label: 'Benchmark', w: '20%', opacity: 0.85 },
+              ].map((stage) => (
+                <div key={stage.label} className="flex-1">
+                  <div className="h-2 rounded-full" style={{ backgroundColor: 'var(--color-accent)', opacity: stage.opacity }} />
+                  <div className="mt-1 text-center text-[8px] text-[var(--color-muted-foreground)]">{stage.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3">
+            {/* Upcoming publications — matches real dashboard */}
+            <div className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3">
+              <div className="mb-2 text-[10px] font-medium text-[var(--color-muted-foreground)]">Upcoming Publications</div>
+              {[
+                { name: 'Atlas Corp', type: 'Q1 2026', days: '3d', color: 'var(--color-signal-amber)' },
+                { name: 'Meridian Group', type: 'Annual', days: '6d', color: 'var(--color-signal-green)' },
+                { name: 'Nova Industries', type: 'Q1 2026', days: '15d', color: 'var(--color-signal-green)' },
+              ].map((pub) => (
+                <div key={pub.name} className="flex items-center gap-2 border-b border-[var(--color-border)] py-1.5 last:border-0">
+                  <div className="h-4 w-4 rounded bg-[var(--color-accent)]/15" />
+                  <span className="text-[10px] text-[var(--color-foreground)]">{pub.name}</span>
+                  <span className="text-[9px] text-[var(--color-muted-foreground)]">{pub.type}</span>
+                  <span className="ml-auto text-[10px] font-medium" style={{ color: pub.color }}>{pub.days}</span>
+                </div>
+              ))}
+            </div>
+            {/* Competitor comparison — matches real dashboard */}
             <div className="hidden w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3 sm:block">
-              <div className="mb-2 h-3 w-20 rounded bg-[var(--color-muted-foreground)]/20" />
-              {['Holcim', 'Heidelberg', 'CRH', 'Buzzi', 'Vicat'].map((name) => (
-                <div key={name} className="flex items-center gap-2 border-b border-[var(--color-border)] py-1.5 last:border-0">
+              <div className="mb-2 text-[10px] font-medium text-[var(--color-muted-foreground)]">Competitor Signals</div>
+              {[
+                { name: 'Atlas Corp', signal: '+3.2%', color: 'var(--color-signal-green)' },
+                { name: 'Meridian Group', signal: '-1.4%', color: 'var(--color-signal-red)' },
+                { name: 'Nova Industries', signal: '+0.8%', color: 'var(--color-signal-green)' },
+                { name: 'Vertex Ltd', signal: '\u2014', color: 'var(--color-muted-foreground)' },
+                { name: 'Centra AG', signal: '+2.1%', color: 'var(--color-signal-green)' },
+              ].map((comp) => (
+                <div key={comp.name} className="flex items-center gap-2 border-b border-[var(--color-border)] py-1.5 last:border-0">
                   <div className="h-4 w-4 rounded-full bg-[var(--color-accent)]/15" />
-                  <span className="text-[10px] text-[var(--color-muted-foreground)]">{name}</span>
-                  <span className="ml-auto text-[10px] font-medium text-[var(--color-signal-green)]">+2.4%</span>
+                  <span className="text-[10px] text-[var(--color-muted-foreground)]">{comp.name}</span>
+                  <span className="ml-auto text-[10px] font-medium" style={{ color: comp.color }}>{comp.signal}</span>
                 </div>
               ))}
             </div>
@@ -511,51 +547,51 @@ function FeatureCard({ f, index, visible }: {
 
 /* ── Data ─────────────────────────────────────────────── */
 const PAIN_POINTS = [
-  { icon: Clock, title: '22-44 hours per cycle', desc: 'Strategy teams spend 3-5 working days every quarter manually collecting, re-keying, and reconciling competitor data from published reports.' },
-  { icon: AlertCircle, title: 'Definitional chaos', desc: '\u201CRecurring EBIT\u201D at Holcim, \u201CRCO\u201D at Heidelberg, \u201CAdjusted EBITDA\u201D at CRH \u2014 every peer uses different KPI definitions, currencies, and accounting standards.' },
-  { icon: Globe, title: 'Asynchronous publications', desc: 'Peers publish at different times in different formats across SIX, NYSE, XETRA, and Euronext. By the time your team compiles the data, it\u2019s already stale.' },
+  { icon: Clock, title: '3-5 weeks per cycle', desc: 'Strategy teams spend weeks every quarter collecting, normalizing, and reconciling competitor data from published reports across multiple departments.' },
+  { icon: AlertCircle, title: 'Definitional chaos', desc: 'One competitor reports \u201CRecurring EBIT\u201D, another calls it \u201CRCO\u201D, a third uses \u201CAdjusted EBITDA\u201D \u2014 every company uses different KPI definitions, currencies, and accounting standards.' },
+  { icon: Globe, title: 'Asynchronous publications', desc: 'Competitors publish at different times in different formats across SIX, NYSE, XETRA, and Euronext. By the time your team compiles the data, it\u2019s already stale.' },
 ]
 
 const FEATURES = [
   { icon: FileText, title: 'Vision-LLM extraction', desc: 'AI reads published PDF reports \u2014 annual, quarterly, sustainability \u2014 and extracts 50+ financial and ESG KPIs with 98% target accuracy. Every value links back to its source page.', span: 'md:col-span-2 md:row-span-2', featured: true, accent: '#3B82F6' },
   { icon: BarChart3, title: 'KPI taxonomy mapping', desc: 'Automatically maps company-specific definitions to a canonical taxonomy. Compare apples to apples across IFRS, US GAAP, and Swiss GAAP FER.', span: 'md:col-span-1 md:row-span-1', accent: '#8B5CF6' },
   { icon: Globe, title: 'Multi-currency normalization', desc: 'Point-in-time and period-average FX conversion across CHF, EUR, USD, GBP, and 10+ currencies.', span: 'md:col-span-1 md:row-span-1', accent: '#06B6D4' },
-  { icon: Zap, title: 'Automated briefings', desc: 'When a peer publishes, Valrano detects it, extracts KPIs, normalizes currencies, and drafts a board briefing \u2014 your team just reviews and approves.', span: 'md:col-span-1 md:row-span-1', accent: '#F59E0B' },
+  { icon: Zap, title: 'Automated benchmark documents', desc: 'When a competitor publishes, Valrano detects it, extracts KPIs, normalizes currencies, and drafts a benchmark document \u2014 your team just reviews and approves.', span: 'md:col-span-1 md:row-span-1', accent: '#F59E0B' },
   { icon: Shield, title: 'Full audit trail', desc: 'Every extracted value carries a confidence score and links to the exact PDF page and paragraph. Your team can verify any number in one click.', span: 'md:col-span-1 md:row-span-1', accent: '#10B981' },
-  { icon: Clock, title: 'Continuous monitoring', desc: 'No more quarterly scrambles. Valrano monitors 15+ peers across all exchanges and delivers alerts the moment a new report drops.', span: 'md:col-span-2 md:row-span-1', accent: '#EC4899' },
+  { icon: Clock, title: 'Continuous monitoring', desc: 'No more quarterly scrambles. Valrano monitors your competitors across all exchanges and delivers alerts the moment a new report drops.', span: 'md:col-span-2 md:row-span-1', accent: '#EC4899' },
 ]
 
 const STATS = [
   { value: 200, suffix: '+', label: 'Hours saved per year', icon: Timer },
-  { value: 95, suffix: '%', label: 'Of manual work eliminated', icon: Zap },
-  { value: 98, suffix: '%', label: 'Extraction accuracy', icon: Target },
-  { value: 15, suffix: '+', label: 'Peers monitored continuously', icon: Users },
+  { value: 90, suffix: '%', label: 'Of manual collection eliminated', icon: Zap },
+  { value: 98, suffix: '%', label: 'Target extraction accuracy', icon: Target },
+  { value: 30, suffix: '+', label: 'Competitors supported', icon: Users },
 ]
 
 const ENTERPRISE_INCLUDES = [
-  { icon: Users, text: 'Unlimited users with SSO / SAML' },
-  { icon: BarChart3, text: '50+ financial and ESG KPIs per peer' },
-  { icon: Globe, text: 'Up to 30+ peers monitored continuously' },
-  { icon: Zap, text: 'Automated detect \u2192 extract \u2192 normalize \u2192 brief pipeline' },
-  { icon: FileText, text: 'AI-generated board briefings with source citations' },
-  { icon: Shield, text: 'API + PowerBI / Tableau integration' },
-  { icon: TrendingUp, text: 'Sentiment analysis on earnings calls' },
+  { icon: Users, text: 'Unlimited users with role-based access' },
+  { icon: BarChart3, text: '50+ financial and ESG KPIs per competitor' },
+  { icon: Globe, text: 'Up to 30+ competitors monitored continuously' },
+  { icon: Zap, text: 'Automated detect \u2192 extract \u2192 normalize \u2192 benchmark pipeline' },
+  { icon: FileText, text: 'AI-generated benchmark documents with source citations' },
+  { icon: Shield, text: 'Corporate template export (PPTX, XLSX, Google Workspace)' },
+  { icon: TrendingUp, text: 'AI-powered insights and competitive signals' },
   { icon: Target, text: 'Dedicated Customer Success Manager + QBR' },
 ]
 
 const FAQS = [
-  { q: 'How accurate is AI extraction? Can we trust these numbers for board-level reporting?', a: 'Valrano uses a multi-layer accuracy architecture: vision-LLM extraction with structured schemas, multi-model voting, confidence scoring (values below 0.85 are flagged for human review), and cross-validation against known financial relationships. Every extracted value links to its source PDF page for one-click verification. The result is more auditable than any manual process \u2014 every number traces back to its source document.' },
-  { q: 'We already have Bloomberg / FactSet. Why do we need another tool?', a: 'Bloomberg and FactSet provide raw financial data for investors. They do not extract KPIs from newly published PDF reports, normalize company-specific definitions (Recurring EBIT vs. RCO vs. Adjusted EBITDA), or deliver AI-generated peer briefings automatically, replacing the manual effort of collecting, normalizing, and comparing peer data. Valrano replaces the 200 hours/year your team spends turning raw data into peer comparisons. It is a complement, not a replacement.' },
-  { q: 'What about data security and compliance?', a: 'Valrano processes exclusively publicly available documents \u2014 annual reports, quarterly filings, and sustainability reports that companies publish on their IR websites. No customer internal data is ever uploaded or processed. Your peer group configuration is confidential. Data is hosted in EU data centers with encryption at rest and in transit.' },
+  { q: 'How accurate is AI extraction? Can we trust these numbers for board-level reporting?', a: 'Valrano uses a multi-layer accuracy architecture: vision-LLM extraction with structured schemas, confidence scoring (values below 0.85 are flagged for human review), and cross-validation against known financial relationships. Every extracted value links to its source PDF page for one-click verification. The result is more auditable than any manual process \u2014 every number traces back to its source document.' },
+  { q: 'We already have Bloomberg / FactSet. Why do we need another tool?', a: 'Bloomberg and FactSet provide raw financial data for investors. They do not extract KPIs from newly published PDF reports, normalize company-specific definitions (Recurring EBIT vs. RCO vs. Adjusted EBITDA), or deliver AI-generated benchmark documents automatically, replacing the manual effort of collecting, normalizing, and comparing competitor data. Valrano replaces the 200+ hours/year your team spends turning raw data into competitor comparisons. It is a complement, not a replacement.' },
+  { q: 'What about data security and compliance?', a: 'Valrano processes exclusively publicly available documents \u2014 annual reports, quarterly filings, and sustainability reports that companies publish on their IR websites. No customer internal data is ever uploaded or processed. Your competitor group configuration is confidential. Data is hosted in EU data centers with encryption at rest and in transit.' },
   { q: 'Which accounting standards and currencies do you support?', a: 'IFRS, US GAAP, and Swiss GAAP FER for accounting standards. For currencies, we support CHF, EUR, USD, GBP, INR, MXN, AUD, HKD, and more \u2014 using both point-in-time and period-average FX rates for accurate normalization.' },
-  { q: 'How long does implementation take?', a: 'A typical onboarding takes 2 weeks: we configure your peer group, run historical extraction on past reports, validate accuracy with your team, and train users. You receive your first live briefing within 2 weeks of go-live.' },
+  { q: 'How long does implementation take?', a: 'A typical onboarding takes 2 weeks: we configure your competitor group, run historical extraction on past reports, validate accuracy with your team, and train users. You receive your first benchmark document within 2 weeks of go-live.' },
 ]
 
 const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'Organization', name: 'Valrano', url: 'https://valrano.com', logo: 'https://valrano.com/favicon.svg', description: 'Fully automated competitive benchmarking platform for listed corporations. AI-powered KPI extraction from peer reports.', parentOrganization: { '@type': 'Organization', name: 'Predivo GmbH', url: 'https://predivo.ch' } },
-    { '@type': 'SoftwareApplication', name: 'Valrano', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: 'AI-powered competitive benchmarking: extract financial and ESG KPIs from peer PDF reports, normalize across currencies and standards, deliver board-ready briefings automatically.', offers: { '@type': 'AggregateOffer', priceCurrency: 'CHF', availability: 'https://schema.org/OnlineOnly', description: 'Contact us for enterprise pricing' } },
+    { '@type': 'Organization', name: 'Valrano', url: 'https://valrano.com', logo: 'https://valrano.com/favicon.svg', description: 'Fully automated competitive benchmarking platform for listed corporations. AI-powered KPI extraction from competitor reports.', parentOrganization: { '@type': 'Organization', name: 'Predivo GmbH', url: 'https://predivo.ch' } },
+    { '@type': 'SoftwareApplication', name: 'Valrano', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', description: 'AI-powered competitive benchmarking: extract financial and ESG KPIs from competitor PDF reports, normalize across currencies and standards, deliver board-ready benchmark documents automatically.', offers: { '@type': 'AggregateOffer', priceCurrency: 'CHF', availability: 'https://schema.org/OnlineOnly', description: 'Contact us for enterprise pricing' } },
     { '@type': 'FAQPage', mainEntity: FAQS.map((faq) => ({ '@type': 'Question', name: faq.q, acceptedAnswer: { '@type': 'Answer', text: faq.a } })) },
   ],
 }
@@ -618,9 +654,9 @@ export default function LandingPage() {
     <>
       <Helmet>
         <title>Valrano — AI-Powered Competitive Benchmarking for Listed Corporations</title>
-        <meta name="description" content="Replace 200 hours of manual analyst work with AI-powered peer benchmarking. Extract and compare financial and ESG KPIs from competitor reports automatically." />
+        <meta name="description" content="Replace 200+ hours of quarterly analyst work with AI-powered competitive benchmarking. Extract and compare financial and ESG KPIs from competitor reports automatically." />
         <meta property="og:title" content="Valrano — AI-Powered Competitive Benchmarking" />
-        <meta property="og:description" content="Extract financial and ESG KPIs from competitor PDF reports, normalize across currencies and standards, deliver board-ready briefings automatically." />
+        <meta property="og:description" content="Extract financial and ESG KPIs from competitor PDF reports, normalize across currencies and standards, deliver board-ready benchmark documents automatically." />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://valrano.com" />
         <meta property="og:image" content="https://valrano.com/og-image.png" />
@@ -630,7 +666,7 @@ export default function LandingPage() {
         <meta property="og:site_name" content="Valrano" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Valrano — AI-Powered Competitive Benchmarking" />
-        <meta name="twitter:description" content="AI-powered peer benchmarking. Extract and compare financial and ESG KPIs from competitor reports." />
+        <meta name="twitter:description" content="AI-powered competitive benchmarking. Extract and compare financial and ESG KPIs from competitor reports." />
         <meta name="twitter:image" content="https://valrano.com/og-image.png" />
         <link rel="canonical" href="https://valrano.com" />
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
@@ -688,14 +724,14 @@ export default function LandingPage() {
           <div className="absolute left-1/2 top-1/3 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--color-accent)] opacity-[0.04] blur-[120px]" style={{ animation: 'landing-pulse-glow 4s ease-in-out infinite' }} />
           <div className="relative mx-auto max-w-5xl px-4 sm:px-6 py-24 text-center md:py-36">
             <div className="landing-animate-in landing-delay-1">
-              <span className="landing-gradient-badge inline-block rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-white">AI-Powered Competitive Intelligence</span>
+              <span className="landing-gradient-badge inline-block rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-white">AI-Powered Competitive Benchmarking</span>
             </div>
             <h1 className="landing-animate-in landing-delay-2 mt-8 text-[clamp(2.75rem,7vw,5.5rem)] font-bold leading-[1.02] tracking-[-0.035em] text-[var(--color-foreground)]">
-              Board-ready peer benchmarking<br className="hidden sm:inline" />
-              <span className="bg-gradient-to-r from-[var(--color-accent)] via-[#8B5CF6] to-[#EC4899] bg-clip-text text-transparent">on autopilot</span>
+              Board-ready competitive benchmarking<br className="hidden sm:inline" />
+              <span className="bg-gradient-to-r from-[var(--color-accent)] via-[#8B5CF6] to-[#EC4899] bg-clip-text text-transparent">fully automated</span>
             </h1>
             <p className="landing-animate-in landing-delay-3 mx-auto mt-8 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg md:text-xl">
-              Replace CHF 300K consulting engagements and 200 hours of manual analyst work with a single platform that extracts, normalizes, and compares financial and ESG KPIs from peer reports automatically.
+              Replace 200+ hours of quarterly analyst work with a single platform that extracts, normalizes, and compares financial and ESG KPIs from competitor reports &mdash; automatically.
             </p>
             <div className="landing-animate-in landing-delay-4 mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
               <button onClick={() => setDemoModalOpen(true)} className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35 cursor-pointer">
@@ -705,7 +741,7 @@ export default function LandingPage() {
               </button>
               <a href="#how-it-works" className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-card)]/50 px-8 py-4 text-[15px] font-medium text-[var(--color-foreground)] backdrop-blur-sm transition-all hover:bg-[var(--color-card)]">See How It Works</a>
             </div>
-            <p className="landing-animate-in landing-delay-5 mt-8 text-xs text-[var(--color-muted-foreground)]/70">Trusted by corporate strategy teams at listed companies</p>
+            <p className="landing-animate-in landing-delay-5 mt-8 text-xs text-[var(--color-muted-foreground)]/70">Built for corporate strategy teams at listed companies</p>
           </div>
         </section>
 
@@ -728,8 +764,8 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-24 md:py-28">
             <div className="text-center">
               <SectionLabel>The Problem</SectionLabel>
-              <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Peer benchmarking is broken</h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Every quarter, strategy teams download PDFs from IR pages, collect market data from multiple sources, pull ESG from yet another, and spend days manually normalizing everything.</p>
+              <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Competitive benchmarking is broken</h2>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Every quarter, strategy teams download PDFs from IR pages, collect market data from multiple sources, pull ESG from yet another, and spend weeks manually normalizing everything.</p>
             </div>
             <div className="mt-16 grid gap-8 md:grid-cols-3">
               {PAIN_POINTS.map((p, i) => <PainPointCard key={p.title} p={p} index={i} />)}
@@ -742,8 +778,8 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl px-4 sm:px-6 py-24 md:py-28">
             <div className="text-center">
               <SectionLabel>The Solution</SectionLabel>
-              <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">From publication to board briefing &mdash; fully automated</h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Valrano monitors your peers across every exchange, automatically extracts KPIs from published reports, normalizes across currencies and accounting standards, and delivers AI-generated briefings &mdash; so your board gets answers, not raw data.</p>
+              <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">From publication to benchmark document &mdash; fully automated</h2>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Valrano monitors your competitors across every exchange, automatically extracts KPIs from published reports, normalizes across currencies and accounting standards, and delivers AI-generated benchmark documents &mdash; so your board gets answers, not raw data.</p>
             </div>
           </div>
         </section>
@@ -757,9 +793,9 @@ export default function LandingPage() {
             </div>
             <div ref={processRef} className="mt-20 grid gap-12 md:grid-cols-3 md:gap-0">
               {[
-                { step: '01', title: 'Monitor', desc: 'Automatic detection when any peer publishes a new report across SIX, NYSE, XETRA, Euronext, and more.', icon: Globe },
+                { step: '01', title: 'Monitor', desc: 'Automatic detection when any competitor publishes a new report across SIX, NYSE, XETRA, Euronext, and more.', icon: Globe },
                 { step: '02', title: 'Extract & Normalize', desc: 'Vision-LLMs extract 50+ KPIs. Multi-currency normalization, taxonomy mapping, and confidence scoring.', icon: BarChart3 },
-                { step: '03', title: 'Deliver', desc: 'Board-ready briefings with peer comparisons, trend analysis, and competitive signals \u2014 ready for your team to review, approve, and share.', icon: TrendingUp },
+                { step: '03', title: 'Deliver', desc: 'Board-ready benchmark documents with competitor comparisons, trend analysis, and competitive signals \u2014 ready for your team to review, approve, and share.', icon: TrendingUp },
               ].map((s, i) => <ProcessStep key={s.step} step={s.step} title={s.title} desc={s.desc} icon={s.icon} isLast={i === 2} visible={processVisible} delay={i * 300} />)}
             </div>
           </div>
@@ -785,7 +821,7 @@ export default function LandingPage() {
             <div className="text-center">
               <SectionLabel>Enterprise Solution</SectionLabel>
               <h2 className="mt-2 text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Tailored to your organization</h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Every deployment is configured for your peer group, KPI taxonomy, and reporting cadence. We work with your team to ensure Valrano fits seamlessly into your existing workflows.</p>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)]">Every deployment is configured for your competitor group, KPI taxonomy, and reporting cadence. We work with your team to ensure Valrano fits seamlessly into your existing workflows.</p>
             </div>
             <div className="relative mt-14 rounded-2xl border border-[var(--color-accent)]/20 bg-[var(--color-card)] p-6 shadow-[0_0_60px_var(--color-accent)/6] sm:p-10">
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--color-accent)]/40 to-transparent" />
@@ -822,8 +858,8 @@ export default function LandingPage() {
           <div className="relative mx-auto max-w-4xl overflow-hidden px-4 sm:px-6 py-24 text-center md:py-28">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--color-accent)/8%,transparent_60%)]" />
             <div className="relative">
-              <h2 className="text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Stop building peer comparisons manually</h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg md:text-xl">Your team spends 3-5 days building peer comparisons that are outdated before the board meeting. Valrano builds them automatically and continuously \u2014 your analysts review insights instead of collecting data.</p>
+              <h2 className="text-[clamp(2rem,4.5vw,3.25rem)] font-bold tracking-[-0.025em] text-[var(--color-foreground)]">Stop building competitor comparisons manually</h2>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[var(--color-muted-foreground)] sm:text-lg md:text-xl">Your team spends weeks building competitor comparisons that are outdated before the board meeting. Valrano builds them automatically and continuously \u2014 your analysts review insights instead of collecting data.</p>
               <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
                 <button onClick={() => setDemoModalOpen(true)} className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[var(--color-accent)] px-8 py-4 text-[15px] font-medium text-accent-foreground shadow-lg shadow-[var(--color-accent)]/25 transition-all hover:shadow-xl hover:shadow-[var(--color-accent)]/35 cursor-pointer">
                   <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)', backgroundSize: '200% 100%', animation: 'landing-shimmer 1.5s infinite' }} />
@@ -843,7 +879,7 @@ export default function LandingPage() {
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <div className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">Valrano</div>
-                <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted-foreground)]">AI-powered competitive benchmarking for listed corporations. Automated detection, extraction, and analysis of peer reports.</p>
+                <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted-foreground)]">AI-powered competitive benchmarking for listed corporations. Automated detection, extraction, and analysis of competitor reports.</p>
                 <div className="mt-4 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]"><Shield className="h-3.5 w-3.5" /><span>Swiss-hosted &middot; GDPR compliant</span></div>
               </div>
               <div>
