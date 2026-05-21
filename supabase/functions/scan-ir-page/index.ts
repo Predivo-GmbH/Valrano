@@ -58,7 +58,7 @@ function extractDocumentLinks(html: string, baseUrl: string): DocumentLink[] {
   const links: DocumentLink[] = []
   const seen = new Set<string>()
 
-  // Match href links to downloadable files or IR-related pages
+  // Match href links to downloadable files
   const hrefRegex = /href=["']([^"']+)["'][^>]*>([^<]*)/gi
   let match: RegExpExecArray | null
 
@@ -80,21 +80,22 @@ function extractDocumentLinks(html: string, baseUrl: string): DocumentLink[] {
     if (seen.has(url)) continue
     seen.add(url)
 
-    // Filter: downloadable files OR IR-related keywords in URL/text
+    // STRICT filter: only include actual downloadable document files
+    // Navigation links to webpages (e.g. "Sustainable Finance", "Management Team")
+    // are NOT documents and must be excluded
     const lowerUrl = url.toLowerCase()
-    const lowerText = text.toLowerCase()
     const isDownloadable = /\.(pdf|xlsx|xls|pptx|ppt|docx|doc|zip)(\?|$)/i.test(lowerUrl)
-    const hasIrKeywords = /report|bericht|annual|quarterly|halbjahr|half.?year|sustainability|nachhaltig|financial|finanz|presentation|investor|ergebn|results|geschaeft/i.test(lowerUrl + ' ' + lowerText)
 
-    if (isDownloadable || hasIrKeywords) {
-      // Get surrounding context (approximate: use link text + nearby text)
-      const linkPos = match.index
-      const contextStart = Math.max(0, linkPos - 100)
-      const contextEnd = Math.min(html.length, linkPos + match[0].length + 100)
-      const context = html.slice(contextStart, contextEnd).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    // Only accept downloadable files — reject plain webpage links
+    if (!isDownloadable) continue
 
-      links.push({ url, text: text || url.split('/').pop() || url, context })
-    }
+    // Get surrounding context (approximate: use link text + nearby text)
+    const linkPos = match.index
+    const contextStart = Math.max(0, linkPos - 100)
+    const contextEnd = Math.min(html.length, linkPos + match[0].length + 100)
+    const context = html.slice(contextStart, contextEnd).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+
+    links.push({ url, text: text || url.split('/').pop() || url, context })
   }
 
   return links.slice(0, MAX_DOCUMENTS)
@@ -347,6 +348,14 @@ serve(async (req: Request) => {
         }
       }),
     )
+
+    // Clean up stale non-document entries (e.g. navigation links from earlier scans)
+    await adminClient
+      .from('ir_catalog_items')
+      .delete()
+      .eq('company_id', company_id)
+      .is('file_format', null)
+      .eq('is_downloaded', false)
 
     // Upsert into ir_catalog_items
     let itemsNew = 0

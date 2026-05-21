@@ -12,6 +12,7 @@ import {
   File,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useIrCatalogItems, useScanIrPage, useDownloadCatalogItem } from '@/hooks/useIrCatalog'
 import { useSmoothProgress } from '@/hooks/useSmoothProgress'
 import type { IrDocumentType } from '@/types/database'
@@ -183,31 +184,33 @@ export function IrCatalogPanel({ companyId, companyName, irPageUrl }: IrCatalogP
           <>
             {/* Filters */}
             <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-[var(--color-bg-tertiary)]/30">
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value as FilterType)}
-                className="rounded-md border border-border bg-transparent px-2 py-1 text-xs text-foreground"
-              >
-                <option value="all">All types</option>
-                <option value="annual_report">Annual Reports</option>
-                <option value="quarterly_report">Quarterly Reports</option>
-                <option value="half_year_report">Half-Year Reports</option>
-                <option value="sustainability_report">Sustainability</option>
-                <option value="investor_presentation">Presentations</option>
-                <option value="financial_statements">Financial Statements</option>
-                <option value="other">Other</option>
-              </select>
+              <Select value={filterType} onValueChange={(v) => v && setFilterType(v as FilterType)}>
+                <SelectTrigger className="w-[160px] h-8 text-xs">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  <SelectItem value="annual_report">Annual Reports</SelectItem>
+                  <SelectItem value="quarterly_report">Quarterly Reports</SelectItem>
+                  <SelectItem value="half_year_report">Half-Year Reports</SelectItem>
+                  <SelectItem value="sustainability_report">Sustainability</SelectItem>
+                  <SelectItem value="investor_presentation">Presentations</SelectItem>
+                  <SelectItem value="financial_statements">Financial Statements</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
               {years.length > 0 && (
-                <select
-                  value={filterYear}
-                  onChange={(e) => setFilterYear(e.target.value)}
-                  className="rounded-md border border-border bg-transparent px-2 py-1 text-xs text-foreground"
-                >
-                  <option value="all">All years</option>
-                  {years.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
+                <Select value={filterYear} onValueChange={(v) => v && setFilterYear(v)}>
+                  <SelectTrigger className="w-[120px] h-8 text-xs">
+                    <SelectValue placeholder="All years" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All years</SelectItem>
+                    {years.map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
               <span className="ml-auto text-[11px] text-muted-foreground">
                 {filteredItems.length} of {items.length}
