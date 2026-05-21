@@ -15,6 +15,15 @@
   RewriteCond %{REQUEST_URI} (.+)/$
   RewriteRule ^ %1 [R=301,L]
 
+  # Block sensitive file paths (return 404 before SPA fallback)
+  RewriteRule ^\.env - [R=404,L]
+  RewriteRule ^\.git - [R=404,L]
+  RewriteRule ^package\.json$ - [R=404,L]
+  RewriteRule ^package-lock\.json$ - [R=404,L]
+  RewriteRule ^node_modules - [R=404,L]
+  RewriteRule ^docs/ - [R=404,L]
+  RewriteRule ^\.well-known/(?!security\.txt) - [R=404,L]
+
   # Serve prerendered HTML for public pages (e.g., /privacy -> privacy.html)
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
@@ -27,6 +36,24 @@
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
 </IfModule>
+
+# Block direct access to sensitive files
+<FilesMatch "\.(env|env\.local|env\.production|bak|sql|log)$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "^\.git">
+  Require all denied
+</FilesMatch>
+
+# Block source maps
+<FilesMatch "\.js\.map$">
+  Require all denied
+</FilesMatch>
+
+# Block PHP probes
+<FilesMatch "\.php$">
+  Require all denied
+</FilesMatch>
 
 # Security headers
 <IfModule mod_headers.c>

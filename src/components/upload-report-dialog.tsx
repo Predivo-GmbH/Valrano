@@ -200,7 +200,7 @@ export function UploadReportDialog({
           try {
             await normalizeMutation.mutateAsync(result.report_id)
           } catch (normErr) {
-            console.warn('Edge function normalization failed (DB trigger should have handled it):', normErr)
+            if (import.meta.env.DEV) console.warn('Edge function normalization failed (DB trigger should have handled it):', normErr)
             toast.warning('KPI normalization may be incomplete — check Dashboard')
           }
 

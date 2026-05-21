@@ -615,10 +615,10 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
         try {
           await normalizeMutation.mutateAsync(result.report_id)
         } catch (normErr) {
-          console.warn('Edge function normalization failed (DB trigger should have handled it):', normErr)
+          if (import.meta.env.DEV) console.warn('Edge function normalization failed (DB trigger should have handled it):', normErr)
         }
       } catch (extractErr) {
-        console.warn('KPI extraction failed during onboarding:', extractErr)
+        if (import.meta.env.DEV) console.warn('KPI extraction failed during onboarding:', extractErr)
         toast.warning('Accounting profile saved, but KPI extraction failed. You can retry from My Company page.')
       }
 

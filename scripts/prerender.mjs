@@ -80,6 +80,13 @@ async function prerender() {
       html = '<!doctype html>\n' + html
     }
 
+    // Remove duplicate <title> tags (Helmet injects one, index.html has another)
+    const titleMatches = html.match(/<title>[^<]*<\/title>/g)
+    if (titleMatches && titleMatches.length > 1) {
+      // Keep the last (Helmet-injected) title, remove the first (base index.html)
+      html = html.replace(titleMatches[0], '')
+    }
+
     const outPath = join(DIST, route.file)
     mkdirSync(dirname(outPath), { recursive: true })
     writeFileSync(outPath, html, 'utf-8')

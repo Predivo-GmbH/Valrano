@@ -421,6 +421,7 @@ export function CompanyProfilePage() {
         setResolutionStatus('needs_action')
       }
     })()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- setResolutionStatus is stable (useState setter)
   }, [company, queryClient])
 
   // Organize KPI values by code, then by company, then by year

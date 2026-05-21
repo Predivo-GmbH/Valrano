@@ -1,0 +1,4 @@
+Contact: mailto:security@predivo.ch
+Expires: 2027-05-21T00:00:00.000Z
+Preferred-Languages: en, de
+Canonical: https://valrano.com/.well-known/security.txt
