@@ -3,6 +3,11 @@ name: Deploy to Production
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
 
 concurrency:
   group: deploy-production
@@ -72,6 +77,13 @@ jobs:
 
       - name: Test
         run: npm test -- --run
+
+      - name: Coverage
+        run: npm run test:coverage
+
+      - name: Feature Coverage Check
+        run: node scripts/check-feature-coverage.mjs
+        continue-on-error: true
 
       - run: npm run build
         env:
@@ -262,7 +274,15 @@ jobs:
 
       - run: npm ci
 
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests against staging
