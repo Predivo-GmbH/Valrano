@@ -25,7 +25,7 @@ import {
   CheckCircle,
   Loader2,
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+// supabase loaded dynamically in DemoRequestModal to avoid modulepreloading on landing
 
 /* ── Demo Request Modal ──────────────────────────────── */
 function DemoRequestModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -41,6 +41,7 @@ function DemoRequestModal({ open, onClose }: { open: boolean; onClose: () => voi
     setErrorMsg('')
 
     try {
+      const { supabase } = await import('@/lib/supabase')
       const { data, error } = await supabase.functions.invoke('request-demo', {
         body: {
           name: form.name.trim(),

@@ -1,15 +1,16 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase'
 
 export function RedirectIfAuthenticated({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setStatus(session ? 'authenticated' : 'unauthenticated')
-    }).catch(() => {
-      setStatus('unauthenticated')
+    import('@/lib/supabase').then(({ supabase }) => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setStatus(session ? 'authenticated' : 'unauthenticated')
+      }).catch(() => {
+        setStatus('unauthenticated')
+      })
     })
   }, [])
 

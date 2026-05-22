@@ -17,6 +17,9 @@ const BASE = `http://localhost:${PORT}`
 // Public routes to prerender
 const ROUTES = [
   { path: '/', file: 'index.html' },
+  { path: '/privacy', file: 'privacy.html' },
+  { path: '/terms', file: 'terms.html' },
+  { path: '/imprint', file: 'imprint.html' },
 ]
 
 const MIME_TYPES = {
@@ -83,8 +86,15 @@ async function prerender() {
     // Remove duplicate <title> tags (Helmet injects one, index.html has another)
     const titleMatches = html.match(/<title>[^<]*<\/title>/g)
     if (titleMatches && titleMatches.length > 1) {
-      // Keep the last (Helmet-injected) title, remove the first (base index.html)
       html = html.replace(titleMatches[0], '')
+    }
+
+    // Remove duplicate Google Fonts <link> tags (Puppeteer may add stylesheet after preload)
+    const fontLinks = html.match(/<link[^>]*fonts\.googleapis\.com\/css2[^>]*>/g)
+    if (fontLinks && fontLinks.length > 1) {
+      for (let i = 1; i < fontLinks.length; i++) {
+        html = html.replace(fontLinks[i], '')
+      }
     }
 
     const outPath = join(DIST, route.file)

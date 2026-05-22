@@ -21,21 +21,14 @@ export default defineConfig({
           if (id.includes('node_modules/@tanstack/react-query')) {
             return 'query-vendor'
           }
-          if (id.includes('node_modules/@supabase/supabase-js')) {
-            return 'supabase-vendor'
-          }
+          // supabase: no manualChunk — deferred with AuthenticatedShell lazy boundary
           if (id.includes('node_modules/@radix-ui')) {
             return 'ui-vendor'
           }
           if (id.includes('node_modules/lucide-react')) {
             return 'icons-vendor'
           }
-          if (id.includes('node_modules/sonner')) {
-            return 'toast-vendor'
-          }
-          if (id.includes('node_modules/recharts') || id.includes('node_modules/victory-vendor')) {
-            return 'charts-vendor'
-          }
+          // sonner + recharts/victory: no manualChunk — deferred to lazy chunks, not modulepreloaded on landing
         },
       },
     },
