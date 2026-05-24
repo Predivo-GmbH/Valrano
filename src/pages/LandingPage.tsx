@@ -877,7 +877,7 @@ export default function LandingPage() {
               <div>
                 <div className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">Valrano</div>
                 <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted-foreground)]">AI-powered competitive benchmarking for listed corporations. Automated detection, extraction, and analysis of competitor reports.</p>
-                <div className="mt-4 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]"><Shield className="h-3.5 w-3.5" /><span>Swiss-hosted &middot; GDPR compliant</span></div>
+                <div className="mt-4 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]"><Shield className="h-3.5 w-3.5" /><span>Swiss-made &middot; Software that Thinks Ahead</span></div>
               </div>
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Product</h3>

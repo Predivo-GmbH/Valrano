@@ -223,7 +223,8 @@ function buildEmailHtml(opts: {
     </div>
   </div>
   <div style="padding:16px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center">
-    <span style="font-size:11px;color:#94a3b8">Valrano by Predivo GmbH</span>
+    <span style="font-size:11px;color:#94a3b8">&copy; ${new Date().getFullYear()} Valrano by Predivo GmbH. All rights reserved.</span>
+    <br><span style="font-size:10px;color:#94a3b8">Swiss-made &middot; Software that Thinks Ahead</span>
   </div>
 </div>
 </body>
