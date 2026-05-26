@@ -1640,7 +1640,7 @@ function StepSchedule({
           setSuggestedIds((prev) => new Set(prev).add(company.id))
           onConfirmSchedule(company.id)
           toast.success(
-            `Suggested: ${data.suggestion.suggested_date} (${data.suggestion.confidence}% confidence)`,
+            `Detected: ${data.suggestion.suggested_date} (${data.suggestion.confidence}% confidence, based on historical patterns)`,
           )
           setSuggestingCompanyId(null)
         },
@@ -1658,7 +1658,7 @@ function StepSchedule({
   const handleSuggestAll = async () => {
     const toSuggest = selectedCompanies.filter((c) => !schedules[c.id]?.expectedDate)
     if (toSuggest.length === 0) {
-      toast.info('All competitors already have dates')
+      toast.info('All competitors already have publication dates set')
       return
     }
     setSuggestingAll(true)
@@ -1683,7 +1683,7 @@ function StepSchedule({
     setSuggestingCompanyId(null)
     setSuggestingAll(false)
     if (completed > 0) {
-      toast.success(`Suggested dates for ${completed} competitor${completed !== 1 ? 's' : ''}`)
+      toast.success(`Detected publication dates for ${completed} competitor${completed !== 1 ? 's' : ''}`)
     }
   }
 
@@ -1693,8 +1693,8 @@ function StepSchedule({
         <div>
           <h2 className="text-[22px] font-semibold text-foreground">Publication Schedule</h2>
           <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
-            Set when each competitor typically publishes their reports. The AI can suggest dates based on
-            historical patterns.
+            Set expected publication dates so Valrano can notify you when competitors release new reports
+            and auto-download them for benchmarking. This step is optional — you can always add dates later from the Calendar page.
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 mt-1">
@@ -1709,13 +1709,14 @@ function StepSchedule({
             onClick={handleSuggestAll}
             disabled={suggestingAll}
             className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)]/10 px-4 py-2.5 text-[12px] font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors disabled:opacity-40 flex-shrink-0 mt-1"
+            title="Uses AI to detect when each competitor historically publishes reports"
           >
             {suggestingAll ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <Sparkles className="h-3.5 w-3.5" />
             )}
-            Suggest All
+            Auto-detect dates
           </button>
         )}
         </div>
@@ -1776,32 +1777,26 @@ function StepSchedule({
                     onClick={() => handleSuggestDate(company)}
                     disabled={suggestingCompanyId !== null}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-tertiary)] transition-colors disabled:opacity-40 flex-shrink-0"
-                    title="AI suggest date"
+                    title="Detect historical publication date"
                   >
                     {suggestingCompanyId === company.id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     ) : (
                       <Sparkles className="h-3 w-3" />
                     )}
-                    Suggest
+                    Detect
                   </button>
                 )}
               </div>
 
-              {/* IR URL status (read-only) + duplicate warning */}
-              <div className="flex flex-wrap items-center gap-2 pl-8">
-                {company.ir_page_url && (
-                  <a href={company.ir_page_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-                    <FileText className="h-3 w-3" />
-                    IR page set
-                  </a>
-                )}
-                {isDuplicate && (
+              {/* Duplicate warning only — IR page status removed (belongs in Step 3) */}
+              {isDuplicate && (
+                <div className="pl-8">
                   <span className="text-[11px] text-[var(--color-signal-amber)]">
                     Event already exists for this date & type
                   </span>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )
         })}
@@ -1809,7 +1804,7 @@ function StepSchedule({
 
       {selectedCompanies.length === 0 && (
         <p className="text-[12px] text-muted-foreground text-center py-8">
-          No competitors selected yet. You can skip this step and add publication dates later from the Calendar page.
+          No competitors selected yet. Go back to Step 2 to add competitors, or skip this step.
         </p>
       )}
     </div>
