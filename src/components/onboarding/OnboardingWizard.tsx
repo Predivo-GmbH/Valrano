@@ -1289,14 +1289,17 @@ function StepReports({
   })
 
   const matchCount = companyCatalog.filter(c => c.matchingAnnual).length
-  // Pipeline states per company
+  // Pipeline states per company — "scanning" includes companies with ir_page_url but no items yet
+  // (scan-ir-page runs async after suggest-ir-url sets ir_page_url)
   const scanningCount = companyCatalog.filter(c => {
     if (c.hasAnyItems || c.matchingAnnual) return false
-    // Still scanning = no website_url yet, OR has website but no ir_page_url yet
-    return !c.company.website_url || (c.company.website_url && !c.company.ir_page_url)
+    if (timedOut) return false // timed out = no longer "scanning"
+    return true // anything without items is still in the pipeline
   }).length
   const completedCount = selectedCompanies.length - scanningCount
-  const noReportCount = companyCatalog.filter(c => !c.hasAnyItems && c.company.ir_page_url).length
+  const noReportCount = companyCatalog.filter(c =>
+    !c.hasAnyItems && !c.matchingAnnual && timedOut
+  ).length
 
   // Track elapsed time for timeout detection (re-renders every 30s)
   const [tickCount, setTickCount] = useState(0)
@@ -1369,7 +1372,11 @@ function StepReports({
     if (c.matchingAnnual?.is_downloaded) return 'downloaded'
     if (c.matchingAnnual) return 'found'
     if (c.hasAnyItems) return 'no_report' // has items but not matching FY annual
-    if (c.company.ir_page_url) return 'no_report' // IR page found, scan done, no match
+    if (c.company.ir_page_url) {
+      // IR page URL is set, but scan-ir-page may still be running in background.
+      // Only conclude "no_report" after timeout — before that, show "scanning".
+      return timedOut ? 'no_report' : 'scanning_reports'
+    }
     if (c.company.website_url) {
       // Has website, no IR page yet — could be discovering or timed out
       return timedOut ? 'no_ir_page' : 'discovering_ir'
@@ -1479,10 +1486,10 @@ function StepReports({
               </div>
 
               {/* Status / Action */}
-              {(status === 'resolving' || status === 'discovering_ir') && (
+              {(status === 'resolving' || status === 'discovering_ir' || status === 'scanning_reports') && (
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  {status === 'resolving' ? 'Resolving...' : 'Discovering...'}
+                  {status === 'resolving' ? 'Resolving...' : status === 'discovering_ir' ? 'Discovering...' : 'Scanning...'}
                 </span>
               )}
               {status === 'downloaded' && (
