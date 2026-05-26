@@ -370,6 +370,7 @@ function BrowserFrame() {
   return (
     <div ref={ref} className="transition-all duration-1000" style={{ perspective: '1200px', transform: visible ? 'translateY(0)' : 'translateY(48px)', opacity: visible ? 1 : 0 }}>
       <div className="mx-auto max-w-4xl transition-transform duration-1000" style={{ transform: visible ? 'rotateX(0deg)' : 'rotateX(8deg)', transformOrigin: 'bottom center' }}>
+        {/* Browser chrome */}
         <div className="rounded-t-xl border border-b-0 border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="flex gap-1.5">
@@ -382,79 +383,118 @@ function BrowserFrame() {
             </div>
           </div>
         </div>
-        <div className="overflow-hidden rounded-b-xl border border-t-0 border-[var(--color-border)] bg-[var(--color-background)] p-4 sm:p-6">
-          <div className="mb-4 flex items-center justify-between rounded-lg bg-[var(--color-card)] p-3">
-            <div className="flex items-center gap-4"><div className="h-6 w-6 rounded bg-[var(--color-accent)]/20" /><div className="h-3 w-24 rounded bg-[var(--color-muted-foreground)]/20" /></div>
-            <div className="flex gap-3"><div className="h-3 w-16 rounded bg-[var(--color-muted-foreground)]/15" /><div className="h-3 w-16 rounded bg-[var(--color-muted-foreground)]/15" /><div className="h-3 w-16 rounded bg-[var(--color-muted-foreground)]/15" /></div>
+        {/* App shell: sidebar + main content */}
+        <div className="flex overflow-hidden rounded-b-xl border border-t-0 border-[var(--color-border)] bg-[var(--color-background)]">
+          {/* Sidebar */}
+          <div className="hidden w-12 flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-card)] py-3 sm:flex sm:flex-col sm:items-center sm:gap-3">
+            <div className="h-5 w-5 rounded bg-[var(--color-accent)]/20" />
+            <div className="mt-2 flex flex-col items-center gap-2.5">
+              {[true, false, false, false, false].map((active, i) => (
+                <div key={i} className="h-4 w-4 rounded" style={{ backgroundColor: active ? 'var(--color-accent)' : 'var(--color-muted-foreground)', opacity: active ? 0.9 : 0.2 }} />
+              ))}
+            </div>
           </div>
-          {/* Metric cards — matches real dashboard */}
-          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[
-              { label: 'Pipeline Active', val: '3', color: 'var(--color-accent)' },
-              { label: 'Next Report', val: 'in 5d', color: 'var(--color-signal-green)' },
-              { label: 'Documents Ready', val: '4', color: 'var(--color-signal-green)' },
-              { label: 'Pending Reviews', val: '1', color: 'var(--color-signal-amber)' },
-            ].map((kpi) => (
-              <div key={kpi.label} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3">
-                <div className="text-[10px] text-[var(--color-muted-foreground)]">{kpi.label}</div>
-                <div className="mt-1 text-sm font-bold text-[var(--color-foreground)]">{kpi.val}</div>
-                <div className="mt-1 h-1 w-2/3 rounded-full" style={{ backgroundColor: kpi.color, opacity: 0.6 }} />
+          {/* Main content area */}
+          <div className="flex-1 p-3 sm:p-4">
+            {/* Greeting header */}
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-semibold text-[var(--color-foreground)]">Good morning, Sarah</div>
+                <div className="text-[9px] text-[var(--color-muted-foreground)]">Atlas Corp &middot; FY 2025</div>
               </div>
-            ))}
-          </div>
-          {/* Pipeline status bar — matches real dashboard */}
-          <div className="mb-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-medium text-[var(--color-muted-foreground)]">Pipeline Status</span>
-              <span className="text-[10px] text-[var(--color-accent)]">4 stages</span>
+              <div className="rounded bg-[var(--color-muted-foreground)]/10 px-2 py-0.5 text-[8px] text-[var(--color-muted-foreground)]">FY 2025</div>
             </div>
-            <div className="flex gap-1">
+            {/* Metric cards */}
+            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[
-                { label: 'Scheduled', w: '30%', opacity: 0.25 },
-                { label: 'Detected', w: '25%', opacity: 0.45 },
-                { label: 'Ingested', w: '25%', opacity: 0.65 },
-                { label: 'Benchmark', w: '20%', opacity: 0.85 },
-              ].map((stage) => (
-                <div key={stage.label} className="flex-1">
-                  <div className="h-2 rounded-full" style={{ backgroundColor: 'var(--color-accent)', opacity: stage.opacity }} />
-                  <div className="mt-1 text-center text-[8px] text-[var(--color-muted-foreground)]">{stage.label}</div>
+                { label: 'Pipeline Active', val: '3', sub: '1 monitored · 2 processing', color: 'var(--color-accent)' },
+                { label: 'Next Report', val: 'in 5d', sub: 'Meridian Group', color: 'var(--color-signal-green)' },
+                { label: 'Documents Ready', val: '4', sub: '7 total generated', color: 'var(--color-signal-green)' },
+                { label: 'Pending Reviews', val: '1', sub: 'KPIs need attention', color: 'var(--color-signal-amber)' },
+              ].map((kpi) => (
+                <div key={kpi.label} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-3.5 w-3.5 rounded" style={{ backgroundColor: kpi.color, opacity: 0.15 }} />
+                    <span className="text-[8px] text-[var(--color-muted-foreground)]">{kpi.label}</span>
+                  </div>
+                  <div className="mt-0.5 text-[13px] font-bold text-[var(--color-foreground)]">{kpi.val}</div>
+                  <div className="text-[7px] text-[var(--color-muted-foreground)]">{kpi.sub}</div>
                 </div>
               ))}
             </div>
-          </div>
-          <div className="flex gap-3">
-            {/* Upcoming publications — matches real dashboard */}
-            <div className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3">
-              <div className="mb-2 text-[10px] font-medium text-[var(--color-muted-foreground)]">Upcoming Publications</div>
-              {[
-                { name: 'Atlas Corp', type: 'Q1 2026', days: '3d', color: 'var(--color-signal-amber)' },
-                { name: 'Meridian Group', type: 'Annual', days: '6d', color: 'var(--color-signal-green)' },
-                { name: 'Nova Industries', type: 'Q1 2026', days: '15d', color: 'var(--color-signal-green)' },
-              ].map((pub) => (
-                <div key={pub.name} className="flex items-center gap-2 border-b border-[var(--color-border)] py-1.5 last:border-0">
-                  <div className="h-4 w-4 rounded bg-[var(--color-accent)]/15" />
-                  <span className="text-[10px] text-[var(--color-foreground)]">{pub.name}</span>
-                  <span className="text-[9px] text-[var(--color-muted-foreground)]">{pub.type}</span>
-                  <span className="ml-auto text-[10px] font-medium" style={{ color: pub.color }}>{pub.days}</span>
-                </div>
-              ))}
+            {/* Pipeline status — 4 cards like real dashboard */}
+            <div className="mb-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-2">
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-[8px] font-semibold uppercase tracking-wider text-[var(--color-muted-foreground)]">Pipeline Status</span>
+                <span className="text-[8px] text-[var(--color-accent)]">View Calendar &rarr;</span>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { label: 'Scheduled', count: '2', color: 'var(--color-muted-foreground)', border: 'var(--color-border)' },
+                  { label: 'Detected', count: '1', color: 'var(--color-signal-amber)', border: 'var(--color-signal-amber)' },
+                  { label: 'Ingested', count: '3', color: 'var(--color-accent)', border: 'var(--color-accent)' },
+                  { label: 'Benchmark', count: '2', color: 'var(--color-signal-green)', border: 'var(--color-signal-green)' },
+                ].map((stage) => (
+                  <div key={stage.label} className="rounded-md bg-[var(--color-background)] px-1.5 py-1.5 text-center" style={{ borderTop: `2px solid ${stage.border}` }}>
+                    <div className="flex items-center justify-center gap-1">
+                      <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: stage.color }} />
+                      <span className="text-[12px] font-semibold text-[var(--color-foreground)]">{stage.count}</span>
+                    </div>
+                    <div className="text-[7px] font-medium uppercase tracking-wider text-[var(--color-muted-foreground)]">{stage.label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-            {/* Competitor comparison — matches real dashboard */}
-            <div className="hidden w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3 sm:block">
-              <div className="mb-2 text-[10px] font-medium text-[var(--color-muted-foreground)]">Competitor Signals</div>
-              {[
-                { name: 'Atlas Corp', signal: '+3.2%', color: 'var(--color-signal-green)' },
-                { name: 'Meridian Group', signal: '-1.4%', color: 'var(--color-signal-red)' },
-                { name: 'Nova Industries', signal: '+0.8%', color: 'var(--color-signal-green)' },
-                { name: 'Vertex Ltd', signal: '—', color: 'var(--color-muted-foreground)' },
-                { name: 'Centra AG', signal: '+2.1%', color: 'var(--color-signal-green)' },
-              ].map((comp) => (
-                <div key={comp.name} className="flex items-center gap-2 border-b border-[var(--color-border)] py-1.5 last:border-0">
-                  <div className="h-4 w-4 rounded-full bg-[var(--color-accent)]/15" />
-                  <span className="text-[10px] text-[var(--color-muted-foreground)]">{comp.name}</span>
-                  <span className="ml-auto text-[10px] font-medium" style={{ color: comp.color }}>{comp.signal}</span>
+            {/* Peer Benchmark Comparison table */}
+            <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden">
+              <div className="flex items-center justify-between border-b border-[var(--color-border)] px-2 py-1.5">
+                <span className="text-[9px] font-semibold text-[var(--color-foreground)]">Peer Benchmark Comparison</span>
+                <div className="flex gap-1">
+                  {['Financial', 'ESG', 'Operational'].map((t, i) => (
+                    <div key={t} className={`rounded px-1.5 py-0.5 text-[7px] font-medium ${i === 0 ? 'bg-[var(--color-background)] text-[var(--color-foreground)] border border-[var(--color-border)]' : 'text-[var(--color-muted-foreground)]'}`}>{t}</div>
+                  ))}
                 </div>
-              ))}
+              </div>
+              <table className="w-full text-[8px]">
+                <thead>
+                  <tr className="border-b border-[var(--color-border)] text-[7px] font-semibold uppercase tracking-wider text-[var(--color-muted-foreground)]">
+                    <th className="px-2 py-1 text-left">KPI</th>
+                    <th className="hidden px-2 py-1 text-right sm:table-cell">Your Value</th>
+                    <th className="px-2 py-1 text-right">Peer Avg</th>
+                    <th className="hidden px-2 py-1 text-center sm:table-cell">Rank</th>
+                    <th className="px-2 py-1 text-center">Signal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { kpi: 'Revenue', yours: '4.2B', avg: '3.8B', rank: '2/6', signal: 'advantage' },
+                    { kpi: 'EBITDA Margin', yours: '24.3%', avg: '21.1%', rank: '1/6', signal: 'advantage' },
+                    { kpi: 'Net Income', yours: '890M', avg: '1.1B', rank: '4/6', signal: 'risk' },
+                    { kpi: 'ROIC', yours: '12.1%', avg: '10.8%', rank: '2/6', signal: 'advantage' },
+                    { kpi: 'Net Debt/EBITDA', yours: '2.4x', avg: '2.1x', rank: '4/6', signal: 'risk' },
+                    { kpi: 'CO\u2082 Intensity', yours: '0.58', avg: '0.65', rank: '2/6', signal: 'advantage' },
+                  ].map((row, idx) => (
+                    <tr key={row.kpi} className={`border-b border-[var(--color-border)]/50 last:border-0 ${idx % 2 === 1 ? 'bg-[var(--color-background)]/30' : ''}`}>
+                      <td className="px-2 py-1 font-medium text-[var(--color-foreground)]">{row.kpi}</td>
+                      <td className="hidden px-2 py-1 text-right font-semibold text-[var(--color-foreground)] sm:table-cell">{row.yours}</td>
+                      <td className="px-2 py-1 text-right text-[var(--color-muted-foreground)]">{row.avg}</td>
+                      <td className="hidden px-2 py-1 text-center text-[var(--color-muted-foreground)] sm:table-cell">{row.rank}</td>
+                      <td className="px-2 py-1 text-center">
+                        {row.signal === 'advantage'
+                          ? <span className="text-[var(--color-signal-green)]">&#9650; Adv</span>
+                          : <span className="text-[var(--color-signal-red)]">&#9660; Risk</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="border-t border-[var(--color-border)] px-2 py-1 flex items-center justify-between text-[7px] text-[var(--color-muted-foreground)]">
+                <div className="flex gap-2">
+                  <span className="text-[var(--color-signal-green)]">&#9650; Advantage</span>
+                  <span className="text-[var(--color-signal-red)]">&#9660; Risk</span>
+                </div>
+                <span>vs 5 peers &middot; FY 2025</span>
+              </div>
             </div>
           </div>
         </div>

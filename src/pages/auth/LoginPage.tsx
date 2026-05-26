@@ -94,7 +94,7 @@ export default function LoginPage() {
       </h1>
 
       {/* Tabs */}
-      <div className="mt-6 flex rounded-lg border border-[var(--color-border)] bg-[var(--color-muted)] p-1" role="tablist" aria-label="Sign in method">
+      <div className="mt-6 flex gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-1" role="tablist" aria-label="Sign in method">
         <button
           role="tab"
           id="login-tab-password"
@@ -104,8 +104,8 @@ export default function LoginPage() {
           onClick={() => switchTab('password')}
           className={`flex-1 rounded-md py-2.5 min-h-[44px] text-sm font-medium transition-all ${
             tab === 'password'
-              ? 'bg-[var(--color-card)] text-[var(--color-foreground)] shadow-sm'
-              : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
+              ? 'bg-[var(--color-accent)] text-white shadow-md shadow-[var(--color-accent)]/25'
+              : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)]'
           }`}
         >
           Password
@@ -119,8 +119,8 @@ export default function LoginPage() {
           onClick={() => switchTab('code')}
           className={`flex-1 rounded-md py-2.5 min-h-[44px] text-sm font-medium transition-all ${
             tab === 'code'
-              ? 'bg-[var(--color-card)] text-[var(--color-foreground)] shadow-sm'
-              : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)]'
+              ? 'bg-[var(--color-accent)] text-white shadow-md shadow-[var(--color-accent)]/25'
+              : 'text-[var(--color-muted-foreground)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-muted)]'
           }`}
         >
           Email Code
