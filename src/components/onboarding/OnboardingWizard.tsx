@@ -2,11 +2,13 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
+  AlertTriangle,
   BookOpen,
   Building2,
   Calendar,
   Check,
   ChevronRight,
+  Download,
   FileText,
   Loader2,
   Search,
@@ -23,6 +25,7 @@ import { useCreateMyCompany, usePrimaryCompany } from '@/hooks/useMyCompany'
 import { useUploadReport, useExtractKpis, useNormalizeKpis } from '@/hooks/useExtraction'
 import { useCreatePublicationEvent, usePublicationEvents } from '@/hooks/useCalendar'
 import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
+import { useIrCatalogForCompanies, useDownloadCatalogItem } from '@/hooks/useIrCatalog'
 import { dismissOnboarding, useOnboarding } from '@/hooks/useOnboarding'
 import { useSmoothProgress } from '@/hooks/useSmoothProgress'
 import { CompanyAutocomplete } from '@/components/company-autocomplete'
@@ -36,8 +39,17 @@ import type { Company } from '@/types/database'
 const STEPS = [
   { id: 'framework', label: 'Accounting Framework', icon: BookOpen },
   { id: 'competitors', label: 'Add Competitors', icon: Building2 },
+  { id: 'reports', label: 'Analyze Reports', icon: Download },
   { id: 'schedule', label: 'Publication Schedule', icon: Calendar },
 ] as const
+
+const ANALYZABLE_TYPES = new Set([
+  'annual_report',
+  'quarterly_report',
+  'half_year_report',
+  'sustainability_report',
+  'financial_statements',
+])
 
 // ---------------------------------------------------------------------------
 // Main Wizard
@@ -53,6 +65,11 @@ export function OnboardingWizard() {
   const [userStep, setUserStep] = useState<number | null>(null)
   const autoStep = status.hasFramework && status.hasCompetitors ? 2
     : status.hasFramework ? 1 : 0
+  // Get user's fiscal year from their uploaded report (for FY-matched competitor report filtering)
+  const { data: ownReportsAll } = useReports()
+  const userFiscalYear = (ownReportsAll ?? [])
+    .filter(r => r.fiscal_year)
+    .sort((a, b) => b.fiscal_year - a.fiscal_year)[0]?.fiscal_year ?? new Date().getFullYear()
   const currentStep = userStep ?? autoStep
 
   // Pre-populate from existing data
@@ -115,14 +132,16 @@ export function OnboardingWizard() {
     switch (step) {
       case 0: return status.hasFramework
       case 1: return status.hasCompetitors || competitorsConfirmed
-      case 2: return status.hasSchedule || Object.values(schedules).some(s => s.expectedDate)
+      case 2: return true // reports step is always passable (optional)
+      case 3: return status.hasSchedule || Object.values(schedules).some(s => s.expectedDate)
       default: return false
     }
   }
 
   const canProceed = (step: number): boolean => {
     if (step === 1) return stepDone(1) || selectedCompanyIds.length >= 1
-    if (step === 2) return true // schedule is optional
+    if (step === 2) return true // reports step is optional
+    if (step === 3) return true // schedule is optional
     return stepDone(step)
   }
 
@@ -184,7 +203,7 @@ export function OnboardingWizard() {
 
       // Auto-save publication schedules when leaving the schedule step
       // ONLY save events the user explicitly confirmed (manual date entry or individual suggest)
-      if (currentStep === 2) {
+      if (currentStep === 3) {
         let saved = 0
         for (const [companyId, schedule] of Object.entries(schedules)) {
           if (!schedule.expectedDate) continue
@@ -216,8 +235,8 @@ export function OnboardingWizard() {
   }
 
   const handleFinishSetup = async () => {
-    // Save schedules if any were entered (same as handleNext for step 2)
-    if (currentStep === 2) {
+    // Save schedules if any were entered (same as handleNext for step 3)
+    if (currentStep === 3) {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         let saved = 0
@@ -358,18 +377,27 @@ export function OnboardingWizard() {
                   .single()
                 if (inserted) {
                   newIds.push(inserted.id)
-                  // Resolve website in background — invalidate queries so logo appears
+                  // Resolve website + discover IR page in background
                   if (session) {
+                    const headers = {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${session.access_token}`,
+                      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                    }
                     fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`, {
                       method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`,
-                        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-                      },
+                      headers,
                       body: JSON.stringify({ name: rc.name, company_id: inserted.id }),
                     }).then(() => {
                       queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                      // Auto-discover IR page URL → auto-scans IR page for documents
+                      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-ir-url`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ company_id: inserted.id, company_name: rc.name }),
+                      }).then(() => {
+                        queryClient.invalidateQueries({ queryKey: ['ir-catalog'] })
+                      }).catch(() => {})
                     }).catch(() => {})
                   }
                 }
@@ -389,6 +417,12 @@ export function OnboardingWizard() {
           />
         )}
         {currentStep === 2 && (
+          <StepReports
+            selectedCompanyIds={selectedCompanyIds}
+            userFiscalYear={userFiscalYear}
+          />
+        )}
+        {currentStep === 3 && (
           <StepSchedule
             selectedCompanyIds={selectedCompanyIds}
             schedules={schedules}
@@ -728,13 +762,40 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-[22px] font-semibold text-foreground">Set Up Your Accounting Framework</h2>
+        <h2 className="text-[22px] font-semibold text-foreground">Upload Your Annual Report</h2>
         <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
-          Upload your company's annual report. Our AI will detect your accounting standard (IFRS, US GAAP, Swiss GAAP FER)
-          and extract your specific policies — EBITDA definition, net debt components, R&D treatment, and more.
-          This is the foundation for normalizing competitor data.
+          This report is the foundation for everything that follows. Upload your company's <strong className="text-foreground font-medium">most recent annual report</strong> for
+          the best results — the system will find matching competitor reports for the same fiscal year.
         </p>
       </div>
+
+      {/* What we extract — info box */}
+      {uploadStep === 'idle' && !profile && (
+        <div className="rounded-xl border border-border/50 bg-card/50 p-4 space-y-3">
+          <p className="text-[12px] font-semibold text-foreground">What our AI extracts from your report:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { label: 'Company name', desc: 'Identified from the cover page' },
+              { label: 'Accounting standard', desc: 'IFRS, US GAAP, Swiss GAAP FER, HGB' },
+              { label: 'Accounting policies', desc: 'EBITDA definition, net debt, R&D treatment, leases' },
+              { label: 'KPI definitions', desc: 'How your company calculates each metric' },
+              { label: 'Competitors', desc: 'Peer companies mentioned in your report' },
+              { label: 'Fiscal year', desc: 'Used to find matching competitor reports' },
+            ].map(item => (
+              <div key={item.label} className="flex items-start gap-2">
+                <Check className="h-3.5 w-3.5 text-[var(--color-accent)] mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-[12px] font-medium text-foreground">{item.label}</p>
+                  <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground/70 border-t border-border/30 pt-2">
+            All competitor data will be normalized against your accounting framework, ensuring apples-to-apples comparisons.
+          </p>
+        </div>
+      )}
 
       {/* Upload zone / Progress tracker */}
       {uploadStep !== 'idle' && uploadStep !== 'done' ? (
@@ -819,10 +880,10 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
         >
           <Upload className="mx-auto h-8 w-8 text-muted-foreground/40 mb-3" />
           <p className="text-[13px] font-medium text-foreground">
-            Drop your annual report here or click to browse
+            Drop your latest annual report here or click to browse
           </p>
           <p className="text-[11px] text-muted-foreground mt-1">
-            PDF format · The AI will extract your company name and accounting framework automatically
+            PDF format · We recommend your most recent annual report for the best competitor matching
           </p>
         </div>
       )}
@@ -939,19 +1000,28 @@ function StepCompetitors({
       if (error) { toast.error(`Failed to add ${item.name}`); return }
       onSelectedIdsChange([...selectedIds, inserted.id])
       await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-      // Resolve website in background — invalidate queries so logo appears
+      // Resolve website + discover IR page in background
       const session = (await supabase.auth.getSession()).data.session
       if (session) {
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        }
         fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
+          headers,
           body: JSON.stringify({ name: item.name, company_id: inserted.id }),
         }).then(() => {
           queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+          // Auto-discover IR page URL → auto-scans IR page for documents
+          fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-ir-url`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ company_id: inserted.id, company_name: item.name }),
+          }).then(() => {
+            queryClient.invalidateQueries({ queryKey: ['ir-catalog'] })
+          }).catch(() => {})
         }).catch(() => {})
       }
       toast.success(`${item.name} added`)
@@ -1096,19 +1166,28 @@ function StepCompetitors({
               } else {
                 onSelectedIdsChange([...selectedIds, inserted.id])
                 await queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-                // Resolve website in background — invalidate queries so logo appears
+                // Resolve website + discover IR page in background
                 const session = (await supabase.auth.getSession()).data.session
                 if (session) {
+                  const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                  }
                   fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-company-website`, {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${session.access_token}`,
-                      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-                    },
+                    headers,
                     body: JSON.stringify({ name: result.name, company_id: inserted.id }),
                   }).then(() => {
                     queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                    // Auto-discover IR page URL → auto-scans IR page for documents
+                    fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-ir-url`, {
+                      method: 'POST',
+                      headers,
+                      body: JSON.stringify({ company_id: inserted.id, company_name: result.name }),
+                    }).then(() => {
+                      queryClient.invalidateQueries({ queryKey: ['ir-catalog'] })
+                    }).catch(() => {})
                   }).catch(() => {})
                 }
                 toast.success(`${result.name} added`)
@@ -1165,7 +1244,209 @@ function StepCompetitors({
 }
 
 // ---------------------------------------------------------------------------
-// Step 3: Publication Schedule
+// Step 3: Analyze Reports (FY-matched competitor report selection)
+// ---------------------------------------------------------------------------
+
+function StepReports({
+  selectedCompanyIds,
+  userFiscalYear,
+}: {
+  selectedCompanyIds: string[]
+  userFiscalYear: number
+}) {
+  const { data: companies } = useAllCompanies()
+  const { data: catalogItems, isLoading } = useIrCatalogForCompanies(selectedCompanyIds)
+  const downloadMutation = useDownloadCatalogItem()
+  const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set())
+
+  const selectedCompanies = (companies ?? []).filter(c => selectedCompanyIds.includes(c.id))
+
+  // Group catalog items by company, filter to analyzable annual reports matching user's FY
+  const companyCatalog = selectedCompanies.map(company => {
+    const items = (catalogItems ?? []).filter(item => item.company_id === company.id)
+    const matchingAnnual = items.find(
+      item => item.document_type === 'annual_report' && item.fiscal_year === userFiscalYear
+    )
+    const otherAnalyzable = items.filter(
+      item => ANALYZABLE_TYPES.has(item.document_type ?? '') &&
+        item.fiscal_year === userFiscalYear &&
+        item.document_type !== 'annual_report'
+    )
+    const hasAnyItems = items.length > 0
+    return { company, matchingAnnual, otherAnalyzable, hasAnyItems, totalItems: items.length }
+  })
+
+  const matchCount = companyCatalog.filter(c => c.matchingAnnual).length
+  const scanningCount = companyCatalog.filter(c => !c.hasAnyItems).length
+
+  const handleDownload = async (catalogItemId: string, companyId: string) => {
+    setDownloadingIds(prev => new Set(prev).add(catalogItemId))
+    try {
+      await downloadMutation.mutateAsync({ catalogItemId, companyId })
+      toast.success('Report downloaded — analysis pipeline started')
+    } catch {
+      // Error toast handled by mutation
+    } finally {
+      setDownloadingIds(prev => { const next = new Set(prev); next.delete(catalogItemId); return next })
+    }
+  }
+
+  const handleDownloadAll = async () => {
+    const toDownload = companyCatalog
+      .filter(c => c.matchingAnnual && !c.matchingAnnual.is_downloaded)
+      .map(c => ({ id: c.matchingAnnual!.id, companyId: c.company.id }))
+    if (toDownload.length === 0) {
+      toast.info('All matching reports are already downloaded')
+      return
+    }
+    for (const item of toDownload) {
+      await handleDownload(item.id, item.companyId)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-[22px] font-semibold text-foreground">Analyze Competitor Reports</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
+            We found IR pages for your competitors and cataloged their reports.
+            Download FY{userFiscalYear} annual reports to generate benchmark comparisons against your accounting framework.
+          </p>
+        </div>
+        {matchCount > 0 && (
+          <button
+            onClick={handleDownloadAll}
+            disabled={downloadMutation.isPending}
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)]/10 px-4 py-2.5 text-[12px] font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors disabled:opacity-40 flex-shrink-0 mt-1"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download All ({matchCount})
+          </button>
+        )}
+      </div>
+
+      {/* Summary stats */}
+      <div className="flex items-center gap-4 text-[12px]">
+        <span className="text-muted-foreground">
+          {selectedCompanies.length} competitor{selectedCompanies.length !== 1 ? 's' : ''}
+        </span>
+        <span className="text-[var(--color-accent)] font-medium">
+          {matchCount} FY{userFiscalYear} annual report{matchCount !== 1 ? 's' : ''} found
+        </span>
+        {scanningCount > 0 && (
+          <span className="inline-flex items-center gap-1 text-muted-foreground/70">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            {scanningCount} still scanning
+          </span>
+        )}
+      </div>
+
+      {/* Per-company cards */}
+      <div className="space-y-3">
+        {companyCatalog.map(({ company, matchingAnnual, otherAnalyzable, hasAnyItems }) => (
+          <div
+            key={company.id}
+            className={cn(
+              'rounded-lg border p-4 transition-colors',
+              matchingAnnual
+                ? 'border-[var(--color-accent)]/30 bg-[var(--color-accent)]/3'
+                : 'border-border bg-card',
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <CompanyLogo
+                logoUrl={company.logo_url}
+                websiteUrl={company.website_url}
+                name={company.name}
+                size="sm"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
+                {company.ir_page_url ? (
+                  <p className="text-[11px] text-muted-foreground truncate">IR page found</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground/60">No IR page yet</p>
+                )}
+              </div>
+
+              {/* Status / Action */}
+              {!hasAnyItems ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Scanning...
+                </span>
+              ) : matchingAnnual ? (
+                matchingAnnual.is_downloaded ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                    <Check className="h-3 w-3" />
+                    Downloaded
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleDownload(matchingAnnual.id, company.id)}
+                    disabled={downloadingIds.has(matchingAnnual.id)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-[11px] font-medium text-white hover:opacity-90 transition-colors disabled:opacity-40"
+                  >
+                    {downloadingIds.has(matchingAnnual.id) ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Download className="h-3 w-3" />
+                    )}
+                    Download & Analyze
+                  </button>
+                )
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                  <AlertTriangle className="h-3 w-3" />
+                  FY{userFiscalYear} not available
+                </span>
+              )}
+            </div>
+
+            {/* Show other analyzable reports for this FY if any */}
+            {otherAnalyzable.length > 0 && (
+              <div className="mt-2 ml-10 flex flex-wrap gap-1.5">
+                {otherAnalyzable.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => !item.is_downloaded && handleDownload(item.id, company.id)}
+                    disabled={item.is_downloaded || downloadingIds.has(item.id)}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors',
+                      item.is_downloaded
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-[var(--color-bg-tertiary)] text-muted-foreground hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)]',
+                    )}
+                  >
+                    {item.is_downloaded ? <Check className="h-2.5 w-2.5" /> : <Download className="h-2.5 w-2.5" />}
+                    {(item.document_type ?? 'other').replace(/_/g, ' ')}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground">
+        Downloaded reports are automatically analyzed through the full pipeline: KPI extraction, normalization, and benchmark generation.
+        You can skip this step and download reports later from each competitor's IR Catalog.
+      </p>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Step 4: Publication Schedule
 // ---------------------------------------------------------------------------
 
 function StepSchedule({

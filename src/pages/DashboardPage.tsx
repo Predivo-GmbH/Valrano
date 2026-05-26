@@ -125,9 +125,11 @@ function computePercentile(myValue: number, peerValues: number[]): number {
 function SetupGuidanceState({
   hasCompany,
   hasPeers,
+  processingReports,
 }: {
   hasCompany: boolean
   hasPeers: boolean
+  processingReports: Array<{ id: string; title?: string | null; status: string; companies?: { name: string } | null }>
 }) {
   if (!hasCompany) {
     return (
@@ -167,6 +169,43 @@ function SetupGuidanceState({
           <Users className="h-4 w-4" />
           Add Peers
         </Link>
+      </div>
+    )
+  }
+
+  // Reports are being processed — show pipeline progress instead of static CTA
+  if (processingReports.length > 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+        <div className="mb-4 rounded-full bg-[var(--color-accent)]/10 p-4">
+          <Loader2 className="h-8 w-8 text-[var(--color-accent)] animate-spin" />
+        </div>
+        <h2 className="mb-2 text-[15px] font-semibold text-foreground">
+          Analyzing {processingReports.length} report{processingReports.length !== 1 ? 's' : ''}
+        </h2>
+        <p className="mb-6 text-[13px] text-muted-foreground max-w-sm">
+          Reports are being processed through the analysis pipeline. KPIs will appear here automatically once extraction completes.
+        </p>
+        <div className="w-full max-w-md space-y-2">
+          {processingReports.slice(0, 5).map(report => (
+            <div key={report.id} className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/50 px-4 py-2.5">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--color-accent)] flex-shrink-0" />
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-[12px] font-medium text-foreground truncate">
+                  {report.companies?.name ?? report.title ?? 'Report'}
+                </p>
+                <p className="text-[10px] text-muted-foreground capitalize">
+                  {report.status === 'pending' ? 'Queued for processing' : 'Extracting KPIs...'}
+                </p>
+              </div>
+            </div>
+          ))}
+          {processingReports.length > 5 && (
+            <p className="text-[11px] text-muted-foreground">
+              +{processingReports.length - 5} more
+            </p>
+          )}
+        </div>
       </div>
     )
   }
@@ -1052,6 +1091,22 @@ export function DashboardPage() {
   const isGenuinelyEmpty = !isLoading && (!hasPeers || (!hasKpiData && availableYears.length === 0))
   const isFilteredEmpty = !isLoading && !hasKpiData && hasPeers && availableYears.length > 0
 
+  // Reports currently being processed (pending or processing status)
+  const processingReports = useMemo(() =>
+    (reports ?? []).filter(r => r.status === 'pending' || r.status === 'processing'),
+    [reports],
+  )
+
+  // Auto-refresh when reports are processing (poll every 10s)
+  useEffect(() => {
+    if (processingReports.length === 0) return
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['reports'] })
+      queryClient.invalidateQueries({ queryKey: ['kpi-values'] })
+    }, 10_000)
+    return () => clearInterval(interval)
+  }, [processingReports.length, queryClient])
+
   // Count of KPIs with data in the filtered view
   const dataKpiCount = useMemo(() => {
     if (!filteredDefs || companiesWithData.length === 0) return 0
@@ -1535,7 +1590,7 @@ export function DashboardPage() {
                 <TableSkeleton />
               </div>
             ) : isGenuinelyEmpty ? (
-              <SetupGuidanceState hasCompany={hasCompany} hasPeers={hasPeers} />
+              <SetupGuidanceState hasCompany={hasCompany} hasPeers={hasPeers} processingReports={processingReports} />
             ) : isFilteredEmpty ? (
               <FilteredEmptyState
                 fiscalYear={effectiveYear}
@@ -1560,7 +1615,7 @@ export function DashboardPage() {
                 </button>
               </div>
             ) : companiesWithData.length === 0 ? (
-              <SetupGuidanceState hasCompany={hasCompany} hasPeers={hasPeers} />
+              <SetupGuidanceState hasCompany={hasCompany} hasPeers={hasPeers} processingReports={processingReports} />
             ) : (
               <div className="relative">
                 <div ref={scrollRef} className="overflow-x-auto scrollbar-thin">

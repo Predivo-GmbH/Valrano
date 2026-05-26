@@ -262,4 +262,14 @@ Applied in commits `40f67c2` (code quality) and `d66b757` (premium UI). 12+ page
 
 ---
 
+## Footer Standard
+
+Footer must comply with `C:\Business\Internal Projects\footer-standard.md`. Key rules:
+- Use a shared Footer component -- never inline footer markup on individual pages
+- Copyright: `Valrano by Predivo GmbH. All rights reserved.`
+- Slogan: `Swiss-made · Software that Thinks Ahead` (always English)
+- Email templates must also include standard footer
+
+---
+
 *This design brief serves as the brand direction input for Stitch mockup generation and all subsequent frontend implementation. All design decisions trace back to this document.*

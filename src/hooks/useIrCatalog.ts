@@ -43,6 +43,26 @@ export function useIrCatalogCount(companyId?: string) {
   })
 }
 
+export function useIrCatalogForCompanies(companyIds: string[]) {
+  return useQuery({
+    queryKey: ['ir-catalog-multi', ...companyIds.sort()],
+    enabled: companyIds.length > 0,
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ir_catalog_items')
+        .select('*, companies!inner(name, logo_url, website_url)')
+        .in('company_id', companyIds)
+        .order('fiscal_year', { ascending: false, nullsFirst: false })
+        .order('detected_at', { ascending: false })
+
+      if (error) throw error
+      return data as (IrCatalogItem & { companies: { name: string; logo_url: string | null; website_url: string | null } })[]
+    },
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Mutations
 // ---------------------------------------------------------------------------
