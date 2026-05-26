@@ -80,14 +80,15 @@ function extractDocumentLinks(html: string, baseUrl: string): DocumentLink[] {
     if (seen.has(url)) continue
     seen.add(url)
 
-    // STRICT filter: only include actual downloadable document files
-    // Navigation links to webpages (e.g. "Sustainable Finance", "Management Team")
-    // are NOT documents and must be excluded
+    // Filter: include downloadable document files
     const lowerUrl = url.toLowerCase()
-    const isDownloadable = /\.(pdf|xlsx|xls|pptx|ppt|docx|doc|zip)(\?|$)/i.test(lowerUrl)
+    const hasFileExtension = /\.(pdf|xlsx|xls|pptx|ppt|docx|doc|zip)(\?|$)/i.test(lowerUrl)
 
-    // Only accept downloadable files — reject plain webpage links
-    if (!isDownloadable) continue
+    // Also accept CMS-style extensionless document URLs (e.g., Liferay /documents/d/)
+    const isCmsDocumentUrl = /\/(documents?|download|media|files?)\//i.test(lowerUrl) &&
+      !/\.(html?|php|aspx?|jsp)(\?|$)/i.test(lowerUrl)
+
+    if (!hasFileExtension && !isCmsDocumentUrl) continue
 
     // Get surrounding context (approximate: use link text + nearby text)
     const linkPos = match.index
@@ -108,8 +109,8 @@ function extractReportSubPages(html: string, baseUrl: string): string[] {
   const hrefRegex = /href=["']([^"']+)["'][^>]*>([^<]*)/gi
   let match: RegExpExecArray | null
 
-  // Patterns that indicate a reports/publications sub-page
-  const reportPagePattern = /\b(report|publication|financial-report|annual-report|download|document|filing|ergebnis|bericht|geschaeftsbericht)\b/i
+  // Patterns that indicate a reports/publications sub-page (supports plurals)
+  const reportPagePattern = /\b(reports?|publications?|financial-reports?|annual-reports?|downloads?|documents?|filings?|results?|presentations?|ergebnis|berichte?|geschaeftsbericht)\b/i
 
   while ((match = hrefRegex.exec(html)) !== null) {
     let url = match[1]

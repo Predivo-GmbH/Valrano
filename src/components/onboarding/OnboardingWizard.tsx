@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
-  AlertTriangle,
   BookOpen,
   Building2,
   Calendar,
@@ -10,6 +9,7 @@ import {
   ChevronRight,
   Download,
   FileText,
+  Link2,
   Loader2,
   Search,
   Sparkles,
@@ -24,7 +24,7 @@ import { useAccountingProfile, useAnalyzeAccountingProfile } from '@/hooks/useAc
 import { useCreateMyCompany, usePrimaryCompany } from '@/hooks/useMyCompany'
 import { useUploadReport, useExtractKpis, useNormalizeKpis } from '@/hooks/useExtraction'
 import { useCreatePublicationEvent, usePublicationEvents } from '@/hooks/useCalendar'
-import { useSuggestDates, useSuggestIrUrl } from '@/hooks/useAiSuggestions'
+import { useSuggestDates } from '@/hooks/useAiSuggestions'
 import { useIrCatalogForCompanies, useDownloadCatalogItem } from '@/hooks/useIrCatalog'
 import { dismissOnboarding, useOnboarding } from '@/hooks/useOnboarding'
 import { useSmoothProgress } from '@/hooks/useSmoothProgress'
@@ -1254,10 +1254,22 @@ function StepReports({
   selectedCompanyIds: string[]
   userFiscalYear: number
 }) {
+  const queryClient = useQueryClient()
+  // Poll company data every 10s so ir_page_url updates show up quickly
   const { data: companies } = useAllCompanies()
   const { data: catalogItems, isLoading } = useIrCatalogForCompanies(selectedCompanyIds)
   const downloadMutation = useDownloadCatalogItem()
   const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set())
+  const [irUrlInputs, setIrUrlInputs] = useState<Record<string, string>>({})
+  const [showIrUrlInput, setShowIrUrlInput] = useState<Set<string>>(new Set())
+
+  // Poll companies data every 10s while on this step (so ir_page_url/website_url updates appear)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+    }, 10_000)
+    return () => clearInterval(interval)
+  }, [queryClient])
 
   const selectedCompanies = (companies ?? []).filter(c => selectedCompanyIds.includes(c.id))
 
@@ -1277,8 +1289,23 @@ function StepReports({
   })
 
   const matchCount = companyCatalog.filter(c => c.matchingAnnual).length
-  // "Still scanning" = no catalog items AND no IR page URL yet (suggest-ir-url still running)
-  const scanningCount = companyCatalog.filter(c => !c.hasAnyItems && !c.company.ir_page_url).length
+  // Pipeline states per company
+  const scanningCount = companyCatalog.filter(c => {
+    if (c.hasAnyItems || c.matchingAnnual) return false
+    // Still scanning = no website_url yet, OR has website but no ir_page_url yet
+    return !c.company.website_url || (c.company.website_url && !c.company.ir_page_url)
+  }).length
+  const completedCount = selectedCompanies.length - scanningCount
+  const noReportCount = companyCatalog.filter(c => !c.hasAnyItems && c.company.ir_page_url).length
+
+  // Track elapsed time for timeout detection (re-renders every 30s)
+  const [tickCount, setTickCount] = useState(0)
+  useEffect(() => {
+    const interval = setInterval(() => setTickCount(t => t + 1), 30_000)
+    return () => clearInterval(interval)
+  }, [])
+  // After 4 ticks (2 minutes at 30s each), consider still-scanning companies as timed out
+  const timedOut = tickCount >= 4 && scanningCount > 0
 
   const handleDownload = async (catalogItemId: string, companyId: string) => {
     setDownloadingIds(prev => new Set(prev).add(catalogItemId))
@@ -1305,6 +1332,52 @@ function StepReports({
     }
   }
 
+  const handleSetIrUrl = async (companyId: string) => {
+    const url = irUrlInputs[companyId]?.trim()
+    if (!url) return
+    try {
+      new URL(url) // validate
+    } catch {
+      toast.error('Please enter a valid URL')
+      return
+    }
+    const { error } = await supabase.from('companies').update({ ir_page_url: url }).eq('id', companyId)
+    if (error) {
+      toast.error('Failed to save IR page URL')
+      return
+    }
+    toast.success('IR page URL saved — scanning for reports...')
+    setShowIrUrlInput(prev => { const next = new Set(prev); next.delete(companyId); return next })
+    queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+    // Trigger scan-ir-page
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scan-ir-page`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ company_id: companyId }),
+      }).catch(() => {})
+    }
+  }
+
+  // Determine per-company pipeline status
+  const getCompanyStatus = (c: typeof companyCatalog[0]): 'resolving' | 'discovering_ir' | 'scanning_reports' | 'found' | 'downloaded' | 'no_report' | 'no_ir_page' => {
+    if (c.matchingAnnual?.is_downloaded) return 'downloaded'
+    if (c.matchingAnnual) return 'found'
+    if (c.hasAnyItems) return 'no_report' // has items but not matching FY annual
+    if (c.company.ir_page_url) return 'no_report' // IR page found, scan done, no match
+    if (c.company.website_url) {
+      // Has website, no IR page yet — could be discovering or timed out
+      return timedOut ? 'no_ir_page' : 'discovering_ir'
+    }
+    // No website yet
+    return timedOut ? 'no_ir_page' : 'resolving'
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -1313,14 +1386,30 @@ function StepReports({
     )
   }
 
+  // Dynamic header text
+  const headerText = (() => {
+    if (scanningCount === selectedCompanies.length && !timedOut) {
+      return `Scanning competitor IR pages for FY${userFiscalYear} annual reports...`
+    }
+    if (scanningCount > 0 && !timedOut) {
+      return `Scanning IR pages for FY${userFiscalYear} annual reports... (${completedCount} of ${selectedCompanies.length} complete)`
+    }
+    if (matchCount > 0 && noReportCount > 0) {
+      return `Found ${matchCount} FY${userFiscalYear} annual report${matchCount !== 1 ? 's' : ''}. ${noReportCount} competitor${noReportCount !== 1 ? 's' : ''} had no matching report — you can upload manually or enter the correct IR page URL below.`
+    }
+    if (matchCount > 0) {
+      return `Found ${matchCount} FY${userFiscalYear} annual report${matchCount !== 1 ? 's' : ''} ready to download and analyze.`
+    }
+    return `No FY${userFiscalYear} annual reports were found automatically. You can upload reports manually for each competitor, or enter the correct IR page URLs below.`
+  })()
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-[22px] font-semibold text-foreground">Analyze Competitor Reports</h2>
           <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
-            We found IR pages for your competitors and cataloged their reports.
-            Download FY{userFiscalYear} annual reports to generate benchmark comparisons against your accounting framework.
+            {headerText}
           </p>
         </div>
         {matchCount > 0 && (
@@ -1340,10 +1429,12 @@ function StepReports({
         <span className="text-muted-foreground">
           {selectedCompanies.length} competitor{selectedCompanies.length !== 1 ? 's' : ''}
         </span>
-        <span className="text-[var(--color-accent)] font-medium">
-          {matchCount} FY{userFiscalYear} annual report{matchCount !== 1 ? 's' : ''} found
-        </span>
-        {scanningCount > 0 && (
+        {matchCount > 0 && (
+          <span className="text-[var(--color-accent)] font-medium">
+            {matchCount} FY{userFiscalYear} annual report{matchCount !== 1 ? 's' : ''} found
+          </span>
+        )}
+        {scanningCount > 0 && !timedOut && (
           <span className="inline-flex items-center gap-1 text-muted-foreground/70">
             <Loader2 className="h-3 w-3 animate-spin" />
             {scanningCount} still scanning
@@ -1353,7 +1444,11 @@ function StepReports({
 
       {/* Per-company cards */}
       <div className="space-y-3">
-        {companyCatalog.map(({ company, matchingAnnual, otherAnalyzable, hasAnyItems }) => (
+        {companyCatalog.map((entry) => {
+          const { company, matchingAnnual, otherAnalyzable } = entry
+          const status = getCompanyStatus(entry)
+
+          return (
           <div
             key={company.id}
             className={cn(
@@ -1372,55 +1467,89 @@ function StepReports({
               />
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
-                {company.ir_page_url ? (
-                  <p className="text-[11px] text-muted-foreground truncate">IR page found</p>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground/60">No IR page yet</p>
-                )}
+                <p className="text-[11px] text-muted-foreground/60">
+                  {status === 'resolving' && 'Resolving website...'}
+                  {status === 'discovering_ir' && 'Discovering IR page...'}
+                  {status === 'scanning_reports' && 'Scanning for reports...'}
+                  {status === 'found' && 'IR page found'}
+                  {status === 'downloaded' && 'IR page found'}
+                  {status === 'no_report' && (company.ir_page_url ? 'IR page found' : 'No IR page found')}
+                  {status === 'no_ir_page' && 'IR page not found'}
+                </p>
               </div>
 
               {/* Status / Action */}
-              {!hasAnyItems && !company.ir_page_url && !company.website_url ? (
+              {(status === 'resolving' || status === 'discovering_ir') && (
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  Scanning...
+                  {status === 'resolving' ? 'Resolving...' : 'Discovering...'}
                 </span>
-              ) : !hasAnyItems && company.ir_page_url ? (
+              )}
+              {status === 'downloaded' && (
+                <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                  <Check className="h-3 w-3" />
+                  Downloaded
+                </span>
+              )}
+              {status === 'found' && matchingAnnual && (
+                <button
+                  onClick={() => handleDownload(matchingAnnual.id, company.id)}
+                  disabled={downloadingIds.has(matchingAnnual.id)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-[11px] font-medium text-white hover:opacity-90 transition-colors disabled:opacity-40"
+                >
+                  {downloadingIds.has(matchingAnnual.id) ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Download className="h-3 w-3" />
+                  )}
+                  Download & Analyze
+                </button>
+              )}
+              {(status === 'no_report' || status === 'no_ir_page') && (
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
-                  No FY{userFiscalYear} reports
-                </span>
-              ) : !hasAnyItems ? (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Scanning...
-                </span>
-              ) : matchingAnnual ? (
-                matchingAnnual.is_downloaded ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
-                    <Check className="h-3 w-3" />
-                    Downloaded
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => handleDownload(matchingAnnual.id, company.id)}
-                    disabled={downloadingIds.has(matchingAnnual.id)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-[11px] font-medium text-white hover:opacity-90 transition-colors disabled:opacity-40"
-                  >
-                    {downloadingIds.has(matchingAnnual.id) ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Download className="h-3 w-3" />
-                    )}
-                    Download & Analyze
-                  </button>
-                )
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10">
-                  <AlertTriangle className="h-3 w-3" />
-                  FY{userFiscalYear} not available
+                  No FY{userFiscalYear} report found
                 </span>
               )}
             </div>
+
+            {/* Manual fallback actions when no report found or IR page not found */}
+            {(status === 'no_report' || status === 'no_ir_page') && (
+              <div className="mt-3 ml-10 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setShowIrUrlInput(prev => {
+                    const next = new Set(prev)
+                    if (next.has(company.id)) next.delete(company.id)
+                    else next.add(company.id)
+                    return next
+                  })}
+                  className="inline-flex items-center gap-1 text-[11px] text-[var(--color-accent)] hover:underline"
+                >
+                  <Link2 className="h-3 w-3" />
+                  Enter IR page URL
+                </button>
+              </div>
+            )}
+
+            {/* IR URL input field */}
+            {showIrUrlInput.has(company.id) && (
+              <div className="mt-2 ml-10 flex items-center gap-2">
+                <input
+                  type="url"
+                  placeholder="https://www.company.com/investors"
+                  value={irUrlInputs[company.id] ?? ''}
+                  onChange={e => setIrUrlInputs(prev => ({ ...prev, [company.id]: e.target.value }))}
+                  className="flex-1 rounded-lg border border-border bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                  onKeyDown={e => { if (e.key === 'Enter') handleSetIrUrl(company.id) }}
+                />
+                <button
+                  onClick={() => handleSetIrUrl(company.id)}
+                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-[11px] font-medium text-white hover:opacity-90 transition-colors"
+                >
+                  <Search className="h-3 w-3" />
+                  Scan
+                </button>
+              </div>
+            )}
 
             {/* Show other analyzable reports for this FY if any */}
             {otherAnalyzable.length > 0 && (
@@ -1444,7 +1573,8 @@ function StepReports({
               </div>
             )}
           </div>
-        ))}
+          )
+        })}
       </div>
 
       <p className="text-[11px] text-muted-foreground">
@@ -1475,9 +1605,7 @@ function StepSchedule({
   const { data: companies } = useAllCompanies()
   const { data: existingEvents } = usePublicationEvents()
   const suggestDates = useSuggestDates()
-  const suggestIrUrl = useSuggestIrUrl()
   const [suggestingCompanyId, setSuggestingCompanyId] = useState<string | null>(null)
-  const [discoveringIrForId, setDiscoveringIrForId] = useState<string | null>(null)
 
   const selectedCompanies = (companies ?? []).filter((c) => selectedCompanyIds.includes(c.id))
 
@@ -1660,46 +1788,13 @@ function StepSchedule({
                 )}
               </div>
 
-              {/* IR URL status + duplicate warning */}
+              {/* IR URL status (read-only) + duplicate warning */}
               <div className="flex flex-wrap items-center gap-2 pl-8">
-                {company.ir_page_url ? (
+                {company.ir_page_url && (
                   <a href={company.ir_page_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
                     <FileText className="h-3 w-3" />
                     IR page set
                   </a>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={discoveringIrForId === company.id}
-                    onClick={() => {
-                      setDiscoveringIrForId(company.id)
-                      suggestIrUrl.mutate(
-                        { company_id: company.id, company_name: company.name },
-                        {
-                          onSuccess: (data) => {
-                            if (data.ir_page_url) {
-                              toast.success(`IR page found for ${company.name}`)
-                            } else {
-                              toast.info(`No IR page found for ${company.name}`)
-                            }
-                            setDiscoveringIrForId(null)
-                          },
-                          onError: () => {
-                            toast.error(`IR discovery failed for ${company.name}`)
-                            setDiscoveringIrForId(null)
-                          },
-                        },
-                      )
-                    }}
-                    className="inline-flex items-center gap-1 text-[11px] text-[var(--color-accent)] hover:underline disabled:opacity-50"
-                  >
-                    {discoveringIrForId === company.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3 w-3" />
-                    )}
-                    {discoveringIrForId === company.id ? 'Discovering...' : 'Discover IR page'}
-                  </button>
                 )}
                 {isDuplicate && (
                   <span className="text-[11px] text-[var(--color-signal-amber)]">
