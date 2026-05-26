@@ -43,6 +43,30 @@ test.describe('Staging — Public Pages', () => {
     expect(isRedirected || showsLoginPrompt || showsPasswordGate).toBe(true)
   })
 
+  test('privacy page loads', async ({ page }) => {
+    await page.goto('/privacy')
+    await expect(page).toHaveTitle(/Privacy/i)
+    const body = await page.textContent('body')
+    expect(body).toBeTruthy()
+    expect(body!.length).toBeGreaterThan(50)
+  })
+
+  test('terms page loads', async ({ page }) => {
+    await page.goto('/terms')
+    await expect(page).toHaveTitle(/Terms/i)
+    const body = await page.textContent('body')
+    expect(body).toBeTruthy()
+    expect(body!.length).toBeGreaterThan(50)
+  })
+
+  test('imprint page loads', async ({ page }) => {
+    await page.goto('/imprint')
+    await expect(page).toHaveTitle(/Imprint/i)
+    const body = await page.textContent('body')
+    expect(body).toBeTruthy()
+    expect(body!.length).toBeGreaterThan(50)
+  })
+
   test('unknown route shows not-found page', async ({ page }) => {
     await page.goto('/nonexistent-route-xyz')
     const body = await page.textContent('body')
