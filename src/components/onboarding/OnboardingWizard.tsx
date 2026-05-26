@@ -1277,7 +1277,8 @@ function StepReports({
   })
 
   const matchCount = companyCatalog.filter(c => c.matchingAnnual).length
-  const scanningCount = companyCatalog.filter(c => !c.hasAnyItems).length
+  // "Still scanning" = no catalog items AND no IR page URL yet (suggest-ir-url still running)
+  const scanningCount = companyCatalog.filter(c => !c.hasAnyItems && !c.company.ir_page_url).length
 
   const handleDownload = async (catalogItemId: string, companyId: string) => {
     setDownloadingIds(prev => new Set(prev).add(catalogItemId))
@@ -1379,7 +1380,16 @@ function StepReports({
               </div>
 
               {/* Status / Action */}
-              {!hasAnyItems ? (
+              {!hasAnyItems && !company.ir_page_url && !company.website_url ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Scanning...
+                </span>
+              ) : !hasAnyItems && company.ir_page_url ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
+                  No FY{userFiscalYear} reports
+                </span>
+              ) : !hasAnyItems ? (
                 <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Scanning...

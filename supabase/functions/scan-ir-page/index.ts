@@ -101,6 +101,51 @@ function extractDocumentLinks(html: string, baseUrl: string): DocumentLink[] {
   return links.slice(0, MAX_DOCUMENTS)
 }
 
+/** Extract sub-page links that likely contain report downloads (one level deeper) */
+function extractReportSubPages(html: string, baseUrl: string): string[] {
+  const subPages: string[] = []
+  const seen = new Set<string>()
+  const hrefRegex = /href=["']([^"']+)["'][^>]*>([^<]*)/gi
+  let match: RegExpExecArray | null
+
+  // Patterns that indicate a reports/publications sub-page
+  const reportPagePattern = /\b(report|publication|financial-report|annual-report|download|document|filing|ergebnis|bericht|geschaeftsbericht)\b/i
+
+  while ((match = hrefRegex.exec(html)) !== null) {
+    let url = match[1]
+    const text = match[2].trim()
+
+    if (url.startsWith('#') || url.startsWith('javascript:') || url.startsWith('mailto:')) continue
+
+    try {
+      url = new URL(url, baseUrl).href
+    } catch {
+      continue
+    }
+
+    if (!isPublicUrl(url)) continue
+    if (seen.has(url)) continue
+    // Only follow links on the same domain
+    try {
+      const base = new URL(baseUrl)
+      const target = new URL(url)
+      if (base.hostname !== target.hostname) continue
+    } catch { continue }
+
+    // Skip downloadable files — we want HTML pages
+    if (/\.(pdf|xlsx|xls|pptx|ppt|docx|doc|zip|jpg|png|gif|svg|css|js)(\?|$)/i.test(url)) continue
+
+    // Check if URL or link text suggests a reports page
+    if (reportPagePattern.test(url) || reportPagePattern.test(text)) {
+      seen.add(url)
+      subPages.push(url)
+    }
+  }
+
+  // Limit to 3 sub-pages to control Firecrawl credit usage
+  return subPages.slice(0, 3)
+}
+
 /** Extract file format from URL */
 function getFileFormat(url: string): string | null {
   const match = url.match(/\.(pdf|xlsx|xls|pptx|ppt|docx|doc|zip)(\?|$)/i)
@@ -285,7 +330,57 @@ serve(async (req: Request) => {
     }
 
     // Extract document links
-    const documentLinks = extractDocumentLinks(pageContent, pageUrl)
+    let documentLinks = extractDocumentLinks(pageContent, pageUrl)
+
+    // If no downloadable files on landing page, follow report sub-pages one level deeper
+    if (documentLinks.length === 0 && firecrawlKey) {
+      const subPages = extractReportSubPages(pageContent, pageUrl)
+      console.log(`[scan-ir-page] No PDFs on landing page, found ${subPages.length} report sub-pages to crawl`)
+
+      for (const subUrl of subPages) {
+        try {
+          const subRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${firecrawlKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: subUrl, formats: ['html'], waitFor: 3000 }),
+          })
+
+          if (subRes.ok) {
+            const subData = await subRes.json()
+            const subHtml = subData.data?.html ?? ''
+            const subBaseUrl = subData.data?.metadata?.sourceURL ?? subUrl
+            const subLinks = extractDocumentLinks(subHtml, subBaseUrl)
+            documentLinks.push(...subLinks)
+
+            try {
+              await adminClient.from('api_request_logs').insert({
+                service: 'firecrawl',
+                endpoint: '/v1/scrape',
+                call_count: 1,
+                user_id: user.id,
+                edge_function: 'scan-ir-page',
+              })
+            } catch { /* non-blocking */ }
+          }
+        } catch (err) {
+          console.error(`[scan-ir-page] Sub-page scrape failed for ${subUrl}:`, (err as Error).message)
+        }
+
+        // Stop once we have enough documents
+        if (documentLinks.length >= MAX_DOCUMENTS) break
+      }
+
+      // Deduplicate by URL
+      const seen = new Set<string>()
+      documentLinks = documentLinks.filter(d => {
+        if (seen.has(d.url)) return false
+        seen.add(d.url)
+        return true
+      }).slice(0, MAX_DOCUMENTS)
+    }
 
     if (documentLinks.length === 0) {
       return jsonResponse({
@@ -293,7 +388,7 @@ serve(async (req: Request) => {
         items_found: 0,
         items_new: 0,
         items_updated: 0,
-        message: 'No document links found on the IR page',
+        message: 'No document links found on the IR page or report sub-pages',
       })
     }
 

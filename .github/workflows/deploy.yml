@@ -160,6 +160,14 @@ jobs:
           FTP_USER: ${{ secrets.FTP_USER }}
           FTP_PASS: ${{ secrets.FTP_PASS }}
 
+      - name: Install Supabase CLI
+        run: npm install -g supabase@latest
+
+      - name: Deploy edge functions to production
+        run: supabase functions deploy --project-ref mkdeftmubrkseyrrbzvp --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
   deploy-staging:
     needs: validate-staging
     runs-on: ubuntu-latest
