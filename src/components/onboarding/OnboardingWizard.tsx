@@ -1288,27 +1288,28 @@ function StepReports({
     return { company, matchingAnnual, otherAnalyzable, hasAnyItems, totalItems: items.length }
   })
 
-  const matchCount = companyCatalog.filter(c => c.matchingAnnual).length
-  // Pipeline states per company — "scanning" includes companies with ir_page_url but no items yet
-  // (scan-ir-page runs async after suggest-ir-url sets ir_page_url)
-  const scanningCount = companyCatalog.filter(c => {
-    if (c.hasAnyItems || c.matchingAnnual) return false
-    if (timedOut) return false // timed out = no longer "scanning"
-    return true // anything without items is still in the pipeline
-  }).length
-  const completedCount = selectedCompanies.length - scanningCount
-  const noReportCount = companyCatalog.filter(c =>
-    !c.hasAnyItems && !c.matchingAnnual && timedOut
-  ).length
-
   // Track elapsed time for timeout detection (re-renders every 30s)
   const [tickCount, setTickCount] = useState(0)
   useEffect(() => {
     const interval = setInterval(() => setTickCount(t => t + 1), 30_000)
     return () => clearInterval(interval)
   }, [])
+
+  const matchCount = companyCatalog.filter(c => c.matchingAnnual).length
+  // Pipeline states per company — "scanning" includes companies with ir_page_url but no items yet
+  // (scan-ir-page runs async after suggest-ir-url sets ir_page_url)
   // After 4 ticks (2 minutes at 30s each), consider still-scanning companies as timed out
-  const timedOut = tickCount >= 4 && scanningCount > 0
+  const pendingCount = companyCatalog.filter(c => !c.hasAnyItems && !c.matchingAnnual).length
+  const timedOut = tickCount >= 4 && pendingCount > 0
+  const scanningCount = companyCatalog.filter(c => {
+    if (c.hasAnyItems || c.matchingAnnual) return false
+    if (timedOut) return false
+    return true
+  }).length
+  const completedCount = selectedCompanies.length - scanningCount
+  const noReportCount = companyCatalog.filter(c =>
+    !c.hasAnyItems && !c.matchingAnnual && timedOut
+  ).length
 
   const handleDownload = async (catalogItemId: string, companyId: string) => {
     setDownloadingIds(prev => new Set(prev).add(catalogItemId))
