@@ -103,6 +103,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const sendOtp = useCallback(async (email: string) => {
+    // Sign out any existing session before starting signup flow —
+    // prevents stale session data leaking into the new user's onboarding
+    await supabase.auth.signOut().catch(() => {})
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { shouldCreateUser: true },

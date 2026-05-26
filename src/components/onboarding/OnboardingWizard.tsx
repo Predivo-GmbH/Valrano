@@ -132,7 +132,7 @@ export function OnboardingWizard() {
     switch (step) {
       case 0: return status.hasFramework
       case 1: return status.hasCompetitors || competitorsConfirmed
-      case 2: return true // reports step is always passable (optional)
+      case 2: return currentStep > 2 // reports step is optional — only mark done once user has passed it
       case 3: return status.hasSchedule || Object.values(schedules).some(s => s.expectedDate)
       default: return false
     }
