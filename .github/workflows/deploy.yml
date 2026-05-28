@@ -194,52 +194,29 @@ jobs:
       - name: Write site-id marker
         run: echo "valrano-staging" > dist/.site-id
 
-      - name: Create staging .htaccess
+      - name: Prepare staging .htaccess
         run: |
-          cat > dist/.htaccess << 'HTACCESS'
-          AuthType Basic
-          AuthName "Staging"
-          AuthUserFile /var/www/vhosts/valrano.com/staging.valrano.com/.htpasswd
-          Require valid-user
-
-          <IfModule mod_rewrite.c>
-            RewriteEngine On
-            RewriteBase /
-
-            RewriteCond %{HTTPS} off
-            RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
-
-            RewriteCond %{REQUEST_FILENAME} !-d
-            RewriteCond %{REQUEST_URI} (.+)/$
-            RewriteRule ^ %1 [R=301,L]
-
-            RewriteCond %{REQUEST_FILENAME} !-f
-            RewriteCond %{REQUEST_FILENAME} !-d
-            RewriteCond %{REQUEST_FILENAME}.html -f
-            RewriteRule ^(.+)$ $1.html [L]
-
-            RewriteRule ^index\.html$ - [L]
-            RewriteCond %{REQUEST_FILENAME} !-f
-            RewriteCond %{REQUEST_FILENAME} !-d
-            RewriteRule . /index.html [L]
-          </IfModule>
-
-          <IfModule mod_headers.c>
-            Header always set X-Robots-Tag "noindex, nofollow"
-            Header always set X-Content-Type-Options "nosniff"
-            Header always set X-Frame-Options "DENY"
-          </IfModule>
-
-          <IfModule mod_headers.c>
-            <FilesMatch "\.(js|css|woff2|png|jpg|webp|avif|svg|ico)$">
-              Header set Cache-Control "no-cache"
-            </FilesMatch>
-            <FilesMatch "\.html$">
-              Header set Cache-Control "no-cache, no-store, must-revalidate"
-            </FilesMatch>
-          </IfModule>
-          HTACCESS
-          sed -i 's/^          //' dist/.htaccess
+          # Use the REAL production .htaccess (from build) so staging catches Apache errors
+          mv dist/.htaccess /tmp/prod.htaccess
+          {
+            echo 'AuthType Basic'
+            echo 'AuthName "Staging"'
+            echo 'AuthUserFile /var/www/vhosts/valrano.com/staging.valrano.com/.htpasswd'
+            echo 'Require valid-user'
+            echo ''
+            cat /tmp/prod.htaccess
+            echo ''
+            echo '# --- Staging overrides ---'
+            echo '<IfModule mod_headers.c>'
+            echo '  Header always set X-Robots-Tag "noindex, nofollow"'
+            echo '  <FilesMatch "\.(js|css|woff2|png|jpg|webp|avif|svg|ico)$">'
+            echo '    Header set Cache-Control "no-cache"'
+            echo '  </FilesMatch>'
+            echo '  <FilesMatch "\.html$">'
+            echo '    Header set Cache-Control "no-cache, no-store, must-revalidate"'
+            echo '  </FilesMatch>'
+            echo '</IfModule>'
+          } > dist/.htaccess
 
       - name: Verify deploy target (site-id guard)
         run: |
@@ -293,6 +270,15 @@ jobs:
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+
+      - name: Verify staging is alive (catches .htaccess errors)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u "staging:predivo2026" https://staging.valrano.com --max-time 10)
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Staging returned HTTP $STATUS — likely .htaccess syntax error. Blocking production deploy."
+            exit 1
+          fi
+          echo "Staging health check passed (HTTP $STATUS)"
 
       - name: Run E2E tests against staging
         run: npm run test:e2e:staging
