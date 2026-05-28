@@ -73,12 +73,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-      // Prefetch critical data as soon as we know the user is logged in
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
+        // Verify user still exists server-side (handles deleted accounts)
+        const { data: { user: verifiedUser }, error } = await supabase.auth.getUser()
+        if (error || !verifiedUser) {
+          // User was deleted — clear stale session
+          await supabase.auth.signOut().catch(() => {})
+          setUser(null)
+          setLoading(false)
+          return
+        }
+        setUser(verifiedUser)
+        setLoading(false)
         prefetchCriticalData(queryClient)
+      } else {
+        setUser(null)
+        setLoading(false)
       }
     }).catch((err) => {
       if (import.meta.env.DEV) console.error('Failed to get session:', err)
