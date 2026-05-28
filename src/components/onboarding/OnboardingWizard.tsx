@@ -1393,61 +1393,58 @@ function StepReports({
     )
   }
 
-  // Dynamic header text
-  const headerText = (() => {
+  // Dynamic status line (shown below the explanation)
+  const statusLine = (() => {
     if (scanningCount === selectedCompanies.length && !timedOut) {
       return `Scanning competitor IR pages for FY${userFiscalYear} annual reports...`
     }
     if (scanningCount > 0 && !timedOut) {
-      return `Scanning IR pages for FY${userFiscalYear} annual reports... (${completedCount} of ${selectedCompanies.length} complete)`
+      return `Scanning IR pages... (${completedCount} of ${selectedCompanies.length} complete)`
     }
     if (matchCount > 0 && noReportCount > 0) {
-      return `Found ${matchCount} FY${userFiscalYear} annual report${matchCount !== 1 ? 's' : ''}. ${noReportCount} competitor${noReportCount !== 1 ? 's' : ''} had no matching report — you can upload manually or enter the correct IR page URL below.`
+      return `Found ${matchCount} FY${userFiscalYear} annual report${matchCount !== 1 ? 's' : ''}. ${noReportCount} competitor${noReportCount !== 1 ? 's' : ''} had no matching report.`
     }
     if (matchCount > 0) {
       return `Found ${matchCount} FY${userFiscalYear} annual report${matchCount !== 1 ? 's' : ''} ready to download and analyze.`
     }
-    return `No FY${userFiscalYear} annual reports were found automatically. You can upload reports manually for each competitor, or enter the correct IR page URLs below.`
+    return null
   })()
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-[22px] font-semibold text-foreground">Analyze Competitor Reports</h2>
-          <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed max-w-xl">
-            {headerText}
-          </p>
-        </div>
-        {matchCount > 0 && (
-          <button
-            onClick={handleDownloadAll}
-            disabled={downloadMutation.isPending}
-            className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)]/10 px-4 py-2.5 text-[12px] font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors disabled:opacity-40 flex-shrink-0 mt-1"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Download All ({matchCount})
-          </button>
-        )}
+      {/* Educational header */}
+      <div>
+        <h2 className="text-[22px] font-semibold text-foreground">Analyze Competitor Reports</h2>
+        <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed max-w-2xl">
+          To benchmark your company against competitors, Valrano needs their annual reports.
+          We automatically try to find each competitor's <span className="text-foreground font-medium">Investor Relations page</span> and
+          scan it for FY{userFiscalYear} reports that can be downloaded and analyzed.
+        </p>
       </div>
 
-      {/* Summary stats */}
-      <div className="flex items-center gap-4 text-[12px]">
-        <span className="text-muted-foreground">
-          {selectedCompanies.length} competitor{selectedCompanies.length !== 1 ? 's' : ''}
-        </span>
-        {matchCount > 0 && (
-          <span className="text-[var(--color-accent)] font-medium">
-            {matchCount} FY{userFiscalYear} annual report{matchCount !== 1 ? 's' : ''} found
-          </span>
-        )}
-        {scanningCount > 0 && !timedOut && (
-          <span className="inline-flex items-center gap-1 text-muted-foreground/70">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            {scanningCount} still scanning
-          </span>
-        )}
-      </div>
+      {/* Status + Download All */}
+      {(statusLine || matchCount > 0) && (
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 text-[12px]">
+            {statusLine && (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                {scanningCount > 0 && !timedOut && <Loader2 className="h-3 w-3 animate-spin" />}
+                {statusLine}
+              </span>
+            )}
+          </div>
+          {matchCount > 0 && (
+            <button
+              onClick={handleDownloadAll}
+              disabled={downloadMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)]/10 px-4 py-2.5 text-[12px] font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors disabled:opacity-40 flex-shrink-0"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download All ({matchCount})
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Per-company cards */}
       <div className="space-y-3">
@@ -1479,9 +1476,9 @@ function StepReports({
                   {status === 'discovering_ir' && 'Discovering IR page...'}
                   {status === 'scanning_reports' && 'Scanning for reports...'}
                   {status === 'found' && 'IR page found'}
-                  {status === 'downloaded' && 'IR page found'}
-                  {status === 'no_report' && (company.ir_page_url ? 'IR page found' : 'No IR page found')}
-                  {status === 'no_ir_page' && 'IR page not found'}
+                  {status === 'downloaded' && 'Report downloaded'}
+                  {status === 'no_report' && (company.ir_page_url ? `IR page found — no FY${userFiscalYear} annual report detected` : 'IR page could not be detected automatically')}
+                  {status === 'no_ir_page' && 'IR page could not be detected automatically'}
                 </p>
               </div>
 
@@ -1513,15 +1510,6 @@ function StepReports({
                 </button>
               )}
               {(status === 'no_report' || status === 'no_ir_page') && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
-                  No FY{userFiscalYear} report found
-                </span>
-              )}
-            </div>
-
-            {/* Manual fallback actions when no report found or IR page not found */}
-            {(status === 'no_report' || status === 'no_ir_page') && (
-              <div className="mt-3 ml-10 flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => setShowIrUrlInput(prev => {
                     const next = new Set(prev)
@@ -1534,27 +1522,32 @@ function StepReports({
                   <Link2 className="h-3 w-3" />
                   Enter IR page URL
                 </button>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* IR URL input field */}
             {showIrUrlInput.has(company.id) && (
-              <div className="mt-2 ml-10 flex items-center gap-2">
-                <input
-                  type="url"
-                  placeholder="https://www.company.com/investors"
-                  value={irUrlInputs[company.id] ?? ''}
-                  onChange={e => setIrUrlInputs(prev => ({ ...prev, [company.id]: e.target.value }))}
-                  className="flex-1 rounded-lg border border-border bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-                  onKeyDown={e => { if (e.key === 'Enter') handleSetIrUrl(company.id) }}
-                />
-                <button
-                  onClick={() => handleSetIrUrl(company.id)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-[11px] font-medium text-white hover:opacity-90 transition-colors"
-                >
-                  <Search className="h-3 w-3" />
-                  Scan
-                </button>
+              <div className="mt-3 ml-10 space-y-2">
+                <p className="text-[11px] text-muted-foreground/70">
+                  Paste the URL of this company's Investor Relations page (where they publish annual reports and financial results).
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://www.company.com/investors"
+                    value={irUrlInputs[company.id] ?? ''}
+                    onChange={e => setIrUrlInputs(prev => ({ ...prev, [company.id]: e.target.value }))}
+                    className="flex-1 rounded-lg border border-border bg-[var(--color-bg-tertiary)] px-3 py-1.5 text-[12px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                    onKeyDown={e => { if (e.key === 'Enter') handleSetIrUrl(company.id) }}
+                  />
+                  <button
+                    onClick={() => handleSetIrUrl(company.id)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-[11px] font-medium text-white hover:opacity-90 transition-colors"
+                  >
+                    <Search className="h-3 w-3" />
+                    Scan
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1584,10 +1577,24 @@ function StepReports({
         })}
       </div>
 
-      <p className="text-[11px] text-muted-foreground">
-        Downloaded reports are automatically analyzed through the full pipeline: KPI extraction, normalization, and benchmark generation.
-        You can skip this step and download reports later from each competitor's IR Catalog.
-      </p>
+      {/* Contextual guidance */}
+      <div className="rounded-lg border border-border/50 bg-[var(--color-bg-secondary)] p-4 space-y-2">
+        <p className="text-[12px] font-medium text-foreground">What happens next?</p>
+        <ul className="space-y-1.5 text-[11px] text-muted-foreground leading-relaxed">
+          <li className="flex items-start gap-2">
+            <Download className="h-3 w-3 mt-0.5 flex-shrink-0 text-[var(--color-accent)]" />
+            <span>Downloaded reports are automatically analyzed: KPI extraction, normalization, and benchmark generation.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <Upload className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground/60" />
+            <span>You can also <span className="text-foreground">upload reports manually</span> for any competitor from the Competitors page — useful if the IR page wasn't found or you have the PDF already.</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <Calendar className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground/60" />
+            <span>No reports yet? No problem — you can <span className="text-foreground">skip this step</span> and add IR pages or upload reports at any time. Benchmarking becomes available as soon as reports are analyzed.</span>
+          </li>
+        </ul>
+      </div>
     </div>
   )
 }

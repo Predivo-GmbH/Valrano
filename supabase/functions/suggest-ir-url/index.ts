@@ -128,7 +128,8 @@ serve(async (req: Request) => {
     let sitemapUrls: string[] = []
     let scrapedIrContent = ''
 
-    if (firecrawlApiKey && websiteUrl && isPublicUrl('https://' + websiteUrl)) {
+    const normalizedWebsite = websiteUrl?.replace(/^https?:\/\//, '') ?? ''
+    if (firecrawlApiKey && normalizedWebsite && isPublicUrl(`https://${normalizedWebsite}`)) {
       try {
         // Use Firecrawl /map to get all URLs on the site
         const mapResp = await fetch('https://api.firecrawl.dev/v1/map', {
@@ -138,7 +139,7 @@ serve(async (req: Request) => {
             'Authorization': `Bearer ${firecrawlApiKey}`,
           },
           body: JSON.stringify({
-            url: `https://${websiteUrl}`,
+            url: `https://${normalizedWebsite}`,
             limit: 200,
           }),
           signal: AbortSignal.timeout(15000),
@@ -166,7 +167,7 @@ serve(async (req: Request) => {
 
       // If we found URLs, filter for likely IR pages and scrape the best candidate
       if (sitemapUrls.length > 0) {
-        const irPatterns = /\/(investor|ir|investors|investor-relations|aktionaere|financial-results|publications|annual-report)/i
+        const irPatterns = /\/(investor|ir|investors|investor-relations|home-investor|aktionaere|aktionare|shareholders|financial-results|financials|publications|annual-report)/i
         const irCandidates = sitemapUrls.filter(url => irPatterns.test(url))
 
         if (irCandidates.length > 0) {
@@ -287,11 +288,19 @@ If no sitemap, construct the most likely URL based on common patterns (confidenc
     for (const url of urlsToTry) {
       if (!isPublicUrl(url)) continue
       try {
-        const resp = await fetch(url, {
+        // Try HEAD first, fall back to GET (some corporate sites block HEAD)
+        let resp = await fetch(url, {
           method: 'HEAD',
           redirect: 'follow',
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(8000),
         })
+        if (!resp.ok && resp.status !== 405) {
+          resp = await fetch(url, {
+            method: 'GET',
+            redirect: 'follow',
+            signal: AbortSignal.timeout(8000),
+          })
+        }
         if (resp.ok || resp.status === 405) {
           validatedUrl = url
           break
