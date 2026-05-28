@@ -6,7 +6,51 @@
  *
  * Auth session is set up by auth.setup.ts (onboarding_dismissed = true).
  */
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+
+// ---------------------------------------------------------------------------
+// Staging Supabase helpers
+// ---------------------------------------------------------------------------
+
+const SUPABASE_URL = 'https://vfwpcgdkrwqhdivfzmrg.supabase.co'
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmd3BjZ2RrcndxaGRpdmZ6bXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxOTM0MjIsImV4cCI6MjA5NDc2OTQyMn0.oKmklW0md_-S5tqKT0fg-2Vz0lVh_qDf9jRvm3tqbHs'
+
+async function getAccessToken(page: Page): Promise<string> {
+  const storage = await page.context().storageState()
+  const entry = storage.origins
+    .flatMap(o => o.localStorage)
+    .find(e => e.name.startsWith('sb-') && e.name.endsWith('-auth-token'))
+  if (!entry) throw new Error('No Supabase auth token in storage')
+  return JSON.parse(entry.value).access_token
+}
+
+async function setOnboardingDismissed(page: Page, dismissed: boolean) {
+  const token = await getAccessToken(page)
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    method: 'PUT',
+    headers: {
+      'apikey': ANON_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ data: { onboarding_dismissed: dismissed } }),
+  })
+  if (!res.ok) throw new Error(`Failed to set onboarding_dismissed=${dismissed}: ${await res.text()}`)
+}
+
+async function clearBannerDismissal(page: Page) {
+  const token = await getAccessToken(page)
+  await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    method: 'PUT',
+    headers: {
+      'apikey': ANON_KEY,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ data: { setup_banner_dismissed: false } }),
+  })
+  await page.evaluate(() => localStorage.removeItem('valrano-setup-banner-dismissed'))
+}
 
 // ---------------------------------------------------------------------------
 // Dashboard
@@ -255,138 +299,49 @@ test.describe('Account Page', () => {
 
 test.describe('Onboarding Wizard', () => {
   test('onboarding page loads without crash', async ({ page }) => {
-    // Re-enable onboarding for this test by clearing the dismissed flag
-    const SUPABASE_URL = 'https://vfwpcgdkrwqhdivfzmrg.supabase.co'
-    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmd3BjZ2RrcndxaGRpdmZ6bXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxOTM0MjIsImV4cCI6MjA5NDc2OTQyMn0.oKmklW0md_-S5tqKT0fg-2Vz0lVh_qDf9jRvm3tqbHs'
+    await setOnboardingDismissed(page, false)
 
-    // Get current session from storage state
-    const storage = await page.context().storageState()
-    const supabaseEntry = storage.origins
-      .flatMap(o => o.localStorage)
-      .find(e => e.name.startsWith('sb-') && e.name.endsWith('-auth-token'))
-    expect(supabaseEntry, 'No Supabase auth token found in storage').toBeTruthy()
-
-    const session = JSON.parse(supabaseEntry!.value)
-    const accessToken = session.access_token
-
-    // Temporarily un-dismiss onboarding
-    const undismissRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: 'PUT',
-      headers: {
-        'apikey': ANON_KEY,
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ data: { onboarding_dismissed: false } }),
-    })
-    expect(undismissRes.ok, 'Failed to un-dismiss onboarding').toBeTruthy()
-
-    // Navigate to onboarding
     await page.goto('/onboarding')
     await page.waitForLoadState('networkidle')
 
-    // Should show the onboarding wizard, not an error
     const body = await page.textContent('body')
     expect(body).not.toContain('Something went wrong')
 
-    // Should have the wizard steps visible
     const hasWizardContent =
       body?.includes('Accounting Framework') ||
       body?.includes('Valrano') ||
       body?.includes('Skip setup')
-
     expect(hasWizardContent).toBe(true)
 
-    // Re-dismiss onboarding so other tests aren't affected
-    await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: 'PUT',
-      headers: {
-        'apikey': ANON_KEY,
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ data: { onboarding_dismissed: true } }),
-    })
+    await setOnboardingDismissed(page, true)
   })
 
-  test('onboarding wizard shows step 1 (Accounting Framework)', async ({ page }) => {
-    const SUPABASE_URL = 'https://vfwpcgdkrwqhdivfzmrg.supabase.co'
-    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmd3BjZ2RrcndxaGRpdmZ6bXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxOTM0MjIsImV4cCI6MjA5NDc2OTQyMn0.oKmklW0md_-S5tqKT0fg-2Vz0lVh_qDf9jRvm3tqbHs'
-
-    const storage = await page.context().storageState()
-    const supabaseEntry = storage.origins
-      .flatMap(o => o.localStorage)
-      .find(e => e.name.startsWith('sb-') && e.name.endsWith('-auth-token'))
-    const session = JSON.parse(supabaseEntry!.value)
-
-    // Un-dismiss onboarding
-    await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: 'PUT',
-      headers: {
-        'apikey': ANON_KEY,
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ data: { onboarding_dismissed: false } }),
-    })
+  test('wizard shows step 1 (Accounting Framework)', async ({ page }) => {
+    await setOnboardingDismissed(page, false)
 
     await page.goto('/onboarding')
     await page.waitForLoadState('networkidle')
 
-    // Step 1 should show breadcrumb with "Accounting Framework" as active
     const body = await page.textContent('body')
     expect(body).toContain('Accounting Framework')
-
-    // Should have file upload area or upload button
-    const hasUploadUI =
-      body?.includes('upload') ||
-      body?.includes('Upload') ||
-      body?.includes('drag') ||
-      body?.includes('Drop')
-
-    expect(hasUploadUI).toBe(true)
-
-    // Should have Skip setup button
-    const skipButton = page.locator('text=Skip setup').first()
-    await expect(skipButton).toBeVisible({ timeout: 5000 })
-
-    // Should have breadcrumb steps visible
     expect(body).toContain('Add Competitors')
     expect(body).toContain('Analyze Reports')
     expect(body).toContain('Publication Schedule')
 
-    // Re-dismiss
-    await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: 'PUT',
-      headers: {
-        'apikey': ANON_KEY,
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ data: { onboarding_dismissed: true } }),
-    })
+    const hasUploadUI =
+      body?.includes('upload') || body?.includes('Upload') ||
+      body?.includes('drag') || body?.includes('Drop')
+    expect(hasUploadUI).toBe(true)
+
+    await expect(page.locator('text=Skip setup').first()).toBeVisible({ timeout: 5000 })
+
+    await setOnboardingDismissed(page, true)
   })
 
-  test('onboarding skip setup works', async ({ page }) => {
-    const SUPABASE_URL = 'https://vfwpcgdkrwqhdivfzmrg.supabase.co'
-    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmd3BjZ2RrcndxaGRpdmZ6bXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxOTM0MjIsImV4cCI6MjA5NDc2OTQyMn0.oKmklW0md_-S5tqKT0fg-2Vz0lVh_qDf9jRvm3tqbHs'
-
-    const storage = await page.context().storageState()
-    const supabaseEntry = storage.origins
-      .flatMap(o => o.localStorage)
-      .find(e => e.name.startsWith('sb-') && e.name.endsWith('-auth-token'))
-    const session = JSON.parse(supabaseEntry!.value)
-
-    // Un-dismiss onboarding
-    await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: 'PUT',
-      headers: {
-        'apikey': ANON_KEY,
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ data: { onboarding_dismissed: false } }),
-    })
+  // ONB-002: Skip setup → dashboard → banner visible
+  test('skip setup shows SetupProgressBanner on dashboard', async ({ page }) => {
+    await setOnboardingDismissed(page, false)
+    await clearBannerDismissal(page)
 
     await page.goto('/onboarding')
     await page.waitForLoadState('networkidle')
@@ -400,69 +355,139 @@ test.describe('Onboarding Wizard', () => {
     await page.waitForURL('**/dashboard', { timeout: 10000 })
     expect(page.url()).toContain('/dashboard')
 
-    // Re-dismiss (should already be dismissed by skip, but ensure)
-    await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: 'PUT',
-      headers: {
-        'apikey': ANON_KEY,
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ data: { onboarding_dismissed: true } }),
-    })
+    // THE KEY ASSERTION: SetupProgressBanner must be visible
+    const banner = page.locator('text=Complete Setup').first()
+    await expect(banner).toBeVisible({ timeout: 10000 })
+
+    // Banner should show progress (e.g., "Setup 0/3 complete")
+    const body = await page.textContent('body')
+    expect(body).toMatch(/Setup \d\/3 complete/)
+
+    await setOnboardingDismissed(page, true)
   })
 
-  test('onboarding step navigation works (breadcrumb clicks)', async ({ page }) => {
-    const SUPABASE_URL = 'https://vfwpcgdkrwqhdivfzmrg.supabase.co'
-    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmd3BjZ2RrcndxaGRpdmZ6bXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxOTM0MjIsImV4cCI6MjA5NDc2OTQyMn0.oKmklW0md_-S5tqKT0fg-2Vz0lVh_qDf9jRvm3tqbHs'
+  // ONB-003: Skip → dashboard → click "Complete Setup" → back to wizard
+  test('Complete Setup button on banner returns to wizard', async ({ page }) => {
+    await setOnboardingDismissed(page, false)
+    await clearBannerDismissal(page)
 
-    const storage = await page.context().storageState()
-    const supabaseEntry = storage.origins
-      .flatMap(o => o.localStorage)
-      .find(e => e.name.startsWith('sb-') && e.name.endsWith('-auth-token'))
-    const session = JSON.parse(supabaseEntry!.value)
+    // Skip to dashboard first
+    await page.goto('/onboarding')
+    await page.waitForLoadState('networkidle')
+    await page.locator('text=Skip setup').first().click()
+    await page.waitForURL('**/dashboard', { timeout: 10000 })
 
-    // Un-dismiss onboarding
-    await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: 'PUT',
-      headers: {
-        'apikey': ANON_KEY,
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ data: { onboarding_dismissed: false } }),
-    })
+    // Click "Complete Setup" on the banner
+    const completeButton = page.locator('button:has-text("Complete Setup")').first()
+    await expect(completeButton).toBeVisible({ timeout: 10000 })
+    await completeButton.click()
+
+    // Should navigate back to /onboarding
+    await page.waitForURL('**/onboarding', { timeout: 10000 })
+    expect(page.url()).toContain('/onboarding')
+
+    // Wizard should load
+    const body = await page.textContent('body')
+    expect(body).toContain('Accounting Framework')
+
+    await setOnboardingDismissed(page, true)
+  })
+
+  // ONB-004: Dismiss banner with X → banner hidden
+  test('dismissing banner with X hides it', async ({ page }) => {
+    await setOnboardingDismissed(page, false)
+    await clearBannerDismissal(page)
+
+    // Skip to dashboard
+    await page.goto('/onboarding')
+    await page.waitForLoadState('networkidle')
+    await page.locator('text=Skip setup').first().click()
+    await page.waitForURL('**/dashboard', { timeout: 10000 })
+
+    // Banner should be visible
+    const banner = page.locator('text=Complete Setup').first()
+    await expect(banner).toBeVisible({ timeout: 10000 })
+
+    // Click X to dismiss
+    const dismissButton = page.locator('button[aria-label="Dismiss setup banner"]').first()
+    await expect(dismissButton).toBeVisible({ timeout: 5000 })
+    await dismissButton.click()
+
+    // Banner should disappear
+    await expect(banner).not.toBeVisible({ timeout: 5000 })
+
+    // Reload — banner should stay hidden (persisted in localStorage + user metadata)
+    await page.reload()
+    await page.waitForLoadState('networkidle')
+    await expect(page.locator('text=Complete Setup').first()).not.toBeVisible({ timeout: 5000 })
+
+    await setOnboardingDismissed(page, true)
+  })
+
+  test('step navigation works (breadcrumb clicks)', async ({ page }) => {
+    await setOnboardingDismissed(page, false)
 
     await page.goto('/onboarding')
     await page.waitForLoadState('networkidle')
 
-    // Verify no error boundary on initial load
     const body = await page.textContent('body')
     expect(body).not.toContain('Something went wrong')
 
-    // The wizard should show step navigation (Back/Continue buttons)
     const continueButton = page.locator('button:has-text("Continue")').first()
     const backButton = page.locator('button:has-text("Back")').first()
 
-    // Back should be disabled on step 1
     if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const isDisabled = await backButton.isDisabled()
-      expect(isDisabled).toBe(true)
+      expect(await backButton.isDisabled()).toBe(true)
     }
-
-    // Continue button should be visible
     await expect(continueButton).toBeVisible({ timeout: 5000 })
 
-    // Re-dismiss
-    await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: 'PUT',
-      headers: {
-        'apikey': ANON_KEY,
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ data: { onboarding_dismissed: true } }),
-    })
+    await setOnboardingDismissed(page, true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Auth Flows (functional — not just page loads)
+// ---------------------------------------------------------------------------
+
+test.describe('Auth Flows', () => {
+  // AUTH-006: Sign out flow
+  test('sign out redirects to landing page', async ({ page }) => {
+    await page.goto('/dashboard')
+    await page.waitForLoadState('networkidle')
+    expect(page.url()).toContain('/dashboard')
+
+    // Open user menu (avatar/icon button in the nav)
+    const userMenuButton = page.locator('nav button, header button, aside button')
+      .filter({ has: page.locator('svg') })
+      .last()
+
+    // Try to find and click the user menu / sign out
+    // The menu might be a dropdown or direct button
+    const signOutLink = page.locator('text=Sign out').first()
+    const logOutLink = page.locator('text=Log out').first()
+
+    // First try: look for visible sign out text (might be in sidebar)
+    if (await signOutLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await signOutLink.click()
+    } else if (await logOutLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await logOutLink.click()
+    } else {
+      // Click user menu button to reveal dropdown
+      if (await userMenuButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await userMenuButton.click()
+        await page.waitForTimeout(500)
+        const signOut = page.locator('text=Sign out, text=Log out').first()
+        if (await signOut.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await signOut.click()
+        }
+      }
+    }
+
+    // After sign out, should be on landing page or login page
+    await page.waitForTimeout(2000)
+    const url = page.url()
+    const onPublicPage = !url.includes('/dashboard') && !url.includes('/competitors')
+    expect(onPublicPage).toBe(true)
   })
 })
 
