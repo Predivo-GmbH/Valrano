@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
+import { logError } from '../_shared/error-log.ts'
 
 /**
  * suggest-ir-url — Data-driven IR page discovery
@@ -320,7 +321,7 @@ If no sitemap, construct the most likely URL based on common patterns (confidenc
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ company_id }),
-        }).catch((e) => console.error('IR catalog scan trigger failed:', e))
+        }).catch(err => logError('suggest-ir-url', 'scan_ir_trigger', err, { companyId: company_id }))
       }
     }
 

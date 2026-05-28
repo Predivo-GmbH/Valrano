@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { logError } from '../_shared/error-log.ts'
 
 /** Reject URLs targeting internal/private networks (SSRF prevention) */
 function isPublicUrl(url: string): boolean {
@@ -248,7 +249,7 @@ serve(async (req: Request) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({ report_id: report.id }),
-          }).catch((e) => console.error('Pipeline trigger failed:', e))
+          }).catch(err => logError('check-publication', 'pipeline_trigger', err, { eventId: publication_event_id }))
         }
       }
 
