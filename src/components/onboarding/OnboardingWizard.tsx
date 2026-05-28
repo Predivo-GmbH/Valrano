@@ -286,13 +286,7 @@ export function OnboardingWizard() {
     }
   }
 
-  const handleSkip = async () => {
-    try {
-      await dismissOnboarding()
-    } catch {
-      // Proceed even if metadata update fails
-    }
-    queryClient.setQueryData(['onboarding-dismissed'], true)
+  const handleSkip = () => {
     navigate('/dashboard', { replace: true })
   }
 
