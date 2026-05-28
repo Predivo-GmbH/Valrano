@@ -286,7 +286,12 @@ export function OnboardingWizard() {
     }
   }
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    // Must set onboarding_dismissed so OnboardingGuard doesn't redirect back
+    try {
+      await dismissOnboarding()
+    } catch { /* proceed anyway */ }
+    queryClient.setQueryData(['onboarding-dismissed'], true)
     navigate('/dashboard', { replace: true })
   }
 

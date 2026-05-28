@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
-import { useOnboarding, useOnboardingDismissed, resetOnboarding } from '@/hooks/useOnboarding'
+import { useOnboarding, resetOnboarding } from '@/hooks/useOnboarding'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { BookOpen, Building2, Calendar, Check, X } from 'lucide-react'
@@ -27,7 +27,9 @@ export function SetupProgressBanner() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { status, isLoading } = useOnboarding()
-  const { data: onboardingDismissed, isLoading: dismissedLoading } = useOnboardingDismissed()
+  // Note: onboardingDismissed is NOT used for banner visibility — it controls
+  // the OnboardingGuard redirect, not the banner. The banner only hides when
+  // setup is complete or the user clicks the X button (setup_banner_dismissed).
   const [dismissed, setDismissed] = useState(() => {
     try {
       return localStorage.getItem(DISMISS_KEY) === 'true'
@@ -58,8 +60,8 @@ export function SetupProgressBanner() {
     }
   }, [status.isComplete])
 
-  // Hide if: loading, all steps complete, user dismissed banner, OR user finished the wizard
-  if (isLoading || dismissedLoading || status.isComplete || dismissed || onboardingDismissed) {
+  // Hide if: loading, all steps complete, or user dismissed the banner (X button)
+  if (isLoading || status.isComplete || dismissed) {
     return null
   }
 
