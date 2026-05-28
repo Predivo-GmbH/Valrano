@@ -49,6 +49,9 @@ async function clearBannerDismissal(page: Page) {
     },
     body: JSON.stringify({ data: { setup_banner_dismissed: false } }),
   })
+  // Navigate to app first so localStorage is accessible (avoids SecurityError on about:blank)
+  await page.goto('/')
+  await page.waitForLoadState('domcontentloaded')
   await page.evaluate(() => localStorage.removeItem('valrano-setup-banner-dismissed'))
 }
 
@@ -456,38 +459,21 @@ test.describe('Auth Flows', () => {
     await page.waitForLoadState('networkidle')
     expect(page.url()).toContain('/dashboard')
 
-    // Open user menu (avatar/icon button in the nav)
-    const userMenuButton = page.locator('nav button, header button, aside button')
-      .filter({ has: page.locator('svg') })
-      .last()
+    // Open user menu dropdown (aria-label="User menu")
+    const userMenuButton = page.locator('button[aria-label="User menu"]').first()
+    await expect(userMenuButton).toBeVisible({ timeout: 5000 })
+    await userMenuButton.click()
 
-    // Try to find and click the user menu / sign out
-    // The menu might be a dropdown or direct button
-    const signOutLink = page.locator('text=Sign out').first()
-    const logOutLink = page.locator('text=Log out').first()
+    // Click "Sign out" in the dropdown
+    const signOutButton = page.locator('text=Sign out').first()
+    await expect(signOutButton).toBeVisible({ timeout: 3000 })
+    await signOutButton.click()
 
-    // First try: look for visible sign out text (might be in sidebar)
-    if (await signOutLink.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await signOutLink.click()
-    } else if (await logOutLink.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await logOutLink.click()
-    } else {
-      // Click user menu button to reveal dropdown
-      if (await userMenuButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await userMenuButton.click()
-        await page.waitForTimeout(500)
-        const signOut = page.locator('text=Sign out, text=Log out').first()
-        if (await signOut.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await signOut.click()
-        }
-      }
-    }
-
-    // After sign out, should be on landing page or login page
-    await page.waitForTimeout(2000)
+    // After sign out, should leave dashboard (landing or login page)
+    await page.waitForTimeout(3000)
     const url = page.url()
-    const onPublicPage = !url.includes('/dashboard') && !url.includes('/competitors')
-    expect(onPublicPage).toBe(true)
+    const leftDashboard = !url.includes('/dashboard') && !url.includes('/competitors')
+    expect(leftDashboard).toBe(true)
   })
 })
 
