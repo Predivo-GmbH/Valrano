@@ -1274,6 +1274,21 @@ function StepCompetitors({
 // Step 3: Analyze Reports (FY-matched competitor report selection)
 // ---------------------------------------------------------------------------
 
+const ANALYSIS_STEPS = [
+  { key: 'downloading', label: 'Downloading report' },
+  { key: 'extracting', label: 'Extracting KPIs' },
+  { key: 'normalizing', label: 'Normalizing values' },
+  { key: 'generating', label: 'Generating benchmark' },
+] as const
+
+const ANALYSIS_PROGRESS: Record<string, number> = {
+  downloading: 10,
+  extracting: 35,
+  normalizing: 60,
+  generating: 80,
+  complete: 100,
+}
+
 function StepReports({
   selectedCompanyIds,
   userFiscalYear,
@@ -1293,21 +1308,6 @@ function StepReports({
   // Pipeline progress tracking per company (after download triggers analysis)
   type AnalysisState = { reportId: string; step: 'downloading' | 'extracting' | 'normalizing' | 'generating' | 'complete'; progress: number }
   const [analyzingCompanies, setAnalyzingCompanies] = useState<Record<string, AnalysisState>>({})
-
-  const ANALYSIS_STEPS = [
-    { key: 'downloading', label: 'Downloading report' },
-    { key: 'extracting', label: 'Extracting KPIs' },
-    { key: 'normalizing', label: 'Normalizing values' },
-    { key: 'generating', label: 'Generating benchmark' },
-  ] as const
-
-  const ANALYSIS_PROGRESS: Record<string, number> = {
-    downloading: 10,
-    extracting: 35,
-    normalizing: 60,
-    generating: 80,
-    complete: 100,
-  }
 
   // Poll report status for companies with active analysis pipelines
   useEffect(() => {
