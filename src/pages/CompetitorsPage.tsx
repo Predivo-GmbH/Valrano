@@ -368,18 +368,25 @@ function AddCompanyDialog({
           .insert({ peer_group_id: pgId, company_id: newCompany.id })
       }
 
-      // Non-blocking: auto-resolve IR URL for the new company
+      // Non-blocking: auto-resolve IR URL → then scan for documents
       if (newCompany?.id && !irUrl.trim()) {
         supabase.auth.getSession().then(({ data: { session } }) => {
           if (!session) return
+          const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          }
           fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-ir-url`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            },
+            headers,
             body: JSON.stringify({ company_id: newCompany.id, company_name: newCompany.name }),
+          }).then(() => {
+            fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scan-ir-page`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ company_id: newCompany.id }),
+            }).catch(() => {})
           }).catch(() => {})
         })
       }

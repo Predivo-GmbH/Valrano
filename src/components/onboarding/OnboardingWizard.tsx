@@ -67,10 +67,17 @@ export function OnboardingWizard() {
   const autoStep = status.hasFramework && status.hasCompetitors ? 2
     : status.hasFramework ? 1 : 0
   // Get user's fiscal year from their uploaded report (for FY-matched competitor report filtering)
+  // Prefer the fiscal year of the most recent ANNUAL report — quarterly/half-year reports
+  // may reference a FY that hasn't ended yet (e.g., Q1 2026 uploaded in May 2026).
+  // Fall back to (currentYear - 1), the most recent completed fiscal year.
   const { data: ownReportsAll } = useReports()
   const userFiscalYear = (ownReportsAll ?? [])
-    .filter(r => r.fiscal_year)
-    .sort((a, b) => b.fiscal_year - a.fiscal_year)[0]?.fiscal_year ?? new Date().getFullYear()
+    .filter(r => r.fiscal_year && r.report_type === 'annual')
+    .sort((a, b) => b.fiscal_year - a.fiscal_year)[0]?.fiscal_year
+    ?? (ownReportsAll ?? [])
+      .filter(r => r.fiscal_year)
+      .sort((a, b) => b.fiscal_year - a.fiscal_year)[0]?.fiscal_year
+    ?? (new Date().getFullYear() - 1)
   const currentStep = userStep ?? autoStep
 
   // Pre-populate from existing data
@@ -390,13 +397,22 @@ export function OnboardingWizard() {
                       body: JSON.stringify({ name: rc.name, company_id: inserted.id }),
                     }).then(() => {
                       queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-                      // Auto-discover IR page URL → auto-scans IR page for documents
+                      // Auto-discover IR page URL → then scan for documents
                       fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-ir-url`, {
                         method: 'POST',
                         headers,
                         body: JSON.stringify({ company_id: inserted.id, company_name: rc.name }),
                       }).then(() => {
-                        queryClient.invalidateQueries({ queryKey: ['ir-catalog'] })
+                        queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                        // Trigger scan-ir-page with user JWT (server-side auto-trigger is unreliable)
+                        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scan-ir-page`, {
+                          method: 'POST',
+                          headers,
+                          body: JSON.stringify({ company_id: inserted.id }),
+                        }).then(() => {
+                          queryClient.invalidateQueries({ queryKey: ['ir-catalog'] })
+                          queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                        }).catch(() => {})
                       }).catch(() => {})
                     }).catch(() => {})
                   }
@@ -1014,13 +1030,22 @@ function StepCompetitors({
           body: JSON.stringify({ name: item.name, company_id: inserted.id }),
         }).then(() => {
           queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-          // Auto-discover IR page URL → auto-scans IR page for documents
+          // Auto-discover IR page URL → then scan for documents
           fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-ir-url`, {
             method: 'POST',
             headers,
             body: JSON.stringify({ company_id: inserted.id, company_name: item.name }),
           }).then(() => {
-            queryClient.invalidateQueries({ queryKey: ['ir-catalog'] })
+            queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+            // Trigger scan-ir-page with user JWT (server-side auto-trigger is unreliable)
+            fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scan-ir-page`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ company_id: inserted.id }),
+            }).then(() => {
+              queryClient.invalidateQueries({ queryKey: ['ir-catalog'] })
+              queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+            }).catch(() => {})
           }).catch(() => {})
         }).catch(() => {})
       }
@@ -1180,13 +1205,22 @@ function StepCompetitors({
                     body: JSON.stringify({ name: result.name, company_id: inserted.id }),
                   }).then(() => {
                     queryClient.invalidateQueries({ queryKey: ['companies-all'] })
-                    // Auto-discover IR page URL → auto-scans IR page for documents
+                    // Auto-discover IR page URL → then scan for documents
                     fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-ir-url`, {
                       method: 'POST',
                       headers,
                       body: JSON.stringify({ company_id: inserted.id, company_name: result.name }),
                     }).then(() => {
-                      queryClient.invalidateQueries({ queryKey: ['ir-catalog'] })
+                      queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                      // Trigger scan-ir-page with user JWT (server-side auto-trigger is unreliable)
+                      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scan-ir-page`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ company_id: inserted.id }),
+                      }).then(() => {
+                        queryClient.invalidateQueries({ queryKey: ['ir-catalog'] })
+                        queryClient.invalidateQueries({ queryKey: ['companies-all'] })
+                      }).catch(() => {})
                     }).catch(() => {})
                   }).catch(() => {})
                 }
