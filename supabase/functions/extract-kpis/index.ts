@@ -172,8 +172,8 @@ serve(async (req: Request) => {
 
     if (reportError) throw new Error(`Report lookup failed: ${reportError.message}`)
     if (!report) return jsonResponse({ error: `Report not found: ${reportId}` }, 404)
-    if (!report.pdf_storage_path) {
-      return jsonResponse({ error: 'Report has no PDF attached' }, 422)
+    if (!report.pdf_storage_path && !report.fallback_text) {
+      return jsonResponse({ error: 'Report has no PDF or text content' }, 422)
     }
 
     // Data isolation: verify report's company is in user's peer groups
@@ -214,26 +214,42 @@ serve(async (req: Request) => {
     if (extractionError) throw new Error(`Extraction insert failed: ${extractionError.message}`)
 
     // ------------------------------------------------------------------
-    // 4. Download PDF → extract text
+    // 4. Get report text — from PDF (primary) or Firecrawl fallback
     // ------------------------------------------------------------------
-    const { data: pdfData, error: downloadError } = await adminClient.storage
-      .from('reports')
-      .download(report.pdf_storage_path)
+    let pdfText: string
+    let pageCount = 0
+    let extractedPages = 0
+    let textSource: 'pdf' | 'fallback' = 'pdf'
 
-    if (downloadError) throw new Error(`PDF download failed: ${downloadError.message}`)
+    if (report.pdf_storage_path) {
+      const { data: pdfData, error: downloadError } = await adminClient.storage
+        .from('reports')
+        .download(report.pdf_storage_path)
 
-    const pdfArrayBuffer = await pdfData.arrayBuffer()
-    // Limit to first 80 pages to stay within compute limits (financial data is typically in first half)
-    const { text: fullText, pageCount, extractedPages } = await extractTextFromPdf(pdfArrayBuffer, [{ start: 1, end: 80 }])
-    // Truncate to ~500K chars max to fit Gemini context window and edge function limits
-    const pdfText = fullText.length > 500000 ? fullText.slice(0, 500000) : fullText
-    const charCount = pdfText.length
+      if (downloadError) throw new Error(`PDF download failed: ${downloadError.message}`)
 
-    if (!pdfText || charCount < 100) {
-      return jsonResponse({ error: 'Could not extract text from PDF. The file may be image-only or corrupt.' }, 422)
+      const pdfArrayBuffer = await pdfData.arrayBuffer()
+      // Limit to first 80 pages to stay within compute limits (financial data is typically in first half)
+      const result = await extractTextFromPdf(pdfArrayBuffer, [{ start: 1, end: 80 }])
+      pageCount = result.pageCount
+      extractedPages = result.extractedPages
+      const fullText = result.text
+      pdfText = fullText.length > 500000 ? fullText.slice(0, 500000) : fullText
+    } else if (report.fallback_text) {
+      // Firecrawl-extracted text — no PDF binary available (Cloudflare/bot protection)
+      pdfText = report.fallback_text.length > 500000 ? report.fallback_text.slice(0, 500000) : report.fallback_text
+      textSource = 'fallback'
+      console.log(`[extract-kpis] Using Firecrawl fallback text (${pdfText.length} chars)`)
+    } else {
+      return jsonResponse({ error: 'Report has no PDF or text content' }, 422)
     }
 
-    console.log(`[extract-kpis] Extracted ${charCount} chars from ${pageCount} pages`)
+    const charCount = pdfText.length
+    if (!pdfText || charCount < 100) {
+      return jsonResponse({ error: 'Could not extract text from report. The content may be insufficient.' }, 422)
+    }
+
+    console.log(`[extract-kpis] ${textSource === 'pdf' ? `Extracted ${charCount} chars from ${pageCount} pages` : `Using fallback text: ${charCount} chars`}`)
 
     // ------------------------------------------------------------------
     // 5. Call Gemini 2.5 Pro with extracted text
