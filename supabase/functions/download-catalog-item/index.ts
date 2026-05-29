@@ -32,7 +32,8 @@ serve(async (req: Request) => {
 
   try {
     const { user, adminClient } = await authenticateRequest(req)
-    const { catalog_item_id } = await req.json()
+    const authHeader = req.headers.get('Authorization')!
+    const { catalog_item_id, company_id } = await req.json()
 
     if (!catalog_item_id) {
       return jsonResponse({ error: 'catalog_item_id is required' }, 400)
@@ -65,11 +66,15 @@ serve(async (req: Request) => {
       }, 400)
     }
 
-    // Create report row
+    // Create report row — use the caller's company_id (from their peer group) if provided,
+    // falling back to the catalog item's company_id. This avoids data isolation failures
+    // when catalog items are linked to duplicate company records from other users.
+    const effectiveCompanyId = company_id || item.company_id
+
     const { data: report, error: reportErr } = await adminClient
       .from('reports')
       .insert({
-        company_id: item.company_id,
+        company_id: effectiveCompanyId,
         report_type: reportType,
         fiscal_year: item.fiscal_year ?? new Date().getFullYear(),
         fiscal_quarter: item.fiscal_quarter,
@@ -93,16 +98,16 @@ serve(async (req: Request) => {
       })
       .eq('id', catalog_item_id)
 
-    // Trigger pipeline-orchestrator
+    // Trigger pipeline-orchestrator with user's JWT (service_role tokens are rejected
+    // by authenticateRequest — Supabase gateway modifies them)
     const sbUrl = Deno.env.get('SUPABASE_URL')!
-    const sbServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
     const pipelineRes = await fetch(
       `${sbUrl}/functions/v1/pipeline-orchestrator`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${sbServiceKey}`,
+          'Authorization': authHeader,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

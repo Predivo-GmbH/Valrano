@@ -66,6 +66,7 @@ serve(async (req: Request) => {
     }
 
     // 4. Normalize KPI values (currency conversion to CHF)
+    await adminClient.from('reports').update({ status: 'normalized' }).eq('id', report_id)
     {
       const start = Date.now()
       await callEdgeFunction('normalize-kpis', { report_id })
@@ -86,6 +87,7 @@ serve(async (req: Request) => {
     }
 
     // 5. Generate benchmark document
+    await adminClient.from('reports').update({ status: 'benchmark_ready' }).eq('id', report_id)
     {
       const start = Date.now()
       await callEdgeFunction('generate-benchmark', { report_id })

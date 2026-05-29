@@ -92,7 +92,7 @@ export function useDownloadCatalogItem() {
   return useMutation({
     mutationFn: async (params: { catalogItemId: string; companyId: string }) => {
       const { data, error } = await supabase.functions.invoke('download-catalog-item', {
-        body: { catalog_item_id: params.catalogItemId },
+        body: { catalog_item_id: params.catalogItemId, company_id: params.companyId },
       })
       if (error) throw error
       return data as { success: boolean; report_id: string; pipeline_triggered: boolean }
