@@ -75,11 +75,22 @@ serve(async (req: Request) => {
       },
     })
     if (!pdfResponse.ok) {
-      throw new Error(`PDF fetch failed: ${pdfResponse.status} ${pdfResponse.statusText}`)
+      // Mark report as error so it doesn't stay pending forever
+      await adminClient.from('reports').update({ status: 'error' }).eq('id', report_id)
+      return jsonResponse({ error: `PDF download failed: ${pdfResponse.status} ${pdfResponse.statusText}`, source_url: report.source_url }, 502)
     }
 
     const pdfBuffer = await pdfResponse.arrayBuffer()
     const pdfBytes = new Uint8Array(pdfBuffer)
+
+    // Validate we got an actual PDF, not an HTML error page
+    const contentType = pdfResponse.headers.get('Content-Type') ?? ''
+    const isPdfContentType = contentType.includes('pdf') || contentType.includes('octet-stream')
+    const hasPdfMagic = pdfBytes.length >= 4 && pdfBytes[0] === 0x25 && pdfBytes[1] === 0x50 && pdfBytes[2] === 0x44 && pdfBytes[3] === 0x46 // %PDF
+    if (!isPdfContentType && !hasPdfMagic) {
+      await adminClient.from('reports').update({ status: 'error' }).eq('id', report_id)
+      return jsonResponse({ error: `Downloaded file is not a PDF (Content-Type: ${contentType}, size: ${pdfBytes.length} bytes)`, source_url: report.source_url }, 422)
+    }
 
     // 3. Upload to Supabase Storage bucket 'reports'
     const storagePath = `${report.company_id}/${report_id}.pdf`

@@ -1287,6 +1287,7 @@ const ANALYSIS_PROGRESS: Record<string, number> = {
   normalizing: 60,
   generating: 80,
   complete: 100,
+  error: 0,
 }
 
 function StepReports({
@@ -1306,12 +1307,12 @@ function StepReports({
   const [showIrUrlInput, setShowIrUrlInput] = useState<Set<string>>(new Set())
 
   // Pipeline progress tracking per company (after download triggers analysis)
-  type AnalysisState = { reportId: string; step: 'downloading' | 'extracting' | 'normalizing' | 'generating' | 'complete'; progress: number }
+  type AnalysisState = { reportId: string; step: 'downloading' | 'extracting' | 'normalizing' | 'generating' | 'complete' | 'error'; progress: number }
   const [analyzingCompanies, setAnalyzingCompanies] = useState<Record<string, AnalysisState>>({})
 
   // Poll report status for companies with active analysis pipelines
   useEffect(() => {
-    const activeReports = Object.entries(analyzingCompanies).filter(([, s]) => s.step !== 'complete')
+    const activeReports = Object.entries(analyzingCompanies).filter(([, s]) => s.step !== 'complete' && s.step !== 'error')
     if (activeReports.length === 0) return
 
     const interval = setInterval(async () => {
@@ -1324,7 +1325,8 @@ function StepReports({
         if (!report) continue
 
         let newStep: AnalysisState['step'] = state.step
-        if (report.status === 'pending') newStep = 'downloading'
+        if (report.status === 'error') newStep = 'error'
+        else if (report.status === 'pending') newStep = 'downloading'
         else if (report.status === 'processing') newStep = 'extracting'
         else if (report.status === 'extracted') newStep = 'normalizing'
         else if (report.status === 'normalized' || report.status === 'benchmark_ready') newStep = 'generating'
@@ -1477,7 +1479,7 @@ function StepReports({
     if (status === 'found' || status === 'downloaded') return null
 
     if (meta.items_found === 0) {
-      return 'No downloadable documents found on the IR page. The page may use a JavaScript-based document portal.'
+      return 'No downloadable documents found on the IR page.'
     }
 
     const annualYears = meta.annual_report_years
@@ -1723,7 +1725,12 @@ function StepReports({
             )}
 
             {/* Analysis pipeline progress */}
-            {analyzingCompanies[company.id] && analyzingCompanies[company.id].step !== 'complete' && (
+            {analyzingCompanies[company.id] && analyzingCompanies[company.id].step === 'error' && (
+              <div className="mt-3 ml-10 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                <p className="text-[11px] text-destructive">Download failed — the report could not be retrieved from this company's website. The file may be unavailable or blocked.</p>
+              </div>
+            )}
+            {analyzingCompanies[company.id] && analyzingCompanies[company.id].step !== 'complete' && analyzingCompanies[company.id].step !== 'error' && (
               <div className="mt-3 ml-10 rounded-lg border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/3 p-3 space-y-3">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-[10px] text-muted-foreground">

@@ -660,7 +660,7 @@ serve(async (req: Request) => {
 
     let reason: string
     if (classifiedDocs.length === 0) {
-      reason = 'No downloadable documents found on the IR page or report sub-pages. The page may use a document portal or require JavaScript interaction.'
+      reason = 'No downloadable documents found on the IR page.'
     } else if (annualReportYears.length === 0) {
       reason = `${classifiedDocs.length} documents found but none classified as annual reports. Found document types: ${[...new Set(classifiedDocs.map(d => d.document_type))].join(', ')}.`
     } else {

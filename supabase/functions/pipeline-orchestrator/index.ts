@@ -17,11 +17,15 @@ serve(async (req: Request) => {
     return new Response('ok', { headers: getCorsHeaders(req) })
   }
 
+  let _reportId: string | null = null
+  let _adminClient: any = null
   try {
     const { adminClient } = await authenticateRequest(req)
+    _adminClient = adminClient
     const authHeader = req.headers.get('Authorization')!
 
     const { report_id, phase } = await req.json()
+    _reportId = report_id
     if (!report_id) {
       return jsonResponse({ error: 'Missing required field: report_id' }, 400)
     }
@@ -185,6 +189,12 @@ serve(async (req: Request) => {
 
     return jsonResponse({ error: `Unknown phase: ${currentPhase}` }, 400)
   } catch (err) {
+    // Mark report as error so it doesn't stay pending forever
+    if (_reportId && _adminClient) {
+      try {
+        await _adminClient.from('reports').update({ status: 'error' }).eq('id', _reportId)
+      } catch { /* best effort cleanup */ }
+    }
     return errorResponse(err)
   }
 })
