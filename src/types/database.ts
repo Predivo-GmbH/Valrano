@@ -52,6 +52,16 @@ export interface Company {
   ir_page_url: string | null;
   typical_publication_pattern: string | null;
   logo_url: string | null;
+  ir_scan_metadata: {
+    last_scan_at: string;
+    items_found: number;
+    items_new?: number;
+    annual_report_years: number[];
+    fiscal_years_found: number[];
+    reason: string;
+    sub_pages_crawled?: string[];
+    firecrawl_credits_used?: number;
+  } | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

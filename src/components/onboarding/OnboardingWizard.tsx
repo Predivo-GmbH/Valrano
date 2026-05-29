@@ -1372,18 +1372,41 @@ function StepReports({
   const getCompanyStatus = (c: typeof companyCatalog[0]): 'resolving' | 'discovering_ir' | 'scanning_reports' | 'found' | 'downloaded' | 'no_report' | 'no_ir_page' => {
     if (c.matchingAnnual?.is_downloaded) return 'downloaded'
     if (c.matchingAnnual) return 'found'
-    if (c.hasAnyItems) return 'no_report' // has items but not matching FY annual
+    // If scan metadata exists, scan has completed — use its results immediately (no timeout needed)
+    const meta = c.company.ir_scan_metadata
+    if (meta) {
+      return meta.items_found > 0 ? 'no_report' : 'no_report'
+    }
+    if (c.hasAnyItems) return 'no_report'
     if (c.company.ir_page_url) {
-      // IR page URL is set, but scan-ir-page may still be running in background.
-      // Only conclude "no_report" after timeout — before that, show "scanning".
       return timedOut ? 'no_report' : 'scanning_reports'
     }
     if (c.company.website_url) {
-      // Has website, no IR page yet — could be discovering or timed out
       return timedOut ? 'no_ir_page' : 'discovering_ir'
     }
-    // No website yet
     return timedOut ? 'no_ir_page' : 'resolving'
+  }
+
+  // Build comprehensive explanation from scan metadata
+  const getScanExplanation = (c: typeof companyCatalog[0]): string | null => {
+    const meta = c.company.ir_scan_metadata
+    if (!meta) return null
+    const status = getCompanyStatus(c)
+    if (status === 'found' || status === 'downloaded') return null
+
+    if (meta.items_found === 0) {
+      return 'No downloadable documents found on the IR page. The page may use a JavaScript-based document portal.'
+    }
+
+    const annualYears = meta.annual_report_years
+    if (annualYears.length > 0) {
+      const hasTarget = annualYears.includes(userFiscalYear)
+      if (!hasTarget) {
+        return `${meta.items_found} documents found. Annual reports available for FY${annualYears.join(', FY')} — FY${userFiscalYear} not yet published or uses a different format.`
+      }
+    }
+
+    return `${meta.items_found} documents found but no FY${userFiscalYear} annual report among them. Available fiscal years: ${meta.fiscal_years_found.length > 0 ? 'FY' + meta.fiscal_years_found.join(', FY') : 'none detected'}.`
   }
 
   if (isLoading) {
@@ -1584,10 +1607,28 @@ function StepReports({
                 {status === 'scanning_reports' && 'Checking IR page for annual reports...'}
                 {status === 'found' && `FY${userFiscalYear} annual report available`}
                 {status === 'downloaded' && 'Report downloaded & analysis started'}
-                {status === 'no_report' && `No FY${userFiscalYear} report found`}
+                {status === 'no_report' && (
+                  entry.company.ir_scan_metadata
+                    ? `${entry.company.ir_scan_metadata.items_found} docs found · No FY${userFiscalYear} annual report`
+                    : `No FY${userFiscalYear} report found`
+                )}
                 {status === 'no_ir_page' && 'IR page not detected'}
               </span>
             </div>
+
+            {/* Comprehensive scan explanation for failed states */}
+            {(status === 'no_report' || status === 'no_ir_page') && getScanExplanation(entry) && (
+              <div className="mt-2 ml-10 rounded-md bg-amber-500/5 border border-amber-500/20 px-3 py-2">
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 leading-relaxed">
+                  {getScanExplanation(entry)}
+                </p>
+                {entry.company.ir_scan_metadata && entry.company.ir_scan_metadata.annual_report_years.length > 0 && (
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Available annual reports: {entry.company.ir_scan_metadata.annual_report_years.map(y => `FY${y}`).join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* IR URL input field */}
             {showIrUrlInput.has(company.id) && (

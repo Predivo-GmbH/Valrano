@@ -1,19 +1,20 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders, corsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
+import { logError } from '../_shared/error-log.ts'
 
 /**
- * scan-ir-page — One-time deep scrape of a company's IR page
+ * scan-ir-page — Deep scrape of a company's IR page to build document catalog
  *
- * Discovers all linked documents, classifies them by type via Gemini,
- * extracts metadata, and upserts into ir_catalog_items.
- *
- * Triggered:
- *   - Manually by user ("Scan IR Page" button)
- *   - Auto after suggest-ir-url resolves a URL (if IR catalog toggle enabled)
- *
- * NOT called periodically. New documents caught by check-publication.
+ * Strategy:
+ *   1. Scrape the IR landing page via Firecrawl (markdown + links)
+ *   2. Extract document links from Firecrawl's links response
+ *   3. ALWAYS follow report sub-pages (annual-reports, publications, downloads, etc.)
+ *   4. Classify all discovered documents via Gemini
+ *   5. Upsert into ir_catalog_items
+ *   6. Store scan metadata on company for UI explanations
  */
 
 const GEMINI_MODEL = 'gemini-2.5-flash'
@@ -53,12 +54,22 @@ interface ClassifiedDocument {
   confidence: number
 }
 
-/** Extract all document links from HTML content */
+/** Check if a URL points to a downloadable document */
+function isDocumentUrl(url: string): boolean {
+  const lower = url.toLowerCase()
+  // Direct file extension
+  if (/\.(pdf|xlsx|xls|pptx|ppt|docx|doc|zip)(\?|$)/i.test(lower)) return true
+  // CMS-style document URLs (Liferay /documents/d/, Drupal /sites/files/, etc.)
+  if (/\/(documents?|download|media|files?)\//i.test(lower) &&
+      !/\.(html?|php|aspx?|jsp|css|js|jpg|png|gif|svg|ico|woff|ttf)(\?|$)/i.test(lower)) return true
+  return false
+}
+
+/** Extract document links from HTML content */
 function extractDocumentLinks(html: string, baseUrl: string): DocumentLink[] {
   const links: DocumentLink[] = []
   const seen = new Set<string>()
 
-  // Match href links to downloadable files
   const hrefRegex = /href=["']([^"']+)["'][^>]*>([^<]*)/gi
   let match: RegExpExecArray | null
 
@@ -66,10 +77,8 @@ function extractDocumentLinks(html: string, baseUrl: string): DocumentLink[] {
     let url = match[1]
     const text = match[2].trim()
 
-    // Skip anchors, javascript, mailto
     if (url.startsWith('#') || url.startsWith('javascript:') || url.startsWith('mailto:')) continue
 
-    // Resolve relative URLs
     try {
       url = new URL(url, baseUrl).href
     } catch {
@@ -80,17 +89,8 @@ function extractDocumentLinks(html: string, baseUrl: string): DocumentLink[] {
     if (seen.has(url)) continue
     seen.add(url)
 
-    // Filter: include downloadable document files
-    const lowerUrl = url.toLowerCase()
-    const hasFileExtension = /\.(pdf|xlsx|xls|pptx|ppt|docx|doc|zip)(\?|$)/i.test(lowerUrl)
+    if (!isDocumentUrl(url)) continue
 
-    // Also accept CMS-style extensionless document URLs (e.g., Liferay /documents/d/)
-    const isCmsDocumentUrl = /\/(documents?|download|media|files?)\//i.test(lowerUrl) &&
-      !/\.(html?|php|aspx?|jsp)(\?|$)/i.test(lowerUrl)
-
-    if (!hasFileExtension && !isCmsDocumentUrl) continue
-
-    // Get surrounding context (approximate: use link text + nearby text)
     const linkPos = match.index
     const contextStart = Math.max(0, linkPos - 100)
     const contextEnd = Math.min(html.length, linkPos + match[0].length + 100)
@@ -102,15 +102,34 @@ function extractDocumentLinks(html: string, baseUrl: string): DocumentLink[] {
   return links.slice(0, MAX_DOCUMENTS)
 }
 
-/** Extract sub-page links that likely contain report downloads (one level deeper) */
-function extractReportSubPages(html: string, baseUrl: string): string[] {
+/** Extract document links from Firecrawl's links array */
+function extractDocumentLinksFromUrls(urls: string[]): DocumentLink[] {
+  const links: DocumentLink[] = []
+  const seen = new Set<string>()
+
+  for (const url of urls) {
+    if (!isPublicUrl(url)) continue
+    if (seen.has(url)) continue
+    seen.add(url)
+    if (!isDocumentUrl(url)) continue
+
+    const filename = url.split('/').pop()?.split('?')[0] || url
+    links.push({ url, text: filename, context: '' })
+  }
+
+  return links.slice(0, MAX_DOCUMENTS)
+}
+
+/** Extract sub-page links that likely contain report downloads */
+function extractReportSubPages(html: string, baseUrl: string, firecrawlLinks: string[] = []): string[] {
   const subPages: string[] = []
   const seen = new Set<string>()
+
+  const reportPagePattern = /\b(reports?|publications?|financial-reports?|annual-reports?|downloads?|documents?|filings?|results?|presentations?|ergebnis|berichte?|geschaeftsbericht|geschaeftsbericht|rapports?|comptes|resultats?)\b/i
+
+  // From HTML
   const hrefRegex = /href=["']([^"']+)["'][^>]*>([^<]*)/gi
   let match: RegExpExecArray | null
-
-  // Patterns that indicate a reports/publications sub-page (supports plurals)
-  const reportPagePattern = /\b(reports?|publications?|financial-reports?|annual-reports?|downloads?|documents?|filings?|results?|presentations?|ergebnis|berichte?|geschaeftsbericht)\b/i
 
   while ((match = hrefRegex.exec(html)) !== null) {
     let url = match[1]
@@ -126,25 +145,41 @@ function extractReportSubPages(html: string, baseUrl: string): string[] {
 
     if (!isPublicUrl(url)) continue
     if (seen.has(url)) continue
-    // Only follow links on the same domain
+
     try {
       const base = new URL(baseUrl)
       const target = new URL(url)
       if (base.hostname !== target.hostname) continue
     } catch { continue }
 
-    // Skip downloadable files — we want HTML pages
     if (/\.(pdf|xlsx|xls|pptx|ppt|docx|doc|zip|jpg|png|gif|svg|css|js)(\?|$)/i.test(url)) continue
 
-    // Check if URL or link text suggests a reports page
     if (reportPagePattern.test(url) || reportPagePattern.test(text)) {
       seen.add(url)
       subPages.push(url)
     }
   }
 
-  // Limit to 3 sub-pages to control Firecrawl credit usage
-  return subPages.slice(0, 3)
+  // Also check Firecrawl links for report sub-pages
+  for (const url of firecrawlLinks) {
+    if (seen.has(url)) continue
+    if (!isPublicUrl(url)) continue
+    if (/\.(pdf|xlsx|xls|pptx|ppt|docx|doc|zip|jpg|png|gif|svg|css|js)(\?|$)/i.test(url)) continue
+
+    try {
+      const base = new URL(baseUrl)
+      const target = new URL(url)
+      if (base.hostname !== target.hostname) continue
+    } catch { continue }
+
+    if (reportPagePattern.test(url)) {
+      seen.add(url)
+      subPages.push(url)
+    }
+  }
+
+  // Limit to 5 sub-pages (up from 3)
+  return subPages.slice(0, 5)
 }
 
 /** Extract file format from URL */
@@ -159,7 +194,7 @@ async function classifyDocuments(
   companyName: string,
   apiKey: string,
 ): Promise<{ classified: ClassifiedDocument[]; usage: { input_tokens: number; output_tokens: number } }> {
-  const documentList = documents.map((d, i) => `${i + 1}. URL: ${d.url}\n   Link text: ${d.text}\n   Context: ${d.context}`).join('\n\n')
+  const documentList = documents.map((d, i) => `${i + 1}. URL: ${d.url}\n   Link text: ${d.text}${d.context ? `\n   Context: ${d.context}` : ''}`).join('\n\n')
 
   const prompt = `You are analyzing the investor relations page of "${companyName}".
 Below is a list of document links found on their IR page. For each document, classify it and extract metadata.
@@ -169,12 +204,14 @@ ${documentList}
 
 For each document, return a JSON object with:
 - "index": the document number (1-based)
-- "title": a clean, human-readable title (use link text if good, otherwise derive from URL)
+- "title": a clean, human-readable title (e.g. "Annual Report 2024", "Q3 2024 Results")
 - "document_type": one of: "annual_report", "quarterly_report", "half_year_report", "sustainability_report", "investor_presentation", "press_release", "financial_statements", "conference_call", "factsheet", "consensus", "other"
 - "fiscal_year": the fiscal year as integer (e.g. 2025), or null if unclear
 - "fiscal_quarter": quarter number 1-4 for quarterly reports, or null
 - "language": ISO 639-1 code (e.g. "en", "de", "fr"), or null
 - "confidence": 0.0 to 1.0 — how confident you are in the classification
+
+IMPORTANT: Be generous with classification. If the URL contains "annual" or "geschaeftsbericht" or "rapport-annuel", classify as "annual_report" even if the link text is generic. Prefer "annual_report" for full-year comprehensive reports.
 
 Return a JSON array of objects. Only valid JSON, no markdown.`
 
@@ -242,13 +279,70 @@ Return a JSON array of objects. Only valid JSON, no markdown.`
   return { classified, usage }
 }
 
+/** Scrape a page via Firecrawl and return HTML + links */
+async function scrapeWithFirecrawl(
+  url: string,
+  firecrawlKey: string,
+): Promise<{ html: string; links: string[]; markdown: string; sourceUrl: string } | null> {
+  try {
+    const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firecrawlKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['html', 'links'],
+        waitFor: 3000,
+      }),
+      signal: AbortSignal.timeout(20000),
+    })
+
+    if (!res.ok) {
+      console.error(`[scan-ir-page] Firecrawl ${res.status} for ${url}`)
+      return null
+    }
+
+    const data = await res.json()
+    return {
+      html: data.data?.html ?? '',
+      links: data.data?.links ?? [],
+      markdown: data.data?.markdown ?? '',
+      sourceUrl: data.data?.metadata?.sourceURL ?? url,
+    }
+  } catch (err) {
+    console.error(`[scan-ir-page] Firecrawl error for ${url}:`, (err as Error).message)
+    return null
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(req) })
   }
 
   try {
-    const { user, adminClient } = await authenticateRequest(req)
+    // Support both user JWT (frontend) and service_role key (server-to-server from suggest-ir-url)
+    const sbUrl = Deno.env.get('SUPABASE_URL')!
+    const sbServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const token = authHeader.replace('Bearer ', '')
+
+    let userId: string
+    let adminClient: ReturnType<typeof createClient>
+
+    if (token === sbServiceKey) {
+      // Service-role call (from suggest-ir-url auto-trigger) — no user context
+      userId = 'system'
+      adminClient = createClient(sbUrl, sbServiceKey)
+    } else {
+      // Normal user JWT call
+      const auth = await authenticateRequest(req)
+      userId = auth.user.id
+      adminClient = auth.adminClient
+    }
+
     const { company_id } = await req.json()
 
     if (!company_id) {
@@ -274,152 +368,216 @@ serve(async (req: Request) => {
       return jsonResponse({ error: 'IR page URL is not a valid public URL' }, 400)
     }
 
-    // Fetch IR page HTML
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY')
-    let pageContent: string
+    let allDocumentLinks: DocumentLink[] = []
+    const subPagesCrawled: string[] = []
+    let firecrawlCreditsUsed = 0
+
+    // Step 1: Scrape IR landing page
+    let pageHtml = ''
+    let pageLinks: string[] = []
     let pageUrl = company.ir_page_url
 
     if (firecrawlKey) {
-      // Use Firecrawl for JS-rendered pages
-      const scrapeRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${firecrawlKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: company.ir_page_url,
-          formats: ['html'],
-          waitFor: 3000,
-        }),
-      })
+      const result = await scrapeWithFirecrawl(company.ir_page_url, firecrawlKey)
+      firecrawlCreditsUsed++
+      // Log usage (non-critical)
+      adminClient.from('api_request_logs').insert({
+        service: 'firecrawl', endpoint: '/v1/scrape', call_count: 1,
+        user_id: userId, edge_function: 'scan-ir-page',
+      }).then(({ error }) => { if (error) console.error('Log error:', error.message) })
 
-      if (scrapeRes.ok) {
-        const scrapeData = await scrapeRes.json()
-        pageContent = scrapeData.data?.html ?? ''
-        pageUrl = scrapeData.data?.metadata?.sourceURL ?? company.ir_page_url
+      if (result) {
+        pageHtml = result.html
+        pageLinks = result.links
+        pageUrl = result.sourceUrl
+      }
+    }
 
-        // Log Firecrawl usage
-        try {
-          await adminClient.from('api_request_logs').insert({
-            service: 'firecrawl',
-            endpoint: '/v1/scrape',
-            call_count: 1,
-            user_id: user.id,
-            edge_function: 'scan-ir-page',
-          })
-        } catch { /* non-blocking */ }
-      } else {
-        // Fallback to direct fetch
+    // Fallback to direct fetch if Firecrawl failed or unavailable
+    if (!pageHtml) {
+      try {
         const directRes = await fetch(company.ir_page_url, {
           headers: { 'User-Agent': 'Valrano/1.0 (IR Document Catalog)' },
           signal: AbortSignal.timeout(15000),
+          redirect: 'follow',
         })
-        pageContent = await directRes.text()
+        pageHtml = await directRes.text()
+      } catch (err) {
+        console.error(`[scan-ir-page] Direct fetch failed:`, (err as Error).message)
       }
-    } else {
-      // No Firecrawl — direct fetch
-      const directRes = await fetch(company.ir_page_url, {
-        headers: { 'User-Agent': 'Valrano/1.0 (IR Document Catalog)' },
-        signal: AbortSignal.timeout(15000),
-      })
-      pageContent = await directRes.text()
     }
 
-    if (!pageContent) {
-      return jsonResponse({ error: 'Failed to fetch IR page content' }, 502)
+    if (!pageHtml && pageLinks.length === 0) {
+      const metadata = {
+        last_scan_at: new Date().toISOString(),
+        items_found: 0,
+        reason: 'Failed to fetch IR page content',
+        annual_report_years: [],
+        fiscal_years_found: [],
+      }
+      await adminClient.from('companies').update({ ir_scan_metadata: metadata }).eq('id', company_id)
+      return jsonResponse({ success: true, items_found: 0, items_new: 0, items_updated: 0, message: 'Failed to fetch IR page content' })
     }
 
-    // Extract document links
-    let documentLinks = extractDocumentLinks(pageContent, pageUrl)
+    // Step 2: Extract document links from BOTH HTML and Firecrawl links
+    const htmlDocLinks = extractDocumentLinks(pageHtml, pageUrl)
+    const fcDocLinks = extractDocumentLinksFromUrls(pageLinks)
 
-    // If no downloadable files on landing page, follow report sub-pages one level deeper
-    if (documentLinks.length === 0 && firecrawlKey) {
-      const subPages = extractReportSubPages(pageContent, pageUrl)
-      console.log(`[scan-ir-page] No PDFs on landing page, found ${subPages.length} report sub-pages to crawl`)
+    // Merge and deduplicate
+    const seenUrls = new Set<string>()
+    for (const link of [...htmlDocLinks, ...fcDocLinks]) {
+      if (!seenUrls.has(link.url)) {
+        seenUrls.add(link.url)
+        allDocumentLinks.push(link)
+      }
+    }
 
-      for (const subUrl of subPages) {
+    console.log(`[scan-ir-page] Landing page: ${allDocumentLinks.length} document links (${htmlDocLinks.length} from HTML, ${fcDocLinks.length} from Firecrawl links)`)
+
+    // Step 3: ALWAYS follow report sub-pages (2-level depth for sites like Sika)
+    const subPages = extractReportSubPages(pageHtml, pageUrl, pageLinks)
+    const subPagesSeen = new Set(subPages)
+    const level2SubPages: string[] = []
+    console.log(`[scan-ir-page] Found ${subPages.length} report sub-pages to crawl`)
+
+    for (const subUrl of subPages) {
+      if (allDocumentLinks.length >= MAX_DOCUMENTS) break
+      subPagesCrawled.push(subUrl)
+
+      if (firecrawlKey) {
+        const subResult = await scrapeWithFirecrawl(subUrl, firecrawlKey)
+        firecrawlCreditsUsed++
+        adminClient.from('api_request_logs').insert({
+          service: 'firecrawl', endpoint: '/v1/scrape', call_count: 1,
+          user_id: userId, edge_function: 'scan-ir-page',
+        }).then(({ error }) => { if (error) console.error('Log error:', error.message) })
+
+        if (subResult) {
+          const subHtmlLinks = extractDocumentLinks(subResult.html, subResult.sourceUrl)
+          const subFcLinks = extractDocumentLinksFromUrls(subResult.links)
+
+          for (const link of [...subHtmlLinks, ...subFcLinks]) {
+            if (!seenUrls.has(link.url) && allDocumentLinks.length < MAX_DOCUMENTS) {
+              seenUrls.add(link.url)
+              allDocumentLinks.push(link)
+            }
+          }
+
+          // Collect 2nd-level sub-pages (for sites with deep structure)
+          const deeper = extractReportSubPages(subResult.html, subResult.sourceUrl, subResult.links)
+          for (const d of deeper) {
+            if (!subPagesSeen.has(d) && level2SubPages.length < 3) {
+              subPagesSeen.add(d)
+              level2SubPages.push(d)
+            }
+          }
+
+          console.log(`[scan-ir-page] Sub-page ${subUrl}: +${subHtmlLinks.length + subFcLinks.length} links`)
+        }
+      } else {
+        // No Firecrawl — direct fetch
         try {
-          const subRes = await fetch('https://api.firecrawl.dev/v1/scrape', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${firecrawlKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ url: subUrl, formats: ['html'], waitFor: 3000 }),
+          const directRes = await fetch(subUrl, {
+            headers: { 'User-Agent': 'Valrano/1.0 (IR Document Catalog)' },
+            signal: AbortSignal.timeout(15000),
+            redirect: 'follow',
           })
+          const subHtml = await directRes.text()
+          const subLinks = extractDocumentLinks(subHtml, subUrl)
+          for (const link of subLinks) {
+            if (!seenUrls.has(link.url) && allDocumentLinks.length < MAX_DOCUMENTS) {
+              seenUrls.add(link.url)
+              allDocumentLinks.push(link)
+            }
+          }
 
-          if (subRes.ok) {
-            const subData = await subRes.json()
-            const subHtml = subData.data?.html ?? ''
-            const subBaseUrl = subData.data?.metadata?.sourceURL ?? subUrl
-            const subLinks = extractDocumentLinks(subHtml, subBaseUrl)
-            documentLinks.push(...subLinks)
-
-            try {
-              await adminClient.from('api_request_logs').insert({
-                service: 'firecrawl',
-                endpoint: '/v1/scrape',
-                call_count: 1,
-                user_id: user.id,
-                edge_function: 'scan-ir-page',
-              })
-            } catch { /* non-blocking */ }
+          // Collect 2nd-level sub-pages
+          const deeper = extractReportSubPages(subHtml, subUrl)
+          for (const d of deeper) {
+            if (!subPagesSeen.has(d) && level2SubPages.length < 3) {
+              subPagesSeen.add(d)
+              level2SubPages.push(d)
+            }
           }
         } catch (err) {
-          console.error(`[scan-ir-page] Sub-page scrape failed for ${subUrl}:`, (err as Error).message)
+          console.error(`[scan-ir-page] Sub-page fetch failed for ${subUrl}:`, (err as Error).message)
         }
-
-        // Stop once we have enough documents
-        if (documentLinks.length >= MAX_DOCUMENTS) break
       }
-
-      // Deduplicate by URL
-      const seen = new Set<string>()
-      documentLinks = documentLinks.filter(d => {
-        if (seen.has(d.url)) return false
-        seen.add(d.url)
-        return true
-      }).slice(0, MAX_DOCUMENTS)
     }
 
-    if (documentLinks.length === 0) {
-      return jsonResponse({
-        success: true,
-        items_found: 0,
-        items_new: 0,
-        items_updated: 0,
-        message: 'No document links found on the IR page or report sub-pages',
-      })
+    // Crawl 2nd-level sub-pages (max 3 to limit Firecrawl credits)
+    if (level2SubPages.length > 0 && allDocumentLinks.length < MAX_DOCUMENTS) {
+      console.log(`[scan-ir-page] Found ${level2SubPages.length} 2nd-level sub-pages`)
+      for (const subUrl of level2SubPages) {
+        if (allDocumentLinks.length >= MAX_DOCUMENTS) break
+        subPagesCrawled.push(subUrl)
+
+        if (firecrawlKey) {
+          const subResult = await scrapeWithFirecrawl(subUrl, firecrawlKey)
+          firecrawlCreditsUsed++
+          if (subResult) {
+            const subHtmlLinks = extractDocumentLinks(subResult.html, subResult.sourceUrl)
+            const subFcLinks = extractDocumentLinksFromUrls(subResult.links)
+            for (const link of [...subHtmlLinks, ...subFcLinks]) {
+              if (!seenUrls.has(link.url) && allDocumentLinks.length < MAX_DOCUMENTS) {
+                seenUrls.add(link.url)
+                allDocumentLinks.push(link)
+              }
+            }
+            console.log(`[scan-ir-page] 2nd-level ${subUrl}: +${subHtmlLinks.length + subFcLinks.length} links`)
+          }
+        } else {
+          try {
+            const directRes = await fetch(subUrl, {
+              headers: { 'User-Agent': 'Valrano/1.0 (IR Document Catalog)' },
+              signal: AbortSignal.timeout(15000),
+              redirect: 'follow',
+            })
+            const subHtml = await directRes.text()
+            const subLinks = extractDocumentLinks(subHtml, subUrl)
+            for (const link of subLinks) {
+              if (!seenUrls.has(link.url) && allDocumentLinks.length < MAX_DOCUMENTS) {
+                seenUrls.add(link.url)
+                allDocumentLinks.push(link)
+              }
+            }
+          } catch (err) {
+            console.error(`[scan-ir-page] 2nd-level fetch failed for ${subUrl}:`, (err as Error).message)
+          }
+        }
+      }
     }
 
-    // Classify documents with Gemini
+    console.log(`[scan-ir-page] Total: ${allDocumentLinks.length} document links after sub-page crawl`)
+
+    // Step 4: Classify with Gemini
     const geminiKey = Deno.env.get('GOOGLE_AI_API_KEY')
     let classifiedDocs: ClassifiedDocument[]
+    let totalInputTokens = 0
+    let totalOutputTokens = 0
 
-    if (geminiKey) {
-      const result = await classifyDocuments(documentLinks, company.name, geminiKey)
+    if (geminiKey && allDocumentLinks.length > 0) {
+      const result = await classifyDocuments(allDocumentLinks, company.name, geminiKey)
       classifiedDocs = result.classified
+      totalInputTokens = result.usage.input_tokens
+      totalOutputTokens = result.usage.output_tokens
 
-      // Log AI usage
       await logAnthropicUsage('Valrano', 'scan-ir-page', {
         model: GEMINI_MODEL,
         usage: result.usage,
       })
 
-      // Track in ai_usage table
-      try {
-        await adminClient.from('ai_usage').insert({
-          user_id: user.id,
-          feature: 'scan_ir_page',
-          model_used: GEMINI_MODEL,
-          input_tokens: result.usage.input_tokens,
-          output_tokens: result.usage.output_tokens,
-        })
-      } catch { /* non-blocking */ }
-    } else {
-      // No Gemini key — store unclassified
-      classifiedDocs = documentLinks.map((d) => ({
+      // Track in ai_usage (non-critical)
+      adminClient.from('ai_usage').insert({
+        user_id: userId,
+        feature: 'scan_ir_page',
+        model_used: GEMINI_MODEL,
+        input_tokens: result.usage.input_tokens,
+        output_tokens: result.usage.output_tokens,
+      }).then(({ error }) => { if (error) console.error('AI usage log error:', error.message) })
+    } else if (allDocumentLinks.length > 0) {
+      classifiedDocs = allDocumentLinks.map((d) => ({
         url: d.url,
         title: d.text,
         document_type: 'other',
@@ -428,9 +586,11 @@ serve(async (req: Request) => {
         language: null,
         confidence: 0,
       }))
+    } else {
+      classifiedDocs = []
     }
 
-    // Get file sizes via HEAD requests (parallel, with timeout)
+    // Step 5: Get file sizes via HEAD (parallel)
     const fileSizes = await Promise.allSettled(
       classifiedDocs.map(async (doc) => {
         try {
@@ -446,7 +606,7 @@ serve(async (req: Request) => {
       }),
     )
 
-    // Clean up stale non-document entries (e.g. navigation links from earlier scans)
+    // Step 6: Clean stale entries and upsert
     await adminClient
       .from('ir_catalog_items')
       .delete()
@@ -454,7 +614,6 @@ serve(async (req: Request) => {
       .is('file_format', null)
       .eq('is_downloaded', false)
 
-    // Upsert into ir_catalog_items
     let itemsNew = 0
     let itemsUpdated = 0
 
@@ -482,23 +641,61 @@ serve(async (req: Request) => {
         .upsert(row, { onConflict: 'company_id,url_hash', ignoreDuplicates: false })
 
       if (!upsertErr) {
-        // 201 = new row, 200 = updated
         if (status === 201) itemsNew++
         else itemsUpdated++
       }
     }
+
+    // Step 7: Store scan metadata on company for UI explanations
+    const annualReportYears = classifiedDocs
+      .filter(d => d.document_type === 'annual_report' && d.fiscal_year)
+      .map(d => d.fiscal_year!)
+      .sort((a, b) => b - a)
+
+    const allFiscalYears = [...new Set(
+      classifiedDocs
+        .filter(d => d.fiscal_year)
+        .map(d => d.fiscal_year!)
+    )].sort((a, b) => b - a)
+
+    let reason: string
+    if (classifiedDocs.length === 0) {
+      reason = 'No downloadable documents found on the IR page or report sub-pages. The page may use a document portal or require JavaScript interaction.'
+    } else if (annualReportYears.length === 0) {
+      reason = `${classifiedDocs.length} documents found but none classified as annual reports. Found document types: ${[...new Set(classifiedDocs.map(d => d.document_type))].join(', ')}.`
+    } else {
+      reason = `${classifiedDocs.length} documents found. Annual reports available for: FY${annualReportYears.join(', FY')}.`
+    }
+
+    const metadata = {
+      last_scan_at: new Date().toISOString(),
+      items_found: classifiedDocs.length,
+      items_new: itemsNew,
+      annual_report_years: annualReportYears,
+      fiscal_years_found: allFiscalYears,
+      reason,
+      sub_pages_crawled: subPagesCrawled,
+      firecrawl_credits_used: firecrawlCreditsUsed,
+    }
+
+    await adminClient
+      .from('companies')
+      .update({ ir_scan_metadata: metadata })
+      .eq('id', company_id)
 
     return jsonResponse({
       success: true,
       items_found: classifiedDocs.length,
       items_new: itemsNew,
       items_updated: itemsUpdated,
+      annual_report_years: annualReportYears,
+      reason,
     })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     const stack = err instanceof Error ? err.stack : ''
     console.error('[scan-ir-page] Error:', msg, stack)
-    // Return detailed error for debugging (not just "Internal server error")
+    await logError('scan-ir-page', 'scan', err instanceof Error ? err : new Error(msg), { company_id: 'unknown' }).catch(() => {})
     return new Response(
       JSON.stringify({ error: `IR page scan failed: ${msg}` }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
