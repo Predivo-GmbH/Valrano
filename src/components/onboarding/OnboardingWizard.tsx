@@ -14,6 +14,7 @@ import {
   Search,
   Sparkles,
   Upload,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -1393,22 +1394,27 @@ function StepReports({
     )
   }
 
-  // Dynamic status line (shown below the explanation)
-  const statusLine = (() => {
-    if (scanningCount === selectedCompanies.length && !timedOut) {
-      return `Scanning competitor IR pages for FY${userFiscalYear} annual reports...`
+  // Pipeline step index per status (for the stepper visualization)
+  const PIPELINE_STEPS = ['Website', 'IR Page', 'Reports'] as const
+  const getStepStates = (status: ReturnType<typeof getCompanyStatus>) => {
+    // Returns [website, irPage, reports] — each: 'done' | 'active' | 'failed' | 'pending'
+    type StepState = 'done' | 'active' | 'failed' | 'pending'
+    switch (status) {
+      case 'resolving': return ['active', 'pending', 'pending'] as StepState[]
+      case 'discovering_ir': return ['done', 'active', 'pending'] as StepState[]
+      case 'scanning_reports': return ['done', 'done', 'active'] as StepState[]
+      case 'found': return ['done', 'done', 'done'] as StepState[]
+      case 'downloaded': return ['done', 'done', 'done'] as StepState[]
+      case 'no_report': return ['done', 'done', 'failed'] as StepState[]
+      case 'no_ir_page': return ['done', 'failed', 'pending'] as StepState[]
+      default: return ['pending', 'pending', 'pending'] as StepState[]
     }
-    if (scanningCount > 0 && !timedOut) {
-      return `Scanning IR pages... (${completedCount} of ${selectedCompanies.length} complete)`
-    }
-    if (matchCount > 0 && noReportCount > 0) {
-      return `Found ${matchCount} FY${userFiscalYear} annual report${matchCount !== 1 ? 's' : ''}. ${noReportCount} competitor${noReportCount !== 1 ? 's' : ''} had no matching report.`
-    }
-    if (matchCount > 0) {
-      return `Found ${matchCount} FY${userFiscalYear} annual report${matchCount !== 1 ? 's' : ''} ready to download and analyze.`
-    }
-    return null
-  })()
+  }
+
+  // Compute overall progress percentage
+  const progressPercent = selectedCompanies.length > 0
+    ? Math.round((completedCount / selectedCompanies.length) * 100)
+    : 0
 
   return (
     <div className="space-y-6">
@@ -1416,41 +1422,60 @@ function StepReports({
       <div>
         <h2 className="text-[22px] font-semibold text-foreground">Analyze Competitor Reports</h2>
         <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed max-w-2xl">
-          To benchmark your company against competitors, Valrano needs their annual reports.
-          We automatically try to find each competitor's <span className="text-foreground font-medium">Investor Relations page</span> and
-          scan it for FY{userFiscalYear} reports that can be downloaded and analyzed.
+          Valrano automatically discovers each competitor's Investor Relations page and scans it for
+          FY{userFiscalYear} annual reports. This runs in the background — you can continue or skip this step.
         </p>
       </div>
 
-      {/* Status + Download All */}
-      {(statusLine || matchCount > 0) && (
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 text-[12px]">
-            {statusLine && (
-              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                {scanningCount > 0 && !timedOut && <Loader2 className="h-3 w-3 animate-spin" />}
-                {statusLine}
+      {/* Overall progress bar */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-[12px]">
+          <span className="text-muted-foreground">
+            {scanningCount > 0 && !timedOut ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Analyzing {selectedCompanies.length} competitor{selectedCompanies.length !== 1 ? 's' : ''}...
+              </span>
+            ) : (
+              <span>
+                {matchCount > 0
+                  ? `${matchCount} report${matchCount !== 1 ? 's' : ''} found`
+                  : 'Analysis complete'}
+                {noReportCount > 0 && ` · ${noReportCount} not found`}
               </span>
             )}
-          </div>
-          {matchCount > 0 && (
-            <button
-              onClick={handleDownloadAll}
-              disabled={downloadMutation.isPending}
-              className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)]/10 px-4 py-2.5 text-[12px] font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors disabled:opacity-40 flex-shrink-0"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Download All ({matchCount})
-            </button>
-          )}
+          </span>
+          <span className="text-muted-foreground/70 tabular-nums">{completedCount}/{selectedCompanies.length} complete</span>
+        </div>
+        <div className="h-1.5 rounded-full bg-border/50 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-700 ease-out"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Download All button (when reports are available) */}
+      {matchCount > 0 && (
+        <div className="flex justify-end">
+          <button
+            onClick={handleDownloadAll}
+            disabled={downloadMutation.isPending}
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)]/10 px-4 py-2.5 text-[12px] font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors disabled:opacity-40"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download All ({matchCount})
+          </button>
         </div>
       )}
 
-      {/* Per-company cards */}
+      {/* Per-company cards with pipeline stepper */}
       <div className="space-y-3">
+        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{selectedCompanies.length} competitor{selectedCompanies.length !== 1 ? 's' : ''}</p>
         {companyCatalog.map((entry) => {
           const { company, matchingAnnual, otherAnalyzable } = entry
           const status = getCompanyStatus(entry)
+          const stepStates = getStepStates(status)
 
           return (
           <div
@@ -1462,6 +1487,7 @@ function StepReports({
                 : 'border-border bg-card',
             )}
           >
+            {/* Company name row */}
             <div className="flex items-center gap-3">
               <CompanyLogo
                 logoUrl={company.logo_url}
@@ -1471,24 +1497,9 @@ function StepReports({
               />
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-medium text-foreground truncate">{company.name}</p>
-                <p className="text-[11px] text-muted-foreground/60">
-                  {status === 'resolving' && 'Resolving website...'}
-                  {status === 'discovering_ir' && 'Discovering IR page...'}
-                  {status === 'scanning_reports' && 'Scanning for reports...'}
-                  {status === 'found' && 'IR page found'}
-                  {status === 'downloaded' && 'Report downloaded'}
-                  {status === 'no_report' && (company.ir_page_url ? `IR page found — no FY${userFiscalYear} annual report detected` : 'IR page could not be detected automatically')}
-                  {status === 'no_ir_page' && 'IR page could not be detected automatically'}
-                </p>
               </div>
 
-              {/* Status / Action */}
-              {(status === 'resolving' || status === 'discovering_ir' || status === 'scanning_reports') && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/60">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  {status === 'resolving' ? 'Resolving...' : status === 'discovering_ir' ? 'Discovering...' : 'Scanning...'}
-                </span>
-              )}
+              {/* Action buttons (right side) */}
               {status === 'downloaded' && (
                 <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
                   <Check className="h-3 w-3" />
@@ -1523,6 +1534,59 @@ function StepReports({
                   Enter IR page URL
                 </button>
               )}
+            </div>
+
+            {/* Pipeline stepper */}
+            <div className="mt-3 ml-10 flex items-center gap-0">
+              {PIPELINE_STEPS.map((label, i) => {
+                const state = stepStates[i]
+                return (
+                  <div key={label} className="flex items-center">
+                    {/* Step indicator */}
+                    <div className="flex items-center gap-1.5">
+                      <div className={cn(
+                        'flex items-center justify-center rounded-full transition-colors',
+                        state === 'done' && 'h-4 w-4 bg-emerald-500/20',
+                        state === 'active' && 'h-4 w-4 bg-[var(--color-accent)]/20',
+                        state === 'failed' && 'h-4 w-4 bg-red-500/20',
+                        state === 'pending' && 'h-4 w-4 bg-border/50',
+                      )}>
+                        {state === 'done' && <Check className="h-2.5 w-2.5 text-emerald-600 dark:text-emerald-400" />}
+                        {state === 'active' && <Loader2 className="h-2.5 w-2.5 animate-spin text-[var(--color-accent)]" />}
+                        {state === 'failed' && <X className="h-2.5 w-2.5 text-red-500" />}
+                        {state === 'pending' && <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />}
+                      </div>
+                      <span className={cn(
+                        'text-[10px]',
+                        state === 'done' && 'text-emerald-600 dark:text-emerald-400',
+                        state === 'active' && 'text-[var(--color-accent)]',
+                        state === 'failed' && 'text-red-500',
+                        state === 'pending' && 'text-muted-foreground/40',
+                      )}>
+                        {label}
+                      </span>
+                    </div>
+                    {/* Connector line between steps */}
+                    {i < PIPELINE_STEPS.length - 1 && (
+                      <div className={cn(
+                        'mx-2 h-px w-6',
+                        stepStates[i + 1] !== 'pending' ? 'bg-emerald-500/40' : 'bg-border/50',
+                      )} />
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Status description after stepper */}
+              <span className="ml-auto text-[10px] text-muted-foreground/60">
+                {status === 'resolving' && 'Looking up company website...'}
+                {status === 'discovering_ir' && 'Crawling website for IR page...'}
+                {status === 'scanning_reports' && 'Checking IR page for annual reports...'}
+                {status === 'found' && `FY${userFiscalYear} annual report available`}
+                {status === 'downloaded' && 'Report downloaded & analysis started'}
+                {status === 'no_report' && `No FY${userFiscalYear} report found`}
+                {status === 'no_ir_page' && 'IR page not detected'}
+              </span>
             </div>
 
             {/* IR URL input field */}
@@ -1587,11 +1651,11 @@ function StepReports({
           </li>
           <li className="flex items-start gap-2">
             <Upload className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground/60" />
-            <span>You can also <span className="text-foreground">upload reports manually</span> for any competitor from the Competitors page — useful if the IR page wasn't found or you have the PDF already.</span>
+            <span>You can also <span className="text-foreground">upload reports manually</span> for any competitor from the Competitors page.</span>
           </li>
           <li className="flex items-start gap-2">
             <Calendar className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground/60" />
-            <span>No reports yet? No problem — you can <span className="text-foreground">skip this step</span> and add IR pages or upload reports at any time. Benchmarking becomes available as soon as reports are analyzed.</span>
+            <span>No reports yet? <span className="text-foreground">Skip this step</span> — you can add IR pages or upload reports at any time.</span>
           </li>
         </ul>
       </div>
