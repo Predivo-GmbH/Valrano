@@ -68,7 +68,12 @@ serve(async (req: Request) => {
     if (!isPublicUrl(report.source_url)) {
       return jsonResponse({ error: 'Source URL targets a private/reserved network' }, 400)
     }
-    const pdfResponse = await fetch(report.source_url)
+    const pdfResponse = await fetch(report.source_url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'application/pdf,*/*',
+      },
+    })
     if (!pdfResponse.ok) {
       throw new Error(`PDF fetch failed: ${pdfResponse.status} ${pdfResponse.statusText}`)
     }

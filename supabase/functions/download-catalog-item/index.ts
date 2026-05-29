@@ -98,40 +98,22 @@ serve(async (req: Request) => {
       })
       .eq('id', catalog_item_id)
 
-    // Trigger pipeline-orchestrator with user's JWT (service_role tokens are rejected
-    // by authenticateRequest — Supabase gateway modifies them)
-    const sbUrl = Deno.env.get('SUPABASE_URL')!
-
-    const pipelineRes = await fetch(
-      `${sbUrl}/functions/v1/pipeline-orchestrator`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': authHeader,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          report_id: report.id,
-          user_id: user.id,
-          skip_benchmark: true,
-        }),
-      },
-    )
-
-    const pipelineOk = pipelineRes.ok
-    let pipelineData = null
-    try {
-      pipelineData = await pipelineRes.json()
-    } catch {
-      // Ignore parse errors
-    }
+    // Trigger pipeline-orchestrator asynchronously via pg_net.
+    // pg_net sends the HTTP request from Postgres, independent of this function's lifecycle.
+    // This avoids the 150s idle timeout that kills long-running synchronous pipeline chains.
+    const token = authHeader.replace('Bearer ', '')
+    const { error: rpcError } = await adminClient.rpc('fire_edge_function', {
+      p_function_name: 'pipeline-orchestrator',
+      p_body: { report_id: report.id },
+      p_auth_token: token,
+    })
 
     return jsonResponse({
       success: true,
       report_id: report.id,
       catalog_item_id,
-      pipeline_triggered: pipelineOk,
-      pipeline_status: pipelineData?.pipeline_status ?? (pipelineOk ? 'started' : 'failed'),
+      pipeline_triggered: !rpcError,
+      pipeline_status: rpcError ? 'failed' : 'started',
     })
   } catch (err) {
     return errorResponse(err)
