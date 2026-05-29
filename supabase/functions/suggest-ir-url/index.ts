@@ -310,6 +310,17 @@ If no sitemap, construct the most likely URL based on common patterns (confidenc
       }
     }
 
+    // High-confidence sitemap matches are already verified by Firecrawl crawling
+    // the actual website — corporate WAFs often block HEAD/GET from datacenter IPs
+    // but the URL is valid. Trust the sitemap match if confidence >= 0.85.
+    if (!validatedUrl && suggestion.source === 'sitemap_match' && suggestion.confidence >= 0.85) {
+      const candidateUrl = suggestion.ir_page_url
+      if (isPublicUrl(candidateUrl)) {
+        console.log(`[suggest-ir-url] Validation failed but trusting high-confidence sitemap match: ${candidateUrl}`)
+        validatedUrl = candidateUrl
+      }
+    }
+
     // ------------------------------------------------------------------
     // 6. Store on company if validated + trigger IR catalog scan
     // ------------------------------------------------------------------

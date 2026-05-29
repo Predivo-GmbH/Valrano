@@ -44,13 +44,6 @@ const STEPS = [
   { id: 'schedule', label: 'Publication Schedule', icon: Calendar },
 ] as const
 
-const ANALYZABLE_TYPES = new Set([
-  'annual_report',
-  'quarterly_report',
-  'half_year_report',
-  'sustainability_report',
-  'financial_statements',
-])
 
 // ---------------------------------------------------------------------------
 // Main Wizard
@@ -1297,6 +1290,61 @@ function StepReports({
   const [irUrlInputs, setIrUrlInputs] = useState<Record<string, string>>({})
   const [showIrUrlInput, setShowIrUrlInput] = useState<Set<string>>(new Set())
 
+  // Pipeline progress tracking per company (after download triggers analysis)
+  type AnalysisState = { reportId: string; step: 'downloading' | 'extracting' | 'normalizing' | 'generating' | 'complete'; progress: number }
+  const [analyzingCompanies, setAnalyzingCompanies] = useState<Record<string, AnalysisState>>({})
+
+  const ANALYSIS_STEPS = [
+    { key: 'downloading', label: 'Downloading report' },
+    { key: 'extracting', label: 'Extracting KPIs' },
+    { key: 'normalizing', label: 'Normalizing values' },
+    { key: 'generating', label: 'Generating benchmark' },
+  ] as const
+
+  const ANALYSIS_PROGRESS: Record<string, number> = {
+    downloading: 10,
+    extracting: 35,
+    normalizing: 60,
+    generating: 80,
+    complete: 100,
+  }
+
+  // Poll report status for companies with active analysis pipelines
+  useEffect(() => {
+    const activeReports = Object.entries(analyzingCompanies).filter(([, s]) => s.step !== 'complete')
+    if (activeReports.length === 0) return
+
+    const interval = setInterval(async () => {
+      for (const [companyId, state] of activeReports) {
+        const { data: report } = await supabase
+          .from('reports')
+          .select('status')
+          .eq('id', state.reportId)
+          .single()
+        if (!report) continue
+
+        let newStep: AnalysisState['step'] = state.step
+        if (report.status === 'pending') newStep = 'downloading'
+        else if (report.status === 'processing') newStep = 'extracting'
+        else if (report.status === 'extracted') newStep = 'normalizing'
+        else if (report.status === 'normalized' || report.status === 'benchmark_ready') newStep = 'generating'
+        else if (report.status === 'reviewed') newStep = 'complete'
+
+        if (newStep !== state.step) {
+          setAnalyzingCompanies(prev => ({
+            ...prev,
+            [companyId]: { ...prev[companyId], step: newStep, progress: ANALYSIS_PROGRESS[newStep] },
+          }))
+          if (newStep === 'complete') {
+            queryClient.invalidateQueries({ queryKey: ['ir-catalog'] })
+            queryClient.invalidateQueries({ queryKey: ['reports'] })
+          }
+        }
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [analyzingCompanies, queryClient])
+
   // Poll companies data every 10s while on this step (so ir_page_url/website_url updates appear)
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1313,13 +1361,8 @@ function StepReports({
     const matchingAnnual = items.find(
       item => item.document_type === 'annual_report' && item.fiscal_year === userFiscalYear
     )
-    const otherAnalyzable = items.filter(
-      item => ANALYZABLE_TYPES.has(item.document_type ?? '') &&
-        item.fiscal_year === userFiscalYear &&
-        item.document_type !== 'annual_report'
-    )
     const hasAnyItems = items.length > 0
-    return { company, matchingAnnual, otherAnalyzable, hasAnyItems, totalItems: items.length }
+    return { company, matchingAnnual, hasAnyItems, totalItems: items.length }
   })
 
   // Track elapsed time for timeout detection (re-renders every 30s)
@@ -1348,8 +1391,13 @@ function StepReports({
   const handleDownload = async (catalogItemId: string, companyId: string) => {
     setDownloadingIds(prev => new Set(prev).add(catalogItemId))
     try {
-      await downloadMutation.mutateAsync({ catalogItemId, companyId })
-      toast.success('Report downloaded — analysis pipeline started')
+      const result = await downloadMutation.mutateAsync({ catalogItemId, companyId })
+      if (result.report_id) {
+        setAnalyzingCompanies(prev => ({
+          ...prev,
+          [companyId]: { reportId: result.report_id, step: 'downloading', progress: ANALYSIS_PROGRESS['downloading'] },
+        }))
+      }
     } catch {
       // Error toast handled by mutation
     } finally {
@@ -1530,7 +1578,7 @@ function StepReports({
       <div className="space-y-3">
         <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{selectedCompanies.length} competitor{selectedCompanies.length !== 1 ? 's' : ''}</p>
         {companyCatalog.map((entry) => {
-          const { company, matchingAnnual, otherAnalyzable } = entry
+          const { company, matchingAnnual } = entry
           const status = getCompanyStatus(entry)
           const stepStates = getStepStates(status)
 
@@ -1557,10 +1605,16 @@ function StepReports({
               </div>
 
               {/* Action buttons (right side) */}
-              {status === 'downloaded' && (
+              {status === 'downloaded' && (!analyzingCompanies[company.id] || analyzingCompanies[company.id].step === 'complete') && (
                 <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
                   <Check className="h-3 w-3" />
-                  Downloaded
+                  Analyzed
+                </span>
+              )}
+              {status === 'downloaded' && analyzingCompanies[company.id] && analyzingCompanies[company.id].step !== 'complete' && (
+                <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-[var(--color-accent)] bg-[var(--color-accent)]/10">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Analyzing...
                 </span>
               )}
               {status === 'found' && matchingAnnual && (
@@ -1640,7 +1694,11 @@ function StepReports({
                 {status === 'discovering_ir' && 'Crawling website for IR page...'}
                 {status === 'scanning_reports' && 'Checking IR page for annual reports...'}
                 {status === 'found' && `FY${userFiscalYear} annual report available`}
-                {status === 'downloaded' && 'Report downloaded & analysis started'}
+                {status === 'downloaded' && (
+                  analyzingCompanies[company.id] && analyzingCompanies[company.id].step !== 'complete'
+                    ? 'Analysis in progress...'
+                    : 'Report analyzed'
+                )}
                 {status === 'no_report' && (
                   entry.company.ir_scan_metadata
                     ? `${entry.company.ir_scan_metadata.items_found} docs found · No FY${userFiscalYear} annual report`
@@ -1661,6 +1719,65 @@ function StepReports({
                     Available annual reports: {entry.company.ir_scan_metadata.annual_report_years.map(y => `FY${y}`).join(', ')}
                   </p>
                 )}
+              </div>
+            )}
+
+            {/* Analysis pipeline progress */}
+            {analyzingCompanies[company.id] && analyzingCompanies[company.id].step !== 'complete' && (
+              <div className="mt-3 ml-10 rounded-lg border border-[var(--color-accent)]/20 bg-[var(--color-accent)]/3 p-3 space-y-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Processing report...</span>
+                    <span className="tabular-nums">{analyzingCompanies[company.id].progress}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--color-accent)] transition-all duration-700 ease-out"
+                      style={{ width: `${analyzingCompanies[company.id].progress}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {ANALYSIS_STEPS.map((step, stepIdx) => {
+                    const currentStepIdx = ANALYSIS_STEPS.findIndex(s => s.key === analyzingCompanies[company.id].step)
+                    const isDone = stepIdx < currentStepIdx
+                    const isActive = stepIdx === currentStepIdx
+                    return (
+                      <div key={step.key} className="flex items-center gap-2.5">
+                        <div className={cn(
+                          'flex h-5 w-5 items-center justify-center rounded-full flex-shrink-0 transition-all duration-300',
+                          isDone ? 'bg-[var(--color-accent)] text-white' :
+                          isActive ? 'bg-[var(--color-accent)]/20 text-[var(--color-accent)]' :
+                          'bg-[var(--color-bg-tertiary)] text-muted-foreground/40',
+                        )}>
+                          {isDone ? (
+                            <Check className="h-3 w-3" />
+                          ) : isActive ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <span className="text-[9px] font-medium">{stepIdx + 1}</span>
+                          )}
+                        </div>
+                        <span className={cn(
+                          'text-[11px] transition-colors',
+                          isDone ? 'text-muted-foreground' :
+                          isActive ? 'text-foreground font-medium' :
+                          'text-muted-foreground/40',
+                        )}>
+                          {step.label}
+                        </span>
+                        <span className={cn(
+                          'ml-auto text-[9px] flex-shrink-0',
+                          isDone ? 'text-[var(--color-accent)]' :
+                          isActive ? 'text-muted-foreground' :
+                          'text-muted-foreground/30',
+                        )}>
+                          {isDone ? 'Done' : isActive ? '...' : ''}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
 
@@ -1690,27 +1807,6 @@ function StepReports({
               </div>
             )}
 
-            {/* Show other analyzable reports for this FY if any */}
-            {otherAnalyzable.length > 0 && (
-              <div className="mt-2 ml-10 flex flex-wrap gap-1.5">
-                {otherAnalyzable.map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => !item.is_downloaded && handleDownload(item.id, company.id)}
-                    disabled={item.is_downloaded || downloadingIds.has(item.id)}
-                    className={cn(
-                      'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium transition-colors',
-                      item.is_downloaded
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-[var(--color-bg-tertiary)] text-muted-foreground hover:bg-[var(--color-accent)]/10 hover:text-[var(--color-accent)]',
-                    )}
-                  >
-                    {item.is_downloaded ? <Check className="h-2.5 w-2.5" /> : <Download className="h-2.5 w-2.5" />}
-                    {(item.document_type ?? 'other').replace(/_/g, ' ')}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
           )
         })}
