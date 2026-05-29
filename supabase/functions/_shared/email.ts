@@ -188,14 +188,15 @@ export interface AuthEmailPayload {
 }
 
 function buildActionUrl(payload: AuthEmailPayload): string {
-  const { token_hash, email_action_type, redirect_to } = payload.email_data
+  const { token_hash, email_action_type, redirect_to, site_url } = payload.email_data
   const type = email_action_type === 'signup' ? 'signup' :
                email_action_type === 'recovery' ? 'recovery' :
                email_action_type === 'magiclink' ? 'magiclink' :
                email_action_type === 'email_change' ? 'email_change' :
                email_action_type
+  const supabaseUrl = site_url || Deno.env.get('SUPABASE_URL') || ''
   const redirectTo = redirect_to || APP_URL
-  return APP_URL + '/auth/confirm?token_hash=' + token_hash + '&type=' + type + '&redirect_to=' + encodeURIComponent(redirectTo)
+  return supabaseUrl + '/auth/v1/verify?token_hash=' + token_hash + '&type=' + type + '&redirect_to=' + encodeURIComponent(redirectTo)
 }
 
 export function getAuthEmailContent(payload: AuthEmailPayload): { subject: string; html: string } {
