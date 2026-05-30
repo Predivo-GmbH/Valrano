@@ -313,6 +313,13 @@ serve(async (req: Request) => {
     // --- Strategy 3: Jina Reader (free, handles 404s and many protected sites) ---
     console.log(`[download-report] Strategy 3: Jina Reader for ${report.source_url}`)
     const jinaResult = await jinaReader(report.source_url)
+    await adminClient.from('api_request_logs').insert({
+      service: 'jina',
+      endpoint: '/r.jina.ai',
+      call_count: 1,
+      user_id: user.id,
+      edge_function: 'download-report',
+    })
     if ('text' in jinaResult) {
       strategies.push(`jina: success (${jinaResult.text.length} chars)`)
       await adminClient.from('reports').update({
@@ -328,6 +335,13 @@ serve(async (req: Request) => {
     if (firecrawlKey) {
       console.log(`[download-report] Strategy 4: Firecrawl scrape for ${report.source_url}`)
       const fcResult = await firecrawlScrape(report.source_url, firecrawlKey)
+      await adminClient.from('api_request_logs').insert({
+        service: 'firecrawl',
+        endpoint: '/v1/scrape',
+        call_count: 1,
+        user_id: user.id,
+        edge_function: 'download-report',
+      })
       if ('text' in fcResult) {
         strategies.push(`firecrawl: success (${fcResult.text.length} chars)`)
         await adminClient.from('reports').update({
@@ -348,6 +362,13 @@ serve(async (req: Request) => {
     if (serpApiKey && companyName) {
       console.log(`[download-report] Strategy 5: SerpAPI mirror search for "${companyName}" "${reportTitle}"`)
       const mirrorResult = await serpApiMirrorSearch(report.source_url, companyName, reportTitle, serpApiKey)
+      await adminClient.from('api_request_logs').insert({
+        service: 'serpapi',
+        endpoint: '/search.json',
+        call_count: 1,
+        user_id: user.id,
+        edge_function: 'download-report',
+      })
       if ('pdf' in mirrorResult) {
         strategies.push(`mirror: success (PDF from ${mirrorResult.mirrorUrl})`)
         const storagePath = `${report.company_id}/${report_id}.pdf`
