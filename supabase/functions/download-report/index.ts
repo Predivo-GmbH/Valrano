@@ -84,7 +84,44 @@ async function directDownloadWithReferer(url: string): Promise<{ pdf: Uint8Array
   }
 }
 
-/** Strategy 3: Firecrawl browser-based scrape — extracts text from PDFs behind Cloudflare */
+/** Strategy 3: Jina Reader — free, handles 404s and many protected sites */
+async function jinaReader(url: string): Promise<{ text: string } | { error: string }> {
+  try {
+    const resp = await fetch(`https://r.jina.ai/${url}`, {
+      headers: {
+        'Accept': 'text/plain',
+        'X-Return-Format': 'markdown',
+        'X-Timeout': '60',
+      },
+      signal: AbortSignal.timeout(90000),
+    })
+
+    const text = await resp.text()
+
+    // Reject Cloudflare challenge pages
+    if (text.includes('Just a moment...') && text.includes('checking your browser')) {
+      return { error: 'Jina could not bypass Cloudflare protection' }
+    }
+    if (text.includes('Ray ID:') && text.length < 1000) {
+      return { error: 'Jina returned Cloudflare challenge page' }
+    }
+
+    // Reject error pages
+    if (text.includes('Target URL returned error') && text.length < 1000) {
+      return { error: `Jina: page returned error (${text.length} chars)` }
+    }
+
+    if (text.length < 500) {
+      return { error: `Jina returned insufficient content (${text.length} chars)` }
+    }
+
+    return { text }
+  } catch (err) {
+    return { error: `Jina error: ${(err as Error).message}` }
+  }
+}
+
+/** Strategy 4: Firecrawl browser-based scrape — extracts text from PDFs behind Cloudflare */
 async function firecrawlScrape(url: string, apiKey: string): Promise<{ text: string } | { error: string }> {
   try {
     const resp = await fetch('https://api.firecrawl.dev/v1/scrape', {
@@ -124,6 +161,71 @@ async function firecrawlScrape(url: string, apiKey: string): Promise<{ text: str
   }
 }
 
+/** Strategy 5: SerpAPI mirror search — find the same PDF on a different domain */
+async function serpApiMirrorSearch(
+  sourceUrl: string,
+  companyName: string,
+  reportTitle: string,
+  apiKey: string,
+): Promise<{ pdf: Uint8Array; mirrorUrl: string } | { text: string; mirrorUrl: string } | { error: string }> {
+  try {
+    const originalDomain = new URL(sourceUrl).hostname.replace('www.', '')
+    const query = `"${companyName}" "${reportTitle}" filetype:pdf -site:${originalDomain}`
+    const serpUrl = `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${apiKey}&engine=google&num=5`
+
+    const resp = await fetch(serpUrl, { signal: AbortSignal.timeout(15000) })
+    if (!resp.ok) {
+      return { error: `SerpAPI ${resp.status}` }
+    }
+
+    const data = await resp.json()
+    const results = data?.organic_results ?? []
+
+    if (results.length === 0) {
+      return { error: 'No mirror PDFs found via search' }
+    }
+
+    // Try fetching each mirror URL
+    for (const result of results.slice(0, 3)) {
+      const mirrorUrl = result.link
+      if (!mirrorUrl || !isPublicUrl(mirrorUrl)) continue
+
+      try {
+        const dlResp = await fetch(mirrorUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': 'application/pdf,*/*',
+          },
+          signal: AbortSignal.timeout(30000),
+        })
+
+        const buf = await dlResp.arrayBuffer()
+        const bytes = new Uint8Array(buf)
+        const hasMagic = bytes.length >= 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46
+
+        if (hasMagic) {
+          return { pdf: bytes, mirrorUrl }
+        }
+      } catch {
+        // Try next mirror
+      }
+    }
+
+    // If no PDF binary, try Jina on the first result
+    const firstMirror = results[0]?.link
+    if (firstMirror) {
+      const jinaResult = await jinaReader(firstMirror)
+      if ('text' in jinaResult) {
+        return { text: jinaResult.text, mirrorUrl: firstMirror }
+      }
+    }
+
+    return { error: `Tried ${Math.min(results.length, 3)} mirrors, none served a valid PDF` }
+  } catch (err) {
+    return { error: `Mirror search error: ${(err as Error).message}` }
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: getCorsHeaders(req) })
@@ -137,10 +239,10 @@ serve(async (req: Request) => {
       return jsonResponse({ error: 'Missing required field: report_id' }, 400)
     }
 
-    // 1. Load report with source_url
+    // 1. Load report with source_url and company name (for mirror search)
     const { data: report, error: reportError } = await adminClient
       .from('reports')
-      .select('id, company_id, source_url, status, pdf_storage_path, fallback_text')
+      .select('id, company_id, source_url, status, pdf_storage_path, fallback_text, report_type, fiscal_year, companies(name)')
       .eq('id', report_id)
       .single()
 
@@ -208,10 +310,23 @@ serve(async (req: Request) => {
     }
     strategies.push(`referer: ${withReferer.error}`)
 
-    // --- Strategy 3: Firecrawl (handles Cloudflare, JS redirects, bot protection) ---
+    // --- Strategy 3: Jina Reader (free, handles 404s and many protected sites) ---
+    console.log(`[download-report] Strategy 3: Jina Reader for ${report.source_url}`)
+    const jinaResult = await jinaReader(report.source_url)
+    if ('text' in jinaResult) {
+      strategies.push(`jina: success (${jinaResult.text.length} chars)`)
+      await adminClient.from('reports').update({
+        fallback_text: jinaResult.text,
+        status: 'processing',
+      }).eq('id', report_id)
+      return jsonResponse({ success: true, fallback_text_length: jinaResult.text.length, status: 'processing', strategy: 'jina' })
+    }
+    strategies.push(`jina: ${jinaResult.error}`)
+
+    // --- Strategy 4: Firecrawl (handles Cloudflare, JS redirects, bot protection) ---
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY')
     if (firecrawlKey) {
-      console.log(`[download-report] Strategy 3: Firecrawl scrape for ${report.source_url}`)
+      console.log(`[download-report] Strategy 4: Firecrawl scrape for ${report.source_url}`)
       const fcResult = await firecrawlScrape(report.source_url, firecrawlKey)
       if ('text' in fcResult) {
         strategies.push(`firecrawl: success (${fcResult.text.length} chars)`)
@@ -224,6 +339,37 @@ serve(async (req: Request) => {
       strategies.push(`firecrawl: ${fcResult.error}`)
     } else {
       strategies.push('firecrawl: FIRECRAWL_API_KEY not set')
+    }
+
+    // --- Strategy 5: SerpAPI mirror search (find same PDF on different domain) ---
+    const serpApiKey = Deno.env.get('SERPAPI_API_KEY')
+    const companyName = (report as any).companies?.name ?? ''
+    const reportTitle = `${report.fiscal_year ?? ''} ${report.report_type ?? 'annual report'}`.trim()
+    if (serpApiKey && companyName) {
+      console.log(`[download-report] Strategy 5: SerpAPI mirror search for "${companyName}" "${reportTitle}"`)
+      const mirrorResult = await serpApiMirrorSearch(report.source_url, companyName, reportTitle, serpApiKey)
+      if ('pdf' in mirrorResult) {
+        strategies.push(`mirror: success (PDF from ${mirrorResult.mirrorUrl})`)
+        const storagePath = `${report.company_id}/${report_id}.pdf`
+        const { error: uploadError } = await adminClient.storage
+          .from('reports')
+          .upload(storagePath, mirrorResult.pdf, { contentType: 'application/pdf', upsert: true })
+        if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`)
+
+        await adminClient.from('reports').update({ pdf_storage_path: storagePath, status: 'processing' }).eq('id', report_id)
+        return jsonResponse({ success: true, pdf_storage_path: storagePath, size_bytes: mirrorResult.pdf.length, status: 'processing', strategy: 'mirror' })
+      }
+      if ('text' in mirrorResult) {
+        strategies.push(`mirror: text fallback (${mirrorResult.text.length} chars from ${mirrorResult.mirrorUrl})`)
+        await adminClient.from('reports').update({
+          fallback_text: mirrorResult.text,
+          status: 'processing',
+        }).eq('id', report_id)
+        return jsonResponse({ success: true, fallback_text_length: mirrorResult.text.length, status: 'processing', strategy: 'mirror-text' })
+      }
+      strategies.push(`mirror: ${mirrorResult.error}`)
+    } else {
+      strategies.push(`mirror: ${!serpApiKey ? 'SERPAPI_API_KEY not set' : 'no company name'}`)
     }
 
     // All strategies failed
