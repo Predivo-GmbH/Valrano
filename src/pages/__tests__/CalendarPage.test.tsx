@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -68,6 +68,16 @@ vi.mock('@/hooks/useCalendar', () => ({
 }))
 
 import { CalendarPage } from '../CalendarPage'
+
+// Pin the date to May 2026 so hardcoded event dates are visible
+beforeEach(() => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-05-10T12:00:00'))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 function renderPage() {
   const queryClient = new QueryClient({
