@@ -15,7 +15,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
-  const { updatePassword, user } = useAuth()
+  const { updatePassword, signOut, user } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -40,6 +40,7 @@ export default function ResetPasswordPage() {
     setLoading(true)
     try {
       await updatePassword(password)
+      await signOut()
       setSuccess(true)
     } catch (err) {
       setError(friendlyAuthError(err, 'Failed to reset password'))
@@ -61,9 +62,9 @@ export default function ResetPasswordPage() {
           </div>
           <h1 className="text-2xl font-bold text-[var(--color-foreground)]">Password updated</h1>
           <p className="mt-2 text-sm text-[var(--color-muted-foreground)]">Your password has been reset successfully.</p>
-          <button onClick={() => navigate('/dashboard')}
+          <button onClick={() => navigate('/login')}
             className="mt-6 rounded-lg bg-[var(--color-accent)] px-6 py-2.5 text-sm font-medium text-white transition-all hover:brightness-110 hover:shadow-lg hover:shadow-[var(--color-accent)]/25 active:scale-[0.98]">
-            Go to Dashboard
+            Sign in
           </button>
         </div>
       ) : (
