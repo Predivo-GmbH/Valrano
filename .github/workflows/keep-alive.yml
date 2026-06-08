@@ -6,12 +6,34 @@ on:
   workflow_dispatch:
 
 jobs:
+  ping-production:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Production (real DB query via GraphQL)
+        run: |
+          echo "=== Production: GraphQL ping ==="
+          gql_response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/graphql/v1" \
+            -X POST \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"{ __typename }"}')
+          echo "Production GraphQL response: $gql_response"
+
+          if [ "$gql_response" != "200" ]; then
+            echo "::error::Production GraphQL ping returned $gql_response — database may be paused"
+            exit 1
+          fi
+
+          echo "Production Supabase pinged successfully"
+
   ping-staging:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Supabase Staging (real DB query via GraphQL)
         run: |
-          echo "=== GraphQL ping (real DB query via pg_graphql) ==="
+          echo "=== Staging: GraphQL ping ==="
           gql_response=$(curl -s -o /dev/null -w "%{http_code}" \
             "${{ secrets.SUPABASE_STAGING_URL }}/graphql/v1" \
             -X POST \
@@ -19,7 +41,7 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_STAGING_ANON_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{"query":"{ __typename }"}')
-          echo "GraphQL response: $gql_response"
+          echo "Staging GraphQL response: $gql_response"
 
           if [ "$gql_response" != "200" ]; then
             echo "::error::Staging GraphQL ping returned $gql_response — database may be paused"
