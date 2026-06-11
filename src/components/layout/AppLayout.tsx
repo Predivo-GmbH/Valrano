@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/contexts/ThemeContext'
 import { Sun, Moon, LayoutDashboard, Users, Settings, LogOut, User, Menu, X, BarChart3, FileBarChart, Building2 } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
 import { ChatPanel } from './ChatPanel'

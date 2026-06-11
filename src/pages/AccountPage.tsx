@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Helmet } from 'react-helmet-async'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/contexts/ThemeContext'
 import { User, Shield, CreditCard, SlidersHorizontal, Sun, Moon, Trash2, Eye, EyeOff, Check, KeyRound, Loader2, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ThemeProvider } from 'next-themes'
+import { ThemeProvider } from '@/contexts/ThemeContext'
 import { HelmetProvider } from 'react-helmet-async'
 import { RedirectIfAuthenticated } from '@/components/auth/RedirectIfAuthenticated'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -33,7 +33,7 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <HelmetProvider>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+      <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <ErrorBoundary>
