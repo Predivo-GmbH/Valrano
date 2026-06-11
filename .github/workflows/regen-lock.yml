@@ -1,0 +1,39 @@
+name: Regenerate Lock File (one-shot)
+
+# Manual fix for the @emnapi optional-dep lock drift that breaks `npm ci` on Linux.
+# The lock can only be regenerated correctly on the Linux runner that CI uses —
+# Windows npm resolves the wasm32-wasi @emnapi deps differently and produces a lock
+# that passes local `npm ci` but fails on Linux. Dispatch this once; it reconciles
+# package-lock.json on Linux (node 24) and commits it. Safe to delete afterward.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  regen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.13.0
+
+      - name: Reconcile package-lock.json on Linux
+        run: npm install --no-audit --no-fund
+
+      - name: Commit lock if changed
+        run: |
+          if git diff --quiet package-lock.json; then
+            echo "Lock already in sync — nothing to commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "fix(ci): reconcile package-lock.json on Linux (@emnapi sync for npm ci)"
+            git push
+            echo "Committed regenerated lock."
+          fi
