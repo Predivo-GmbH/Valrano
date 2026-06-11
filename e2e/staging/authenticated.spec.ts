@@ -389,9 +389,9 @@ test.describe('Onboarding Wizard', () => {
     await page.waitForURL('**/onboarding', { timeout: 10000 })
     expect(page.url()).toContain('/onboarding')
 
-    // Wizard should load
-    const body = await page.textContent('body')
-    expect(body).toContain('Accounting Framework')
+    // Wizard should load — auto-wait for the stepper (renders all step labels),
+    // immediate textContent races the wizard's data loading
+    await expect(page.getByText('Accounting Framework').first()).toBeVisible({ timeout: 15000 })
 
     await setOnboardingDismissed(page, true)
   })

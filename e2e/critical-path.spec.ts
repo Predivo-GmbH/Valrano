@@ -14,8 +14,11 @@ test.describe('Critical Path', () => {
   })
 
   test('unauthenticated redirect works', async ({ page }) => {
+    // First hit of the lazy AuthenticatedShell chunk — CI dev server compiles
+    // it on demand (both browser projects in parallel), which can exceed 30s
+    test.slow()
     await page.goto('/dashboard')
-    await page.waitForURL(/\/(login|auth)/)
+    await page.waitForURL(/\/(login|auth)/, { timeout: 60_000 })
     expect(page.url()).toMatch(/\/(login|auth)/)
   })
 
