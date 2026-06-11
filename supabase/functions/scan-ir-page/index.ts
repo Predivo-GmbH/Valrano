@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { getCorsHeaders, corsHeaders } from '../_shared/cors.ts'
-import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { authenticateRequest, AuthError, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 import { logError } from '../_shared/error-log.ts'
 
@@ -692,6 +692,9 @@ serve(async (req: Request) => {
       reason,
     })
   } catch (err) {
+    if (err instanceof AuthError) {
+      return errorResponse(err)
+    }
     const msg = err instanceof Error ? err.message : String(err)
     const stack = err instanceof Error ? err.stack : ''
     console.error('[scan-ir-page] Error:', msg, stack)

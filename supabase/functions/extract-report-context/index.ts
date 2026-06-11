@@ -26,7 +26,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
-    return errorResponse('POST only', 405)
+    return jsonResponse({ error: 'POST only' }, 405)
   }
 
   // Allow both JWT auth and service_role calls (from pipeline-orchestrator)
@@ -34,13 +34,16 @@ Deno.serve(async (req) => {
   const isServiceRole = authHeader === `Bearer ${SERVICE_ROLE_KEY}`
   let userId: string | null = null
   if (!isServiceRole) {
-    const authResult = await authenticateRequest(req)
-    if (!authResult) return errorResponse('Unauthorized', 401)
-    userId = authResult.user.id
+    try {
+      const authResult = await authenticateRequest(req)
+      userId = authResult.user.id
+    } catch (err) {
+      return errorResponse(err)
+    }
   }
 
   const { report_id } = await req.json().catch(() => ({ report_id: null }))
-  if (!report_id) return errorResponse('report_id required', 400)
+  if (!report_id) return jsonResponse({ error: 'report_id required' }, 400)
 
   // Load report + company
   const { data: report } = await admin
@@ -49,8 +52,8 @@ Deno.serve(async (req) => {
     .eq('id', report_id)
     .single()
 
-  if (!report) return errorResponse('Report not found', 404)
-  if (!report.pdf_storage_path) return errorResponse('No PDF uploaded for this report', 400)
+  if (!report) return jsonResponse({ error: 'Report not found' }, 404)
+  if (!report.pdf_storage_path) return jsonResponse({ error: 'No PDF uploaded for this report' }, 400)
 
   // Data isolation: get user's visible company IDs
   let visibleIdSet: Set<string> | null = null
@@ -59,7 +62,7 @@ Deno.serve(async (req) => {
       .rpc('visible_company_ids_for_user', { p_user_id: userId })
     visibleIdSet = new Set((visibleIds ?? []) as string[])
     if (!visibleIdSet.has(report.company_id)) {
-      return errorResponse('Report belongs to a company not in your peer groups', 403)
+      return jsonResponse({ error: 'Report belongs to a company not in your peer groups' }, 403)
     }
   }
 
@@ -69,7 +72,7 @@ Deno.serve(async (req) => {
     .eq('id', report.company_id)
     .single()
 
-  if (!company) return errorResponse('Company not found', 404)
+  if (!company) return jsonResponse({ error: 'Company not found' }, 404)
 
   // Load companies for competitor matching — scoped to user's peer groups
   let companyQuery = admin
@@ -94,7 +97,7 @@ Deno.serve(async (req) => {
     .download(report.pdf_storage_path)
 
   if (dlError || !pdfData) {
-    return errorResponse('Failed to download PDF: ' + (dlError?.message ?? 'unknown'), 500)
+    return jsonResponse({ error: 'Failed to download PDF: ' + (dlError?.message ?? 'unknown') }, 500)
   }
 
   // Extract text from PDF
@@ -103,7 +106,7 @@ Deno.serve(async (req) => {
   const charCount = pdfText.length
 
   if (!pdfText || charCount < 100) {
-    return errorResponse('Could not extract text from PDF. The file may be image-only or corrupt.', 422)
+    return jsonResponse({ error: 'Could not extract text from PDF. The file may be image-only or corrupt.' }, 422)
   }
 
   console.log(`[extract-report-context] Extracted ${charCount} chars from ${pageCount} pages`)
@@ -296,7 +299,7 @@ Be precise with page numbers. If something spans multiple pages, use the first p
     if (!apiResp.ok) {
       const errText = await apiResp.text()
       console.error('Gemini API error:', apiResp.status, errText)
-      return errorResponse('AI extraction failed: ' + apiResp.status, 500)
+      return jsonResponse({ error: 'AI extraction failed: ' + apiResp.status }, 500)
     }
 
     const result = await apiResp.json()
@@ -309,7 +312,7 @@ Be precise with page numbers. If something spans multiple pages, use the first p
 
     const candidate = result.candidates?.[0]
     if (!candidate?.content?.parts?.[0]?.text) {
-      return errorResponse('Gemini did not return a valid response', 500)
+      return jsonResponse({ error: 'Gemini did not return a valid response' }, 500)
     }
 
     const extracted = JSON.parse(candidate.content.parts[0].text)
@@ -337,7 +340,7 @@ Be precise with page numbers. If something spans multiple pages, use the first p
 
     if (ctxErr) {
       console.error('report_contexts insert error:', ctxErr.message)
-      return errorResponse('Failed to save context: ' + ctxErr.message, 500)
+      return jsonResponse({ error: 'Failed to save context: ' + ctxErr.message }, 500)
     }
 
     // Insert segment_breakdowns
@@ -395,6 +398,6 @@ Be precise with page numbers. If something spans multiple pages, use the first p
     })
   } catch (err) {
     console.error('extract-report-context error:', (err as Error).message)
-    return errorResponse('Extraction failed: ' + (err as Error).message, 500)
+    return jsonResponse({ error: 'Extraction failed: ' + (err as Error).message }, 500)
   }
 })

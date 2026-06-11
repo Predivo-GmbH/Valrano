@@ -37,23 +37,26 @@ interface AdjustmentResult {
 }
 
 Deno.serve(async (req) => {
-  if (req.method !== 'POST') return errorResponse('POST only', 405)
+  if (req.method !== 'POST') return jsonResponse({ error: 'POST only' }, 405)
 
   // Allow both JWT and service_role
   const authHeader = req.headers.get('authorization') ?? ''
   const isServiceRole = authHeader === `Bearer ${SERVICE_ROLE_KEY}`
   let userId: string | null = null
   if (!isServiceRole) {
-    const authResult = await authenticateRequest(req)
-    if (!authResult) return errorResponse('Unauthorized', 401)
-    userId = authResult.user.id
+    try {
+      const authResult = await authenticateRequest(req)
+      userId = authResult.user.id
+    } catch (err) {
+      return errorResponse(err)
+    }
   }
 
   const body = await req.json().catch(() => ({}))
   const { adjusted_company_id, reference_company_id, fiscal_year, benchmark_document_id } = body
 
   if (!adjusted_company_id || !reference_company_id || !fiscal_year) {
-    return errorResponse('adjusted_company_id, reference_company_id, fiscal_year required', 400)
+    return jsonResponse({ error: 'adjusted_company_id, reference_company_id, fiscal_year required' }, 400)
   }
 
   // Data isolation: verify both companies are in user's peer groups
@@ -62,7 +65,7 @@ Deno.serve(async (req) => {
       .rpc('visible_company_ids_for_user', { p_user_id: userId })
     const visible = new Set((visibleIds ?? []) as string[])
     if (!visible.has(adjusted_company_id) || !visible.has(reference_company_id)) {
-      return errorResponse('One or both companies are not in your peer groups', 403)
+      return jsonResponse({ error: 'One or both companies are not in your peer groups' }, 403)
     }
   }
 
@@ -72,7 +75,7 @@ Deno.serve(async (req) => {
     admin.from('companies').select('id, name, ticker, sector').eq('id', reference_company_id).single(),
   ])
 
-  if (!adjCompRes.data || !refCompRes.data) return errorResponse('Company not found', 404)
+  if (!adjCompRes.data || !refCompRes.data) return jsonResponse({ error: 'Company not found' }, 404)
   const adjComp = adjCompRes.data
   const refComp = refCompRes.data
 
@@ -224,7 +227,7 @@ No markdown code blocks. Just the JSON.`
     if (!resp.ok) {
       const errText = await resp.text()
       console.error('Claude API error:', resp.status, errText)
-      return errorResponse('AI computation failed', 500)
+      return jsonResponse({ error: 'AI computation failed' }, 500)
     }
 
     const data = await resp.json()
@@ -273,6 +276,6 @@ No markdown code blocks. Just the JSON.`
     })
   } catch (err) {
     console.error('compute-comparability error:', (err as Error).message)
-    return errorResponse('Computation failed: ' + (err as Error).message, 500)
+    return jsonResponse({ error: 'Computation failed: ' + (err as Error).message }, 500)
   }
 })
