@@ -69,9 +69,11 @@ test.describe('Staging — Public Pages', () => {
 
   test('unknown route shows not-found page', async ({ page }) => {
     await page.goto('/nonexistent-route-xyz')
-    const body = await page.textContent('body')
-    expect(body).toBeTruthy()
-    expect(body!.length).toBeGreaterThan(10)
+    // Poll — an immediate textContent can catch the Suspense "Loading..."
+    // fallback (exactly 10 chars) before the lazy shell renders
+    await expect
+      .poll(async () => (await page.textContent('body'))?.length ?? 0, { timeout: 15000 })
+      .toBeGreaterThan(10)
   })
 
   test('no critical console errors on landing', async ({ page }) => {
