@@ -14,8 +14,13 @@ test.describe('Critical Path', () => {
   })
 
   test('unauthenticated redirect works', async ({ page }) => {
-    // First hit of the lazy AuthenticatedShell chunk — CI dev server compiles
-    // it on demand (both browser projects in parallel), which can exceed 30s
+    // Bypass the private-beta PasswordGate (same pattern as auth-flows.spec.ts) —
+    // /dashboard is inside AuthenticatedShell, which is gated, so the redirect
+    // never fires while the gate is shown
+    await page.addInitScript(() => {
+      localStorage.setItem('bs_unlocked', 'true')
+    })
+    // First hit also compiles the lazy AuthenticatedShell chunk on the CI dev server
     test.slow()
     await page.goto('/dashboard')
     await page.waitForURL(/\/(login|auth)/, { timeout: 60_000 })

@@ -129,6 +129,7 @@ jobs:
           set ftp:ssl-force yes
           set ssl:verify-certificate no
           put ./dist/index.html -o httpdocs/index.html
+          put ./dist/theme-init.js -o httpdocs/theme-init.js
           put ./dist/.htaccess -o httpdocs/.htaccess
           put ./dist/robots.txt -o httpdocs/robots.txt
           put ./dist/sitemap.xml -o httpdocs/sitemap.xml
