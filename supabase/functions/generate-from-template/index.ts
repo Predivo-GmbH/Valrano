@@ -227,7 +227,7 @@ function flattenObject(obj: Record<string, unknown>, prefix = ''): Record<string
 }
 
 async function fetchKpiData(
-  adminClient: ReturnType<typeof import('https://esm.sh/@supabase/supabase-js@2').createClient>,
+  adminClient: ReturnType<typeof import('https://esm.sh/@supabase/supabase-js@2.49.4').createClient>,
   userId: string,
 ): Promise<Record<string, string>> {
   // Fetch the user's primary company KPIs

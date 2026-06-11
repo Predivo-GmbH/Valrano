@@ -349,13 +349,11 @@ test.describe('AUTH-FLOW-006: Auth Verify Page', () => {
     const hasStatus = await status.isVisible({ timeout: 3000 }).catch(() => false)
 
     if (hasStatus) {
-      // Shows either spinner or error message
-      const body = await page.textContent('body')
-      const hasContent =
-        body?.includes('Verifying') ||
-        body?.includes('expired') ||
-        body?.includes('invalid')
-      expect(hasContent).toBe(true)
+      // Auto-wait: [role=status] can match the loading skeleton while the lazy
+      // AuthVerifyPage chunk loads — wait for the spinner text or error message
+      await expect(
+        page.getByText(/Verifying|expired|invalid/i).first()
+      ).toBeVisible({ timeout: 15000 })
     }
   })
 

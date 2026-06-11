@@ -313,7 +313,7 @@ const EXTRACTION_SCHEMA = {
 // ---------------------------------------------------------------------------
 
 async function emitProgress(
-  adminClient: ReturnType<typeof import('https://esm.sh/@supabase/supabase-js@2').createClient>,
+  adminClient: ReturnType<typeof import('https://esm.sh/@supabase/supabase-js@2.49.4').createClient>,
   reportId: string,
   step: string,
   status: string,
