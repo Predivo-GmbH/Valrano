@@ -22,8 +22,13 @@ jobs:
         with:
           node-version: 24.13.0
 
-      - name: Reconcile package-lock.json on Linux
-        run: npm install --no-audit --no-fund
+      - name: Regenerate package-lock.json from scratch on Linux
+        # A lenient `npm install` leaves the conflicting wasm32-wasi @emnapi entries
+        # that `npm ci` strictly rejects. Deleting the lock forces a full, consistent
+        # re-resolution on the Linux runner that npm ci will accept.
+        run: |
+          rm -f package-lock.json
+          npm install --no-audit --no-fund
 
       - name: Commit lock if changed
         run: |
