@@ -41,6 +41,22 @@ interface SendEmailOptions {
   replyTo?: string
 }
 
+/**
+ * denomailer 1.6.0's quoted-printable encoder is buggy: it discards the
+ * `data.replaceAll('=','=3D')` result, so '=' is never escaped and the output
+ * is invalid QP. Lenient clients (Gmail, Apple Mail) tolerate it, but classic
+ * Outlook (Word engine) mis-decodes it and strips the inline styles, so the
+ * email renders as flat, unstyled gray boxes. Encode each MIME part as base64
+ * — decoded correctly by every client incl. Outlook — and pass them via
+ * `mimeContent`, which denomailer emits verbatim (no QP step).
+ */
+function base64Part(mimeType: string, body: string): { mimeType: string; content: string; transferEncoding: string } {
+  const bytes = new TextEncoder().encode(body)
+  let bin = ''
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+  return { mimeType, content: btoa(bin).replace(/.{1,76}/g, '$&\r\n'), transferEncoding: 'base64' }
+}
+
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
   const config = getSmtpConfig()
 
@@ -62,8 +78,10 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
       to: options.to,
       replyTo: options.replyTo,
       subject: options.subject,
-      content: options.text ?? options.subject,
-      html: options.html,
+      mimeContent: [
+        base64Part('text/plain; charset="utf-8"', options.text ?? options.subject),
+        base64Part('text/html; charset="utf-8"', options.html),
+      ],
     })
   } finally {
     await client.close()
