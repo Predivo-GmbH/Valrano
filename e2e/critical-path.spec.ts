@@ -89,6 +89,7 @@ test.describe('Critical Path — Edge Functions', () => {
           headers: { 'Content-Type': 'application/json' },
           data: {},
           failOnStatusCode: false,
+          maxRedirects: 0,
         }
       )
       const status = response.status()
