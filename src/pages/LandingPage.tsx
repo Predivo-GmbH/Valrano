@@ -917,7 +917,7 @@ export default function LandingPage() {
               <div>
                 <div className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">Valrano</div>
                 <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted-foreground)]">AI-powered competitive benchmarking for listed corporations. Automated detection, extraction, and analysis of competitor reports.</p>
-                <div className="mt-4 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]"><Shield className="h-3.5 w-3.5" /><span>Swiss-made &middot; Software that Thinks Ahead</span></div>
+                <div className="mt-4 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]"><Shield className="h-3.5 w-3.5" /><span>Swiss-made</span></div>
               </div>
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Product</h3>
@@ -950,7 +950,7 @@ export default function LandingPage() {
                 <Link to="/terms" className="text-xs text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Terms of Service</Link>
                 <Link to="/imprint" className="text-xs text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Imprint</Link>
               </div>
-              <p className="text-xs text-[var(--color-muted-foreground)]">Swiss-made &middot; Software that Thinks Ahead</p>
+              <p className="text-xs text-[var(--color-muted-foreground)]">Swiss-made</p>
             </div>
           </div>
         </footer>
