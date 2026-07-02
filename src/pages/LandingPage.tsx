@@ -950,7 +950,6 @@ export default function LandingPage() {
                 <Link to="/terms" className="text-xs text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Terms of Service</Link>
                 <Link to="/imprint" className="text-xs text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">Imprint</Link>
               </div>
-              <p className="text-xs text-[var(--color-muted-foreground)]">Swiss-made</p>
             </div>
           </div>
         </footer>
