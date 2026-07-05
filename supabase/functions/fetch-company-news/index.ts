@@ -12,6 +12,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { authenticateRequest } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
+import { anthropicMessages } from '../_shared/anthropic-model.ts'
 
 /** Reject URLs targeting internal/private networks (SSRF prevention) */
 function isPublicUrl(url: string): boolean {
@@ -132,20 +133,12 @@ async function classifyArticles(
       .join('\n')
 
     try {
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 2000,
-          temperature: 0,
-          system: `Classify news articles about "${companyName}". For each article return a JSON array with objects: {sentiment: "positive"|"negative"|"neutral"|"mixed", relevance_score: 0.0-1.0 (how relevant to the company's business/financials), topics: string[] (from: "earnings", "M&A", "ESG", "restructuring", "legal", "product", "market", "leadership", "regulation", "guidance", "dividend", "credit_rating", "partnership"), ai_summary: string (1 sentence), is_relevant: boolean}. Return ONLY the JSON array, no markdown.`,
-          messages: [{ role: 'user', content: articlesText }],
-        }),
+      // Dynamic model resolution (fleet standard): pin from AI_MODEL_FAST, self-heal on retirement
+      const resp = await anthropicMessages(ANTHROPIC_API_KEY, 'fast', {
+        max_tokens: 2000,
+        temperature: 0,
+        system: `Classify news articles about "${companyName}". For each article return a JSON array with objects: {sentiment: "positive"|"negative"|"neutral"|"mixed", relevance_score: 0.0-1.0 (how relevant to the company's business/financials), topics: string[] (from: "earnings", "M&A", "ESG", "restructuring", "legal", "product", "market", "leadership", "regulation", "guidance", "dividend", "credit_rating", "partnership"), ai_summary: string (1 sentence), is_relevant: boolean}. Return ONLY the JSON array, no markdown.`,
+        messages: [{ role: 'user', content: articlesText }],
       })
 
       if (!resp.ok) {

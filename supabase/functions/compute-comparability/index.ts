@@ -15,6 +15,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
+import { anthropicMessages } from '../_shared/anthropic-model.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -209,19 +210,12 @@ Return ONLY a JSON object with this structure:
 No markdown code blocks. Just the JSON.`
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6-20250514',
-        max_tokens: 4000,
-        temperature: 0,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+    // Dynamic model resolution (fleet standard): pin from AI_MODEL_SMART, self-heal on retirement.
+    // Heals the previously-invalid hard-coded 'claude-sonnet-4-6-20250514' (404ed).
+    const resp = await anthropicMessages(ANTHROPIC_API_KEY, 'smart', {
+      max_tokens: 4000,
+      temperature: 0,
+      messages: [{ role: 'user', content: prompt }],
     })
 
     if (!resp.ok) {
@@ -253,7 +247,7 @@ No markdown code blocks. Just the JSON.`
         confidence: a.confidence,
         data_sources: a.data_sources,
         currency: 'CHF',
-        ai_model_used: 'claude-sonnet-4-6',
+        ai_model_used: data.model, // resolved model actually served (dynamic resolution)
       }))
 
       const { error: insertErr } = await admin

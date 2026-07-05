@@ -1,6 +1,7 @@
 import { authenticateRequest, errorResponse, jsonResponse, AuthError } from '../_shared/auth.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
+import { anthropicMessages } from '../_shared/anthropic-model.ts'
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')
 if (!ANTHROPIC_API_KEY) {
@@ -173,19 +174,12 @@ Write:
 Be specific with numbers. Use professional financial language. Do not use bullet points — write flowing paragraphs.`
 
       try {
-        const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01',
-          },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-6-20250514',
-            max_tokens: 1024,
-            temperature: 0,
-            messages: [{ role: 'user', content: prompt }],
-          }),
+        // Dynamic model resolution (fleet standard): pin from AI_MODEL_SMART, self-heal on retirement.
+        // Heals the previously-invalid hard-coded 'claude-sonnet-4-6-20250514' (404ed).
+        const aiResponse = await anthropicMessages(ANTHROPIC_API_KEY, 'smart', {
+          max_tokens: 1024,
+          temperature: 0,
+          messages: [{ role: 'user', content: prompt }],
         })
 
         if (aiResponse.ok) {

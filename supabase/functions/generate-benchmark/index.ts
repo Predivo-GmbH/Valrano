@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
+import { anthropicMessages } from '../_shared/anthropic-model.ts'
 
 // ---------------------------------------------------------------------------
 // Benchmark document content structure (matches EnhancedBenchmarkContentJson)
@@ -433,15 +434,8 @@ ${formatSegments(triggerSegments, triggerCompany.name)}${formatSegments(customer
       board_presentation: 'board presentation style (clear headlines, strategic implications, decision-ready)',
     }[rule.narrative_style] ?? 'executive brief'
 
-    const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+    // Dynamic model resolution (fleet standard): pin from AI_MODEL_SMART, self-heal on retirement
+    const claudeResponse = await anthropicMessages(anthropicApiKey, 'smart', {
         max_tokens: 8192,
         tools: [
           {
@@ -567,7 +561,6 @@ Include source_citations for each KPI value with the report title (e.g. "${trigg
 ${newsContext}${reportContextBlock}${segmentContext}`,
           },
         ],
-      }),
     })
 
     if (!claudeResponse.ok) {
@@ -649,7 +642,7 @@ ${newsContext}${reportContextBlock}${segmentContext}`,
         content_html: contentHtml,
         generated_at: new Date().toISOString(),
         generated_by: 'system',
-        ai_model_used: 'claude-sonnet-4-6',
+        ai_model_used: claudeJson.model, // resolved model actually served (dynamic resolution)
       })
       .select()
       .single()

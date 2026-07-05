@@ -1,6 +1,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
+import { anthropicMessages } from '../_shared/anthropic-model.ts'
 
 /**
  * suggest-competitors — AI-powered competitor suggestions
@@ -76,15 +77,8 @@ Deno.serve(async (req: Request) => {
       ? `\n\nIMPORTANT — Do NOT include any of these companies (they are already listed separately):\n${excludeNames.map((n: string) => `- ${n}`).join('\n')}`
       : ''
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+    // Dynamic model resolution (fleet standard): pin from AI_MODEL_FAST, self-heal on retirement
+    const response = await anthropicMessages(apiKey, 'fast', {
         max_tokens: 1024,
         temperature: 0,
         messages: [
@@ -116,7 +110,6 @@ Focus on companies that are:
 4. Geographically diverse but relevant`,
           },
         ],
-      }),
     })
 
     if (!response.ok) {
@@ -201,7 +194,7 @@ Focus on companies that are:
     await adminClient.from('ai_usage').insert({
       user_id: user.id,
       feature: 'suggest_competitors',
-      model_used: 'claude-haiku-4-5-20251001',
+      model_used: aiResult.model, // resolved model actually served (dynamic resolution)
       input_tokens: aiResult.usage?.input_tokens ?? 0,
       output_tokens: aiResult.usage?.output_tokens ?? 0,
     })

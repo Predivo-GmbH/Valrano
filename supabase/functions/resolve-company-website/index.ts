@@ -1,6 +1,7 @@
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
+import { anthropicMessages } from '../_shared/anthropic-model.ts'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -160,15 +161,8 @@ RULES:
 
   try {
     const validDomains = candidates.map(c => c.domain)
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+    // Dynamic model resolution (fleet standard): pin from AI_MODEL_FAST, self-heal on retirement
+    const resp = await anthropicMessages(anthropicApiKey, 'fast', {
         max_tokens: 256,
         tools: [{
           name: 'select_website',
@@ -200,7 +194,6 @@ RULES:
         }],
         tool_choice: { type: 'tool', name: 'select_website' },
         messages: [{ role: 'user', content: prompt }],
-      }),
     })
 
     if (!resp.ok) return null

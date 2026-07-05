@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
+import { isModelNotFound, resolveModel, substituteModel } from '../_shared/anthropic-model.ts'
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -211,10 +212,11 @@ ${!hasKpis ? `\nNote: No KPI data is available yet for this user. If they ask ab
 - When comparing companies, highlight the most significant differences
 - If asked about something outside the available data, clearly state what data is missing`
 
-    // Retry with backoff for rate limits
-    let claudeResponse: Response | null = null
-    for (let attempt = 0; attempt < 3; attempt++) {
-      claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
+    // Dynamic model resolution (fleet standard): pin from AI_MODEL_SMART, self-heal on retirement
+    let model = await resolveModel('smart', anthropicApiKey)
+
+    const callClaude = (m: string) =>
+      fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': anthropicApiKey,
@@ -222,13 +224,26 @@ ${!hasKpis ? `\nNote: No KPI data is available yet for this user. If they ask ab
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
+          model: m,
           max_tokens: 4096,
           stream: true,
           system: systemPrompt,
           messages: conversationHistory,
         }),
       })
+
+    // Retry with backoff for rate limits
+    let claudeResponse: Response | null = null
+    let modelSubstituted = false
+    for (let attempt = 0; attempt < 3; attempt++) {
+      claudeResponse = await callClaude(model)
+
+      // Pinned model retired/invalid → substitute newest live model of the family, retry once
+      if (!modelSubstituted && (await isModelNotFound(claudeResponse))) {
+        modelSubstituted = true
+        model = await substituteModel(model, 'smart', anthropicApiKey)
+        claudeResponse = await callClaude(model)
+      }
 
       if (claudeResponse.status !== 429) break
       // Wait before retry: 2s, 5s
@@ -269,7 +284,7 @@ ${!hasKpis ? `\nNote: No KPI data is available yet for this user. If they ask ab
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'session', session_id: sessionId })}\n\n`))
 
         let buffer = ''
-        let streamModel = 'claude-sonnet-4-6'
+        let streamModel = model
         let streamInputTokens = 0
         let streamOutputTokens = 0
         try {
