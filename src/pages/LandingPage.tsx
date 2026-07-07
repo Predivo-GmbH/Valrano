@@ -912,12 +912,12 @@ export default function LandingPage() {
         {/* Footer */}
         <footer className="border-t border-[var(--color-border)] bg-[var(--color-card)]">
           <div className="h-px bg-gradient-to-r from-transparent via-[var(--color-accent)]/30 to-transparent" />
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 py-16">
-            <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 py-16">
+            <div className="grid grid-cols-2 gap-8 sm:gap-10 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
+              <div className="col-span-2 md:col-span-1">
                 <div className="text-lg font-bold tracking-tight text-[var(--color-foreground)]">Valrano</div>
                 <p className="mt-3 text-sm leading-relaxed text-[var(--color-muted-foreground)]">AI-powered competitive benchmarking for listed corporations. Automated detection, extraction, and analysis of competitor reports.</p>
-                <div className="mt-4 flex items-center gap-2 text-xs text-[var(--color-muted-foreground)]"><Shield className="h-3.5 w-3.5" /><span>Swiss-made</span></div>
+                <div className="mt-4 flex items-center gap-1.5 text-[10px] text-[var(--color-muted-foreground)]"><Shield className="h-3 w-3 shrink-0" aria-hidden="true" /><span>Swiss-made</span></div>
               </div>
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--color-muted-foreground)]">Product</h3>
