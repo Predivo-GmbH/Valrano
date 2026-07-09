@@ -8,6 +8,7 @@ on:
 jobs:
   ping-production:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Ping Supabase Production (real DB query via GraphQL)
         run: |
@@ -30,6 +31,7 @@ jobs:
 
   ping-staging:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Ping Supabase Staging (real DB query via GraphQL)
         run: |
