@@ -1,0 +1,26 @@
+name: FTP Debug
+on: workflow_dispatch
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: FTP connectivity diagnostic
+        run: |
+          set +e
+          echo "=== runner egress IP ==="
+          curl -s --max-time 10 https://api.ipify.org; echo
+          echo "=== DNS resolve FTP_HOST ==="
+          getent hosts "$FTP_HOST" || echo "  DNS FAILED"
+          echo "=== TCP :21 reachable from runner? ==="
+          timeout 12 bash -c "cat < /dev/null > /dev/tcp/$FTP_HOST/21" && echo "  port 21 OPEN" || echo "  port 21 CLOSED/FILTERED (rc=$?)"
+          echo "=== FTPS handshake + login + LIST via curl -v (max 40s) ==="
+          curl -v --ssl-reqd --ftp-pasv --max-time 40 -u "$FTP_USER:$FTP_PASS" "ftp://$FTP_HOST/" 2>&1 \
+            | grep -iE "Trying|Connected|SSL connection|certificate|220|USER|331|230|530|PASV|227|Access|denied|login|timed out|refused|Could not|Failure|OK" \
+            | head -30
+          echo "=== done ==="
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
