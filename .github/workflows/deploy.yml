@@ -116,7 +116,7 @@ jobs:
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-force yes
           set ssl:verify-certificate no; set ftp:ssl-protect-data no
-          set net:timeout 30; set net:max-retries 4; set net:persist-retries 4; set net:reconnect-interval-base 8; set ftp:prefer-epsv no; set mirror:parallel-transfer-count 1
+          set net:timeout 60; set net:max-retries 8; set net:persist-retries 8; set net:reconnect-interval-base 5; set net:reconnect-interval-multiplier 1.2; set ftp:prefer-epsv no; set mirror:parallel-transfer-count 1
           mirror --reverse --verbose --no-perms \
             ./dist/assets/ httpdocs/assets/
           bye
@@ -131,7 +131,7 @@ jobs:
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-force yes
           set ssl:verify-certificate no; set ftp:ssl-protect-data no
-          set net:timeout 30; set net:max-retries 4; set net:persist-retries 4; set net:reconnect-interval-base 8; set ftp:prefer-epsv no; set mirror:parallel-transfer-count 1
+          set net:timeout 60; set net:max-retries 8; set net:persist-retries 8; set net:reconnect-interval-base 5; set net:reconnect-interval-multiplier 1.2; set ftp:prefer-epsv no; set mirror:parallel-transfer-count 1
           put ./dist/index.html -o httpdocs/index.html
           put ./dist/theme-init.js -o httpdocs/theme-init.js
           put ./dist/.htaccess -o httpdocs/.htaccess
@@ -156,7 +156,7 @@ jobs:
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-force yes
           set ssl:verify-certificate no; set ftp:ssl-protect-data no
-          set net:timeout 30; set net:max-retries 4; set net:persist-retries 4; set net:reconnect-interval-base 8; set ftp:prefer-epsv no; set mirror:parallel-transfer-count 1
+          set net:timeout 60; set net:max-retries 8; set net:persist-retries 8; set net:reconnect-interval-base 5; set net:reconnect-interval-multiplier 1.2; set ftp:prefer-epsv no; set mirror:parallel-transfer-count 1
           mirror --reverse --verbose --no-perms --delete \
             ./dist/assets/ httpdocs/assets/
           bye
@@ -242,7 +242,7 @@ jobs:
           lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT
           set ftp:ssl-force yes
           set ssl:verify-certificate no; set ftp:ssl-protect-data no
-          set net:timeout 30; set net:max-retries 4; set net:persist-retries 4; set net:reconnect-interval-base 8; set ftp:prefer-epsv no; set mirror:parallel-transfer-count 1
+          set net:timeout 60; set net:max-retries 8; set net:persist-retries 8; set net:reconnect-interval-base 5; set net:reconnect-interval-multiplier 1.2; set ftp:prefer-epsv no; set mirror:parallel-transfer-count 1
           mirror --reverse --verbose --no-perms --delete \
             --exclude .htpasswd --exclude cgi-bin/ \
             ./dist/ staging.valrano.com/
