@@ -73,22 +73,16 @@ test.describe('Auth Flows — Login', () => {
 // AUTH-003: Registration form fields
 // ---------------------------------------------------------------------------
 test.describe('Auth Flows — Registration', () => {
-  test('AUTH-003: signup form has email field and continue button', async ({ page }) => {
+  test('AUTH-003: signup route shows the waitlist while registrations are paused', async ({ page }) => {
     await page.goto('/signup')
     await page.waitForLoadState('networkidle')
 
-    // Should have email input (business email)
+    // Registration is paused → the /signup route captures a waitlist email.
     const emailInput = page.locator('input[type="email"]').first()
     await expect(emailInput).toBeVisible({ timeout: 5000 })
 
-    // Should have submit/continue button
-    const submitButton = page.getByRole('button', { name: /continue|sign up|create|get started/i }).first()
-    await expect(submitButton).toBeVisible()
-
-    // Should have link to login
-    const loginLink = page.locator('a[href*="login"], text=Sign in, text=Log in').first()
-    const hasLoginLink = await loginLink.isVisible({ timeout: 3000 }).catch(() => false)
-    expect(hasLoginLink).toBe(true)
+    const notifyButton = page.getByRole('button', { name: /notify me/i }).first()
+    await expect(notifyButton).toBeVisible()
   })
 })
 

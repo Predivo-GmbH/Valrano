@@ -6,6 +6,7 @@ import { HelmetProvider } from 'react-helmet-async'
 import { RedirectIfAuthenticated } from '@/components/auth/RedirectIfAuthenticated'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { PageSkeleton } from '@/components/ui/page-skeleton'
+import { WaitlistProvider } from '@/features/waitlist/WaitlistProvider'
 
 const LandingPage = lazy(() => import('@/pages/LandingPage'))
 const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'))
@@ -36,6 +37,7 @@ function App() {
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
+            <WaitlistProvider>
             <ErrorBoundary>
             <Suspense fallback={<PageSkeleton />}>
             <Routes>
@@ -52,6 +54,7 @@ function App() {
             </Routes>
           </Suspense>
             </ErrorBoundary>
+            </WaitlistProvider>
           </BrowserRouter>
         </QueryClientProvider>
       </ThemeProvider>

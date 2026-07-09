@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/contexts/AuthContext'
-import PasswordGate from '@/components/auth/PasswordGate'
 import { AppLayout } from '@/components/layout/AppLayout'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import { OnboardingGuard } from '@/components/auth/OnboardingGuard'
@@ -32,7 +31,6 @@ const CompanyProfilePage = lazy(() => import('@/pages/CompanyProfilePage').then(
 
 export default function AuthenticatedShell() {
   return (
-    <PasswordGate>
       <AuthProvider>
         <Suspense fallback={<PageSkeleton />}>
           <Routes>
@@ -93,6 +91,5 @@ export default function AuthenticatedShell() {
           }}
         />
       </AuthProvider>
-    </PasswordGate>
   )
 }

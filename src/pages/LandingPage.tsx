@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useWaitlist } from '@/features/waitlist/useWaitlist'
+import { REGISTRATIONS_OPEN } from '@/features/waitlist/config'
 import {
   FileText,
   Zap,
@@ -667,6 +669,7 @@ export default function LandingPage() {
   const { theme, setTheme } = useTheme()
   const mouseOffset = useMouseParallax()
   useAnimationStyles()
+  const { openWaitlist } = useWaitlist()
 
   const processRef = useRef<HTMLDivElement>(null)
   const [processVisible, setProcessVisible] = useState(false)
@@ -726,7 +729,11 @@ export default function LandingPage() {
             <button onClick={() => setDemoModalOpen(true)} className="inline-flex min-h-[44px] items-center rounded-full bg-[var(--color-accent)] px-5 py-2 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 cursor-pointer">Request a Demo</button>
           </div>
           <div className="flex items-center gap-2 md:hidden">
-            <Link to="/signup" className="rounded-full bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90">Get Started</Link>
+            {REGISTRATIONS_OPEN ? (
+              <Link to="/signup" className="rounded-full bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90">Get Started</Link>
+            ) : (
+              <button type="button" onClick={() => openWaitlist('landing-hero')} className="cursor-pointer rounded-full bg-[var(--color-primary)] px-5 py-2.5 text-sm font-medium text-[var(--color-primary-foreground)] transition-opacity hover:opacity-90">Get Started</button>
+            )}
             <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileMenuOpen} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)]">
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -903,7 +910,11 @@ export default function LandingPage() {
                   <span className="relative">Request a Demo</span>
                   <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                 </button>
-                <Link to="/signup" className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-card)]/50 px-8 py-4 text-[15px] font-medium text-[var(--color-foreground)] backdrop-blur-sm transition-all hover:bg-[var(--color-card)]">Create Account</Link>
+                {REGISTRATIONS_OPEN ? (
+                  <Link to="/signup" className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-card)]/50 px-8 py-4 text-[15px] font-medium text-[var(--color-foreground)] backdrop-blur-sm transition-all hover:bg-[var(--color-card)]">Create Account</Link>
+                ) : (
+                  <button type="button" onClick={() => openWaitlist('landing-cta')} className="cursor-pointer inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-card)]/50 px-8 py-4 text-[15px] font-medium text-[var(--color-foreground)] backdrop-blur-sm transition-all hover:bg-[var(--color-card)]">Create Account</button>
+                )}
               </div>
             </div>
           </div>

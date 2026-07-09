@@ -10,6 +10,8 @@ import ResendTimer from '@/components/auth/ResendTimer'
 import PasswordStrength from '@/components/auth/PasswordStrength'
 import { getPasswordScore } from '@/components/auth/password-utils'
 import { friendlyAuthError } from '@/lib/utils'
+import { REGISTRATIONS_OPEN } from '@/features/waitlist/config'
+import { WaitlistForm } from '@/features/waitlist/WaitlistForm'
 
 type Step = 'email' | 'verify' | 'profile'
 
@@ -114,6 +116,21 @@ export default function SignUpPage() {
 
   const inputCls = 'mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 sm:text-sm'
   const btnCls = 'w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-medium text-white transition-all hover:brightness-110 hover:shadow-lg hover:shadow-[var(--color-accent)]/25 active:scale-[0.98] disabled:opacity-50 cursor-pointer'
+
+  // Registration is paused pre-launch — the /signup route shows the waitlist
+  // instead of the signup form. Flip REGISTRATIONS_OPEN=true to restore signup.
+  if (!REGISTRATIONS_OPEN) {
+    return (
+      <AuthLayout>
+        <Helmet><title>Join the waitlist — Valrano</title><meta name="robots" content="noindex, nofollow" /></Helmet>
+        <h1 className="mb-1 text-center text-2xl font-bold text-[var(--color-foreground)]">Registrations are paused</h1>
+        <div className="mt-4"><WaitlistForm source="signup" /></div>
+        <p className="mt-6 text-center text-sm text-[var(--color-muted-foreground)]">
+          Already have an account? <Link to="/login" className="font-medium text-[var(--color-accent)] hover:underline">Sign in</Link>
+        </p>
+      </AuthLayout>
+    )
+  }
 
   return (
     <AuthLayout>

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { WaitlistProvider } from '@/features/waitlist/WaitlistProvider'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,9 +18,11 @@ function AllProviders({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <WaitlistProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </WaitlistProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </ThemeProvider>

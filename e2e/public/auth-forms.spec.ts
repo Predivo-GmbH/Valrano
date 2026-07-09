@@ -38,16 +38,16 @@ test.describe('Auth Forms — Login', () => {
 // 2. /signup has email field and OTP flow
 // ---------------------------------------------------------------------------
 test.describe('Auth Forms — Signup', () => {
-  test('signup page has email field', async ({ page }) => {
+  test('signup page shows the waitlist email capture', async ({ page }) => {
     await page.goto('/signup')
     await page.waitForLoadState('networkidle')
 
-    // Should have an email input (Business email)
+    // Should have an email input
     const emailInput = page.locator('input[type="email"]').first()
     await expect(emailInput).toBeVisible({ timeout: 10000 })
 
-    // Should have a continue/submit button
-    const submitButton = page.getByRole('button', { name: /continue|sign up|create/i }).first()
+    // Registrations are paused → "Notify me when it reopens"
+    const submitButton = page.getByRole('button', { name: /notify me/i }).first()
     await expect(submitButton).toBeVisible()
   })
 })

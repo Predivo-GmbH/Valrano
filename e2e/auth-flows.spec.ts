@@ -126,13 +126,18 @@ test.describe('AUTH-FLOW-001: Login Page', () => {
     await expect(forgotLink).toContainText('Forgot password')
   })
 
-  test('has "Create account" link to /signup', async ({ page }) => {
+  test('has "Create account" button that opens the waitlist (registrations paused)', async ({ page }) => {
     await page.goto('/login')
     await page.waitForLoadState('networkidle')
 
-    const signupLink = page.locator('a[href="/signup"]')
-    await expect(signupLink).toBeVisible({ timeout: 5000 })
-    await expect(signupLink).toContainText('Create account')
+    // Registration is paused pre-launch — "Create account" opens the waitlist
+    // modal in place instead of navigating to a signup form.
+    const createAccount = page.getByRole('button', { name: /create account/i })
+    await expect(createAccount).toBeVisible({ timeout: 5000 })
+    await createAccount.click()
+    await expect(
+      page.getByRole('heading', { name: /registrations are paused/i }),
+    ).toBeVisible({ timeout: 5000 })
   })
 
   test('password visibility toggle works', async ({ page }) => {
@@ -174,45 +179,33 @@ test.describe('AUTH-FLOW-001: Login Page', () => {
 // 2. SIGNUP PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
 test.describe('AUTH-FLOW-002: Signup Page', () => {
-  test('loads with correct title', async ({ page }) => {
+  test('loads with the waitlist title', async ({ page }) => {
     await page.goto('/signup')
     await page.waitForLoadState('networkidle')
-    await expect(page).toHaveTitle(/Create Account.*Valrano|Valrano/)
+    await expect(page).toHaveTitle(/waitlist.*Valrano|Valrano/i)
   })
 
-  test('has heading "Create your account"', async ({ page }) => {
+  test('shows the waitlist instead of a self-serve signup form', async ({ page }) => {
     await page.goto('/signup')
     await page.waitForLoadState('networkidle')
     const heading = page.locator('h1')
     await expect(heading).toBeVisible({ timeout: 10000 })
-    await expect(heading).toContainText('Create your account')
+    await expect(heading).toContainText(/Registrations are paused/i)
+
+    // The old OTP signup form is gone while registrations are paused.
+    await expect(page.locator('#signup-email')).toHaveCount(0)
+    await expect(page.locator('nav[aria-label="Sign up progress"]')).toHaveCount(0)
   })
 
-  test('step 1: email input + continue button + progress dots', async ({ page }) => {
+  test('has a waitlist email field + "Notify me" button', async ({ page }) => {
     await page.goto('/signup')
     await page.waitForLoadState('networkidle')
 
-    // Email input
-    const emailInput = page.locator('#signup-email')
+    const emailInput = page.locator('input[type="email"]').first()
     await expect(emailInput).toBeVisible({ timeout: 5000 })
-    expect(await emailInput.getAttribute('type')).toBe('email')
 
-    // Continue button
-    const continueBtn = page.getByRole('button', { name: /continue/i })
-    await expect(continueBtn).toBeVisible()
-
-    // Progress dots (3 steps: Email, Verify, Password)
-    const progressNav = page.locator('nav[aria-label="Sign up progress"]')
-    await expect(progressNav).toBeVisible()
-  })
-
-  test('has "Sign in" link to /login', async ({ page }) => {
-    await page.goto('/signup')
-    await page.waitForLoadState('networkidle')
-
-    const loginLink = page.locator('a[href="/login"]')
-    await expect(loginLink).toBeVisible({ timeout: 5000 })
-    await expect(loginLink).toContainText('Sign in')
+    const notifyBtn = page.getByRole('button', { name: /notify me/i })
+    await expect(notifyBtn).toBeVisible()
   })
 
   test('no JS errors', async ({ page }) => {
@@ -416,17 +409,18 @@ test.describe('AUTH-FLOW-007: Auth Confirm Page', () => {
 // 8. NAVIGATION BETWEEN AUTH PAGES
 // ═══════════════════════════════════════════════════════════════════════════════
 test.describe('AUTH-FLOW-008: Cross-Page Navigation', () => {
-  test('login -> signup via "Create account" link', async ({ page }) => {
+  test('login "Create account" opens the waitlist modal', async ({ page }) => {
     await page.goto('/login')
     await page.waitForLoadState('networkidle')
 
-    const signupLink = page.locator('a[href="/signup"]')
-    await expect(signupLink).toBeVisible({ timeout: 5000 })
-    await signupLink.click()
+    const createAccount = page.getByRole('button', { name: /create account/i })
+    await expect(createAccount).toBeVisible({ timeout: 5000 })
+    await createAccount.click()
 
-    await page.waitForURL(/\/signup/, { timeout: 10000 })
-    const heading = page.locator('h1')
-    await expect(heading).toContainText('Create your account')
+    // Opens the waitlist modal in place (no navigation while paused).
+    await expect(
+      page.getByRole('heading', { name: /registrations are paused/i }),
+    ).toBeVisible({ timeout: 5000 })
   })
 
   test('login -> forgot-password via "Forgot password?" link', async ({ page }) => {

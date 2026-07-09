@@ -17,17 +17,6 @@ setup('authenticate', async ({ page }) => {
   // Wait for login page to load
   await page.waitForLoadState('networkidle')
 
-  // Check if we need to pass the password gate first
-  const gateInput = page.locator('input[type="password"]').first()
-  const isGated = await gateInput.isVisible({ timeout: 3000 }).catch(() => false)
-
-  if (isGated) {
-    // PasswordGate — enter shared password
-    await gateInput.fill('predivo2026')
-    await gateInput.press('Enter')
-    await page.waitForLoadState('networkidle')
-  }
-
   // Now on login page — use password tab
   const passwordTab = page.locator('text=Password').first()
   if (await passwordTab.isVisible({ timeout: 3000 }).catch(() => false)) {

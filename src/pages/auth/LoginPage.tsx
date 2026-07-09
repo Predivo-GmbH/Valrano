@@ -8,12 +8,15 @@ import AuthLayout from '@/components/auth/AuthLayout'
 import OtpInput from '@/components/auth/OtpInput'
 import ResendTimer from '@/components/auth/ResendTimer'
 import { friendlyAuthError } from '@/lib/utils'
+import { useWaitlist } from '@/features/waitlist/useWaitlist'
+import { REGISTRATIONS_OPEN } from '@/features/waitlist/config'
 
 type Tab = 'password' | 'code'
 type CodeStep = 'email' | 'verify'
 
 export default function LoginPage() {
   const [tab, setTab] = useState<Tab>('password')
+  const { openWaitlist } = useWaitlist()
   const [codeStep, setCodeStep] = useState<CodeStep>('email')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -206,7 +209,11 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-[var(--color-muted-foreground)]">
         Don&apos;t have an account?{' '}
-        <Link to="/signup" className="font-medium text-[var(--color-accent)] hover:underline">Create account</Link>
+        {REGISTRATIONS_OPEN ? (
+          <Link to="/signup" className="font-medium text-[var(--color-accent)] hover:underline">Create account</Link>
+        ) : (
+          <button type="button" onClick={() => openWaitlist('login')} className="cursor-pointer font-medium text-[var(--color-accent)] hover:underline">Create account</button>
+        )}
       </p>
     </AuthLayout>
   )

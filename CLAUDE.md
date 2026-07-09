@@ -130,7 +130,7 @@ supabase functions deploy <function-name> --no-verify-jwt
 - Use `globals: true` in Vitest — do NOT import from 'vitest'
 - All edge functions must be deployed with `--no-verify-jwt`
 - OTP config: 6 digits, 600 seconds expiry
-- Password gate: predivo2026
+- Registration paused pre-launch: site is public (no access-code gate); `REGISTRATIONS_OPEN` (src/features/waitlist/config.ts) = false routes every sign-up CTA + /signup to the waitlist. Sign-in stays open. Flip to true to reopen self-serve signup.
 - Dark mode is the default theme
 - NO public pricing on landing page — use "Request a Demo" CTA
 - Financial blue #3B82F6 is the primary accent color (dark mode) / #2563EB (light mode)
