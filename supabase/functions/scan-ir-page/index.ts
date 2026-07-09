@@ -325,7 +325,7 @@ serve(async (req: Request) => {
   try {
     // Support both user JWT (frontend) and service_role key (server-to-server from suggest-ir-url)
     const sbUrl = Deno.env.get('SUPABASE_URL')!
-    const sbServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const sbServiceKey = (Deno.env.get('SB_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))!
     const authHeader = req.headers.get('Authorization') ?? ''
     const token = authHeader.replace('Bearer ', '')
 

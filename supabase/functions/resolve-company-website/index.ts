@@ -396,7 +396,7 @@ async function verifyCompanyNameOnPage(domain: string, companyName: string): Pro
 // ---------------------------------------------------------------------------
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+const SUPABASE_SERVICE_ROLE_KEY = (Deno.env.get('SB_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) ?? ''
 
 /** HEAD-check that a favicon URL actually returns an image */
 async function verifyFaviconLoads(url: string): Promise<boolean> {

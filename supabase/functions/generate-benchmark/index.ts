@@ -659,7 +659,7 @@ ${newsContext}${reportContextBlock}${segmentContext}`,
         const compResp = await fetch(`${supabaseUrl}/functions/v1/compute-comparability`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            'Authorization': `Bearer ${(Deno.env.get('SB_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({

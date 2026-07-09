@@ -9,7 +9,7 @@ export async function logError(
   console.error(`[${functionName}] ${operation}:`, error)
   try {
     const url = Deno.env.get('SUPABASE_URL')
-    const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const key = (Deno.env.get('SB_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))
     if (!url || !key) return
     const client = createClient(url, key)
     await client.from('error_log').insert({

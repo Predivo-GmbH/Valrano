@@ -11,7 +11,7 @@ import { authenticateRequest } from '../_shared/auth.ts'
 import { logAnthropicUsage } from '../_shared/log-usage.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const SERVICE_ROLE_KEY = (Deno.env.get('SB_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))!
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
 const GEMINI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY')!
 const GEMINI_MODEL = 'gemini-2.5-flash'

@@ -16,7 +16,7 @@ export async function authenticateRequest(req: Request): Promise<AuthResult> {
 
   const sbUrl = Deno.env.get('SUPABASE_URL')
   const sbAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
-  const sbServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  const sbServiceKey = (Deno.env.get('SB_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))
   if (!sbUrl || !sbAnonKey || !sbServiceKey) {
     throw new AuthError('Missing Supabase environment variables', 500)
   }

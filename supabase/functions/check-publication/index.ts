@@ -240,7 +240,7 @@ serve(async (req: Request) => {
       // Auto-trigger pipeline (download → extract → normalize → generate)
       if (report && event.auto_pipeline !== false) {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')
-        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        const serviceKey = (Deno.env.get('SB_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))
         if (supabaseUrl && serviceKey) {
           fetch(`${supabaseUrl}/functions/v1/pipeline-orchestrator`, {
             method: 'POST',
