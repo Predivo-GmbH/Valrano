@@ -8,10 +8,8 @@
 import { test, expect } from '@playwright/test'
 
 const SUPABASE_URL = 'https://mkdeftmubrkseyrrbzvp.supabase.co'
-const ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rZGVmdG11YnJrc2V5cnJienZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MTIzODIsImV4cCI6MjA5Mzk4ODM4Mn0.lnNUslHt--2_GzOZFB_UH1mVd0bfGfWTnHIU3e7Umwc'
-const SERVICE_ROLE_KEY =
-  '***REDACTED-SECRET***'
+const ANON_KEY = process.env.SUPABASE_ANON_KEY ?? ''
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ''
 
 // ---------------------------------------------------------------------------
 // Helper — call an edge function

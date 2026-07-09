@@ -6,10 +6,8 @@
  */
 
 const STAGING_URL = 'https://vfwpcgdkrwqhdivfzmrg.supabase.co'
-const STAGING_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmd3BjZ2RrcndxaGRpdmZ6bXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxOTM0MjIsImV4cCI6MjA5NDc2OTQyMn0.oKmklW0md_-S5tqKT0fg-2Vz0lVh_qDf9jRvm3tqbHs'
-const STAGING_SERVICE_ROLE_KEY =
-  '***REDACTED-SECRET***'
+const STAGING_ANON_KEY = process.env.SUPABASE_STAGING_ANON_KEY ?? ''
+const STAGING_SERVICE_ROLE_KEY = process.env.SUPABASE_STAGING_SERVICE_ROLE_KEY ?? ''
 
 const TEST_PASSWORD = 'E2eTestUser2026!'
 
