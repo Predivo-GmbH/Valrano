@@ -60,7 +60,9 @@ jobs:
           SUPABASE_STAGING_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_STAGING_SERVICE_ROLE_KEY }}
 
   deploy:
-    needs: validate-staging
+    # Production must wait for the staging E2E gate — previously it only needed
+    # validate-staging, so a red staging E2E did NOT block production.
+    needs: [validate-staging, e2e-staging]
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
