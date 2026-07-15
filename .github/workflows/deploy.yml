@@ -147,6 +147,10 @@ jobs:
 
       - name: Verify deploy target (site-id guard)
         run: |
+          # set +e: without it, bash -e aborts OUT=$(lftp…) on any non-zero exit BEFORE the
+          # RC handling below runs — defeating the "connection-error vs first-deploy" logic
+          # (a transient guard blip would abort blindly instead of retrying/allowing). §3f.
+          set +e
           GUARD="set ftp:ssl-force yes; set ssl:verify-certificate no; set ftp:ssl-protect-data no; set ftp:passive-mode yes;"
           OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "$GUARD cat staging.valrano.com/.site-id; quit" 2>&1)
           RC=$?
@@ -365,6 +369,10 @@ jobs:
 
       - name: Verify deploy target (site-id guard)
         run: |
+          # set +e: without it, bash -e aborts OUT=$(lftp…) on any non-zero exit BEFORE the
+          # RC handling below runs — defeating the "connection-error vs first-deploy" logic
+          # (a transient guard blip would abort blindly instead of retrying/allowing). §3f.
+          set +e
           GUARD="set ftp:ssl-force yes; set ssl:verify-certificate no; set ftp:ssl-protect-data no; set ftp:passive-mode yes;"
           OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "$GUARD cat httpdocs/.site-id; quit" 2>&1)
           RC=$?
