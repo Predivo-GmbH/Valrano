@@ -288,6 +288,17 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PROD_ACCESS_TOKEN }}
 
+      - name: Post-deploy production smoke test
+        run: |
+          # Confirm prod actually serves after the promotion (catches a broken build
+          # that FTP'd cleanly but renders a 5xx). Retry to ride out CDN warm-up.
+          for i in 1 2 3 4; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://valrano.com || echo 000)
+            if [ "$STATUS" = "200" ]; then echo "Production smoke passed (HTTP $STATUS, attempt $i)"; exit 0; fi
+            echo "::warning::prod smoke attempt $i got HTTP $STATUS — retrying in 15s"; sleep 15
+          done
+          echo "::error::Production smoke FAILED — valrano.com not serving 200"; exit 1
+
   deploy-staging:
     needs: validate-staging
     runs-on: ubuntu-latest
