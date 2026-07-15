@@ -26,6 +26,14 @@ concurrency:
 
 jobs:
   validate-staging:
+    # Staging chain (validate -> deploy-staging -> e2e-staging) runs ONLY on push to main.
+    # It is the staging gate for a commit; it also deploys staging edge functions and runs
+    # integration tests against staging. A production promotion (workflow_dispatch) does NOT
+    # re-run it — the `deploy` job instead verifies the commit already has a green staging run
+    # (see its "Verify staging gate" step). Gating here cascade-skips deploy-staging and
+    # e2e-staging on dispatch (both `needs` this job), removing the redundant re-execution that
+    # exposed prod promotions to transient staging/Supabase/FTP failures.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -35,7 +43,15 @@ jobs:
         run: npm install -g supabase@2.109.1
 
       - name: Deploy edge functions to staging
-        run: supabase functions deploy --project-ref vfwpcgdkrwqhdivfzmrg --no-verify-jwt --use-api
+        run: |
+          n=0
+          until [ $n -ge 4 ]; do
+            if supabase functions deploy --project-ref vfwpcgdkrwqhdivfzmrg --no-verify-jwt --use-api; then
+              echo "Edge functions deployed to staging (attempt $((n+1)))"; exit 0
+            fi
+            n=$((n + 1)); echo "::warning::Supabase functions-deploy attempt $n failed (transient API error, e.g. 502); backing off 60s..."; sleep 60
+          done
+          echo "::error::Edge functions deploy to staging failed after 4 attempts"; exit 1
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
@@ -71,16 +87,37 @@ jobs:
           SUPABASE_STAGING_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_STAGING_SERVICE_ROLE_KEY }}
 
   deploy:
-    # Production must wait for the staging E2E gate — previously it only needed
-    # validate-staging, so a red staging E2E did NOT block production.
-    needs: [validate-staging, e2e-staging]
+    # Normal production deploy: manual run, typed "deploy" confirmation. Intentionally does
+    # NOT `needs: [validate-staging, e2e-staging]` anymore — staging already ran on the push
+    # being promoted; re-running it here re-exposed prod to transient staging/Supabase/FTP
+    # failures. Instead the first step GATES on the recorded staging result for this exact
+    # commit — safety kept, redundant re-execution removed.
     # PRODUCTION deploys only via manual dispatch (confirm=deploy) — a push to
     # main deploys STAGING only. Same pattern as ReplyFlow/BoatBuddy/SignalScore.
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'deploy'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
 
     steps:
+      - name: Verify staging gate (this commit passed staging + E2E on push)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          SHA="${{ github.sha }}"
+          echo "Checking for a green staging run of commit $SHA ..."
+          OK=$(gh run list --workflow deploy.yml --branch main --event push --limit 50 \
+                 --json headSha,conclusion \
+                 --jq "[.[] | select(.headSha==\"$SHA\" and .conclusion==\"success\")] | length")
+          if [ "${OK:-0}" -lt 1 ]; then
+            echo "::error::Commit $SHA has no successful staging run. Push to main, wait for staging to go green, then promote."
+            exit 1
+          fi
+          echo "Staging gate passed — commit $SHA has a green staging run. Promoting to production."
+
       - uses: actions/checkout@v5
 
       - uses: actions/setup-node@v5
@@ -186,7 +223,15 @@ jobs:
         run: npm install -g supabase@2.109.1
 
       - name: Deploy edge functions to production
-        run: supabase functions deploy --project-ref mkdeftmubrkseyrrbzvp --no-verify-jwt --use-api
+        run: |
+          n=0
+          until [ $n -ge 4 ]; do
+            if supabase functions deploy --project-ref mkdeftmubrkseyrrbzvp --no-verify-jwt --use-api; then
+              echo "Edge functions deployed to production (attempt $((n+1)))"; exit 0
+            fi
+            n=$((n + 1)); echo "::warning::Supabase functions-deploy attempt $n failed (transient API error, e.g. 502); backing off 60s..."; sleep 60
+          done
+          echo "::error::Edge functions deploy to production failed after 4 attempts"; exit 1
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_PROD_ACCESS_TOKEN }}
 
