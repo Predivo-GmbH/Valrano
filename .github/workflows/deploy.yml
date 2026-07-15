@@ -1,9 +1,29 @@
 name: Deploy to Production
 
+# ─────────────────────────────────────────────────────────────────────────────
+# TIERED PIPELINE (2026-07-15) — "gates guard prod, not every staging push".
+#
+# The old shape ran the FULL gauntlet (validate + integration -> deploy-staging ->
+# E2E) on EVERY push to main, so a one-line content change took ~15 min. Industry
+# standard (DORA): deploy often, keep the per-push pipeline fast, and run the heavy
+# acceptance suite as a RELEASE gate + nightly — not on every push.
+#
+#   push -> main        FAST staging deploy: lint + unit + build + edge fns +
+#                       FTP + alive-smoke. Roger sees changes on staging fast,
+#                       many times a day.  (job: deploy-staging)
+#   schedule (nightly)  FULL gauntlet against live staging — daily regression
+#                       signal even with no promotion.  (jobs: gate-*)
+#   workflow_dispatch   PROD promotion. Runs the FULL gauntlet (integration +
+#     confirm=deploy    E2E) THEN deploys prod. The un-skippable gates live HERE
+#                       now.  (jobs: gate-* -> deploy)
+#
+# Nothing was weakened for PRODUCTION: prod still cannot ship unless the staging
+# integration suite and the staging E2E suite are both green for the promoted
+# commit. What changed is WHEN they run — release-time + nightly instead of on
+# every trivial staging push.
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
-  # Push to main runs validate -> staging -> E2E ONLY. Production is NOT deployed
-  # automatically — it requires an explicit manual run (workflow_dispatch), per
-  # deploy-standard §4 ("ask before production", same as ReplyFlow/BoatBuddy).
   push:
     branches: [main]
     paths-ignore:
@@ -11,6 +31,9 @@ on:
       - 'docs/**'
       - 'LICENSE'
       - '.gitignore'
+  schedule:
+    # Nightly full gauntlet against whatever is currently live on staging.
+    - cron: '45 4 * * *'
   workflow_dispatch:
     inputs:
       confirm:
@@ -25,23 +48,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  validate-staging:
-    # Staging chain (validate -> deploy-staging -> e2e-staging) runs ONLY on push to main.
-    # It is the staging gate for a commit; it also deploys staging edge functions and runs
-    # integration tests against staging. A production promotion (workflow_dispatch) does NOT
-    # re-run it — the `deploy` job instead verifies the commit already has a green staging run
-    # (see its "Verify staging gate" step). Gating here cascade-skips deploy-staging and
-    # e2e-staging on dispatch (both `needs` this job), removing the redundant re-execution that
-    # exposed prod promotions to transient staging/Supabase/FTP failures.
+  # ===========================================================================
+  # FAST STAGING DEPLOY — every push. One job, one runner, one npm ci, build once.
+  # lint + unit tests are the per-push gates (the test pyramid's fast base): a
+  # change that lints, typechecks (tsc in build), and passes unit tests cannot
+  # white-screen the site. Heavy integration / E2E suites run on the nightly +
+  # prod-promotion gauntlet below, NOT here.
+  # ===========================================================================
+  deploy-staging:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
 
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --run
+
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_STAGING_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+
       - name: Install Supabase CLI
         run: npm install -g supabase@2.109.1
 
+      # Ship staging edge functions on every push so staging stays a faithful
+      # mirror of the code (the nightly + promotion gauntlets test against it).
       - name: Deploy edge functions to staging
         run: |
           n=0
@@ -72,18 +115,120 @@ jobs:
           fi
           echo "Staging DB is alive"
 
+      - name: Install lftp
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      - name: Write site-id marker
+        run: echo "valrano-staging" > dist/.site-id
+
+      - name: Prepare staging .htaccess
+        run: |
+          # Use the REAL production .htaccess (from build) so staging catches Apache errors
+          mv dist/.htaccess /tmp/prod.htaccess
+          {
+            echo 'AuthType Basic'
+            echo 'AuthName "Staging"'
+            echo 'AuthUserFile /var/www/vhosts/valrano.com/staging.valrano.com/.htpasswd'
+            echo 'Require valid-user'
+            echo ''
+            cat /tmp/prod.htaccess
+            echo ''
+            echo '# --- Staging overrides ---'
+            echo '<IfModule mod_headers.c>'
+            echo '  Header always set X-Robots-Tag "noindex, nofollow"'
+            echo '  <FilesMatch "\.(js|css|woff2|png|jpg|webp|avif|svg|ico)$">'
+            echo '    Header set Cache-Control "no-cache"'
+            echo '  </FilesMatch>'
+            echo '  <FilesMatch "\.html$">'
+            echo '    Header set Cache-Control "no-cache, no-store, must-revalidate"'
+            echo '  </FilesMatch>'
+            echo '</IfModule>'
+          } > dist/.htaccess
+
+      - name: Verify deploy target (site-id guard)
+        run: |
+          GUARD="set ftp:ssl-force yes; set ssl:verify-certificate no; set ftp:ssl-protect-data no; set ftp:passive-mode yes;"
+          OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "$GUARD cat staging.valrano.com/.site-id; quit" 2>&1)
+          RC=$?
+          REMOTE_ID=$(echo "$OUT" | tr -d '[:space:]')
+          if [ $RC -ne 0 ]; then
+            if echo "$OUT" | grep -qiE '530|login (incorrect|failed)|timed? ?out|connection refused|couldn.t connect'; then
+              echo "::error::Site-id guard INCONCLUSIVE — FTP connection/auth failure, refusing to deploy blind. Output: $OUT"
+              exit 1
+            fi
+            # Non-zero rc but not a connection/auth error — treat as file genuinely absent (first deploy). Allow through.
+            REMOTE_ID=""
+          fi
+          if [ -n "$REMOTE_ID" ] && [ "$REMOTE_ID" != "valrano-staging" ]; then
+            echo "::error::DEPLOY ABORTED — remote .site-id is '$REMOTE_ID', expected 'valrano-staging'. Wrong FTP target!"
+            exit 1
+          fi
+          echo "Site-id guard passed (remote='${REMOTE_ID:-<none>}')"
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+
+      - name: Upload to staging
+        run: |
+          set +e
+          n=0
+          until [ $n -ge 4 ]; do
+            OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
+          set ftp:ssl-force yes
+          set ssl:verify-certificate no; set ftp:ssl-protect-data no
+          set net:timeout 60; set net:max-retries 8; set net:persist-retries 8; set net:reconnect-interval-base 5; set net:reconnect-interval-multiplier 1.2; set ftp:fix-pasv-address yes; set ftp:prefer-epsv no; set ftp:passive-mode yes; set mirror:parallel-transfer-count 4
+          mirror --reverse --verbose --no-perms --delete \
+            --exclude .htpasswd --exclude cgi-bin/ \
+            ./dist/ staging.valrano.com/
+          bye
+          SCRIPT
+          )
+            RC=$?
+            echo "$OUT"
+            [ $RC -eq 0 ] && break
+            echo "$OUT" | grep -qiE '530|login (incorrect|failed)' && { echo "::error::FTP auth 530 - not retrying"; exit 1; }
+            n=$((n+1))
+            [ $n -ge 4 ] && { echo "::error::Upload to staging failed after 4 attempts"; exit 1; }
+            echo "::warning::Upload to staging attempt $n failed - retrying in 25s..."
+            sleep 25
+          done
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+
+      - name: Verify staging is alive (catches .htaccess errors)
+        run: |
+          # Retry loop survives transient curl failures (exit 23 etc.), not just non-200s.
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u "staging:predivo2026" https://staging.valrano.com --max-time 30 || echo 000)
+            if [ "$STATUS" = "200" ]; then echo "Staging health check passed (HTTP $STATUS, attempt $i)"; exit 0; fi
+            echo "::warning::Staging check attempt $i/6 got HTTP $STATUS - retrying in 15s..."
+            sleep 15
+          done
+          echo "::error::Staging returned HTTP $STATUS after 6 attempts - likely .htaccess error."
+          exit 1
+
+  # ===========================================================================
+  # FULL GAUNTLET — runs on the nightly schedule AND on prod promotion, NOT on push.
+  # These jobs are the un-skippable PRODUCTION gates: the prod `deploy` job `needs`
+  # both, so prod cannot ship unless every one is green. They test against the LIVE
+  # staging site/DB (which the push above already deployed).
+  # ===========================================================================
+  gate-integration:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
       - run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Unit tests
-        run: npm test -- --run
 
       - name: Integration tests against staging
         run: npm run test:integration
@@ -92,6 +237,66 @@ jobs:
           SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
           SUPABASE_STAGING_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_STAGING_SERVICE_ROLE_KEY }}
 
+  gate-e2e:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify staging is alive (catches .htaccess errors)
+        run: |
+          # Retry loop survives transient curl failures (exit 23 etc.), not just non-200s.
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u "staging:predivo2026" https://staging.valrano.com --max-time 30 || echo 000)
+            if [ "$STATUS" = "200" ]; then echo "Staging health check passed (HTTP $STATUS, attempt $i)"; exit 0; fi
+            echo "::warning::Staging check attempt $i/6 got HTTP $STATUS - retrying in 15s..."
+            sleep 15
+          done
+          echo "::error::Staging returned HTTP $STATUS after 6 attempts - likely .htaccess error. Blocking production deploy."
+          exit 1
+
+      - name: Run E2E tests against staging
+        run: npm run test:e2e:staging
+        env:
+          STAGING_URL: https://staging.valrano.com
+          STAGING_HTTP_USER: staging
+          STAGING_HTTP_PASS: predivo2026
+          STAGING_TEST_EMAIL: e2e-test@valrano-test.local
+          STAGING_TEST_PASSWORD: IntegrationTest2026!
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-staging-report
+          path: playwright-report/
+          retention-days: 7
+
+  # ===========================================================================
+  # PRODUCTION PROMOTION — manual dispatch (confirm=deploy) only. Gated behind the
+  # full gauntlet above (needs: gate-integration + gate-e2e) AND a recorded green
+  # staging deploy for this exact commit. This is where the un-skippable gates live.
+  # ===========================================================================
   deploy:
     # Normal production deploy: manual run, typed "deploy" confirmation. Intentionally does
     # NOT `needs: [validate-staging, e2e-staging]` anymore — staging already ran on the push
@@ -101,6 +306,7 @@ jobs:
     # PRODUCTION deploys only via manual dispatch (confirm=deploy) — a push to
     # main deploys STAGING only. Same pattern as ReplyFlow/BoatBuddy/SignalScore.
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'deploy'
+    needs: [gate-integration, gate-e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -183,6 +389,7 @@ jobs:
 
       - name: Upload new hashed assets
         run: |
+          set +e
           n=0
           until [ $n -ge 4 ]; do
             OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
@@ -210,6 +417,7 @@ jobs:
 
       - name: Upload root files
         run: |
+          set +e
           n=0
           until [ $n -ge 4 ]; do
             OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
@@ -247,6 +455,7 @@ jobs:
 
       - name: Clean up stale assets
         run: |
+          set +e
           n=0
           until [ $n -ge 4 ]; do
             OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
@@ -298,160 +507,3 @@ jobs:
             echo "::warning::prod smoke attempt $i got HTTP $STATUS — retrying in 15s"; sleep 15
           done
           echo "::error::Production smoke FAILED — valrano.com not serving 200"; exit 1
-
-  deploy-staging:
-    needs: validate-staging
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      - run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_STAGING_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
-
-      - name: Install lftp
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
-
-      - name: Write site-id marker
-        run: echo "valrano-staging" > dist/.site-id
-
-      - name: Prepare staging .htaccess
-        run: |
-          # Use the REAL production .htaccess (from build) so staging catches Apache errors
-          mv dist/.htaccess /tmp/prod.htaccess
-          {
-            echo 'AuthType Basic'
-            echo 'AuthName "Staging"'
-            echo 'AuthUserFile /var/www/vhosts/valrano.com/staging.valrano.com/.htpasswd'
-            echo 'Require valid-user'
-            echo ''
-            cat /tmp/prod.htaccess
-            echo ''
-            echo '# --- Staging overrides ---'
-            echo '<IfModule mod_headers.c>'
-            echo '  Header always set X-Robots-Tag "noindex, nofollow"'
-            echo '  <FilesMatch "\.(js|css|woff2|png|jpg|webp|avif|svg|ico)$">'
-            echo '    Header set Cache-Control "no-cache"'
-            echo '  </FilesMatch>'
-            echo '  <FilesMatch "\.html$">'
-            echo '    Header set Cache-Control "no-cache, no-store, must-revalidate"'
-            echo '  </FilesMatch>'
-            echo '</IfModule>'
-          } > dist/.htaccess
-
-      - name: Verify deploy target (site-id guard)
-        run: |
-          GUARD="set ftp:ssl-force yes; set ssl:verify-certificate no; set ftp:ssl-protect-data no; set ftp:passive-mode yes;"
-          OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "$GUARD cat staging.valrano.com/.site-id; quit" 2>&1)
-          RC=$?
-          REMOTE_ID=$(echo "$OUT" | tr -d '[:space:]')
-          if [ $RC -ne 0 ]; then
-            if echo "$OUT" | grep -qiE '530|login (incorrect|failed)|timed? ?out|connection refused|couldn.t connect'; then
-              echo "::error::Site-id guard INCONCLUSIVE — FTP connection/auth failure, refusing to deploy blind. Output: $OUT"
-              exit 1
-            fi
-            # Non-zero rc but not a connection/auth error — treat as file genuinely absent (first deploy). Allow through.
-            REMOTE_ID=""
-          fi
-          if [ -n "$REMOTE_ID" ] && [ "$REMOTE_ID" != "valrano-staging" ]; then
-            echo "::error::DEPLOY ABORTED — remote .site-id is '$REMOTE_ID', expected 'valrano-staging'. Wrong FTP target!"
-            exit 1
-          fi
-          echo "Site-id guard passed (remote='${REMOTE_ID:-<none>}')"
-        env:
-          FTP_HOST: ${{ secrets.FTP_HOST }}
-          FTP_USER: ${{ secrets.FTP_USER }}
-          FTP_PASS: ${{ secrets.FTP_PASS }}
-
-      - name: Upload to staging
-        run: |
-          n=0
-          until [ $n -ge 4 ]; do
-            OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
-          set ftp:ssl-force yes
-          set ssl:verify-certificate no; set ftp:ssl-protect-data no
-          set net:timeout 60; set net:max-retries 8; set net:persist-retries 8; set net:reconnect-interval-base 5; set net:reconnect-interval-multiplier 1.2; set ftp:fix-pasv-address yes; set ftp:prefer-epsv no; set ftp:passive-mode yes; set mirror:parallel-transfer-count 4
-          mirror --reverse --verbose --no-perms --delete \
-            --exclude .htpasswd --exclude cgi-bin/ \
-            ./dist/ staging.valrano.com/
-          bye
-          SCRIPT
-          )
-            RC=$?
-            echo "$OUT"
-            [ $RC -eq 0 ] && break
-            echo "$OUT" | grep -qiE '530|login (incorrect|failed)' && { echo "::error::FTP auth 530 - not retrying"; exit 1; }
-            n=$((n+1))
-            [ $n -ge 4 ] && { echo "::error::Upload to staging failed after 4 attempts"; exit 1; }
-            echo "::warning::Upload to staging attempt $n failed - retrying in 25s..."
-            sleep 25
-          done
-        env:
-          FTP_HOST: ${{ secrets.FTP_HOST }}
-          FTP_USER: ${{ secrets.FTP_USER }}
-          FTP_PASS: ${{ secrets.FTP_PASS }}
-
-  e2e-staging:
-    needs: deploy-staging
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-
-      - name: Verify staging is alive (catches .htaccess errors)
-        run: |
-          # Retry loop survives transient curl failures (exit 23 etc.), not just non-200s.
-          for i in 1 2 3 4 5 6; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u "staging:predivo2026" https://staging.valrano.com --max-time 30 || echo 000)
-            if [ "$STATUS" = "200" ]; then echo "Staging health check passed (HTTP $STATUS, attempt $i)"; exit 0; fi
-            echo "::warning::Staging check attempt $i/6 got HTTP $STATUS - retrying in 15s..."
-            sleep 15
-          done
-          echo "::error::Staging returned HTTP $STATUS after 6 attempts - likely .htaccess error. Blocking production deploy."
-          exit 1
-
-      - name: Run E2E tests against staging
-        run: npm run test:e2e:staging
-        env:
-          STAGING_URL: https://staging.valrano.com
-          STAGING_HTTP_USER: staging
-          STAGING_HTTP_PASS: predivo2026
-          STAGING_TEST_EMAIL: e2e-test@valrano-test.local
-          STAGING_TEST_PASSWORD: IntegrationTest2026!
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-staging-report
-          path: playwright-report/
-          retention-days: 7
