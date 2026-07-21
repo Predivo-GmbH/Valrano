@@ -42,10 +42,12 @@ on:
         default: ''
 
 concurrency:
-  group: deploy-production
-  # Queue deploys instead of cancelling — a cancelled prod deploy mid-FTP leaves
-  # the site half-updated.
-  cancel-in-progress: false
+  # Production promotions (workflow_dispatch) keep their own serialized, NEVER-cancelled
+  # group: cancelling a mid-flight FTP mirror can leave prod half-uploaded.
+  # Pushes (the staging pipeline) get a per-ref group that DOES cancel — when several
+  # commits land in a row only the newest needs a staging deploy + E2E.
+  group: ${{ github.event_name == 'workflow_dispatch' && 'deploy-production' || format('staging-{0}', github.ref) }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   # ===========================================================================
