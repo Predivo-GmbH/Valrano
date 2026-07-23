@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { isChunkLoadError, reloadOnceForChunk, reportCrash } from '@/lib/crash-report'
 
 interface Props {
   children: ReactNode
@@ -17,6 +18,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    if (isChunkLoadError(error) && reloadOnceForChunk(error)) {
+      return
+    }
+    reportCrash('error-boundary', error, info?.componentStack ?? '')
     if (import.meta.env.DEV) {
       console.error('ErrorBoundary caught:', error, info.componentStack)
     }
