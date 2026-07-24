@@ -12,6 +12,37 @@ if (!STAGING_URL || !STAGING_ANON_KEY || !STAGING_SERVICE_ROLE_KEY) {
   )
 }
 
+const TRANSIENT_JWT = /invalid jwt|unable to parse|unrecognized|bad_jwt|\bkid\b|\bjws\b|verify signature/i
+
+/**
+ * Retry a Supabase admin-auth call through the transient GoTrue signing-key window. During an ES256
+ * key rotation GoTrue can briefly reject a VALID admin token ("invalid JWT / unable to parse or
+ * verify signature / unrecognized kid <nil> for ES256 / bad_jwt"); it self-heals in seconds. We
+ * retry that transient class with backoff. A stable, real error still surfaces after the retries.
+ * supabase-js admin methods return { data, error } (they don't throw), so we inspect error.message;
+ * thrown errors are also caught for safety.
+ */
+export async function withKeyRetry<T extends { error?: unknown }>(fn: () => Promise<T>): Promise<T> {
+  let last: T | undefined
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const res = await fn()
+      last = res
+      const msg = String((res as { error?: { message?: string } })?.error?.message ?? '')
+      if ((res as { error?: unknown })?.error && TRANSIENT_JWT.test(msg) && attempt < 4) {
+        await new Promise((r) => setTimeout(r, 1500 * attempt)); continue
+      }
+      return res
+    } catch (e) {
+      if (attempt < 4 && TRANSIENT_JWT.test(String((e as { message?: string })?.message ?? ''))) {
+        await new Promise((r) => setTimeout(r, 1500 * attempt)); continue
+      }
+      throw e
+    }
+  }
+  return last as T
+}
+
 /** Admin client with service_role — bypasses RLS */
 export function getAdminClient(): SupabaseClient {
   return createClient(STAGING_URL, STAGING_SERVICE_ROLE_KEY, {
@@ -39,7 +70,7 @@ export async function createTestUser(
   const testEmail = `${emailPrefix}@valrano-test.local`
 
   // Delete existing test user if present (cleanup from previous failed run)
-  const { data: existingUsers } = await admin.auth.admin.listUsers()
+  const { data: existingUsers } = await withKeyRetry(() => admin.auth.admin.listUsers())
   const existing = existingUsers?.users?.find((u) => u.email === testEmail)
   if (existing) {
     await cleanupTestUser(existing.id)
@@ -47,11 +78,13 @@ export async function createTestUser(
 
   // Create fresh test user
   const { data: created, error: createErr } =
-    await admin.auth.admin.createUser({
-      email: testEmail,
-      password: TEST_PASSWORD,
-      email_confirm: true,
-    })
+    await withKeyRetry(() =>
+      admin.auth.admin.createUser({
+        email: testEmail,
+        password: TEST_PASSWORD,
+        email_confirm: true,
+      })
+    )
   if (createErr || !created.user) {
     throw new Error(
       `Failed to create test user (${testEmail}): ${createErr?.message}`
@@ -130,7 +163,7 @@ export async function cleanupTestUser(userId: string): Promise<void> {
   await admin.from('subscriptions').delete().eq('user_id', userId)
 
   // Delete the auth user last
-  await admin.auth.admin.deleteUser(userId)
+  await withKeyRetry(() => admin.auth.admin.deleteUser(userId))
 }
 
 /** Call an edge function on staging with the user's JWT */
