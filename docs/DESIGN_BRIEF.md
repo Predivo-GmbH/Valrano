@@ -267,7 +267,7 @@ Applied in commits `40f67c2` (code quality) and `d66b757` (premium UI). 12+ page
 Footer must comply with `C:\Business\Internal Projects\footer-standard.md`. Key rules:
 - Use a shared Footer component -- never inline footer markup on individual pages
 - Copyright: `Valrano by Predivo GmbH. All rights reserved.`
-- Slogan: `Swiss-made · Software that Thinks Ahead` (always English)
+- Slogan: `Swiss-made` (always English)
 - Email templates must also include standard footer
 
 ---
