@@ -32,7 +32,6 @@ All prices are annual contracts only. No monthly option. Enterprise SaaS standar
 | Time to insight | Same business day (not 60-minute SLA) |
 | Users | Up to 3 named users |
 | Data export | PDF + Excel export of comparison tables |
-| Support | Email support, 48h response SLA |
 
 **Not included:**
 
@@ -73,7 +72,6 @@ All prices are annual contracts only. No monthly option. Enterprise SaaS standar
 | Alerts | Email + Microsoft Teams + Slack notifications |
 | Historical data | 5 years of normalized peer data |
 | Audit trail | Every extracted value linked to source PDF page and paragraph |
-| Support | Priority email + video call support, 24h response SLA |
 | Dedicated CSM | Named Customer Success Manager (shared) |
 
 **Not included:**
@@ -112,7 +110,6 @@ All prices are annual contracts only. No monthly option. Enterprise SaaS standar
 | Custom integrations | Webhooks + custom data feeds to internal systems |
 | Board package automation | Automated quarterly board package generation (peer comparison + trend analysis + ESG trajectory) |
 | M&A peer assessment | On-demand peer set for acquisition targets |
-| Support | Dedicated support channel (Teams/Slack), 4h response SLA |
 | Dedicated CSM | Named Customer Success Manager (dedicated) |
 | Quarterly business review | QBR with product team to review usage, accuracy, and feature requests |
 
