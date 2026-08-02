@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
+import { supabase, getCurrentUserId } from '@/lib/supabase'
 import type { MyCompany, MyCompanyKpi, SelfBenchmark, MyCompanyInsert, MyCompanyKpiInsert } from '@/types/database'
 import type { KpiDefinition } from '@/types/database'
 
@@ -125,8 +125,8 @@ export function useCreateMyCompany() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (params: Omit<MyCompanyInsert, 'user_id' | 'company_id'>) => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      const userId = await getCurrentUserId()
+      if (!userId) throw new Error('Not authenticated')
 
       // Also create in companies table so the full pipeline works (reports, extraction, insights)
       const { data: company, error: companyErr } = await supabase
@@ -136,7 +136,7 @@ export function useCreateMyCompany() {
           sector: params.sector ?? null,
           country: params.country ?? null,
           is_active: true,
-          created_by: user.id,
+          created_by: userId,
         })
         .select()
         .single()
@@ -144,7 +144,7 @@ export function useCreateMyCompany() {
 
       const { data, error } = await supabase
         .from('my_companies')
-        .insert({ ...params, user_id: user.id, company_id: company.id })
+        .insert({ ...params, user_id: userId, company_id: company.id })
         .select()
         .single()
       if (error) throw error

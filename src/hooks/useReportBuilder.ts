@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
+import { supabase, getCurrentUserId } from '@/lib/supabase'
 import { toast } from 'sonner'
 
 // ---------------------------------------------------------------------------
@@ -111,13 +111,13 @@ export function useCreateReport() {
       template_id?: string
       config_json: CustomReport['config_json']
     }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      const userId = await getCurrentUserId()
+      if (!userId) throw new Error('Not authenticated')
       const { data, error } = await supabase
         .from('custom_reports')
         .insert({
           ...params,
-          user_id: user.id,
+          user_id: userId,
           status: 'draft',
         })
         .select()

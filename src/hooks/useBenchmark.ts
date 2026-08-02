@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
+import { supabase, getCurrentUserId } from '@/lib/supabase'
 import { toast } from 'sonner'
 import type {
   BenchmarkRule,
@@ -125,12 +125,12 @@ export function useCreateBenchmarkRule() {
       narrative_style: NarrativeStyle
       auto_generate: boolean
     }) => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
       const { data, error } = await supabase
         .from('benchmark_rules')
         .insert({
           ...params,
-          created_by: user?.id ?? null,
+          created_by: userId ?? null,
         })
         .select()
         .single()
@@ -222,14 +222,14 @@ export function useUpdateDocumentStatus() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (params: { id: string; status: string; fromStatus?: string; notes?: string }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      const userId = await getCurrentUserId()
+      if (!userId) throw new Error('Not authenticated')
 
       const { data, error } = await supabase
         .from('benchmark_documents')
         .update({
           status: params.status,
-          status_changed_by: user.id,
+          status_changed_by: userId,
           status_changed_at: new Date().toISOString(),
           review_notes: params.notes || null,
         })
@@ -244,7 +244,7 @@ export function useUpdateDocumentStatus() {
           document_id: params.id,
           from_status: params.fromStatus,
           to_status: params.status,
-          changed_by: user.id,
+          changed_by: userId,
           notes: params.notes || null,
         })
       }
@@ -299,10 +299,10 @@ export function useCreateApprovalChain() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (params: Record<string, unknown>) => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
       const { data, error } = await supabase
         .from('approval_chains')
-        .insert({ ...params, created_by: user?.id })
+        .insert({ ...params, created_by: userId })
         .select()
         .single()
       if (error) throw error

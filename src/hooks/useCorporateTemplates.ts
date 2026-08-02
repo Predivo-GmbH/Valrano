@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
+import { supabase, getCurrentUserId } from '@/lib/supabase'
 import { toast } from 'sonner'
 
 // ---------------------------------------------------------------------------
@@ -111,15 +111,15 @@ export function useUploadCorporateTemplate() {
       name: string
       description?: string
     }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      const userId = await getCurrentUserId()
+      if (!userId) throw new Error('Not authenticated')
 
       const ext = params.file.name.split('.').pop()?.toLowerCase()
       if (ext !== 'pptx' && ext !== 'xlsx') {
         throw new Error('Only .pptx and .xlsx files are supported')
       }
 
-      const storagePath = `${user.id}/templates/${crypto.randomUUID()}.${ext}`
+      const storagePath = `${userId}/templates/${crypto.randomUUID()}.${ext}`
 
       // Upload file to storage
       const { error: uploadErr } = await supabase.storage
@@ -132,7 +132,7 @@ export function useUploadCorporateTemplate() {
       const { data, error } = await supabase
         .from('corporate_templates')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           name: params.name,
           description: params.description ?? null,
           file_format: ext,
@@ -313,8 +313,8 @@ export function useAddGoogleTemplate() {
       fileUrl: string
       fileFormat: 'gslides' | 'gsheets'
     }) => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      const userId = await getCurrentUserId()
+      if (!userId) throw new Error('Not authenticated')
 
       // Extract file ID from Google URL
       const fileId = extractGoogleFileId(params.fileUrl)
@@ -323,7 +323,7 @@ export function useAddGoogleTemplate() {
       const { data, error } = await supabase
         .from('corporate_templates')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           name: params.name,
           description: params.description ?? null,
           file_format: params.fileFormat,

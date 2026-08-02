@@ -19,7 +19,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { PremiumSelect } from '@/components/ui/premium-select'
-import { supabase } from '@/lib/supabase'
+import { supabase, getCurrentUserId } from '@/lib/supabase'
 import { useReports, usePeerGroups, useAllCompanies } from '@/hooks/useData'
 import { useAccountingProfile, useAnalyzeAccountingProfile } from '@/hooks/useAccountingProfile'
 import { useCreateMyCompany, usePrimaryCompany } from '@/hooks/useMyCompany'
@@ -176,10 +176,10 @@ export function OnboardingWizard() {
             // Remove old members to replace with current selection
             await supabase.from('peer_group_members').delete().eq('peer_group_id', pgId)
           } else {
-            const { data: { user } } = await supabase.auth.getUser()
+            const userId = await getCurrentUserId()
             const { data: newPg, error: pgError } = await supabase
               .from('peer_groups')
-              .insert({ name: 'Default', description: 'Auto-created during onboarding', owner_id: user?.id })
+              .insert({ name: 'Default', description: 'Auto-created during onboarding', owner_id: userId })
               .select('id')
               .single()
             if (pgError || !newPg) throw pgError
@@ -238,8 +238,8 @@ export function OnboardingWizard() {
   const handleFinishSetup = async () => {
     // Save schedules if any were entered (same as handleNext for step 3)
     if (currentStep === 3) {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+      const userId = await getCurrentUserId()
+      if (userId) {
         let saved = 0
         for (const [companyId, schedule] of Object.entries(schedules)) {
           if (schedule.expectedDate) {
@@ -249,7 +249,7 @@ export function OnboardingWizard() {
                 report_type: schedule.reportType || 'annual',
                 expected_date: schedule.expectedDate,
                 status: 'scheduled',
-                created_by: user.id,
+                created_by: userId,
               },
               { onConflict: 'company_id,report_type,expected_date' },
             )
@@ -366,13 +366,13 @@ export function OnboardingWizard() {
           // Auto-select report competitors — always create fresh company records (data isolation Rule E)
           if (autoSelect && competitors.length > 0) {
             void (async () => {
-              const { data: { user } } = await supabase.auth.getUser()
+              const userId = await getCurrentUserId()
               const session = (await supabase.auth.getSession()).data.session
               const newIds: string[] = [...selectedCompanyIdsRef.current]
               for (const rc of competitors) {
                 const { data: inserted } = await supabase
                   .from('companies')
-                  .insert({ name: rc.name, ticker: rc.ticker ?? null, created_by: user?.id })
+                  .insert({ name: rc.name, ticker: rc.ticker ?? null, created_by: userId })
                   .select('id')
                   .single()
                 if (inserted) {
@@ -567,10 +567,10 @@ function StepFramework({ onReportCompetitorsFound }: { onReportCompetitorsFound:
 
       let companyId = company?.company_id
       if (!companyId && company) {
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        const currentUserId = await getCurrentUserId()
         const { data: created } = await supabase
           .from('companies')
-          .insert({ name: placeholderName, is_active: true, created_by: currentUser?.id })
+          .insert({ name: placeholderName, is_active: true, created_by: currentUserId })
           .select('id')
           .single()
         companyId = created?.id
@@ -1000,10 +1000,10 @@ function StepCompetitors({
   const addAndSelect = async (item: typeof reportSuggestionItems[number]) => {
     setAddingIdx(item.originalIdx)
     try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const currentUserId = await getCurrentUserId()
       const { data: inserted, error } = await supabase
         .from('companies')
-        .insert({ name: item.name, ticker: item.ticker ?? null, created_by: currentUser?.id })
+        .insert({ name: item.name, ticker: item.ticker ?? null, created_by: currentUserId })
         .select('id')
         .single()
       if (error) { toast.error(`Failed to add ${item.name}`); return }
@@ -1166,7 +1166,7 @@ function StepCompetitors({
             onChange={setSearch}
             onSelect={(result) => void (async () => {
               // ALWAYS create a new company — never reuse existing records from other accounts
-              const { data: { user: currentUser } } = await supabase.auth.getUser()
+              const currentUserId = await getCurrentUserId()
               const { data: inserted, error } = await supabase
                 .from('companies')
                 .insert({
@@ -1175,7 +1175,7 @@ function StepCompetitors({
                   sector: result.sector ?? null,
                   country: result.country_code ?? null,
                   reporting_currency: result.currency ?? 'CHF',
-                  created_by: currentUser?.id,
+                  created_by: currentUserId,
                 })
                 .select('id')
                 .single()

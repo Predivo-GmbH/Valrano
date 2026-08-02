@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
+import { supabase, getCurrentUserId } from '@/lib/supabase'
 import { useCompanies, useReports, useKpiDefinitions, useKpiValues } from '@/hooks/useData'
 import { usePrimaryCompany } from '@/hooks/useMyCompany'
 import { usePublicationEvents, useCheckPublication } from '@/hooks/useCalendar'
@@ -311,7 +311,7 @@ function AddCompanyDialog({
         }
       }
 
-      const { data: { user } } = await supabase.auth.getUser()
+      const userId = await getCurrentUserId()
       const { data: newCompany, error } = await supabase
         .from('companies')
         .insert({
@@ -321,7 +321,7 @@ function AddCompanyDialog({
           sector: sector || null,
           website_url: finalWebsiteUrl,
           ir_page_url: irUrl.trim() || null,
-          created_by: user?.id,
+          created_by: userId,
         })
         .select()
         .single()
@@ -342,7 +342,7 @@ function AddCompanyDialog({
         } else {
           const { data: newPg, error: pgError } = await supabase
             .from('peer_groups')
-            .insert({ name: 'Default', description: 'Auto-created peer group', owner_id: user?.id })
+            .insert({ name: 'Default', description: 'Auto-created peer group', owner_id: userId })
             .select()
             .single()
           if (pgError) throw pgError
