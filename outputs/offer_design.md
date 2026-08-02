@@ -45,7 +45,6 @@ All prices are annual contracts only. No monthly option. Enterprise SaaS standar
 - Custom KPI definitions
 - Mobile app
 - SSO
-- Dedicated CSM
 
 **Why CHF 28,800:** Positioned at 2.4x the annual labor cost of a junior analyst doing this work manually (~CHF 12,000 of loaded time for 5 peers), but delivers results in hours instead of days. Below a single Bloomberg seat (USD 32K) while providing automated peer benchmarking that Bloomberg does not offer. Above generic CI tools (Crayon at ~USD 30K) because financial KPI extraction is fundamentally higher-value than website monitoring.
 
@@ -72,7 +71,6 @@ All prices are annual contracts only. No monthly option. Enterprise SaaS standar
 | Alerts | Email + Microsoft Teams + Slack notifications |
 | Historical data | 5 years of normalized peer data |
 | Audit trail | Every extracted value linked to source PDF page and paragraph |
-| Dedicated CSM | Named Customer Success Manager (shared) |
 
 **Not included:**
 
@@ -110,8 +108,6 @@ All prices are annual contracts only. No monthly option. Enterprise SaaS standar
 | Custom integrations | Webhooks + custom data feeds to internal systems |
 | Board package automation | Automated quarterly board package generation (peer comparison + trend analysis + ESG trajectory) |
 | M&A peer assessment | On-demand peer set for acquisition targets |
-| Dedicated CSM | Named Customer Success Manager (dedicated) |
-| Quarterly business review | QBR with product team to review usage, accuracy, and feature requests |
 
 **Why CHF 118,800:** Still below 4 Bloomberg seats (4 x USD 28,320 = USD 113,280) -- and those seats provide raw data, not automated intelligence. A single McKinsey benchmarking engagement costs USD 300K--800K for a point-in-time deliverable. Enterprise tier provides continuous, automated intelligence for ~CHF 10K/month -- the equivalent of hiring a full-time benchmarking analyst at a fraction of the cost (strategy analyst salary: USD 80K--105K/year), except the platform never sleeps, never makes transcription errors, and delivers in 60 minutes.
 
@@ -134,7 +130,6 @@ All prices are annual contracts only. No monthly option. Enterprise SaaS standar
 | **SSO** | -- | -- | Yes |
 | **Users** | 3 | 10 | Unlimited |
 | **Time to insight** | Same day | 60 minutes | 60 minutes |
-| **Support** | Email (48h) | Priority (24h) | Dedicated (4h) |
 
 ---
 
