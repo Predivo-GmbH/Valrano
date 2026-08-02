@@ -12,6 +12,10 @@ import { defineConfig } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './e2e/staging',
+  // The heavy v11 hardened gates (seed/clean via the Management API) run in their own
+  // pipeline (staging-gates.yml / playwright.v11-gates.config.ts). Keep them OUT of the
+  // prod-promotion gauntlet — this config has no VAL_MGMT_TOKEN, so they'd fail here.
+  testIgnore: '**/v11-gates.spec.ts',
   timeout: 45000,
   retries: 1,
   use: {

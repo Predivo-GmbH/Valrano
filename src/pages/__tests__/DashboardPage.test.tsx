@@ -10,6 +10,18 @@ vi.mock('@/hooks/useOnboarding', () => ({
   dismissOnboarding: vi.fn(),
 }))
 
+// A query-chain leaf that BOTH awaits to the result (for hooks that terminate at
+// `.order`, e.g. useKpiDefinitions) AND exposes `.range()` (for hooks now paginated
+// through fetchAllRows: useCompanies / useReports / useKpiValues / usePublicationEvents).
+function leaf(data: unknown[]) {
+  const result = { data, error: null }
+  return {
+    range: vi.fn().mockResolvedValue(result),
+    then: (onF: (v: unknown) => unknown, onR?: (e: unknown) => unknown) =>
+      Promise.resolve(result).then(onF, onR),
+  }
+}
+
 vi.mock('@/lib/supabase', () => ({
   supabase: {
     from: vi.fn((table: string) => {
@@ -18,8 +30,8 @@ vi.mock('@/lib/supabase', () => ({
           select: vi.fn().mockReturnThis(),
           in: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          order: vi.fn().mockResolvedValue({
-            data: [
+          order: vi.fn(() => leaf(
+            [
               {
                 id: '1',
                 name: 'Holcim Ltd',
@@ -41,16 +53,15 @@ vi.mock('@/lib/supabase', () => ({
                 updated_at: '2026-01-01T00:00:00Z',
               },
             ],
-            error: null,
-          }),
+          )),
         }
       }
       if (table === 'kpi_definitions') {
         return {
           select: vi.fn().mockReturnThis(),
           eq: vi.fn().mockReturnThis(),
-          order: vi.fn().mockResolvedValue({
-            data: [
+          order: vi.fn(() => leaf(
+            [
               {
                 id: '1',
                 code: 'REVENUE',
@@ -76,8 +87,7 @@ vi.mock('@/lib/supabase', () => ({
                 updated_at: '2026-01-01T00:00:00Z',
               },
             ],
-            error: null,
-          }),
+          )),
         }
       }
       if (table === 'kpi_values') {
@@ -86,8 +96,8 @@ vi.mock('@/lib/supabase', () => ({
           eq: vi.fn().mockReturnThis(),
           in: vi.fn().mockReturnThis(),
           is: vi.fn().mockReturnThis(),
-          order: vi.fn().mockResolvedValue({
-            data: [
+          order: vi.fn(() => leaf(
+            [
               {
                 id: '1',
                 company_id: '1',
@@ -107,8 +117,7 @@ vi.mock('@/lib/supabase', () => ({
                 companies: { name: 'Holcim Ltd', ticker: 'HOLN' },
               },
             ],
-            error: null,
-          }),
+          )),
         }
       }
       return {
@@ -116,7 +125,7 @@ vi.mock('@/lib/supabase', () => ({
         eq: vi.fn().mockReturnThis(),
         in: vi.fn().mockReturnThis(),
         is: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        order: vi.fn(() => leaf([])),
       }
     }),
     rpc: vi.fn().mockResolvedValue({ data: ['1', '2'], error: null }),

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { fetchAllRows } from '@/lib/fetchAllRows'
 import { useVisibleCompanyIds } from './useVisibleCompanyIds'
 import type {
   Company,
@@ -21,14 +22,16 @@ export function useCompanies() {
     queryFn: async () => {
       if (!visibleIds || visibleIds.length === 0) return [] as Company[]
 
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .in('id', visibleIds)
-        .eq('is_active', true)
-        .order('name')
-      if (error) throw error
-      return data as Company[]
+      // Paginate past the PostgREST 1000-row cap so large peer sets aren't truncated.
+      return fetchAllRows<Company>((from, to) =>
+        supabase
+          .from('companies')
+          .select('*')
+          .in('id', visibleIds)
+          .eq('is_active', true)
+          .order('name')
+          .range(from, to),
+      )
     },
   })
 }
@@ -38,15 +41,16 @@ export function useAllCompanies() {
   return useQuery({
     queryKey: ['companies-all'],
     staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('is_active', true)
-        .order('name')
-      if (error) throw error
-      return data as Company[]
-    },
+    queryFn: async () =>
+      // Paginate past the PostgREST 1000-row cap (the full catalog can exceed 1000).
+      fetchAllRows<Company>((from, to) =>
+        supabase
+          .from('companies')
+          .select('*')
+          .eq('is_active', true)
+          .order('name')
+          .range(from, to),
+      ),
   })
 }
 
@@ -97,27 +101,29 @@ export function useKpiValues(params: {
         ? '*, kpi_definitions!inner(*), companies(*)'
         : '*, kpi_definitions(*), companies(*)'
 
-      let query = supabase
-        .from('kpi_values')
-        .select(selectClause)
-
-      if (params.companyIds?.length) {
-        query = query.in('company_id', params.companyIds)
-      }
-      if (params.fiscalYear) {
-        query = query.eq('fiscal_year', params.fiscalYear)
-      }
-      if (params.kpiCodes?.length) {
-        query = query.in('kpi_definitions.code', params.kpiCodes)
-      }
-
-      const { data, error } = await query.order('company_id')
-      if (error) throw error
-
-      return data as (KpiValue & {
+      // Paginate past the PostgREST 1000-row cap: kpi_values is high-cardinality
+      // (companies × KPIs × years × quarters) and feeds benchmark math, so a silent
+      // 1000-row truncation would produce wrong analytics.
+      return fetchAllRows<KpiValue & {
         kpi_definitions: KpiDefinition
         companies: Company
-      })[]
+      }>((from, to) => {
+        let query = supabase
+          .from('kpi_values')
+          .select(selectClause)
+
+        if (params.companyIds?.length) {
+          query = query.in('company_id', params.companyIds)
+        }
+        if (params.fiscalYear) {
+          query = query.eq('fiscal_year', params.fiscalYear)
+        }
+        if (params.kpiCodes?.length) {
+          query = query.in('kpi_definitions.code', params.kpiCodes)
+        }
+
+        return query.order('company_id').range(from, to)
+      })
     },
     enabled: !!(params.companyIds?.length || params.fiscalYear),
   })
@@ -131,22 +137,24 @@ export function useReports(companyId?: string) {
     staleTime: 5 * 60 * 1000,
     enabled: !!companyId || !!visibleIds,
     queryFn: async () => {
-      let query = supabase
-        .from('reports')
-        .select('*, companies(*), extractions(*)')
-        .order('fiscal_year', { ascending: false })
+      if (!companyId && !visibleIds?.length) return []
 
-      if (companyId) {
-        query = query.eq('company_id', companyId)
-      } else if (visibleIds?.length) {
-        query = query.in('company_id', visibleIds)
-      } else {
-        return []
-      }
+      // Paginate past the PostgREST 1000-row cap so the "Reports" count (reports.length)
+      // reflects ALL reports rather than silently capping at 1000 (v11 Gate I).
+      return fetchAllRows<Report & { companies: Company; extractions: Extraction[] }>((from, to) => {
+        let query = supabase
+          .from('reports')
+          .select('*, companies(*), extractions(*)')
+          .order('fiscal_year', { ascending: false })
 
-      const { data, error } = await query
-      if (error) throw error
-      return data as (Report & { companies: Company; extractions: Extraction[] })[]
+        if (companyId) {
+          query = query.eq('company_id', companyId)
+        } else {
+          query = query.in('company_id', visibleIds!)
+        }
+
+        return query.range(from, to)
+      })
     },
   })
 }

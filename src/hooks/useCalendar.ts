@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { fetchAllRows } from '@/lib/fetchAllRows'
 import { toast } from 'sonner'
 import type { PublicationEvent, MonitorCheck, Company } from '@/types/database'
 
@@ -15,27 +16,28 @@ export function usePublicationEvents(params?: {
   return useQuery({
     queryKey: ['publication-events', params],
     staleTime: 2 * 60 * 1000,
-    queryFn: async () => {
-      let query = supabase
-        .from('publication_events')
-        .select('*, companies(*)')
-        .order('expected_date', { ascending: true })
+    queryFn: async () =>
+      // Paginate past the PostgREST 1000-row cap so the calendar counts ALL events
+      // (companies × report types × years can exceed 1000) rather than truncating.
+      fetchAllRows<PublicationEvent & { companies: Company }>((from, to) => {
+        let query = supabase
+          .from('publication_events')
+          .select('*, companies(*)')
+          .order('expected_date', { ascending: true })
 
-      if (params?.status) {
-        query = query.eq('status', params.status)
-      }
-      if (params?.companyId) {
-        query = query.eq('company_id', params.companyId)
-      }
-      if (params?.year) {
-        query = query.gte('expected_date', `${params.year}-01-01`)
-        query = query.lte('expected_date', `${params.year}-12-31`)
-      }
+        if (params?.status) {
+          query = query.eq('status', params.status)
+        }
+        if (params?.companyId) {
+          query = query.eq('company_id', params.companyId)
+        }
+        if (params?.year) {
+          query = query.gte('expected_date', `${params.year}-01-01`)
+          query = query.lte('expected_date', `${params.year}-12-31`)
+        }
 
-      const { data, error } = await query
-      if (error) throw error
-      return data as (PublicationEvent & { companies: Company })[]
-    },
+        return query.range(from, to)
+      }),
   })
 }
 
