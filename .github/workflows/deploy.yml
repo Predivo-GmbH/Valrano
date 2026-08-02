@@ -154,7 +154,7 @@ jobs:
           # (a transient guard blip would abort blindly instead of retrying/allowing). §3f.
           set +e
           GUARD="set ftp:ssl-force yes; set ssl:verify-certificate no; set ftp:ssl-protect-data no; set ftp:passive-mode yes;"
-          OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "$GUARD cat staging.valrano.com/.site-id; quit" 2>&1)
+          OUT=$(timeout 90 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "$GUARD cat staging.valrano.com/.site-id; quit" 2>&1)
           RC=$?
           REMOTE_ID=$(echo "$OUT" | tr -d '[:space:]')
           if [ $RC -ne 0 ]; then
@@ -180,7 +180,7 @@ jobs:
           set +e
           n=0
           until [ $n -ge 4 ]; do
-            OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
+            OUT=$(timeout 420 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
           set ftp:ssl-force yes
           set ssl:verify-certificate no; set ftp:ssl-protect-data no
           set net:timeout 60; set net:max-retries 8; set net:persist-retries 8; set net:reconnect-interval-base 5; set net:reconnect-interval-multiplier 1.2; set ftp:fix-pasv-address yes; set ftp:prefer-epsv no; set ftp:passive-mode yes; set mirror:parallel-transfer-count 4
@@ -376,7 +376,7 @@ jobs:
           # (a transient guard blip would abort blindly instead of retrying/allowing). §3f.
           set +e
           GUARD="set ftp:ssl-force yes; set ssl:verify-certificate no; set ftp:ssl-protect-data no; set ftp:passive-mode yes;"
-          OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "$GUARD cat httpdocs/.site-id; quit" 2>&1)
+          OUT=$(timeout 90 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -e "$GUARD cat httpdocs/.site-id; quit" 2>&1)
           RC=$?
           REMOTE_ID=$(echo "$OUT" | tr -d '[:space:]')
           if [ $RC -ne 0 ]; then
@@ -402,7 +402,7 @@ jobs:
           set +e
           n=0
           until [ $n -ge 4 ]; do
-            OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
+            OUT=$(timeout 420 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
           set ftp:ssl-force yes
           set ssl:verify-certificate no; set ftp:ssl-protect-data no
           set net:timeout 60; set net:max-retries 8; set net:persist-retries 8; set net:reconnect-interval-base 5; set net:reconnect-interval-multiplier 1.2; set ftp:fix-pasv-address yes; set ftp:prefer-epsv no; set ftp:passive-mode yes; set mirror:parallel-transfer-count 4
@@ -430,7 +430,7 @@ jobs:
           set +e
           n=0
           until [ $n -ge 4 ]; do
-            OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
+            OUT=$(timeout 420 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
           set ftp:ssl-force yes
           set ssl:verify-certificate no; set ftp:ssl-protect-data no
           set net:timeout 60; set net:max-retries 8; set net:persist-retries 8; set net:reconnect-interval-base 5; set net:reconnect-interval-multiplier 1.2; set ftp:fix-pasv-address yes; set ftp:prefer-epsv no; set ftp:passive-mode yes; set mirror:parallel-transfer-count 4
@@ -468,7 +468,7 @@ jobs:
           set +e
           n=0
           until [ $n -ge 4 ]; do
-            OUT=$(lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
+            OUT=$(timeout 420 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
           set ftp:ssl-force yes
           set ssl:verify-certificate no; set ftp:ssl-protect-data no
           set net:timeout 60; set net:max-retries 8; set net:persist-retries 8; set net:reconnect-interval-base 5; set net:reconnect-interval-multiplier 1.2; set ftp:fix-pasv-address yes; set ftp:prefer-epsv no; set ftp:passive-mode yes; set mirror:parallel-transfer-count 4
