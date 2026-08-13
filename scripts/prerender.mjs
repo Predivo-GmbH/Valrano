@@ -78,6 +78,25 @@ async function prerender() {
 
     let html = await page.content()
 
+    // Guard: Vite/Rolldown's runtime modulepreload helper (used to warm the cache
+    // for sibling deps of a lazy-loaded route chunk, e.g. LandingPage/useWaitlist)
+    // can resolve asset URLs as an ABSOLUTE `new URL(dep, importerUrl).href` instead
+    // of a root-relative path. During prerender importerUrl is always this script's
+    // own local server (BASE = http://localhost:4173), so if that codepath fires,
+    // the <link rel="modulepreload"> it injects gets baked into the DOM as an
+    // absolute http://localhost:4173/... href. page.content() captures that literally
+    // into the static file we ship. Once deployed to the real domain, that becomes a
+    // foreign-origin script load that script-src 'self' CSP correctly blocks (confirmed
+    // root cause, local repro 2026-08-13: reproduces whenever Vite picks the absolute
+    // assetsURL codepath, independent of which plugin triggers it). A prerendered file
+    // must be origin-portable, so strip any leaked reference to our own local server
+    // back to a root-relative path -- this closes the bug class regardless of why a
+    // given build chose the absolute codepath.
+    if (html.includes(BASE)) {
+      console.warn(`  WARNING: ${route.path} had ${(html.split(BASE).length - 1)} baked-in prerender-origin URL(s) (${BASE}) -- rewriting to root-relative`)
+      html = html.split(BASE).join('')
+    }
+
     // Puppeteer's page.content() returns HTML without doctype -- add it back
     if (!html.toLowerCase().startsWith('<!doctype')) {
       html = '<!doctype html>\n' + html
