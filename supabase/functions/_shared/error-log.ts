@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
+import { reportToSentry } from './sentry.ts'
 
 export async function logError(
   functionName: string,
@@ -7,6 +8,8 @@ export async function logError(
   context?: Record<string, unknown>,
 ): Promise<void> {
   console.error(`[${functionName}] ${operation}:`, error)
+  // Mirror to Sentry (no-ops unless the SENTRY_DSN edge secret is set).
+  await reportToSentry(functionName, operation, error, context)
   try {
     const url = Deno.env.get('SUPABASE_URL')
     const key = (Deno.env.get('SB_SECRET_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))

@@ -21,6 +21,8 @@
   "dependencies": {
     "@base-ui/react": "^1.4.1",
     "@fontsource-variable/geist": "^5.2.8",
+    "@sentry/react": "^10.70.0",
+    "@sentry/vite-plugin": "^5.4.0",
     "@supabase/supabase-js": "^2.105.2",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.4",
