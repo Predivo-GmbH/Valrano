@@ -116,6 +116,15 @@ async function prerender() {
       }
     }
 
+    // HARD-FAIL GUARD (fleet-wide, 2026-08-13): the strip above self-heals the known
+    // BASE-origin leak, but if ANY absolute localhost origin still survives (a novel
+    // variant the strip did not cover), it would ship a foreign-origin script that a
+    // strict CSP blocks in prod -- a silent, intermittent white-screen. Turn that into
+    // a LOUD build failure so a leaked build can never reach production.
+    if (/https?:\/\/localhost(:\d+)?/i.test(html)) {
+      throw new Error(`prerender guard: ${route.file} still contains an absolute localhost URL after strip -- refusing to ship an origin-locked prerendered file. Inspect the modulepreload/asset href injection.`)
+    }
+
     const outPath = join(DIST, route.file)
     mkdirSync(dirname(outPath), { recursive: true })
     writeFileSync(outPath, html, 'utf-8')
