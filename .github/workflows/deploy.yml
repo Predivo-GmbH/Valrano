@@ -81,6 +81,13 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_STAGING_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+          # Sentry (error monitoring pilot): DSN inlined into the bundle; auth token
+          # (+ org/project) enables source-map upload. environment is tagged by hostname
+          # at runtime, so this same DSN produces "staging"-tagged events here.
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
       - name: Install Supabase CLI
         run: npm install -g supabase@2.109.1
@@ -362,6 +369,12 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          # Sentry (error monitoring pilot): DSN inlined into the bundle; auth token
+          # (+ org/project) enables source-map upload for readable prod stack traces.
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
 
       - name: Install lftp
         run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
