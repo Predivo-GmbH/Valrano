@@ -10,8 +10,6 @@
  * Portable: no project-specific imports — drop this file into any Vite/React app.
  */
 
-import { captureException } from '@/lib/sentry'
-
 export function isChunkLoadError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error ?? '')
   const name = error instanceof Error ? error.name : ''
@@ -57,9 +55,6 @@ export function reportCrash(source: string, error: unknown, componentStack = '')
     componentStack: String(componentStack ?? '').slice(0, 4000),
   }
   console.error(`[${source}] crash:`, report.message, error, componentStack)
-  // Report to Sentry (no-ops unless VITE_SENTRY_DSN is set). Tag the crash source
-  // so the different reporting surfaces are distinguishable.
-  captureException(error, { source, componentStack: report.componentStack })
   try {
     localStorage.setItem('app_last_crash', JSON.stringify(report))
   } catch { /* storage full or denied — console.error above remains */ }
