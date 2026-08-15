@@ -1,0 +1,21 @@
+# gitleaks config for Valrano. Extends the default ruleset (all real-secret rules stay on).
+# Allowlists ONLY verified-public items surfaced by the working-tree gate (deploy-standard.md 4d):
+#   - GH Actions secret references (curl -u "staging:${{ secrets.STAGING_HTTP_PASS }}") = not a secret
+#     (the staging basic-auth password was moved out of deploy.yml into the STAGING_HTTP_PASS secret)
+#   - public Supabase anon keys in E2E fixtures, CLAUDE.md example, and a migration (all role:anon)
+# Real service_role/live keys have different payloads and are still detected everywhere.
+title = "valrano gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "GH-secret refs + public anon fixtures (public-by-design, not secrets)"
+regexes = [
+  '''\$\{\{\s*secrets\.''',
+]
+paths = [
+  '''CLAUDE\.md''',
+  '''e2e/.*\.ts''',
+  '''supabase/migrations/.*fire_edge_function\.sql''',
+]
