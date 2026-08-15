@@ -310,6 +310,32 @@ jobs:
   # full gauntlet above (needs: gate-integration + gate-e2e) AND a recorded green
   # staging deploy for this exact commit. This is where the un-skippable gates live.
   # ===========================================================================
+  # ===========================================================================
+  # SECURITY GATE (G3, deploy-standard §4d) — blocks prod promotion. gitleaks
+  # full-history secret scan + `npm audit --audit-level=critical`. AI
+  # security-review stays advisory. Fleet retrofit 2026-08-15 (clean at critical).
+  # NOTE: coverage gate is NOT yet blocking here — the feature-coverage check
+  # currently FAILS (10 features, real gap); flip to blocking after that is fixed.
+  # ===========================================================================
+  gate-security:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Dependency audit (blocking at critical)
+        run: npm audit --audit-level=critical
+
   deploy:
     # Normal production deploy: manual run, typed "deploy" confirmation. Intentionally does
     # NOT `needs: [validate-staging, e2e-staging]` anymore — staging already ran on the push
@@ -319,7 +345,7 @@ jobs:
     # PRODUCTION deploys only via manual dispatch (confirm=deploy) — a push to
     # main deploys STAGING only. Same pattern as ReplyFlow/BoatBuddy/SignalScore.
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'deploy'
-    needs: [gate-integration, gate-e2e]
+    needs: [gate-integration, gate-e2e, gate-security]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
