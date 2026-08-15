@@ -1,11 +1,15 @@
 /**
- * Feature Coverage Sync Check
+ * Feature Coverage Sync Check -- CANONICAL (source of truth).
  *
- * Reads docs/FEATURES.md, extracts all feature IDs with status "implemented" or "tested",
- * then verifies that each feature has at least one corresponding test file on disk.
+ * Reads docs/FEATURES.md, extracts every feature with status "implemented" or
+ * "tested", and verifies each has at least one test file that exists on disk.
  *
- * Exit code 1 if any feature lacks test coverage.
+ * Exits 1 if any implemented feature lacks a test file, OR if the file contains
+ * feature blocks but the parser matched none (format drift = silent theater).
  * Run in CI: node scripts/check-feature-coverage.mjs
+ *
+ * Home: C:\Business\Templates\scripts\check-feature-coverage.canonical.mjs
+ * Propagate changes from here; do not edit per-product copies in isolation.
  */
 
 import { readFileSync, existsSync } from 'fs'
@@ -18,20 +22,23 @@ if (!existsSync(FEATURES_PATH)) {
   process.exit(0)
 }
 
-// Normalize line endings to LF for consistent regex matching
+// normalize CRLF (Windows-saved files) so the block regex matches
 const content = readFileSync(FEATURES_PATH, 'utf-8').replace(/\r\n/g, '\n')
 
-// Parse feature blocks: ### F-XXX: Name ... - **Status:** ... - **Test Files:** ...
 const featureRegex = /### (F-\d{3}): (.+)\n([\s\S]*?)(?=\n### F-|\n---|\n<!-- |$)/g
 const statusRegex = /\*\*Status:\*\*\s*(planned|implemented|tested)/
+// \*{0,2} on both sides of the label accepts BOTH "**Unit:** `path`" (bold) and
+// "- Unit: `path`" styles, so a bold-label registry does not silently fail.
 const testFileRegex = /\*{0,2}(?:Unit|E2E|Integration|Component|A11y):\*{0,2}\s*`([^`]+)`/g
 
 let failures = 0
 let checked = 0
+let parsedBlocks = 0
 let match
 
 while ((match = featureRegex.exec(content)) !== null) {
   const [, id, name, body] = match
+  parsedBlocks++
   const statusMatch = body.match(statusRegex)
 
   if (!statusMatch) continue
@@ -43,7 +50,6 @@ while ((match = featureRegex.exec(content)) !== null) {
 
   checked++
 
-  // Extract all test file paths
   const testFiles = []
   let tfMatch
   while ((tfMatch = testFileRegex.exec(body)) !== null) {
@@ -56,7 +62,6 @@ while ((match = featureRegex.exec(content)) !== null) {
     continue
   }
 
-  // Verify each test file exists on disk
   const missing = testFiles.filter((f) => !existsSync(resolve(f)))
 
   if (missing.length > 0) {
@@ -68,6 +73,19 @@ while ((match = featureRegex.exec(content)) !== null) {
   } else {
     console.log(`PASS  ${id}: ${name} -- ${testFiles.length} test file(s) verified`)
   }
+}
+
+// Anti-theater guard: if the file clearly contains feature blocks but the parser
+// matched none, the format has drifted (CRLF endings or wrong test-line syntax)
+// and this gate would otherwise pass while protecting nothing.
+const rawBlocks = (content.match(/^### F-\d{3}:/gm) || []).length
+if (rawBlocks > 0 && parsedBlocks === 0) {
+  console.error(
+    `\n::error::FEATURES.md has ${rawBlocks} feature block(s) but the parser matched 0 -- ` +
+      'format drift (CRLF or wrong test-line syntax). The coverage gate would pass ' +
+      'while protecting nothing. Aborting.'
+  )
+  process.exit(1)
 }
 
 console.log(`\n${checked} feature(s) checked, ${failures} failure(s)`)
