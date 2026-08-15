@@ -134,7 +134,7 @@ This document defines all features in the Valrano project with their status, rou
 **Route:** `/upload`
 **Components:** `src/pages/UploadPage.tsx`
 
-**Description:** PDF upload with Vision-LLM extraction progress. Shows confidence scores and review queue for values below 0.85.
+**Description:** PDF upload with Vision-LLM extraction progress. Shows confidence scores and review queue for values below 0.85. Implemented as the `UploadReportDialog` component (`src/components/upload-report-dialog.tsx`); the standalone `/upload` route now redirects to `/competitors`.
 
 **Critical Assertions:**
 1. Accepts PDF files only
@@ -143,7 +143,7 @@ This document defines all features in the Valrano project with their status, rou
 4. Queues low-confidence values for review
 
 **Test Files:**
-- Unit/Component: `src/pages/__tests__/UploadPage.test.tsx`
+- Component: `src/components/__tests__/upload-report-dialog.test.tsx`
 - E2E: `e2e/features.spec.ts` (F-006: Upload)
 
 ---
@@ -320,6 +320,9 @@ This document defines all features in the Valrano project with their status, rou
 4. Links to external website and IR page
 5. Publication events filtered to this company
 
+**Test Files:**
+- E2E: `e2e/authenticated/company-profile.spec.ts`
+
 ---
 
 ### F-018: Dev Tools Panel (DevTierSwitcher)
@@ -328,13 +331,16 @@ This document defines all features in the Valrano project with their status, rou
 **Route:** Global (floating bottom-right, z-9999)
 **Components:** `src/components/dev/DevTierSwitcher.tsx`, `src/lib/dev-flags.ts`
 
-**Description:** Developer tools panel gated to DEV_EMAIL (`dev@valrano.com`). Two sections: (1) Tier Override — switch subscription tier via localStorage for testing tier-gated features. (2) News Gathering — per-user toggle to enable/disable news fetching, preventing unnecessary API costs during development. Lists all users from `user_profiles` table.
+**Description:** The standalone `DevTierSwitcher` floating panel was removed (see `src/components/layout/AppLayout.tsx`: "DevTierSwitcher removed — admin controls moved to Settings > Admin tab"). Its functionality now lives in the Admin panel (`src/pages/AdminPage.tsx`), gated to `SUPER_ADMIN_EMAIL` (`roger@mueller.ro`): (1) Tier Override — switch subscription tier via `admin_update_tier` RPC. (2) News Gathering — per-user localStorage toggle that blocks the `useFetchNews` mutation. (3) IR Catalog auto-scan toggle. Lists all users from the `admin_list_users` RPC.
 
 **Critical Assertions:**
-1. Only visible when logged in as DEV_EMAIL
-2. Tier switches update subscription query cache immediately
+1. Only visible when logged in as the super admin (access denied otherwise)
+2. Tier switches trigger the `admin_update_tier` mutation (invalidates subscription cache)
 3. News toggle persists in localStorage and blocks `useFetchNews` mutation
-4. User list loads from `user_profiles` with name + company display
+4. User list loads with name + company display
+
+**Test Files:**
+- Component: `src/pages/__tests__/AdminPage.test.tsx`
 
 ---
 
@@ -349,8 +355,13 @@ This document defines all features in the Valrano project with their status, rou
 **Critical Assertions:**
 1. Company name links to `/companies/:id`
 2. KPI badge links to `/analytics?kpi=...`
-3. Sources line shows 3 clickable links
+3. Fiscal year and generation timestamp shown for provenance
 4. All external references are verifiable
+
+Note: the current implementation renders per-insight provenance (linked company, linked KPI badge, fiscal year, generation time) rather than a fixed "Sources:" line with 3 links.
+
+**Test Files:**
+- Component: `src/pages/__tests__/DashboardInsights.test.tsx`
 
 ---
 
@@ -369,6 +380,9 @@ This document defines all features in the Valrano project with their status, rou
 4. Read-only when status is approved or delivered
 5. Blue hint banner visible for editable documents
 
+**Test Files:**
+- Component: `src/pages/__tests__/DocumentViewerPage.test.tsx`
+
 ---
 
 ### F-021: News Source Visibility
@@ -385,6 +399,9 @@ This document defines all features in the Valrano project with their status, rou
 3. Author and date shown when available
 4. External link icon present
 
+**Test Files:**
+- Component: `src/pages/__tests__/NewsPage.test.tsx`
+
 ---
 
 ### F-022: Company Profile Navigation
@@ -399,3 +416,6 @@ This document defines all features in the Valrano project with their status, rou
 1. Company names in peer table link to `/companies/:id`
 2. Company names in "peers without data" section also link
 3. Hover shows accent color + underline
+
+**Test Files:**
+- Component: `src/pages/__tests__/DashboardInsights.test.tsx`
