@@ -25,7 +25,7 @@ export default defineConfig({
     trace: 'on-first-retry',
     httpCredentials: {
       username: process.env.STAGING_HTTP_USER || 'staging',
-      password: process.env.STAGING_HTTP_PASS || 'predivo2026',
+      password: process.env.STAGING_HTTP_PASS!,
     },
   },
   projects: [

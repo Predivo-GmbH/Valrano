@@ -293,9 +293,9 @@ jobs:
         env:
           STAGING_URL: https://staging.valrano.com
           STAGING_HTTP_USER: staging
-          STAGING_HTTP_PASS: predivo2026
+          STAGING_HTTP_PASS: ${{ secrets.STAGING_HTTP_PASS }}
           STAGING_TEST_EMAIL: e2e-test@valrano-test.local
-          STAGING_TEST_PASSWORD: IntegrationTest2026!
+          STAGING_TEST_PASSWORD: ${{ secrets.STAGING_TEST_PASSWORD }}
 
       - name: Upload Playwright report
         if: always()

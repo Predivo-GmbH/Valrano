@@ -12,7 +12,7 @@ import { defineConfig } from '@playwright/test'
  * vfwpcgdkrwqhdivfzmrg, session injected into storageState) exactly like the main config.
  *
  * Run locally with:
- *   STAGING_HTTP_USER=staging STAGING_HTTP_PASS=predivo2026 \
+ *   STAGING_HTTP_USER=staging STAGING_HTTP_PASS=<from secrets> \
  *   VAL_MGMT_TOKEN=sbp_... \
  *   npx playwright test --config playwright.v11-gates.config.ts
  */
@@ -30,7 +30,7 @@ export default defineConfig({
     trace: 'on-first-retry',
     httpCredentials: {
       username: process.env.STAGING_HTTP_USER || 'staging',
-      password: process.env.STAGING_HTTP_PASS || 'predivo2026',
+      password: process.env.STAGING_HTTP_PASS!,
       // Scope Basic auth to the staging origin ONLY, else Playwright injects the
       // Authorization header onto cross-origin Supabase requests and login dies.
       origin: STAGING_URL,
