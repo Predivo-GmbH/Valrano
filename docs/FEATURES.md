@@ -1,10 +1,14 @@
 # Valrano Feature Registry
 
 **Project:** Valrano (Automated Competitive Benchmarking for Listed Corporations)
-**Last Updated:** 2026-05-08
+**Last Updated:** 2026-08-17
 **Total Features:** 22 (core) + Phase 1-2 features (see PRODUCT-VISION-2026-05-07.md)
-**Implemented:** 6 core + Accounting Profile (Phase 1) + Dashboard Command Center (Phase 2) + Landing Page redesign + Company Profile + Dev Tools + Source Transparency + Document Editability
-**Unit Tests:** 4 files / **E2E Tests:** 1 spec file / **Accessibility:** 0 spec files
+**Implemented/Tested:** 19 of 22 core — planned: F-001 (password gate removed from app), F-009 (no user-configurable alerts yet), F-012 (FX override UI pending)
+**Unit/Component/Integration Tests:** 44 files / **E2E Tests:** 25 spec files
+
+### Recent Changes (2026-08-17)
+- **Registry re-sync against actual codebase** — Audited routes (`src/components/AuthenticatedShell.tsx`), pages, edge functions, and tests. Moved 9 features from planned to implemented/tested: F-002, F-005, F-007, F-008, F-010, F-013, F-014, F-015, F-016. New tests: `src/pages/__tests__/UploadedReportPage.test.tsx` (F-005), `src/pages/__tests__/AnalyticsExport.test.tsx` (F-013), normalize-kpis reachability test in `tests/integration/critical-paths.test.ts` (F-007). F-001/F-009/F-012 stay planned (honestly not implemented as specified).
+
 
 ### Recent Changes (2026-05-08b)
 - **Company Profile Navigation** — All company names in peer comparison table + "peers without data" are clickable `<Link>` to `/companies/:id` (commit `2ca5c3e`)
@@ -49,6 +53,8 @@ This document defines all features in the Valrano project with their status, rou
 
 **Description:** SHA-256 password gate (BenchPilot2026) protecting the private beta. Stores unlock state in sessionStorage.
 
+**Note (2026-08-17):** No password gate component exists in `src/` anymore — the app now uses Supabase auth (F-002) plus a waitlist modal (`src/features/waitlist/`). E2E specs still set `bs_unlocked` in localStorage as a legacy bypass. This feature is effectively obsolete; kept as planned until formally removed or re-scoped.
+
 **Critical Assertions:**
 1. Shows gate form on first visit
 2. Rejects incorrect passwords
@@ -59,17 +65,21 @@ This document defines all features in the Valrano project with their status, rou
 
 ### F-002: User Authentication
 
-**Status:** planned
-**Route:** `/auth`, `/auth/confirm`
-**Components:** TBD
+**Status:** tested
+**Route:** `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/auth/verify`, `/auth/confirm`
+**Components:** `src/pages/auth/*.tsx`, `src/contexts/AuthContext.tsx`, `src/components/auth/ProtectedRoute.tsx`
 
-**Description:** Supabase email + magic link auth. OTP: 6-digit, 600s expiry. Custom SMTP via Metanet.
+**Description:** Supabase email auth: password sign-in, OTP (6-digit), password reset, and email change flows. Protected routes redirect unauthenticated users to `/login`; deleted accounts are detected server-side and signed out. Custom SMTP via Metanet (`send-auth-email` edge function).
 
 **Critical Assertions:**
-1. Sign up creates account and sends OTP
-2. OTP verification completes login
-3. Auth state persists across page reloads
-4. Sign out clears session
+1. Sign up creates account and sends verification
+2. Login with email + password; OTP verification supported
+3. Auth state persists across page reloads (Supabase session)
+4. Sign out clears session; protected routes guard access
+
+**Test Files:**
+- Unit: `src/hooks/__tests__/useAuth.test.ts`
+- E2E: `e2e/auth-flows.spec.ts` (all 7 auth routes + protected-route guards), `e2e/auth.setup.ts`
 
 ---
 
@@ -114,17 +124,20 @@ This document defines all features in the Valrano project with their status, rou
 
 ### F-005: Report Detail View
 
-**Status:** planned
-**Route:** `/reports/:id`
-**Components:** TBD
+**Status:** implemented
+**Route:** `/uploaded-reports/:id` (uploaded report detail), `/reports/:id` (generated report detail)
+**Components:** `src/pages/UploadedReportPage.tsx`, `src/pages/ReportViewerPage.tsx`
 
-**Description:** Single company report view showing all extracted KPIs, trend charts, source PDF page references.
+**Description:** Uploaded-report view showing report metadata (title, company, type, FY, status badge), all extracted KPIs with per-value confidence scores (amber below 0.85, green at/above), source labels per value, and a "View PDF" button that opens a signed URL for the source PDF. Pending/processing states shown while extraction runs. Generated benchmark/custom report content is shown by `ReportViewerPage`.
 
 **Critical Assertions:**
-1. Displays all KPIs from the report
-2. Shows confidence scores per value
-3. Links to source PDF page
-4. Flags values needing review
+1. Displays all KPIs extracted from the report
+2. Shows confidence scores per value, color-coded by the 0.85 review threshold
+3. Source PDF accessible via signed URL
+4. Pending/processing states communicated
+
+**Test Files:**
+- Component: `src/pages/__tests__/UploadedReportPage.test.tsx`
 
 ---
 
@@ -150,33 +163,39 @@ This document defines all features in the Valrano project with their status, rou
 
 ### F-007: KPI Normalization Engine
 
-**Status:** planned
+**Status:** implemented
 **Route:** N/A (backend)
-**Components:** TBD (Edge Function)
+**Components:** `supabase/functions/normalize-kpis/index.ts`, trigger migration `supabase/migrations/20260516000000_auto_normalize_trigger.sql`
 
-**Description:** Normalizes extracted values: currency conversion (historical FX), KPI taxonomy mapping, restatement awareness.
+**Description:** Normalizes extracted KPI values after extraction: currency conversion via `fx_rates` using the correct rate type per KPI class (period_average for P&L KPIs, point-in-time/daily_close for balance-sheet KPIs, no conversion for ratios/percentages/volumes). Writes normalized values back to `kpi_values`.
 
 **Critical Assertions:**
 1. Converts currencies using correct FX rate type (period-average for P&L, point-in-time for BS)
-2. Maps company-specific labels to canonical KPIs
-3. Handles restated values
-4. Produces audit trail
+2. Ratio/percentage/volume KPIs are not currency-converted
+3. Edge function authenticates requests and validates `report_id`
+
+**Note (2026-08-17):** Coverage is an integration reachability/auth test only. The FX-conversion math itself (rate-type selection, conversion result) has no unit test yet — add one when the classification logic is extracted into a testable module.
+
+**Test Files:**
+- Integration: `tests/integration/critical-paths.test.ts` (normalize-kpis reachable + authenticates)
 
 ---
 
 ### F-008: Peer Group Management
 
-**Status:** planned
-**Route:** `/settings/peer-groups`
-**Components:** TBD
+**Status:** implemented
+**Route:** `/competitors` (replaces `/settings/peer-groups`; `/peers` redirects here)
+**Components:** `src/pages/CompetitorsPage.tsx`, `src/hooks/useMyCompany.ts`, `src/hooks/useData.ts`
 
-**Description:** CRUD for peer groups. Configure which companies are in each group. One group can be set as default.
+**Description:** Manage the user's peer set: add companies (search via `company-lookup` / `suggest-competitors` edge functions), remove peers with confirmation, organize via `peer_groups` + `peer_group_members` tables, per-peer monitoring status, and per-peer report upload.
 
 **Critical Assertions:**
-1. Create new peer group with name and companies
-2. Edit existing peer group
-3. Delete peer group
-4. Set default peer group
+1. Add a company to the peer group (search + select flow)
+2. Remove a peer with confirmation
+3. Peer list renders with company info and monitoring status
+
+**Test Files:**
+- E2E: `e2e/authenticated/feature-gaps.spec.ts` (COMP-002: add competitor full flow), `e2e/authenticated/upload-dialog.spec.ts` (per-peer upload)
 
 ---
 
@@ -188,6 +207,8 @@ This document defines all features in the Valrano project with their status, rou
 
 **Description:** Configure and receive email alerts when peers publish new reports or anomalous values detected.
 
+**Note (2026-08-17):** Backend pieces exist (`monitor-publications`, `check-publication`, `insights-digest`, `send-document-notification` edge functions; in-app `NotificationBell`), but there is no user-facing alert configuration UI and no peer-publication email alert flow. Stays planned.
+
 **Critical Assertions:**
 1. Enable/disable alerts per type
 2. Configure alert scope (peer group or company)
@@ -197,16 +218,19 @@ This document defines all features in the Valrano project with their status, rou
 
 ### F-010: Company Management
 
-**Status:** planned
-**Route:** `/settings/companies`
-**Components:** TBD
+**Status:** implemented
+**Route:** `/competitors` (peer companies), `/my-company` (own company), `/companies/:id` (detail)
+**Components:** `src/pages/CompetitorsPage.tsx`, `src/pages/MyCompanyTabsPage.tsx`, `src/pages/CompanyProfilePage.tsx`
 
-**Description:** View and manage tracked companies. Add new companies with ticker, exchange, ISIN.
+**Description:** View and manage tracked companies. List peer companies with logos, tickers, and monitoring status; add via company search; remove peers; manage own company profile with inline editing; view per-company detail pages with KPI summary and publication history.
 
 **Critical Assertions:**
 1. List all tracked companies
-2. View company details
-3. Toggle active/inactive
+2. View company details (F-017)
+3. Edit own company profile inline (MYCO-002)
+
+**Test Files:**
+- E2E: `e2e/authenticated/my-company.spec.ts`, `e2e/authenticated/company-profile.spec.ts`, `e2e/authenticated/feature-gaps.spec.ts` (COMP-002)
 
 ---
 
@@ -237,6 +261,8 @@ This document defines all features in the Valrano project with their status, rou
 
 **Description:** Historical FX rates for normalization. Auto-fetched daily, with manual override capability.
 
+**Note (2026-08-17):** `fx_rates` table exists and is seeded for CHF pairs (migration `20260504100001_seed_fx_rates.sql`) and consumed by `normalize-kpis` (F-007). No daily auto-fetch job and no manual-override UI exist yet. Stays planned.
+
 **Critical Assertions:**
 1. Daily rates available for CHF/EUR, CHF/USD, CHF/GBP
 2. Period-average rates calculated correctly
@@ -244,64 +270,77 @@ This document defines all features in the Valrano project with their status, rou
 
 ---
 
-### F-013: Data Export (CSV/Excel)
+### F-013: Data Export (CSV)
 
-**Status:** planned
-**Route:** `/dashboard` (export button)
-**Components:** TBD
+**Status:** implemented
+**Route:** `/analytics` (per-panel export buttons), `/reports/:id` (report content export)
+**Components:** `src/pages/AnalyticsPage.tsx` (`downloadCsv`), `src/pages/ReportViewerPage.tsx`
 
-**Description:** Export peer comparison data as CSV or Excel file.
+**Description:** Export comparison data as CSV. Analytics panels (trends, CAGR, pivot table, heatmap) each offer an Export button producing a CSV of the visible data with headers; generated reports can be exported as CSV from the report viewer. Excel export is not implemented.
 
 **Critical Assertions:**
-1. CSV export contains all visible data
-2. Excel export with proper formatting
-3. Export respects active filters
+1. CSV export contains all visible data (headers + company rows)
+2. Export reflects the currently displayed panel data
+
+**Test Files:**
+- Component: `src/pages/__tests__/AnalyticsExport.test.tsx`
 
 ---
 
 ### F-014: Landing Page
 
-**Status:** planned
+**Status:** tested
 **Route:** `/`
-**Components:** TBD
+**Components:** `src/pages/LandingPage.tsx`
 
-**Description:** Marketing homepage with hero, value prop, features, peer group preview, "Request a Demo" CTA. No public pricing.
+**Description:** Marketing homepage with animated hero, problem/solution sections, features, enterprise pricing teaser (no public tier prices), FAQ, and CTA opening the waitlist modal ("Registrations are paused") instead of a public signup. Redirects authenticated users to `/dashboard`.
 
 **Critical Assertions:**
 1. Hero section renders with correct copy
-2. Feature sections display
-3. CTA buttons link to demo request
-4. No pricing displayed publicly
+2. All content sections display
+3. CTA buttons open the demo/waitlist flow
+4. No tier pricing displayed publicly
+
+**Test Files:**
+- Component: `src/pages/__tests__/LandingPage.test.tsx`
 
 ---
 
 ### F-015: Settings & Billing
 
-**Status:** planned
-**Route:** `/settings`
-**Components:** TBD
+**Status:** implemented
+**Route:** `/settings` (Team, Approval Chains, Admin tabs), `/account` (subscription view)
+**Components:** `src/pages/SettingsPage.tsx`, `src/pages/AccountPage.tsx`
 
-**Description:** Account settings, peer group config, Stripe billing portal link.
+**Description:** Settings hub with tabs for Team management and Approval Chains, plus a super-admin-only Admin tab (F-018). The Account page shows the current subscription tier. Stripe billing portal is NOT yet wired — the "Manage Subscription" button is disabled ("coming soon"); `billing-portal` edge function exists but is not called from the UI.
 
 **Critical Assertions:**
-1. View account details
-2. Update profile
-3. Access billing portal
+1. Settings page loads with tab navigation
+2. Admin tab visible only to super admin
+3. Subscription tier displayed on account page
+
+**Test Files:**
+- Component: `src/pages/__tests__/SettingsPage.test.tsx`
+- E2E: `e2e/authenticated/settings.spec.ts`
 
 ---
 
 ### F-016: User Profile
 
-**Status:** planned
-**Route:** `/settings/profile`
-**Components:** TBD
+**Status:** implemented
+**Route:** `/account` (replaces `/settings/profile`)
+**Components:** `src/pages/AccountPage.tsx`
 
-**Description:** Extended user profile with full name, company, job title, default peer group, default currency.
+**Description:** Account page with profile section (avatar initials, email, last sign-in), change email and change password flows with strength meter, subscription tier view, preferences (theme, default fiscal year persisted in localStorage), and danger-zone account deletion with typed confirmation. Full name / job title are captured during signup/onboarding, not edited here.
 
 **Critical Assertions:**
-1. View profile data
-2. Update profile fields
-3. Set default peer group and currency
+1. View profile data (email, last sign-in)
+2. Change email and password flows
+3. Theme + default fiscal year preferences persist
+
+**Test Files:**
+- Component: `src/pages/__tests__/AccountPage.test.tsx`
+- E2E: `e2e/authenticated/account.spec.ts`
 
 ---
 

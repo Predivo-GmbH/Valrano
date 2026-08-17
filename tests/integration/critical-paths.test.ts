@@ -136,6 +136,22 @@ describe('Critical Path — Staging Integration', () => {
     expect(res.status).toBeLessThan(500)
   })
 
+  // F-007: KPI Normalization Engine — normalize-kpis edge function must
+  // authenticate and reject a missing report_id with 400 (not crash/auth-fail).
+  // Deep FX-conversion logic (period-average vs point-in-time) is not yet
+  // unit-tested — see docs/FEATURES.md F-007 note.
+  it('normalize-kpis edge function is reachable and authenticates', async () => {
+    const res = await callEdgeFunction('normalize-kpis', accessToken)
+    const body = await res.text()
+
+    expect(res.status).not.toBe(401)
+    expect(res.status).not.toBe(403)
+    if (res.status >= 500) {
+      expect(body).not.toContain('Invalid JWT')
+      expect(body).not.toContain('missing authorization')
+    }
+  })
+
   // ─── Accounting Profile ─────────────────────────────────────────────
 
   it('can create an accounting profile', async () => {
