@@ -414,7 +414,6 @@ jobs:
 
       - name: Feature Coverage Check
         run: node scripts/check-feature-coverage.mjs
-        continue-on-error: true
 
       - run: npm run build
         env:
