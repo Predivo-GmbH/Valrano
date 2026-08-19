@@ -57,7 +57,30 @@ function base64Part(mimeType: string, body: string): { mimeType: string; content
   return { mimeType, content: btoa(bin).replace(/.{1,76}/g, '$&\r\n'), transferEncoding: 'base64' }
 }
 
+// Reserved, non-routable domains (RFC 6761 reserved TLDs + RFC 2606 example.*): mail
+// to these ALWAYS hard-bounces with "Host or domain name not found", so every E2E /
+// monitor probe send returns a MAILER-DAEMON bounce into the return-path mailbox and
+// drags the sending reputation. The probes only assert the send path is deployed and
+// doesn't 5xx - they never need a real message delivered. So skip transmission
+// entirely and treat the send as a successful no-op, killing the bounce at the source.
+// Ported from ChannelMover 676a113, extended with the RFC 2606 example.* domains.
+const NON_DELIVERABLE_TLDS = ['.local', '.test', '.invalid', '.example']
+const NON_DELIVERABLE_DOMAINS = ['example.com', 'example.net', 'example.org']
+function isNonDeliverableRecipient(to: string): boolean {
+  const domain = (to.trim().toLowerCase().split('@')[1] ?? '')
+  if (!domain) return false
+  return NON_DELIVERABLE_TLDS.some((tld) => domain.endsWith(tld)) ||
+    NON_DELIVERABLE_DOMAINS.includes(domain)
+}
+
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
+  // Blackhole reserved non-deliverable domains (see isNonDeliverableRecipient):
+  // sending would always hard-bounce and flood the return-path mailbox.
+  if (isNonDeliverableRecipient(options.to)) {
+    console.log(`[email] skipped non-deliverable recipient (nothing sent): ${options.to}`)
+    return
+  }
+
   const config = getSmtpConfig()
 
   const client = new SMTPClient({
