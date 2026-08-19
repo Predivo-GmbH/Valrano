@@ -143,12 +143,32 @@ async function runReachGate(
     // allowed scroll still fails (the true off-screen/obstructed-Save defect class).
     let ok = m.inViewport && m.visible && m.hitOk
     let viaScroll = false
+    let scroller: string | null = null
     if (!ok) {
-      await control().scrollIntoViewIfNeeded().catch(() => {})
-      await page.waitForTimeout(150)
-      const m2 = await measure(control())
-      if (m2.inViewport && m2.visible && m2.hitOk) { m = m2; ok = true; viaScroll = true }
+      // v13.2 (audit-framework.md, Gate A step 1 + v11 manifest): the scroll allowance is
+      // CONDITIONAL. It is admissible ONLY when the control sits inside a REAL scrolling
+      // ancestor. scrollIntoView() on a control with no scrolling ancestor scrolls the
+      // DOCUMENT and launders the off-screen-Save defect this gate exists to catch.
+      scroller = await control().evaluate((el: Element) => {
+        let n: Element | null = el.parentElement
+        while (n && n !== document.body && n !== document.documentElement) {
+          const oy = getComputedStyle(n).overflowY
+          if ((oy === 'auto' || oy === 'scroll') && n.scrollHeight > n.clientHeight + 1) {
+            const id = (n as HTMLElement).id
+            return n.tagName.toLowerCase() + (id ? '#' + id : '')
+          }
+          n = n.parentElement
+        }
+        return null
+      })
+      if (scroller) {
+        await control().scrollIntoViewIfNeeded().catch(() => {})
+        await page.waitForTimeout(150)
+        const m2 = await measure(control())
+        if (m2.inViewport && m2.visible && m2.hitOk) { m = m2; ok = true; viaScroll = true }
+      }
     }
+    if (!ok || viaScroll) console.log(`  [gateA v13.2] ${vp.name}: viaScroll=${viaScroll} scrollerAncestor=${scroller ?? 'NONE'}`)
     expect.soft(m.inViewport && m.visible, `${label} @ ${vp.name}: control in viewport`).toBe(true)
     expect.soft(m.hitOk, `${label} @ ${vp.name}: hit-test == control (reachable, unobstructed)`).toBe(true)
     rows.push(
@@ -354,4 +374,52 @@ test.describe('Valrano v11 gates', () => {
     expect(hostList.some((h) => h.startsWith(REF)), `staging app talks to STAGING (${REF})`).toBe(true)
     expect(hostList.some((h) => h.startsWith(PROD_REF)), 'staging app must NOT touch PROD supabase').toBe(false)
   })
+})
+
+// ══════════ GATE A COVERAGE DENOMINATOR (v13.2, 2026-08-19) ══════════
+// audit-framework.md v13.2 pins the v11 coverage manifest to `surfaces ENUMERATED [M]` +
+// `surfaces DRIVEN [N of M]`. A bare N is an assertion, not an artifact, and N < M FAILS.
+// Origin: the 2026-08-19 B4 meta-audit found every fleet harness driving 1-3 hand-picked
+// modals while its report published "Gates A-M ALL PASS".
+const GATE_A_DRIVEN = ['Create Event dialog']
+const GATE_A_ROOTS = ['src']
+
+test('Gate A — coverage denominator (surfaces enumerated vs driven)', async () => {
+  const fs = await import('node:fs')
+  const path = await import('node:path')
+  const surfaces: string[] = []
+  let multiFieldForms = 0
+  const RX = /role=["']dialog["']|aria-modal|fixed\s+inset-0|<Modal[\s>]/
+  const walk = (dir: string) => {
+    let entries: any[] = []
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return }
+    for (const e of entries) {
+      const p = path.join(dir, e.name)
+      if (e.isDirectory()) { if (!/node_modules|__tests__|\.next|dist|build/.test(e.name)) walk(p); continue }
+      if (!/\.(tsx|jsx)$/.test(e.name)) continue
+      if (/\.(test|spec)\./.test(e.name)) continue
+      const src = fs.readFileSync(p, 'utf8')
+      if (RX.test(src)) surfaces.push(path.relative(process.cwd(), p).replace(/\\/g, '/'))
+      const forms = src.match(/<form[\s>]/g)
+      if (forms && (src.match(/<(input|select|textarea)[\s>]/g) || []).length >= 2) multiFieldForms += forms.length
+    }
+  }
+  for (const r of GATE_A_ROOTS) walk(path.resolve(process.cwd(), r))
+
+  console.log([
+    '',
+    'GATE A COVERAGE MANIFEST (v13.2)',
+    `  surfaces ENUMERATED (dialog-class) [M] = ${surfaces.length}`,
+    ...surfaces.map((s) => `    - ${s}`),
+    `  surfaces DRIVEN [N] = ${GATE_A_DRIVEN.length}  (${GATE_A_DRIVEN.join(', ')})`,
+    `  multi-field <form> surfaces enumerated but NOT yet driven = ${multiFieldForms}`,
+    '',
+  ].join('\n'))
+
+  expect(
+    GATE_A_DRIVEN.length,
+    `Gate A drives ${GATE_A_DRIVEN.length} of ${surfaces.length} enumerated dialog surfaces. ` +
+      `Framework v13.2: N < M = FAIL (unvisited surfaces are not "assumed fine"). ` +
+      `Add a runGateA/Gate-A test per uncovered surface, or record it in the Accepted-Risk Register with proof.`,
+  ).toBeGreaterThanOrEqual(surfaces.length)
 })
