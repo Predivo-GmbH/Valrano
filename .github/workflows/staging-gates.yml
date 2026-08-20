@@ -86,6 +86,7 @@ jobs:
           STAGING_HTTP_PASS: ${{ secrets.STAGING_HTTP_PASS }}
           STAGING_TEST_EMAIL: e2e-test@valrano-test.local
           STAGING_TEST_PASSWORD: ${{ secrets.STAGING_TEST_PASSWORD }}
+          STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
 
       - name: Upload report on failure
         if: failure()
