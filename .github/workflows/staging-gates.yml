@@ -6,7 +6,7 @@ name: v11 Staging Gates
 #   Gate B/J create-event commit-boundary + zero-residue
 #   Gate I   correctness under real data volume (>1000-row PostgREST cap)
 #   Gate K   fault-injected 500/empty loads render gracefully
-#   Gate M   deployed-bundle identity — staging bundle talks to STAGING, never prod
+#   Gate M   deployed-bundle identity - staging bundle talks to STAGING, never prod
 # A red run here IS the alert (same model as the fleet grant-drift/auth-email guards).
 # DELIBERATELY separate from the prod-promotion gauntlet (needs the Management token).
 
@@ -25,7 +25,7 @@ concurrency:
 jobs:
   gates:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40  # v11 gates + the Gate A runtime crawl (7 routes x 2 widths, ~2 min)
     # Skip when a Deploy run FAILED (nothing new to verify); always run on schedule/manual.
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
@@ -50,8 +50,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       # (No separate curl alive-check: the gates' auth.setup navigates to staging and
-      # fails fast if it's down/500, so a dead staging already turns this workflow red —
-      # and it avoids embedding a `curl -u user:pass` pattern that trips secret scanners.)
+      # fails fast if it's down/500, so a dead staging already turns this workflow red - # and it avoids embedding a `curl -u user:pass` pattern that trips secret scanners.)
       - name: Run v11 hardened gates against staging
         run: npx playwright test --config playwright.v11-gates.config.ts
         env:
@@ -60,8 +59,28 @@ jobs:
           STAGING_HTTP_PASS: ${{ secrets.STAGING_HTTP_PASS }}
           STAGING_TEST_EMAIL: e2e-test@valrano-test.local
           STAGING_TEST_PASSWORD: ${{ secrets.STAGING_TEST_PASSWORD }}
-          # Reuse the existing staging Supabase access token (Management API) — no new secret.
+          # Reuse the existing staging Supabase access token (Management API) - no new secret.
           VAL_MGMT_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      # Gate A runtime crawl (2026-08-20, ported from ReplyFlow, BackOffice and ChannelMover
+      # once proven there). The hand-written Gate A list is the defect the B4 meta-audit
+      # found: Valrano drove 1 of 7 dialog-class surfaces while its report published
+      # "Gate A: PASS". This discovers dialogs by DRIVING the app at BOTH a desktop and a
+      # mobile width, so nothing has to be remembered. Its first run found the mobile
+      # navigation drawer with "Sign out" sliced by the screen edge in phone landscape.
+      # READ-ONLY: commit controls are measured, never clicked. The denylist comes from a
+      # no-click reconnaissance pass, and it also blocks the AI-assistant question chips,
+      # which would each bill a paid Anthropic call on every scheduled run.
+      # always(): a known-red earlier gate must not silently disable this layer.
+      - name: Run Gate A runtime crawl against staging
+        if: always()
+        run: npx playwright test --config playwright.gate-a-crawl.config.ts
+        env:
+          STAGING_URL: https://staging.valrano.com
+          STAGING_HTTP_USER: staging
+          STAGING_HTTP_PASS: ${{ secrets.STAGING_HTTP_PASS }}
+          STAGING_TEST_EMAIL: e2e-test@valrano-test.local
+          STAGING_TEST_PASSWORD: ${{ secrets.STAGING_TEST_PASSWORD }}
 
       - name: Upload report on failure
         if: failure()

@@ -4,7 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { Sun, Moon, LayoutDashboard, Users, Settings, LogOut, User, Menu, X, BarChart3, FileBarChart, Building2 } from 'lucide-react'
 import { NotificationBell } from './NotificationBell'
 import { ChatPanel } from './ChatPanel'
-// DevTierSwitcher removed — admin controls moved to Settings > Admin tab
+// DevTierSwitcher removed - admin controls moved to Settings > Admin tab
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAuth } from '@/hooks/useAuth'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -19,7 +19,7 @@ const NAV_ITEMS = [
 ] as const
 
 // Maps every known static route segment to a human-readable label.
-// Any path segment NOT in this map is treated as a dynamic ID — the auto
+// Any path segment NOT in this map is treated as a dynamic ID - the auto
 // breadcrumbs are suppressed so the page can render its own custom crumbs.
 const ROUTE_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -44,11 +44,11 @@ function useAutoBreadcrumbs() {
   // Strip leading slash and split into segments
   const segments = pathname.replace(/^\//, '').split('/').filter(Boolean)
 
-  // If any segment is not in ROUTE_LABELS it's a dynamic ID — suppress
+  // If any segment is not in ROUTE_LABELS it's a dynamic ID - suppress
   const hasDynamicSegment = segments.some((seg) => !(seg in ROUTE_LABELS))
   if (hasDynamicSegment) return null
 
-  // Single top-level segment with no parent — no breadcrumbs needed
+  // Single top-level segment with no parent - no breadcrumbs needed
   if (segments.length <= 1) return null
 
   // Build items: every segment except the last gets an href
@@ -119,7 +119,7 @@ export function AppLayout() {
           Skip to content
         </a>
 
-        {/* Fixed frosted-glass nav — 64px height per design tokens */}
+        {/* Fixed frosted-glass nav - 64px height per design tokens */}
         <nav
           className="nav-glow fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-[var(--color-background)]/80 backdrop-blur-xl backdrop-saturate-150"
           aria-label="Main navigation"
@@ -134,7 +134,7 @@ export function AppLayout() {
               Valrano
             </NavLink>
 
-            {/* Center navigation — desktop */}
+            {/* Center navigation - desktop */}
             <ul className="hidden items-center gap-1 md:flex" role="list">
               {NAV_ITEMS.map((item) => (
                 <li key={item.to}>
@@ -146,7 +146,7 @@ export function AppLayout() {
               ))}
             </ul>
 
-            {/* Right side — notifications + theme toggle + user menu + mobile hamburger */}
+            {/* Right side - notifications + theme toggle + user menu + mobile hamburger */}
             <div className="flex items-center gap-1">
               <NotificationBell />
               <button
@@ -250,8 +250,17 @@ export function AppLayout() {
                 aria-hidden="true"
                 onClick={() => setMobileNavOpen(false)}
               />
+              {/* Gate A: the drawer is pinned at top-16 and was as tall as its content,
+                  with NO scrolling ancestor. On a phone in LANDSCAPE (667x375) that put
+                  "Sign out" at top 342 / bottom 386 in a 375px viewport, sliced by the
+                  screen edge with nothing to scroll, so it could not be reached at all.
+                  Same at the keyboard-open height 375x360. Found 2026-08-20 by the Gate A
+                  runtime crawler once discovery also ran at a mobile width, and verified by
+                  hand with geometry and a screenshot. Identical defect to ReplyFlow's
+                  RootLayout drawer, found in the same run.
+                  max-h + overflow-y-auto makes the drawer a real scroller. */}
               <div
-                className="fixed left-0 right-0 top-16 z-50 border-t border-border bg-[var(--color-background)] px-4 pb-4 pt-2 md:hidden"
+                className="fixed left-0 right-0 top-16 z-50 max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-border bg-[var(--color-background)] px-4 pb-4 pt-2 md:hidden"
                 role="dialog"
                 aria-modal="true"
                 aria-label="Navigation menu"
@@ -304,7 +313,7 @@ export function AppLayout() {
 
         {/* Content area offset below fixed nav */}
         <main id="main-content" className="pt-16">
-          {/* Auto-generated breadcrumbs — shown on multi-segment static routes.
+          {/* Auto-generated breadcrumbs - shown on multi-segment static routes.
               Suppressed on dynamic /:id routes where pages render their own crumbs. */}
           {autoBreadcrumbs && (
             <div className="mx-auto max-w-[1440px] px-4 pt-4 sm:px-6">
@@ -316,7 +325,7 @@ export function AppLayout() {
           </ErrorBoundary>
         </main>
 
-        {/* AI Assistant — persistent across all pages */}
+        {/* AI Assistant - persistent across all pages */}
         <ChatPanel />
       </div>
     </TooltipProvider>
