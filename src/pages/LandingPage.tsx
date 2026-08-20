@@ -79,7 +79,7 @@ function DemoRequestModal({ open, onClose }: { open: boolean; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="demo-modal-title">
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in-0 duration-200" onClick={handleClose} />
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 sm:p-8">
+      <div className="relative z-10 w-full max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 sm:p-8">
         <button onClick={handleClose} className="absolute right-4 top-4 rounded-md p-1 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)] cursor-pointer" aria-label="Close">
           <X className="h-4 w-4" />
         </button>

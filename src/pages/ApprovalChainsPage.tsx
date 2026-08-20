@@ -226,7 +226,7 @@ function CreateChainDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose() }} role="dialog" aria-modal="true" aria-label={editingChain ? 'Edit Approval Chain' : 'Create Approval Chain'}>
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-lg max-h-[85dvh] overflow-y-auto overscroll-contain rounded-xl border border-border bg-card p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="mb-4 text-lg font-semibold text-foreground">{editingChain ? 'Edit Approval Chain' : 'Create Approval Chain'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
