@@ -71,9 +71,14 @@ jobs:
       # READ-ONLY: commit controls are measured, never clicked. The denylist comes from a
       # no-click reconnaissance pass, and it also blocks the AI-assistant question chips,
       # which would each bill a paid Anthropic call on every scheduled run.
-      # always(): a known-red earlier gate must not silently disable this layer.
+      # !cancelled(): a known-red earlier gate must not silently disable this layer (failure
+      # is not cancellation, so this step still runs when a prior gate went red). NOT
+      # always(): always() is ALSO true on CANCELLATION, and this workflow sets
+      # cancel-in-progress: true on a workflow_run trigger that fires after every Deploy -
+      # so under always() a superseded run would keep crawling live staging.valrano.com
+      # alongside the run that replaced it. Same fix as BackOffice 73d96a0.
       - name: Run Gate A runtime crawl against staging
-        if: always()
+        if: ${{ !cancelled() }}
         run: npx playwright test --config playwright.gate-a-crawl.config.ts
         env:
           STAGING_URL: https://staging.valrano.com
