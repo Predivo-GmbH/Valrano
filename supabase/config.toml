@@ -1,0 +1,143 @@
+# Edge function config.
+#
+# GENERATED 2026-08-20 FROM LIVE PRODUCTION, and it is a latent-production-break fix.
+#
+# This repo had NO config.toml while production ran 41 of 41 functions at
+# verify_jwt = false. `supabase functions deploy` applies config.toml and defaults anything
+# undeclared to TRUE, so the next bulk deploy by anyone would have flipped all 41 to
+# true at once: every webhook, the auth-email hook, the Google OAuth callback and every
+# public endpoint would start returning 401. That is the whole product.
+#
+# Same defect was found and fixed the same day in Distribution-OS. Root pattern: these repos
+# do not deploy edge functions in CI, so live state drifted away from the repo with nothing
+# to notice.
+#
+# Values below are read verbatim from the Management API on 2026-08-20 (prod
+# mkdeftmubrkseyrrbzvp). If you change one, change production too. A config.toml that
+# disagrees with live is worse than none, because it looks authoritative.
+
+[functions.advance-approval]
+verify_jwt = false
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.analyze-accounting-profile]
+verify_jwt = false
+
+[functions.billing-portal]
+verify_jwt = false
+
+[functions.check-publication]
+verify_jwt = false
+
+[functions.company-lookup]
+verify_jwt = false
+
+[functions.compute-comparability]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
+
+[functions.deliver-document]
+verify_jwt = false
+
+[functions.digest-company-news]
+verify_jwt = false
+
+[functions.download-catalog-item]
+verify_jwt = false
+
+[functions.download-report]
+verify_jwt = false
+
+[functions.enrich-company]
+verify_jwt = false
+
+[functions.extract-kpis]
+verify_jwt = false
+
+[functions.extract-report-context]
+verify_jwt = false
+
+[functions.fetch-company-news]
+verify_jwt = false
+
+[functions.generate-benchmark]
+verify_jwt = false
+
+[functions.generate-from-google-template]
+verify_jwt = false
+
+[functions.generate-from-template]
+verify_jwt = false
+
+[functions.generate-insights]
+verify_jwt = false
+
+[functions.generate-report]
+verify_jwt = false
+
+[functions.google-auth-callback]
+verify_jwt = false
+
+[functions.google-auth-url]
+verify_jwt = false
+
+[functions.insights-digest]
+verify_jwt = false
+
+[functions.monitor-publications]
+verify_jwt = false
+
+[functions.normalize-kpis]
+verify_jwt = false
+
+[functions.parse-template]
+verify_jwt = false
+
+[functions.pipeline-orchestrator]
+verify_jwt = false
+
+[functions.render-benchmark-pdf]
+verify_jwt = false
+
+[functions.request-demo]
+verify_jwt = false
+
+[functions.resolve-company-website]
+verify_jwt = false
+
+[functions.scan-ir-page]
+verify_jwt = false
+
+[functions.self-benchmark]
+verify_jwt = false
+
+[functions.send-auth-email]
+verify_jwt = false
+
+[functions.send-document-notification]
+verify_jwt = false
+
+[functions.send-welcome]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.suggest-competitors]
+verify_jwt = false
+
+[functions.suggest-ir-url]
+verify_jwt = false
+
+[functions.suggest-publication-dates]
+verify_jwt = false
+
+[functions.upload-report]
+verify_jwt = false
+
+# Explicitly true (the default, written down so it is a decision rather than an omission):
+

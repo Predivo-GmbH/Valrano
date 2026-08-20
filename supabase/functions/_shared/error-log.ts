@@ -19,7 +19,11 @@ export async function logError(
       function_name: functionName,
       operation,
       error_message: error instanceof Error ? error.message : String(error),
-      context: context ? JSON.stringify(context) : '{}',
+      // Pass the OBJECT, not a string. `context` is jsonb; JSON.stringify here
+      // double-encoded it, so every row landed as the jsonb STRING "{}" rather than
+      // the object {}, making `context->>'user_id'` permanently null. Verified on
+      // ReplyFlow prod 2026-08-20. Same defect, same fix as ReplyFlow 3e353c6.
+      context: context ?? {},
     })
   } catch { /* DB logging failed — console.error above is last resort */ }
 }
