@@ -1,0 +1,75 @@
+{
+  "$comment": [
+    "Gate A route coverage, declared. Every route the router declares must be swept, or excluded here with",
+    "a reason. A new route that nobody classifies fails the gate by name, instead of quietly never being",
+    "crawled. Enforced by @predivo-gmbh/gate-kit/conformance checkRouteCoverage() once this product is",
+    "converted to the shared crawl engine.",
+    "",
+    "NOTE the two router sources: App.tsx mounts <Route path=\"*\" element={<AuthenticatedShell />} /> and the",
+    "whole authenticated app is declared inside that component. Parsing App.tsx alone reports 5 routes and",
+    "hides the other 30, which is how an earlier count of this product was wrong.",
+    "",
+    "Measured 2026-08-20: 35 routes declared across both files, 7 swept. That is the largest coverage gap in",
+    "the fleet, and it is recorded here rather than left invisible. Entries with `expires` are real gaps with",
+    "a deadline, not permanent exemptions."
+  ],
+  "routerSources": ["src/App.tsx", "src/components/AuthenticatedShell.tsx"],
+  "swept": [
+    "/dashboard",
+    "/my-company",
+    "/competitors",
+    "/analytics",
+    "/reports",
+    "/account",
+    "/settings"
+  ],
+  "exclusions": [
+    {
+      "route": "/settings/approval-chains",
+      "reason": "AUTHENTICATED app route, not swept. It holds a real dialog: the create/edit Approval Chain modal, which the static rule found to have no scroller on 2026-08-20 (fixed in 357ae64) and which the crawl has never once opened. Add to the sweep at conversion.",
+      "expires": "2026-09-30"
+    },
+    {
+      "route": "/settings/benchmark-rules",
+      "reason": "AUTHENTICATED app route, not swept. Same gap as /settings/approval-chains.",
+      "expires": "2026-09-30"
+    },
+    { "route": "/my-company/benchmark", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
+    { "route": "/peers", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
+    { "route": "/trends", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
+    { "route": "/calendar", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
+    { "route": "/documents", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
+    { "route": "/news", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
+    { "route": "/review", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
+    { "route": "/upload", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
+    {
+      "route": "/onboarding",
+      "reason": "AUTHENTICATED onboarding flow. The e2e identity is already onboarded, so entering it directly would leave that shared account in a half-configured state. Needs a dedicated fresh identity, the way ReplyFlow seeds one.",
+      "expires": "2026-09-30"
+    },
+    { "route": "/companies/:id", "reason": "Needs a seeded company row; the crawl has no fixture data yet.", "expires": "2026-09-30" },
+    { "route": "/documents/:id", "reason": "Needs a seeded document row.", "expires": "2026-09-30" },
+    { "route": "/reports/:id", "reason": "Needs a seeded report row.", "expires": "2026-09-30" },
+    { "route": "/uploaded-reports/:id", "reason": "Needs a seeded uploaded-report row.", "expires": "2026-09-30" },
+    { "route": "/settings?tab=company", "reason": "Query variant of /settings, which is swept." },
+    {
+      "route": "/",
+      "reason": "PUBLIC landing page, wrapped in RedirectIfAuthenticated so an authenticated crawl never sees it. It carries the demo-request modal that the static rule found broken on 2026-08-20 (fixed in 357ae64). Needs an anonymous identity, which lands with the engine conversion.",
+      "expires": "2026-09-30"
+    },
+    { "route": "/login", "reason": "Auth form page, no dialog-class surface; covered by the auth e2e specs." },
+    { "route": "/signup", "reason": "Auth form page, see /login." },
+    { "route": "/forgot-password", "reason": "Auth form page, see /login." },
+    { "route": "/reset-password", "reason": "Auth form page, see /login." },
+    { "route": "/auth/callback", "reason": "OAuth landing, redirects immediately." },
+    { "route": "/auth/confirm", "reason": "Email-confirmation landing, redirects immediately." },
+    { "route": "/auth/verify", "reason": "Verification landing, redirects immediately." },
+    { "route": "/privacy", "reason": "Static legal page." },
+    { "route": "/terms", "reason": "Static legal page." },
+    { "route": "/imprint", "reason": "Static legal page." },
+    {
+      "route": "/*",
+      "reason": "NOT a 404 in this product: App.tsx:53 mounts the AuthenticatedShell here, and its child routes are enumerated individually above."
+    }
+  ]
+}
