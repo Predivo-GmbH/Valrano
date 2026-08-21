@@ -12,11 +12,7 @@ name: Deploy to Production
 #                       FTP + alive-smoke. Roger sees changes on staging fast,
 #                       many times a day.  (job: deploy-staging)
 #   schedule (nightly)  FULL gauntlet against live staging — daily regression
-#                       signal even with no promotion.  (env:
-  # Needed by npm ci: .npmrc points @predivo-gmbh at GitHub Packages.
-  NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
-
-jobs: gate-*)
+#                       signal even with no promotion.  (jobs: gate-*)
 #   workflow_dispatch   PROD promotion. Runs the FULL gauntlet (integration +
 #     confirm=deploy    E2E) THEN deploys prod. The un-skippable gates live HERE
 #                       now.  (jobs: gate-* -> deploy)
@@ -52,6 +48,10 @@ concurrency:
   # commits land in a row only the newest needs a staging deploy + E2E.
   group: ${{ github.event_name == 'workflow_dispatch' && 'deploy-production' || format('staging-{0}', github.ref) }}
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+env:
+  # Needed by npm ci: .npmrc points @predivo-gmbh at GitHub Packages.
+  NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
 jobs:
   # ===========================================================================
