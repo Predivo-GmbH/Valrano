@@ -9,9 +9,11 @@
     "whole authenticated app is declared inside that component. Parsing App.tsx alone reports 5 routes and",
     "hides the other 30, which is how an earlier count of this product was wrong.",
     "",
-    "Measured 2026-08-20: 35 routes declared across both files, 7 swept. That is the largest coverage gap in",
-    "the fleet, and it is recorded here rather than left invisible. Entries with `expires` are real gaps with",
-    "a deadline, not permanent exemptions."
+    "Measured 2026-08-20 (route classification corrected 2026-08-21): 35 routes declared across both files,",
+    "7 swept. Of the 28 unswept, 22 are permanent exclusions — public/legal pages, auth landings, the /*",
+    "mount, and 10 legacy <Navigate replace/> redirects that render no crawlable surface — leaving 6 real",
+    "coverage gaps (seeded-fixture and fresh-identity routes) with a 2026-09-30 deadline. Only those 6 carry",
+    "`expires`; redirects and structural exclusions do not."
   ],
   "routerSources": ["src/App.tsx", "src/components/AuthenticatedShell.tsx"],
   "swept": [
@@ -26,22 +28,20 @@
   "exclusions": [
     {
       "route": "/settings/approval-chains",
-      "reason": "AUTHENTICATED app route, not swept. It holds a real dialog: the create/edit Approval Chain modal, which the static rule found to have no scroller on 2026-08-20 (fixed in 357ae64) and which the crawl has never once opened. Add to the sweep at conversion.",
-      "expires": "2026-09-30"
+      "reason": "Legacy <Navigate to=\"/settings?tab=approvals\" replace/> redirect (AuthenticatedShell.tsx). Renders no crawlable surface; the approval-chain dialog now lives under the swept /settings. Not a coverage gap."
     },
     {
       "route": "/settings/benchmark-rules",
-      "reason": "AUTHENTICATED app route, not swept. Same gap as /settings/approval-chains.",
-      "expires": "2026-09-30"
+      "reason": "Legacy <Navigate to=\"/reports?tab=rules\" replace/> redirect (AuthenticatedShell.tsx). Renders no crawlable surface; target is under the swept /reports. Not a coverage gap."
     },
-    { "route": "/my-company/benchmark", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
-    { "route": "/peers", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
-    { "route": "/trends", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
-    { "route": "/calendar", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
-    { "route": "/documents", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
-    { "route": "/news", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
-    { "route": "/review", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
-    { "route": "/upload", "reason": "AUTHENTICATED app route, not swept.", "expires": "2026-09-30" },
+    { "route": "/my-company/benchmark", "reason": "Legacy <Navigate to=\"/my-company?tab=benchmark\" replace/> redirect (AuthenticatedShell.tsx). No crawlable surface; target is the swept /my-company. Not a coverage gap." },
+    { "route": "/peers", "reason": "Legacy <Navigate to=\"/competitors\" replace/> redirect (AuthenticatedShell.tsx). No crawlable surface; target is the swept /competitors. Not a coverage gap." },
+    { "route": "/trends", "reason": "Legacy <Navigate to=\"/analytics\" replace/> redirect (AuthenticatedShell.tsx). No crawlable surface; target is the swept /analytics. Not a coverage gap." },
+    { "route": "/calendar", "reason": "Legacy <Navigate to=\"/competitors?tab=calendar\" replace/> redirect (AuthenticatedShell.tsx). No crawlable surface; target is the swept /competitors. Not a coverage gap." },
+    { "route": "/documents", "reason": "Legacy <Navigate to=\"/reports\" replace/> redirect (AuthenticatedShell.tsx). No crawlable surface; target is the swept /reports. Not a coverage gap." },
+    { "route": "/news", "reason": "Legacy <Navigate to=\"/dashboard\" replace/> redirect (AuthenticatedShell.tsx). No crawlable surface; target is the swept /dashboard. Not a coverage gap." },
+    { "route": "/review", "reason": "Legacy <Navigate to=\"/competitors\" replace/> redirect (AuthenticatedShell.tsx). No crawlable surface; target is the swept /competitors. Not a coverage gap." },
+    { "route": "/upload", "reason": "Legacy <Navigate to=\"/competitors\" replace/> redirect (AuthenticatedShell.tsx). No crawlable surface; target is the swept /competitors. Not a coverage gap." },
     {
       "route": "/onboarding",
       "reason": "AUTHENTICATED onboarding flow. The e2e identity is already onboarded, so entering it directly would leave that shared account in a half-configured state. Needs a dedicated fresh identity, the way ReplyFlow seeds one.",
