@@ -564,7 +564,7 @@ function RecentReports({ reports }: { reports: ReportWithExtraction[] }) {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}>
-        <DialogContent showCloseButton={false} className="sm:max-w-md">
+        <DialogContent data-gate-a="MyCompanyPage" showCloseButton={false} className="sm:max-w-md">
           <DialogHeader>
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-destructive/10">
               <AlertTriangle className="h-5 w-5 text-destructive" />

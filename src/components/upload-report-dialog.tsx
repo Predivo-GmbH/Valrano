@@ -245,7 +245,7 @@ export function UploadReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent data-gate-a="upload-report-dialog" className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Upload Report</DialogTitle>
         </DialogHeader>

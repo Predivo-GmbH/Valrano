@@ -13,7 +13,7 @@ interface ConfirmDeleteDialogProps {
 export function ConfirmDeleteDialog({ open, onOpenChange, title, description, onConfirm, isPending }: ConfirmDeleteDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent data-gate-a="confirm-delete-dialog" className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

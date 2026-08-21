@@ -489,7 +489,7 @@ function UploadTemplateDialog({ open, onClose }: { open: boolean; onClose: () =>
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose() } }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent data-gate-a="CorporateTemplatesPage" className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Upload Corporate Template</DialogTitle>
         </DialogHeader>
@@ -607,7 +607,7 @@ function PlaceholderMappingDialog({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent data-gate-a="CorporateTemplatesPage-2" className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Configure Placeholder Mapping</DialogTitle>
         </DialogHeader>
@@ -723,7 +723,7 @@ function AddGoogleTemplateDialog({ open, onClose }: { open: boolean; onClose: ()
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose() } }}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent data-gate-a="CorporateTemplatesPage-3" className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add Google Template</DialogTitle>
         </DialogHeader>

@@ -422,7 +422,7 @@ function AddCompanyDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent data-gate-a="CompetitorsPage" className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Company</DialogTitle>
         </DialogHeader>
@@ -1875,7 +1875,7 @@ function CompetitorsTab({ autoUploadCompanyId }: { autoUploadCompanyId?: string 
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteConfirm} onOpenChange={(o) => { if (!o) setDeleteConfirm(null) }}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent data-gate-a="CompetitorsPage-2" className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Remove Peer</DialogTitle>
           </DialogHeader>

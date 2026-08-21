@@ -1075,7 +1075,7 @@ function CreateEventDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent data-gate-a="CalendarPage" className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Publication Event</DialogTitle>
         </DialogHeader>

@@ -54,6 +54,7 @@ export function NotificationBell() {
       {open && (
         <div
           role="dialog"
+          data-gate-a="NotificationBell"
           aria-modal="true"
           aria-label="Notifications"
           onKeyDown={(e) => {

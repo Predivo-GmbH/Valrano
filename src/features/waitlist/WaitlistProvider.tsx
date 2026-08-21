@@ -37,6 +37,7 @@ export function WaitlistProvider({ children }: { children: ReactNode }) {
           />
           <div
             role="dialog"
+            data-gate-a="WaitlistProvider"
             aria-modal="true"
             aria-label="Join the waitlist"
             className="relative w-full max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-xl"

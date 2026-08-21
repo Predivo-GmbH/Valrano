@@ -158,7 +158,7 @@ function CreateRuleDialog({ open, onOpenChange, editingRule }: CreateRuleDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent data-gate-a="BenchmarkRulesPage" className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editingRule ? 'Edit Rule' : 'Create Benchmark Rule'}</DialogTitle>
           <DialogDescription>

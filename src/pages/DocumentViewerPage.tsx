@@ -810,7 +810,7 @@ export function DocumentViewerPage() {
 
       {/* Status change dialog with notes */}
       <Dialog open={!!statusDialog} onOpenChange={(o) => { if (!o) setStatusDialog(null) }}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent data-gate-a="DocumentViewerPage" className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>{statusDialog?.label} Document</DialogTitle>
           </DialogHeader>

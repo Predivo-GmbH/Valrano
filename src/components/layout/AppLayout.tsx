@@ -262,6 +262,7 @@ export function AppLayout() {
               <div
                 className="fixed left-0 right-0 top-16 z-50 max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-border bg-[var(--color-background)] px-4 pb-4 pt-2 md:hidden"
                 role="dialog"
+                data-gate-a="AppLayout"
                 aria-modal="true"
                 aria-label="Navigation menu"
                 onKeyDown={(e) => {

@@ -77,7 +77,7 @@ function DemoRequestModal({ open, onClose }: { open: boolean; onClose: () => voi
   const inputClass = 'w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3.5 py-2.5 text-sm text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)]/60 outline-none transition-colors focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="demo-modal-title">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" data-gate-a="LandingPage" aria-modal="true" aria-labelledby="demo-modal-title">
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in-0 duration-200" onClick={handleClose} />
       <div className="relative z-10 w-full max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200 sm:p-8">
         <button onClick={handleClose} className="absolute right-4 top-4 rounded-md p-1 text-[var(--color-muted-foreground)] transition-colors hover:text-[var(--color-foreground)] cursor-pointer" aria-label="Close">
