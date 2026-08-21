@@ -13,6 +13,9 @@ export default defineConfig([
   // deploy. One implementation for all six products, with its own fixture suite, in
   // Predivo-GmbH/gate-kit.
   ...gateKit.configs.recommended,
+  // Coverage half: a dialog that declares no data-gate-a id can never be proven opened by
+  // the crawl, so a new dialog cannot arrive undeclared.
+  ...gateKit.configs.coverage,
   globalIgnores(['dist', 'src/test/**', 'src/components/ui/**', 'supabase/**', 'e2e/**', 'coverage/**']),
   {
     files: ['**/*.{ts,tsx}'],

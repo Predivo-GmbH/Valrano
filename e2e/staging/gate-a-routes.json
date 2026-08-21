@@ -10,10 +10,14 @@
     "hides the other 30, which is how an earlier count of this product was wrong.",
     "",
     "Measured 2026-08-20 (route classification corrected 2026-08-21): 35 routes declared across both files,",
-    "7 swept. Of the 28 unswept, 22 are permanent exclusions — public/legal pages, auth landings, the /*",
-    "mount, and 10 legacy <Navigate replace/> redirects that render no crawlable surface — leaving 6 real",
-    "coverage gaps (seeded-fixture and fresh-identity routes) with a 2026-09-30 deadline. Only those 6 carry",
-    "`expires`; redirects and structural exclusions do not."
+    "8 swept. Of the 27 unswept, 22 are permanent exclusions — public/legal pages, auth landings, the /*",
+    "mount, and 10 legacy <Navigate replace/> redirects that render no crawlable surface — leaving 5 real",
+    "coverage gaps (seeded-fixture and fresh-identity routes) with a 2026-09-30 deadline. Only those 5 carry",
+    "`expires`; redirects and structural exclusions do not.",
+    "",
+    "2026-08-21: '/' moved from excluded to swept with the shared-engine conversion — the crawl now runs an",
+    "anonymous identity that is the only one RedirectIfAuthenticated lets see the landing page (and its two",
+    "dialog surfaces, the demo-request and waitlist modals)."
   ],
   "routerSources": ["src/App.tsx", "src/components/AuthenticatedShell.tsx"],
   "swept": [
@@ -23,7 +27,8 @@
     "/analytics",
     "/reports",
     "/account",
-    "/settings"
+    "/settings",
+    "/"
   ],
   "exclusions": [
     {
@@ -52,11 +57,6 @@
     { "route": "/reports/:id", "reason": "Needs a seeded report row.", "expires": "2026-09-30" },
     { "route": "/uploaded-reports/:id", "reason": "Needs a seeded uploaded-report row.", "expires": "2026-09-30" },
     { "route": "/settings?tab=company", "reason": "Query variant of /settings, which is swept." },
-    {
-      "route": "/",
-      "reason": "PUBLIC landing page, wrapped in RedirectIfAuthenticated so an authenticated crawl never sees it. It carries the demo-request modal that the static rule found broken on 2026-08-20 (fixed in 357ae64). Needs an anonymous identity, which lands with the engine conversion.",
-      "expires": "2026-09-30"
-    },
     { "route": "/login", "reason": "Auth form page, no dialog-class surface; covered by the auth e2e specs." },
     { "route": "/signup", "reason": "Auth form page, see /login." },
     { "route": "/forgot-password", "reason": "Auth form page, see /login." },
