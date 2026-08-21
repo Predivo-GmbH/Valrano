@@ -96,6 +96,14 @@ jobs:
       - name: Install Supabase CLI
         run: npm install -g supabase@2.109.1
 
+      # Ship the database before anything else (2026-08-21, fleet drift fix):
+      # applies every supabase/migrations file not yet in the ledger, fails the
+      # deploy on error. No-op when already reconciled.
+      - name: Apply database migrations to staging
+        run: node scripts/apply-migrations.mjs --project-ref vfwpcgdkrwqhdivfzmrg
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
       # Ship staging edge functions on every push so staging stays a faithful
       # mirror of the code (the nightly + promotion gauntlets test against it).
       - name: Deploy edge functions to staging
@@ -560,6 +568,12 @@ jobs:
 
       - name: Install Supabase CLI
         run: npm install -g supabase@2.109.1
+
+      # Ship the database before anything else (2026-08-21, fleet drift fix).
+      - name: Apply database migrations to production
+        run: node scripts/apply-migrations.mjs --project-ref mkdeftmubrkseyrrbzvp
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Deploy edge functions to production
         run: |

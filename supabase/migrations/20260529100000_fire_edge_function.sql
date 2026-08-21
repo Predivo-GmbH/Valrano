@@ -13,11 +13,19 @@ language plpgsql
 security definer
 as $$
 declare
-  v_url text := 'https://mkdeftmubrkseyrrbzvp.supabase.co';
-  v_anon_key text := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rZGVmdG11YnJrc2V5cnJienZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MTIzODIsImV4cCI6MjA5Mzk4ODM4Mn0.lnNUslHt--2_GzOZFB_UH1mVd0bfGfWTnHIU3e7Umwc';
+  -- Env-aware since 2026-08-21 (drift fix): this file previously hardcoded the PROD
+  -- URL + prod anon key, so applying it to staging silently wired staging to prod.
+  -- Both now come from the vault (supabase_url / anon_key), per-env.
+  v_url text;
+  v_anon_key text;
   v_headers jsonb;
   v_request_id bigint;
 begin
+  select decrypted_secret into v_url from vault.decrypted_secrets where name = 'supabase_url';
+  select decrypted_secret into v_anon_key from vault.decrypted_secrets where name = 'anon_key';
+  if v_url is null or v_anon_key is null then
+    raise exception 'fire_edge_function: vault secrets supabase_url/anon_key not configured for this environment';
+  end if;
   v_headers := jsonb_build_object(
     'Content-Type', 'application/json',
     'Authorization', 'Bearer ' || coalesce(p_auth_token, v_anon_key)

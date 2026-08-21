@@ -18,6 +18,9 @@ alter table waitlist enable row level security;
 
 -- Public sign-up: INSERT only, with a light email sanity check. No select/update/
 -- delete policy for anon → the list is not publicly readable.
+-- Idempotent (2026-08-21, fleet drift fix): the table/policy were applied to prod by
+-- hand without a ledger row, so CI re-applies this file there; guard the CREATE POLICY.
+drop policy if exists "Public can join waitlist" on waitlist;
 create policy "Public can join waitlist"
   on waitlist
   for insert
