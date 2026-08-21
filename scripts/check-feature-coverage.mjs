@@ -18,9 +18,18 @@
  * A file with SOME skipped cases still passes — skipping one case is normal; skipping all of them
  * means the feature is untested.
  *
- * It also catches the bolded-prefix trap explicitly. The typed prefix must be `E2E:` UNBOLDED;
- * `**E2E:**` does not match the path regex, and the old script reported that as the generic
- * "no test files listed", which reads like a missing test rather than a formatting slip.
+ * The parser is also DIALECT-TOLERANT now, which replaces the old "type the prefix unbolded"
+ * convention: `E2E:` and `**E2E:**` are both accepted, as are `**Status:**` and `**Status**:`, and
+ * `## F-001` as well as `### F-001`. A markdown formatting choice must never be able to switch a
+ * gate off — and measured across the fleet, each repo had quietly patched its own copy to match its
+ * own dialect, which is how one canonical script became ten.
+ *
+ * ⚠ 2026-08-21, SECOND PASS: the skipped-suite detector shipped that morning was DEFEATED BY THE
+ * EXACT CASE IT WAS WRITTEN FOR, and the factory audit caught it by planting one. See the comment
+ * above `stripSkippedBlocks` — the short version is that removing the `.skip` token left the tests
+ * INSIDE the skipped block visible, so a fully-skipped file still reported as covered. Every repo
+ * that took the first version is blind to skipped suites until it takes this one. Note that this
+ * never broke a build: it caused false PASSES, which is why nothing surfaced it.
  */
 
 import { readFileSync, existsSync } from 'fs'
@@ -94,11 +103,51 @@ const testFileRegex = /\*{0,2}(?:Unit|E2E|Integration|Component|A11y):\*{0,2}\s*
 // A prefix that is present but malformed in some OTHER way (`**E2E**:`, `E2E -`) still hides paths.
 const malformedPrefixRegex = /\*{0,2}(?:Unit|E2E|Integration|Component|A11y)\*{0,2}\s*[:\-–]\s*`[^`]+`/
 
-// A file whose ENTIRE suite is skipped covers nothing. Matches describe.skip / test.skip /
-// it.skip / .fixme, and Playwright's `test.describe.configure({ mode: 'skip' })`.
-const SUITE_SKIP = /(?:^|\W)(?:test|it|describe)(?:\.\w+)*\.(?:skip|fixme)\s*\(|configure\s*\(\s*\{[^}]*mode\s*:\s*['"](?:skip|serial-skip)['"]/
+// A file whose ENTIRE suite is skipped covers nothing.
+//
+// ⚠ THE FIRST VERSION OF THIS CHECK WAS DEFEATED BY THE EXACT CASE IT WAS WRITTEN FOR, and the
+// factory audit caught it 2026-08-21 by planting one. It removed the skip TOKEN and then looked for
+// a live case in the leftovers — but `test.describe.skip('x', () => { test('y', ...) })` still
+// contains `test(` INSIDE the skipped block, so deleting only `test.describe.skip(` left that inner
+// call visible and the file reported as COVERED. A skipped suite therefore still passed the gate,
+// which is the whole defect (open-findings register V2) the check exists to close.
+//
+// The fix is to remove the skipped BLOCK, not the token: find the call's opening paren and
+// bracket-match to its close, then ask whether anything live remains outside it.
+const SKIP_CALL = /(?:^|\W)((?:test|it|describe)(?:\.\w+)*\.(?:skip|fixme))\s*\(/
+const MODE_SKIP = /configure\s*\(\s*\{[^}]*mode\s*:\s*['"](?:skip|serial-skip)['"]/
 // at least one case that actually runs
 const LIVE_CASE = /(?:^|\W)(?:test|it)\s*\(|(?:^|\W)(?:test|it)\.(?:only|each|step)\s*\(|(?:^|\W)describe\s*\(/
+
+/** Delete each `.skip(...)` / `.fixme(...)` CALL together with everything inside its parentheses. */
+function stripSkippedBlocks(src) {
+  let out = src
+  for (;;) {
+    const m = out.match(SKIP_CALL)
+    if (!m) return out
+    // walk from the call's opening paren to its match, respecting nesting and string/template literals
+    let i = out.indexOf('(', m.index + m[0].length - 1)
+    if (i < 0) return out
+    let depth = 0, quote = null
+    let j = i
+    for (; j < out.length; j++) {
+      const c = out[j]
+      if (quote) {
+        if (c === '\\') { j++; continue }
+        if (c === quote) quote = null
+        continue
+      }
+      if (c === '"' || c === "'" || c === '`') { quote = c; continue }
+      if (c === '(') depth++
+      else if (c === ')') { depth--; if (depth === 0) { j++; break } }
+    }
+    const before = out.slice(0, m.index + (m[0].length - (out.length - i)) )
+    out = out.slice(0, i) + out.slice(j)
+    // guard against a pathological no-progress loop on malformed source
+    if (out.length >= src.length && before === undefined) return out
+    src = out
+  }
+}
 
 /** null = covered; a string = the reason it is not */
 function inertReason(file) {
@@ -107,19 +156,25 @@ function inertReason(file) {
   const stripped = src
     .replace(/\/\*[\s\S]*?\*\//g, '')
     .replace(/(^|[^:])\/\/.*$/gm, '$1')
-  if (!SUITE_SKIP.test(stripped)) return null
-  // something is skipped — is anything left that runs?
-  const withoutSkipped = stripped.replace(new RegExp(SUITE_SKIP.source, 'g'), '')
-  if (LIVE_CASE.test(withoutSkipped)) return null
+  const hasSkip = SKIP_CALL.test(stripped) || MODE_SKIP.test(stripped)
+  if (!hasSkip) return null
+  if (MODE_SKIP.test(stripped)) return 'the whole file is configured mode:skip, so it runs nothing'
+  // something is skipped — is anything left OUTSIDE the skipped blocks that still runs?
+  const remaining = stripSkippedBlocks(stripped)
+  if (LIVE_CASE.test(remaining)) return null
   return 'every test in it is skipped (.skip/.fixme), so it runs nothing'
 }
 
 let failures = 0
 let checked = 0
+// every F-XXX block the parser could READ, whatever its status — distinguishes "nothing built yet"
+// from "the parser cannot read this file"
+let seen = 0
 let match
 
 while ((match = featureRegex.exec(content)) !== null) {
   const [, id, name, body] = match
+  seen++
   const statusMatch = body.match(statusRegex)
   if (!statusMatch) {
     console.error(`FAIL  ${id}: ${name} — no "**Status:**" line, so this feature was never checked at all`)
@@ -188,13 +243,25 @@ console.log(`\n${checked} feature(s) checked, ${failures} failure(s)`)
 // bug (audit 2026-08-12 D4#8) made the block regex match zero features on a CRLF checkout and exit 0,
 // and on 2026-08-21 preferring the canonical FILENAME over the populated file did the same. Both were
 // green builds proving nothing.
-if (checked === 0) {
+//
+// But "nothing to check" and "the parser is broken" are different, and the first version conflated
+// them: it failed whenever `checked === 0`, which also fails a brand-new project whose features are
+// all still `planned`. That made project-starter — the canonical template every new product is born
+// from — fail its own gate on day one. So the guard fires on a registry the parser cannot READ, not
+// on one that legitimately has no built features yet.
+if (seen === 0) {
   console.error(
-    `\nFAIL  ${FEATURES_PATH} parsed to ZERO implemented/tested features.\n` +
-      `A gate that checks nothing is not a passing gate. Either the registry is empty, or its heading\n` +
-      `format drifted from "### F-XXX: Name" + "- **Status:** implemented|tested".`
+    `\nFAIL  ${FEATURES_PATH} parsed to ZERO features of any status.\n` +
+      `A gate that checks nothing is not a passing gate. Either the file is empty, or its heading\n` +
+      `format drifted from "## F-XXX: Name" / "### F-XXX: Name" + "- **Status:** ...".`
   )
   process.exit(1)
+}
+if (checked === 0) {
+  console.log(
+    `Nothing to verify yet: ${seen} feature(s) found, all still 'planned'. The registry is readable,\n` +
+      `so this is a project that has not built anything yet, not a broken gate.`
+  )
 }
 
 if (failures > 0) {
