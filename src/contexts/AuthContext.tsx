@@ -78,7 +78,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Verify user still exists server-side (handles deleted accounts)
         const { data: { user: verifiedUser }, error } = await supabase.auth.getUser()
         if (error || !verifiedUser) {
-          // User was deleted — clear stale session
+          // Only a DEFINITIVE miss (deleted account, invalid/revoked token) clears the
+          // session. A transient failure - network blip, GoTrue 5xx, the ES256 kid-rotation
+          // window this fleet hits sporadically - must NOT sign the user out. Measured
+          // 2026-08-21: one transient getUser() error signed the e2e account out mid-crawl
+          // and every route after it silently rendered signed-out.
+          const transient =
+            !!error &&
+            (error.name === 'AuthRetryableFetchError' || error.status === 0 || (error.status ?? 0) >= 500)
+          if (transient) {
+            setUser(session.user)
+            setLoading(false)
+            return
+          }
+          // User was deleted or the token is definitively invalid — clear stale session
           await supabase.auth.signOut().catch(() => {})
           setUser(null)
           setLoading(false)
