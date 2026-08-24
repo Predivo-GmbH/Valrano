@@ -48,7 +48,7 @@ jobs:
   # it here to read the previous run's manifest is the defect, not the fix.
   # ---------------------------------------------------------------------------------------
   gates:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 15
     if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' }}
     steps:
@@ -68,9 +68,24 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
+      # No cache-hit guard. On GitHub's throwaway machines, skipping the install on a cache
+      # hit is a safe optimisation. On a persistent self-hosted runner it is a correctness
+      # bug: the cache reports a hit while ~/.cache/ms-playwright holds a DIFFERENT browser
+      # build, the install is skipped, and every test dies with "Executable doesn't exist".
       - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: |
+          # --with-deps shells out to `sudo apt-get`. On our self-hosted runner the runner
+          # user's sudo is deliberately narrow, because these jobs execute repository code
+          # and blanket sudo would let any of it take the machine. The OS libraries are
+          # installed once on the host instead; only the browser binaries are per-version,
+          # and those need no root.
+          # GitHub-hosted runners keep --with-deps: clearing RUNNER_LABEL sends every job
+          # back to them, and that fallback has to work on an unprovisioned box.
+          if [ "${{ runner.environment }}" = "self-hosted" ]; then
+            npx playwright install chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
 
       # Gate A runtime crawl (2026-08-20, converted to the shared gate-kit engine
       # 2026-08-21). The hand-written Gate A list is the defect the B4 meta-audit
@@ -117,7 +132,7 @@ jobs:
   # Byte-identical to what used to run after every deploy; only its cadence changed.
   # ---------------------------------------------------------------------------------------
   full:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 75
     if: ${{ github.event_name != 'workflow_run' }}
     steps:
@@ -137,9 +152,24 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
+      # No cache-hit guard. On GitHub's throwaway machines, skipping the install on a cache
+      # hit is a safe optimisation. On a persistent self-hosted runner it is a correctness
+      # bug: the cache reports a hit while ~/.cache/ms-playwright holds a DIFFERENT browser
+      # build, the install is skipped, and every test dies with "Executable doesn't exist".
       - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: |
+          # --with-deps shells out to `sudo apt-get`. On our self-hosted runner the runner
+          # user's sudo is deliberately narrow, because these jobs execute repository code
+          # and blanket sudo would let any of it take the machine. The OS libraries are
+          # installed once on the host instead; only the browser binaries are per-version,
+          # and those need no root.
+          # GitHub-hosted runners keep --with-deps: clearing RUNNER_LABEL sends every job
+          # back to them, and that fallback has to work on an unprovisioned box.
+          if [ "${{ runner.environment }}" = "self-hosted" ]; then
+            npx playwright install chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
 
       # Gate A runtime crawl (2026-08-20, converted to the shared gate-kit engine
       # 2026-08-21). The hand-written Gate A list is the defect the B4 meta-audit

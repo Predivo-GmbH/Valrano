@@ -8,7 +8,7 @@ on:
 
 jobs:
   digest:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - name: Trigger insights-digest edge function

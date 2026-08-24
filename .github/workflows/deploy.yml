@@ -63,7 +63,7 @@ jobs:
   # ===========================================================================
   deploy-staging:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 20
     steps:
       - name: Verify FTP credentials (fail fast on a stale secret)
@@ -305,7 +305,7 @@ jobs:
   # ===========================================================================
   gate-integration:
     if: github.event_name != 'push'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
@@ -327,7 +327,7 @@ jobs:
 
   gate-e2e:
     if: github.event_name != 'push'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 20
 
     steps:
@@ -347,9 +347,24 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
+      # No cache-hit guard. On GitHub's throwaway machines, skipping the install on a cache
+      # hit is a safe optimisation. On a persistent self-hosted runner it is a correctness
+      # bug: the cache reports a hit while ~/.cache/ms-playwright holds a DIFFERENT browser
+      # build, the install is skipped, and every test dies with "Executable doesn't exist".
       - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: |
+          # --with-deps shells out to `sudo apt-get`. On our self-hosted runner the runner
+          # user's sudo is deliberately narrow, because these jobs execute repository code
+          # and blanket sudo would let any of it take the machine. The OS libraries are
+          # installed once on the host instead; only the browser binaries are per-version,
+          # and those need no root.
+          # GitHub-hosted runners keep --with-deps: clearing RUNNER_LABEL sends every job
+          # back to them, and that fallback has to work on an unprovisioned box.
+          if [ "${{ runner.environment }}" = "self-hosted" ]; then
+            npx playwright install chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
 
       - name: Verify staging is alive (catches .htaccess errors)
         run: |
@@ -394,7 +409,7 @@ jobs:
   # ===========================================================================
   gate-security:
     if: github.event_name != 'push'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -434,7 +449,7 @@ jobs:
     # main deploys STAGING only. Same pattern as ReplyFlow/BoatBuddy/SignalScore.
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'deploy'
     needs: [gate-integration, gate-e2e, gate-security]
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 30
     permissions:
       actions: read

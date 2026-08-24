@@ -7,7 +7,7 @@ on:
 
 jobs:
   ping-production:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       - name: Ping Supabase Production (real DB query via GraphQL)
@@ -30,7 +30,7 @@ jobs:
           echo "Production Supabase pinged successfully"
 
   ping-staging:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       - name: Ping Supabase Staging (real DB query via GraphQL)
