@@ -248,6 +248,13 @@ jobs:
           FTP_PASS: ${{ secrets.FTP_PASS }}
 
       - name: Upload to staging
+        # Zero-downtime, matching this repo's own production job. A single
+        # `mirror --delete` uploads and deletes in ONE pass, so mid-mirror the new
+        # index.html can be live while its hashed chunks are not yet uploaded and the old
+        # ones are already gone: every chunk 404s and the page renders BLANK. Proven
+        # 2026-08-23 in ReplyFlow run 32662317038 (index.html 200, five chunks 404, blank
+        # screenshot) where it failed an E2E gate and read as a flaky test. Assets first
+        # without --delete, so new chunks exist before anything references them.
         run: |
           set +e
           n=0
@@ -256,6 +263,8 @@ jobs:
           set ftp:ssl-force yes
           set ssl:verify-certificate no; set ftp:ssl-protect-data no
           set net:timeout 60; set net:max-retries 8; set net:persist-retries 8; set net:reconnect-interval-base 5; set net:reconnect-interval-multiplier 1.2; set ftp:fix-pasv-address yes; set ftp:prefer-epsv no; set ftp:passive-mode yes; set mirror:parallel-transfer-count 4
+          mirror --reverse --verbose --no-perms \
+            ./dist/assets/ staging.valrano.com/assets/
           mirror --reverse --verbose --no-perms --delete \
             --exclude .htpasswd --exclude cgi-bin/ \
             ./dist/ staging.valrano.com/
