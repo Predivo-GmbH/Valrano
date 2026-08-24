@@ -28,7 +28,28 @@ function getSmtpConfig(): SmtpConfig {
     throw new Error('Missing SMTP configuration (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)')
   }
 
-  return { hostname, port: parseInt(port, 10), username, password, from }
+  const portNumber = parseInt(port, 10)
+
+  // sendEmail() below opens the socket with implicit TLS (tls: true), which only exists
+  // on 465. On 587 the server expects plaintext + STARTTLS and the handshake dies with
+  // "received corrupt message of type InvalidContentType" - the opaque error that hid a
+  // four-day silent outage in BackOffice support mail (2026-08-20 to 2026-08-24, fixed in
+  // b11c5d2) when a shared SMTP_HOST/SMTP_PORT was repointed at Postmark. Five fleet
+  // products have already made that move; Valrano is still on Metanet
+  // (mail.valrano.com:465, verified live 2026-08-24). Postmark has no 465 listener at all,
+  // so the day Valrano moves, this file must move to the Postmark HTTP API in the same
+  // change. Say that in words now rather than at the TLS layer weeks later.
+  if (portNumber !== 465) {
+    throw new Error(
+      `SMTP_PORT is ${port}; this mailer speaks implicit TLS and only works on 465. ` +
+        'Port 587 needs STARTTLS, which the Supabase edge runtime cannot do here ' +
+        '(a STARTTLS client needs dynamic remote imports, which 503 the invocation). ' +
+        'Either point SMTP_HOST/SMTP_PORT back at an implicit-TLS server, or switch this ' +
+        'file to the Postmark HTTP API the way ReplyFlow/ChannelMover/ScoutCopilot did.',
+    )
+  }
+
+  return { hostname, port: portNumber, username, password, from }
 }
 
 // ─── Send ────────────────────────────────────────────────────────────────────

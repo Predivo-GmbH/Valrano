@@ -1,37 +1,37 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts'
 import { getCorsHeaders } from '../_shared/cors.ts'
 import { authenticateRequest, errorResponse, jsonResponse } from '../_shared/auth.ts'
+import { sendEmail } from '../_shared/email.ts'
+import { logError } from '../_shared/error-log.ts'
 
 /**
  * send-document-notification — Email notification for document events
  *
- * Sends email notifications via Metanet SMTP when:
+ * Sends email notifications through the SHARED sendEmail() in _shared/email.ts when:
  * - A benchmark document is ready for approval
  * - An approval step is assigned to a reviewer
  * - A document is approved or rejected
  */
 
-interface SmtpConfig {
-  host: string
-  port: number
-  user: string
-  pass: string
-  from: string
-}
-
-function getSmtpConfig(): SmtpConfig {
-  const host = Deno.env.get('SMTP_HOST')
-  const port = Deno.env.get('SMTP_PORT')
-  const user = Deno.env.get('SMTP_USER')
-  const pass = Deno.env.get('SMTP_PASS')
-  const from = Deno.env.get('SMTP_FROM') ?? 'noreply@valrano.com'
-
-  if (!host || !port || !user || !pass) {
-    throw new Error('Missing SMTP configuration (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS)')
-  }
-
-  return { host, port: parseInt(port, 10), user, pass, from }
-}
+/*
+ * This function used to read SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS itself and
+ * hand-roll the SMTP conversation over Deno.connectTls. Two defects, both removed on
+ * 2026-08-24:
+ *
+ * 1. A SECOND MAILER INHERITING A FIRST MAILER'S VARIABLES. _shared/email.ts owns those
+ *    four secrets. This file borrowed them, so any change made for the shared mailer
+ *    silently moved this one too. That is exactly how BackOffice support mail went dark
+ *    for four days (2026-08-20 to 2026-08-24): commit 89f024a repointed a shared
+ *    SMTP_HOST/SMTP_PORT at Postmark for one mailer, and a second mailer reading them as
+ *    a fallback followed it onto a port its TLS mode could not speak. A shared env var is
+ *    an undeclared dependency. There is now ONE mailer in this project.
+ *
+ * 2. IT REPORTED SUCCESS NO MATTER WHAT THE SERVER SAID. Every readResponse() result was
+ *    discarded, so a rejected AUTH, a refused RCPT TO or a 5xx on DATA all ended in
+ *    `{ success: true }`. Nothing was written anywhere and nobody was told. denomailer,
+ *    used by the shared sendEmail(), throws on a bad reply code - so a failure is now a
+ *    500 to the caller plus an error_log row and a Sentry event (Rule 67).
+ */
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -70,7 +70,6 @@ serve(async (req: Request) => {
     }
 
     const companyName = (doc.companies as { name: string } | null)?.name ?? 'Unknown'
-    const smtp = getSmtpConfig()
 
     // Build email content based on notification type
     let subject: string
@@ -127,63 +126,26 @@ serve(async (req: Request) => {
         return jsonResponse({ error: `Unknown notification_type: ${notification_type}` }, 400)
     }
 
-    // Send via SMTP using Deno's native TLS connection
-    const encoder = new TextEncoder()
-    const decoder = new TextDecoder()
-
-    const conn = await Deno.connectTls({
-      hostname: smtp.host,
-      port: smtp.port,
-    })
-
-    async function sendLine(line: string) {
-      await conn.write(encoder.encode(line + '\r\n'))
+    // One mailer, one config: _shared/email.ts owns the SMTP secrets and validates that
+    // the port matches its TLS mode. It throws on any bad SMTP reply code, so a failure
+    // here reaches the catch below instead of being reported as a successful send.
+    try {
+      await sendEmail({
+        to: recipient_email,
+        subject,
+        html: bodyHtml,
+      })
+    } catch (sendErr) {
+      // A customer or reviewer is waiting on a document notification that did not go out.
+      // Record it where a human can find it (error_log + Sentry via logError) and return a
+      // 500 - never a success.
+      await logError('send-document-notification', 'sendEmail', sendErr, {
+        document_id,
+        notification_type,
+        recipient_email,
+      })
+      throw sendErr
     }
-
-    async function readResponse(): Promise<string> {
-      const buf = new Uint8Array(1024)
-      const n = await conn.read(buf)
-      return n ? decoder.decode(buf.subarray(0, n)) : ''
-    }
-
-    // SMTP handshake
-    await readResponse() // greeting
-    await sendLine(`EHLO valrano.com`)
-    await readResponse()
-
-    // AUTH LOGIN
-    await sendLine('AUTH LOGIN')
-    await readResponse()
-    await sendLine(btoa(smtp.user))
-    await readResponse()
-    await sendLine(btoa(smtp.pass))
-    await readResponse()
-
-    // MAIL FROM / RCPT TO
-    await sendLine(`MAIL FROM:<${smtp.from}>`)
-    await readResponse()
-    await sendLine(`RCPT TO:<${recipient_email}>`)
-    await readResponse()
-
-    // DATA
-    await sendLine('DATA')
-    await readResponse()
-
-    const message = [
-      `From: Valrano <${smtp.from}>`,
-      `To: ${recipient_name ? `${recipient_name} <${recipient_email}>` : recipient_email}`,
-      `Subject: ${subject}`,
-      `MIME-Version: 1.0`,
-      `Content-Type: text/html; charset=UTF-8`,
-      ``,
-      bodyHtml,
-    ].join('\r\n')
-
-    await sendLine(message)
-    await sendLine('.')
-    await readResponse()
-    await sendLine('QUIT')
-    conn.close()
 
     return jsonResponse({
       success: true,

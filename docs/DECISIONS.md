@@ -28,7 +28,8 @@
 
 | ID | Date | Decision | Why | Rejected alternative | Decided by | Status |
 |---|---|---|---|---|---|---|
-| D-001 |  |  |  |  |  | active |
+| D-001 | 2026-08-24 | Valrano has exactly ONE mailer. `send-document-notification` no longer reads SMTP_HOST/PORT/USER/PASS itself; it calls the shared `sendEmail()` in `_shared/email.ts` | A second mailer reading a first mailer's environment variables is an undeclared dependency: BackOffice support mail went dark for four days (2026-08-20 to 2026-08-24) exactly this way, when a shared SMTP_HOST/SMTP_PORT was repointed for one mailer and a second one silently followed. The hand-rolled version also discarded every SMTP reply code and returned success no matter what the server said | Giving the second mailer its own SUPPORT_-style prefixed variables (two mailers to keep in step forever, for one function that needs nothing the shared one lacks) | Claude, under the fleet silent-mailer sweep | active |
+| D-002 | 2026-08-24 | The mailer refuses any SMTP port other than 465, in words, instead of failing at the TLS layer | It opens the socket with implicit TLS, which exists only on 465. On 587 the handshake dies with "received corrupt message of type InvalidContentType". Live values read 2026-08-24: mail.valrano.com:465, correct today - but five fleet products have already moved to Postmark, which has no 465 listener at all, so the day Valrano moves this file must move to the Postmark HTTP API in the same change | Leaving it to fail at the TLS layer and hoping someone reads the logs | Claude | active |
 
 <!--
 Example row, delete when the first real one is added:
