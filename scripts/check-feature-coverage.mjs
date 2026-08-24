@@ -92,7 +92,7 @@ const featureRegex = /(?:^|\r?\n)#{2,3} (F-\d{3}):[ \t]*(.+?)\r?\n([\s\S]*?)(?=\
 // 6 implemented of 42), so the inert set is explicit and anything unrecognised is now an error.
 const statusRegex = /\*\*Status:?\*\*:?\s*([A-Za-z-]+)/
 const MUST_BE_COVERED = new Set(['implemented', 'tested'])
-const NOT_YET_OR_GONE = new Set(['planned', 'retired', 'removed', 'deprecated', 'wip', 'in-progress'])
+const NOT_YET_OR_GONE = new Set(['planned', 'retired', 'removed', 'deprecated', 'wip', 'in-progress', 'blocked'])
 // TOLERANT OF THE BOLD MARKERS, and that is deliberate. The known trap was that `**E2E:**` did not
 // match while `E2E:` did, so bolding a heading silently emptied the file list and the feature counted
 // as untested. That was carried for months as a documentation convention ("type it unbolded"), which
