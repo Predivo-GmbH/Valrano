@@ -15,7 +15,12 @@ on:
     workflows: ['Deploy to Production'] # re-verify staging right after every deploy
     types: [completed]
   schedule:
-    - cron: '30 6 * * 1' # weekly Mon 06:30 UTC (after the fleet monitors)
+    # DAILY 06:30 UTC (was weekly Mon). 2026-08-24: the Gate A runtime crawl moved off the
+    # per-deploy path to this schedule. Measured over 320 completed gate runs fleet-wide the
+    # crawl is 71.4 percent of gate wall time. It DISCOVERS dialog surfaces by driving the
+    # app and asserts nothing about the commit that triggered it, so per-push was the wrong
+    # cadence for it. The assertions still run on every deploy.
+    - cron: '30 6 * * *'
   workflow_dispatch: {}
 
 concurrency:
@@ -34,11 +39,87 @@ env:
   NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
 jobs:
+  # ---------------------------------------------------------------------------------------
+  # PER-DEPLOY: the assertions only. No seed, no crawl.
+  # The Gate A COVERAGE DENOMINATOR is excluded here and ONLY here, because it reads
+  # playwright/.gate-a/crawl-manifest.json which only the crawl writes. It is not weakened:
+  # it runs in the `full` job below, in the SAME job as the crawl that feeds it, and it still
+  # FAILS on a missing manifest (v11-gates.spec.ts asserts existsSync(...) is true). Leaving
+  # it here to read the previous run's manifest is the defect, not the fix.
+  # ---------------------------------------------------------------------------------------
   gates:
     runs-on: ubuntu-latest
-    timeout-minutes: 75  # v11 gates + the Gate A runtime crawl (2 identities x 8 routes x 2 widths, measured 26.8 min locally 2026-08-21)
-    # Skip when a Deploy run FAILED (nothing new to verify); always run on schedule/manual.
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    timeout-minutes: 15
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      # Gate A runtime crawl (2026-08-20, converted to the shared gate-kit engine
+      # 2026-08-21). The hand-written Gate A list is the defect the B4 meta-audit
+      # found: Valrano drove 1 of 7 dialog-class surfaces while its report published
+      # "Gate A: PASS". This discovers dialogs by DRIVING the app at BOTH a desktop and a
+      # mobile width, as TWO identities (authenticated + anonymous - the landing page and
+      # its two modals render only for the anonymous one), so nothing has to be remembered.
+      # Its first run found the mobile navigation drawer with "Sign out" sliced by the
+      # screen edge in phone landscape.
+      # READ-ONLY: commit controls are measured, never clicked. The denylist comes from a
+      # no-click reconnaissance pass, and it also blocks the AI-assistant question chips,
+      # which would each bill a paid Anthropic call on every scheduled run.
+      # RUNS FIRST: the v11 coverage-denominator test reads the crawl manifest this step
+      # writes (playwright/.gate-a/crawl-manifest.json). While the crawl ran AFTER v11
+      # here, the coverage number came from the PREVIOUS run. Same fix as replyflow.
+      # !cancelled(): a known-red earlier gate must not silently disable this layer (failure
+      # is not cancellation, so this step still runs when a prior gate went red). NOT
+      # always(): always() is ALSO true on CANCELLATION, and this workflow sets
+      # cancel-in-progress: true on a workflow_run trigger that fires after every Deploy -
+      # so under always() a superseded run would keep crawling live staging.valrano.com
+      # alongside the run that replaced it. Same fix as BackOffice 73d96a0.
+      - name: Run v11 hardened gates against staging (coverage denominator runs in `full`)
+        if: ${{ !cancelled() }}
+        run: npx playwright test --config playwright.v11-gates.config.ts --grep-invert "coverage denominator"
+        env:
+          STAGING_URL: https://staging.valrano.com
+          STAGING_HTTP_USER: staging
+          STAGING_HTTP_PASS: ${{ secrets.STAGING_HTTP_PASS }}
+          STAGING_TEST_EMAIL: e2e-test@valrano-test.local
+          STAGING_TEST_PASSWORD: ${{ secrets.STAGING_TEST_PASSWORD }}
+          # Reuse the existing staging Supabase access token (Management API) - no new secret.
+          VAL_MGMT_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: v11-gates-report
+          path: playwright-report/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------------------
+  # DAILY + MANUAL: seed -> crawl -> the FULL suite including the coverage denominator.
+  # Byte-identical to what used to run after every deploy; only its cadence changed.
+  # ---------------------------------------------------------------------------------------
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    if: ${{ github.event_name != 'workflow_run' }}
     steps:
       - uses: actions/checkout@v5
 
