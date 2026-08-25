@@ -12,6 +12,11 @@ on:
 
 permissions:
   contents: read
+  # gitleaks-action's ScanPullRequest lists the PR's commits via
+  # GET /repos/{owner}/{repo}/pulls/{n}/commits, which requires pull-requests read.
+  # Without it, pull_request runs 403 ("Resource not accessible by integration");
+  # GitHub returns x-accepted-github-permissions: pull_requests=read.
+  pull-requests: read
 
 jobs:
   gitleaks:
