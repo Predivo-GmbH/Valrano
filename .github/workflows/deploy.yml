@@ -412,8 +412,11 @@ jobs:
       # ahead of it. It has to be set on the JOB, not just the install step: the browser is
       # stored under a path keyed by host platform, so the test run has to resolve the same key
       # or it will not find what the install step downloaded.
-      # Harmless where the host is already supported (24.04 resolves to the same value).
-      PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: ubuntu24.04
+      # The value carries the architecture suffix, exactly as the failure prints it
+      # ("ubuntu26.04-x64"): a bare "ubuntu24.04" is not a host-platform string and is rejected
+      # the same way. Harmless where the host is already supported - 24.04-x64 is what it
+      # already resolves to.
+      PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: ubuntu24.04-x64
 
     steps:
       - uses: actions/checkout@v5
