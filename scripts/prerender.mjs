@@ -11,8 +11,12 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join, extname, dirname } from 'path'
 
 const DIST = join(import.meta.dirname, '..', 'dist')
-const PORT = 4173
-const BASE = `http://localhost:${PORT}`
+// Bind an EPHEMERAL port (0 = OS-assigned), not a fixed 4173. On the persistent
+// self-hosted CI runner a hardcoded port collides: a build cancelled mid-prerender
+// (deploy-staging uses cancel-in-progress: true) can orphan this http server, and
+// `git clean -ffdx` removes files, not processes -- so the next run's server.listen()
+// emitted an unhandled EADDRINUSE 'error' event that crashed the build (run 32796107944).
+// The real port is read back from server.address() after listen; BASE is derived from it.
 
 // Public routes to prerender
 const ROUTES = [
@@ -38,7 +42,7 @@ const MIME_TYPES = {
 
 // Simple static file server for the dist folder
 function startServer() {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
       let filePath = join(DIST, req.url === '/' ? 'index.html' : req.url)
 
@@ -57,13 +61,18 @@ function startServer() {
         res.end('Not found')
       }
     })
-    server.listen(PORT, () => resolve(server))
+    // Surface a bind failure as a clean rejection instead of an unhandled 'error' event.
+    server.on('error', reject)
+    server.listen(0, () => resolve(server))
   })
 }
 
 async function prerender() {
   console.log('Starting prerender...')
   const server = await startServer()
+  const PORT = server.address().port
+  const BASE = `http://localhost:${PORT}`
+  console.log(`  Static server listening on ${BASE}`)
 
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] })
 
@@ -82,9 +91,9 @@ async function prerender() {
     // for sibling deps of a lazy-loaded route chunk, e.g. LandingPage/useWaitlist)
     // can resolve asset URLs as an ABSOLUTE `new URL(dep, importerUrl).href` instead
     // of a root-relative path. During prerender importerUrl is always this script's
-    // own local server (BASE = http://localhost:4173), so if that codepath fires,
-    // the <link rel="modulepreload"> it injects gets baked into the DOM as an
-    // absolute http://localhost:4173/... href. page.content() captures that literally
+    // own local server (BASE = http://localhost:<ephemeral-port>), so if that codepath
+    // fires, the <link rel="modulepreload"> it injects gets baked into the DOM as an
+    // absolute http://localhost:<port>/... href. page.content() captures that literally
     // into the static file we ship. Once deployed to the real domain, that becomes a
     // foreign-origin script load that script-src 'self' CSP correctly blocks (confirmed
     // root cause, local repro 2026-08-13: reproduces whenever Vite picks the absolute
