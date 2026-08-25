@@ -403,6 +403,17 @@ jobs:
     if: github.event_name != 'push'
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 20
+    env:
+      # `npx playwright install chromium` refuses to run on a Linux distro newer than the one
+      # Playwright knows about: on 2026-08-25 one of the self-hosted runners came up on Ubuntu
+      # 26.04 and every attempt died with "Playwright does not support chromium on
+      # ubuntu26.04-x64". Playwright 1.60 is already the newest release, so there is no version
+      # to upgrade to - this is Playwright's own documented escape hatch for a distro that ships
+      # ahead of it. It has to be set on the JOB, not just the install step: the browser is
+      # stored under a path keyed by host platform, so the test run has to resolve the same key
+      # or it will not find what the install step downloaded.
+      # Harmless where the host is already supported (24.04 resolves to the same value).
+      PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: ubuntu24.04
 
     steps:
       - uses: actions/checkout@v5
