@@ -24,14 +24,19 @@ on:
   workflow_dispatch: {}
 
 concurrency:
-  group: v11-staging-gates
-  # NOT cancel-in-progress. This gate takes ~35 minutes and the group is a constant, so any
-  # newer run killed the one in flight, often at minute 34. Measured 2026-08-24 across the
-  # seven repos that run it: 40 of 133 recent runs ended `cancelled`, 30 percent, and
+  # Separate group per run kind (2026-08-24, commit 6250b68 fallout): the per-deploy `gates`
+  # run and the daily/manual `full` run must NOT share a group. With one shared group a queued
+  # deploy `gates` run would supersede a PENDING daily `full` run and silently cancel the only
+  # Gate A crawl + coverage denominator of that day (it shows grey `cancelled`, not red, so
+  # nothing reports it). Now deploy runs serialise only against deploy runs, full against full.
+  group: v11-staging-gates-${{ github.event_name == 'workflow_run' && 'deploy' || 'full' }}
+  # NOT cancel-in-progress. This gate takes ~35 minutes and each group key is a constant, so a
+  # newer run of the SAME kind killed the one in flight, often at minute 34. Measured 2026-08-24
+  # across the seven repos that run it: 40 of 133 recent runs ended `cancelled`, 30 percent, and
   # BackOffice had 1 success and 0 failures against 12 cancellations. A cancelled gate is
   # not a failing gate, so the dashboard looked clean while the gate was barely reporting.
-  # With false, the running gate finishes; GitHub keeps at most one run pending, so a newer
-  # commit still supersedes an older WAITING one without destroying a verdict in progress.
+  # With false, the running gate finishes; GitHub keeps at most one run pending, so a newer run
+  # of the same kind still supersedes an older WAITING one without destroying a verdict in progress.
   cancel-in-progress: false
 
 env:
