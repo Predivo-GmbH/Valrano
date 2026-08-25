@@ -587,6 +587,27 @@ jobs:
           fi
           echo "FTP auth OK - $(printf '%s\n' "$OUT" | grep -c '') entries at the account root."
 
+      - name: Ensure the GitHub CLI is available
+        run: |
+          # GitHub-hosted runners ship `gh` preinstalled. The self-hosted WSL runners this repo
+          # moved to on 2026-08-24 do not, and the staging-gate step below is written entirely in
+          # `gh`. On 2026-08-25 every production promotion died on "gh: command not found" - on
+          # BOTH runner hosts - which meant the prod gate could not even be evaluated, let alone
+          # pass. Installing it here instead of on the machines keeps the fix in version control
+          # and keeps it true for a runner nobody has provisioned yet.
+          # No sudo: the tarball goes into RUNNER_TEMP and its bin is added to PATH for later
+          # steps. A host that already has gh (GitHub-hosted, or a provisioned self-hosted box)
+          # skips the download entirely.
+          if command -v gh >/dev/null 2>&1; then
+            echo "gh already present: $(gh --version | head -1)"
+            exit 0
+          fi
+          VER=2.98.0
+          echo "gh not on this runner - installing ${VER} into $RUNNER_TEMP"
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${VER}/gh_${VER}_linux_amd64.tar.gz" | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gh_${VER}_linux_amd64/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/gh_${VER}_linux_amd64/bin/gh" --version | head -1
+
       - name: Verify staging gate (this commit passed staging + E2E on push)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
