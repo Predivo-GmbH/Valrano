@@ -124,7 +124,7 @@ serve(async (req: Request) => {
         `<a href="${APP_URL}/dashboard" target="_blank" style="display:inline-block;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;padding:14px 40px;">View All Insights</a>`,
         '</td></tr></table>',
         '</td></tr>',
-        `<tr><td align="center" style="padding-top:24px;"><p style="font-size:12px;color:#a1a1aa;">&copy; ${new Date().getFullYear()} Valrano by Predivo GmbH. All rights reserved.</p><p style="font-size:11px;color:#a1a1aa;margin-top:6px;">Swiss-made</p></td></tr>`,
+        `<tr><td align="center" style="padding-top:24px;"><p style="font-size:12px;color:#a1a1aa;">&copy; ${new Date().getFullYear()} Valrano by Predivo GmbH. All rights reserved.</p></td></tr>`,
         '</table></td></tr></table></body></html>',
       ].join('\n')
 
