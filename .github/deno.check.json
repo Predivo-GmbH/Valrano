@@ -1,0 +1,5 @@
+{
+  "//": "CI-only Deno config for the edge-function type check. It lives in .github/ on purpose: the Supabase CLI looks for deno.json inside the project or the functions directory, so a config here cannot change how functions are bundled or deployed. nodeModulesDir=auto lets deno resolve the npm type references that esm.sh dependencies (supabase-js, stripe) pull in transitively.",
+  "nodeModulesDir": "auto",
+  "lock": false
+}

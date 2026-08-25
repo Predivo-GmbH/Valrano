@@ -55,6 +55,78 @@ env:
 
 jobs:
   # ===========================================================================
+  # EDGE-FUNCTION TYPE CHECK - the only thing in this repo that compiles
+  # supabase/functions.
+  #
+  # eslint ignores the directory, the app tsconfigs exclude it, vitest never loads
+  # it, and `npm run build` runs tsc over src/ only - so before this job existed a
+  # type error in an edge function reached a running environment with nothing
+  # having looked at it. That is exactly how ReplyFlow shipped a broken function in
+  # August 2026 (R-CI-02, "a gate born disabled is not a gate").
+  #
+  # It carries NO `if:`, so it runs on every push, every nightly and every
+  # production promotion, and BOTH deploying jobs `needs:` it: a NEW type error
+  # stops the staging edge-function deploy and stops the prod promotion.
+  # `deno check` follows imports, so _shared is covered through its callers, but
+  # every .ts file is passed explicitly as well - a shared module with no caller
+  # yet would otherwise be checked by nobody.
+  #
+  # RATCHET, not plain pass/fail - the same shape as replyflow. The first run over
+  # these 49 files found 53 pre-existing errors (mostly untyped Supabase query
+  # results cast with `as`, plus PromiseSettledResult narrowing). A plain fail
+  # would be permanently red, which in this repo means permanently blocking, and a
+  # gate that has to be switched off is not a gate. So it PASSES while the count
+  # stays at or under .github/typecheck-functions-baseline.txt and FAILS the moment
+  # a new error pushes it UP. Every time the count drops, the baseline is lowered
+  # in the same commit so the debt cannot grow back.
+  #
+  # One Deno, no npm install, ~1 min on the self-hosted runner.
+  # ===========================================================================
+  gate-edge-typecheck:
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type-check supabase/functions (ratchet - must not get worse)
+        run: |
+          set +e
+          mapfile -t FILES < <(find supabase/functions -name '*.ts' -not -path '*/node_modules/*' | sort)
+          echo "Checking ${#FILES[@]} files"
+          OUT=$(deno check --config .github/deno.check.json "${FILES[@]}" 2>&1)
+          RC=$?
+          set -e
+          echo "$OUT"
+
+          BASE=$(tr -dc '0-9' < .github/typecheck-functions-baseline.txt)
+          if [ "$RC" -eq 0 ]; then
+            COUNT=0
+          else
+            COUNT=$(echo "$OUT" | grep -oE 'Found [0-9]+ error' | grep -oE '[0-9]+' | tail -1)
+          fi
+
+          # A run that fails for a reason we cannot count (network, deno crash, bad
+          # flag) must NOT be read as "0 errors, all good". Fail loudly instead.
+          if [ -z "$COUNT" ]; then
+            echo "::error::deno check failed (exit $RC) without reporting an error count - cannot compare against the baseline. Treating as a failure rather than a pass."
+            exit 1
+          fi
+
+          echo "type errors: $COUNT   baseline: $BASE"
+          if [ "$COUNT" -gt "$BASE" ]; then
+            echo "::error::supabase/functions type errors went UP: $BASE -> $COUNT. Fix the new error; do not raise the baseline."
+            exit 1
+          fi
+          if [ "$COUNT" -lt "$BASE" ]; then
+            echo "::warning::type errors DROPPED $BASE -> $COUNT. Lower .github/typecheck-functions-baseline.txt to $COUNT in this commit so the debt cannot grow back."
+          fi
+          echo "OK - no new type errors."
+
+  # ===========================================================================
   # FAST STAGING DEPLOY — every push. One job, one runner, one npm ci, build once.
   # lint + unit tests are the per-push gates (the test pyramid's fast base): a
   # change that lints, typechecks (tsc in build), and passes unit tests cannot
@@ -63,6 +135,8 @@ jobs:
   # ===========================================================================
   deploy-staging:
     if: github.event_name == 'push'
+    # A push must not put an edge function on staging that does not compile.
+    needs: [gate-edge-typecheck]
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 20
     steps:
@@ -448,7 +522,7 @@ jobs:
     # PRODUCTION deploys only via manual dispatch (confirm=deploy) — a push to
     # main deploys STAGING only. Same pattern as ReplyFlow/BoatBuddy/SignalScore.
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'deploy'
-    needs: [gate-integration, gate-e2e, gate-security]
+    needs: [gate-integration, gate-e2e, gate-security, gate-edge-typecheck]
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 30
     permissions:
