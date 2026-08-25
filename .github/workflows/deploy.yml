@@ -510,7 +510,20 @@ jobs:
       # --error fails the gate on a real finding.
       - name: SAST scan (semgrep)
         run: |
-          python3 -m pip install --quiet semgrep
+          # `python3 -m pip install semgrep` worked on GitHub's runners and stopped working the
+          # day this repo moved to the self-hosted WSL Ubuntu runner: Debian's system Python is
+          # PEP 668 "externally managed", so a bare pip install exits 1 with
+          # "error: externally-managed-environment" and gate-security fails BEFORE semgrep runs -
+          # reporting nothing about security while blocking every production promotion. That is
+          # what happened on 2026-08-25 in run 32824178875.
+          # A venv is not the fix here: python3-venv is absent on the runner (ensurepip does not
+          # import) and the runner's sudo is deliberately too narrow to apt-install it.
+          # --user keeps semgrep out of the system site-packages; --break-system-packages is what
+          # PEP 668 requires in order to write anywhere at all. Both flags are harmless on
+          # GitHub-hosted runners, so the fallback path still works if RUNNER_LABEL is cleared.
+          python3 -m pip install --quiet --user --break-system-packages semgrep
+          export PATH="$HOME/.local/bin:$PATH"
+          semgrep --version
           semgrep scan --config=p/security-audit --config=p/secrets --severity=ERROR --error --metrics=off .
 
   deploy:
