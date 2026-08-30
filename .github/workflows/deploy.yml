@@ -400,9 +400,9 @@ jobs:
           set ssl:verify-certificate no; set ftp:ssl-protect-data no
           set ftp:passive-mode yes; set net:timeout 60"
 
-          LIST=$(timeout 120 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
+          LIST=$(timeout 180 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
           $SETTINGS
-          nlist -a $ASSETS_DIR
+          find $ASSETS_DIR
           quit
           SCRIPT
           )
@@ -421,13 +421,18 @@ jobs:
           PROBE_SCRIPT=$(mktemp)
           {
             echo "$SETTINGS"
-            echo "$LIST" | while IFS= read -r f; do
-              f="${f%$'\r'}"
-              # Hashed vite names only ([A-Za-z0-9._-], no spaces/globs) — anything else
-              # is skipped, never deleted.
-              [[ "$f" =~ ^[A-Za-z0-9._-]+$ ]] || continue
-              echo "echo \"PROBE:$f\""
-              echo "quote MDTM $ASSETS_DIR/$f"
+            # find prints full remote paths ("$ASSETS_DIR/<nested>/file", recursively —
+            # nested chunk dirs like _next/static/chunks are covered too); normalize to a
+            # path relative to ASSETS_DIR so either output format is safe.
+            echo "$LIST" | while IFS= read -r p; do
+              p="${p%$'\r'}"
+              [ "$p" = "$ASSETS_DIR" ] && continue
+              rel="${p#"$ASSETS_DIR"/}"
+              # Hashed asset names only ([A-Za-z0-9._/-], no spaces/globs) — anything
+              # else is skipped, never deleted.
+              [[ "$rel" =~ ^[A-Za-z0-9._/-]+$ ]] || continue
+              echo "echo \"PROBE:$ASSETS_DIR/$rel\""
+              echo "quote MDTM $ASSETS_DIR/$rel"
             done
             echo "quit"
           } > "$PROBE_SCRIPT"
@@ -456,7 +461,8 @@ jobs:
           {
             echo "$SETTINGS"
             # lftp rm does NOT glob-expand - hashed names are passed verbatim.
-            echo "$OLD" | while IFS= read -r f; do echo "rm $ASSETS_DIR/$f"; done
+            # $OLD already holds full remote paths (the PROBE: values).
+            echo "$OLD" | while IFS= read -r f; do echo "rm $f"; done
             echo "quit"
           } > "$DEL_SCRIPT"
           DEL_OUT=$(timeout 300 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -f "$DEL_SCRIPT" 2>&1)
@@ -941,9 +947,9 @@ jobs:
           set ssl:verify-certificate no; set ftp:ssl-protect-data no
           set ftp:passive-mode yes; set net:timeout 60"
 
-          LIST=$(timeout 120 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
+          LIST=$(timeout 180 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" <<SCRIPT 2>&1
           $SETTINGS
-          nlist -a $ASSETS_DIR
+          find $ASSETS_DIR
           quit
           SCRIPT
           )
@@ -959,11 +965,15 @@ jobs:
           PROBE_SCRIPT=$(mktemp)
           {
             echo "$SETTINGS"
-            echo "$LIST" | while IFS= read -r f; do
-              f="${f%$'\r'}"
-              [[ "$f" =~ ^[A-Za-z0-9._-]+$ ]] || continue
-              echo "echo \"PROBE:$f\""
-              echo "quote MDTM $ASSETS_DIR/$f"
+            # find prints full remote paths recursively (nested chunk dirs included);
+            # normalize to a path relative to ASSETS_DIR so either format is safe.
+            echo "$LIST" | while IFS= read -r p; do
+              p="${p%$'\r'}"
+              [ "$p" = "$ASSETS_DIR" ] && continue
+              rel="${p#"$ASSETS_DIR"/}"
+              [[ "$rel" =~ ^[A-Za-z0-9._/-]+$ ]] || continue
+              echo "echo \"PROBE:$ASSETS_DIR/$rel\""
+              echo "quote MDTM $ASSETS_DIR/$rel"
             done
             echo "quit"
           } > "$PROBE_SCRIPT"
@@ -989,7 +999,8 @@ jobs:
           DEL_SCRIPT=$(mktemp)
           {
             echo "$SETTINGS"
-            echo "$OLD" | while IFS= read -r f; do echo "rm $ASSETS_DIR/$f"; done
+            # $OLD already holds full remote paths (the PROBE: values).
+            echo "$OLD" | while IFS= read -r f; do echo "rm $f"; done
             echo "quit"
           } > "$DEL_SCRIPT"
           DEL_OUT=$(timeout 300 lftp -u "$FTP_USER,$FTP_PASS" "ftp://$FTP_HOST" -f "$DEL_SCRIPT" 2>&1)
