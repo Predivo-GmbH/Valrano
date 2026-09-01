@@ -457,7 +457,11 @@ test.describe('Auth Flows', () => {
   test('sign out redirects to landing page', async ({ page }) => {
     await page.goto('/dashboard')
     await page.waitForLoadState('networkidle')
-    expect(page.url()).toContain('/dashboard')
+    // Web-first, not a one-shot read of page.url(). The dashboard route re-checks the
+    // Supabase session on mount and bounces to /login until it resolves; networkidle can
+    // be reached inside that window, and then a single non-retrying read sees /login and
+    // fails a product that is fine.
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 })
 
     // Open user menu dropdown (aria-label="User menu")
     const userMenuButton = page.locator('button[aria-label="User menu"]').first()
@@ -469,11 +473,14 @@ test.describe('Auth Flows', () => {
     await expect(signOutButton).toBeVisible({ timeout: 3000 })
     await signOutButton.click()
 
-    // After sign out, should leave dashboard (landing or login page)
-    await page.waitForTimeout(3000)
-    const url = page.url()
-    const leftDashboard = !url.includes('/dashboard') && !url.includes('/competitors')
-    expect(leftDashboard).toBe(true)
+    // After sign out, should leave dashboard (landing or login page).
+    // A fixed 3s sleep followed by one non-retrying read is the whole bug: sign-out has to
+    // clear the Supabase session, tear down the auth listener and route away, and on a
+    // host that runs 25 runner instances in one WSL that is regularly slower than 3s. The
+    // test then failed on a redirect that completed a moment later - it blocked the
+    // 2026-09-01 production promotion (gate-e2e in run 33509341053) and passed unchanged
+    // afterwards. Poll for the destination instead of guessing how long it takes.
+    await expect(page).not.toHaveURL(/\/(dashboard|competitors)/, { timeout: 15_000 })
   })
 })
 
