@@ -204,13 +204,26 @@ async function fetchFromIrPage(
     const markdown = data.data?.markdown ?? ''
     if (!markdown || markdown.length < 100) return 0
 
-    // Log Firecrawl usage
-    await admin.from('api_request_logs').insert({
+    // Log Firecrawl usage.
+    //
+    // This used to end in `.catch(() => {})`, which looked like "never let logging break the
+    // fetch" and did the exact opposite. A Postgrest query builder is a THENABLE, not a Promise:
+    // it has `then` and no `catch` (verified against the imported supabase-js 2.49.4 —
+    // `typeof builder.catch` is `undefined`). So `.catch(...)` threw a TypeError synchronously,
+    // before the await, and this function's own `catch (err)` below swallowed it and returned 0.
+    // Every successful — and PAID — Firecrawl scrape of an IR page was therefore thrown away
+    // before a single press release was extracted, and the only trace was one "IR page fetch
+    // error" line. Awaiting is all that was ever needed: a builder RESOLVES with `{ error }`
+    // rather than rejecting, so a failed insert cannot throw here in the first place.
+    const { error: usageLogError } = await admin.from('api_request_logs').insert({
       service: 'firecrawl',
       endpoint: '/v1/scrape',
       call_count: 1,
       edge_function: 'fetch-company-news',
-    }).catch(() => {})
+    })
+    if (usageLogError) {
+      console.error(`api_request_logs insert failed for ${source.source_name}:`, usageLogError.message)
+    }
 
     // Use Gemini to extract press releases from the IR page content
     const geminiApiKey = Deno.env.get('GOOGLE_AI_API_KEY')
