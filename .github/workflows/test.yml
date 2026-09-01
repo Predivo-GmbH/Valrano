@@ -72,6 +72,18 @@ jobs:
             npx playwright install --with-deps chromium
           fi
 
+      - name: Pick a free dev-server port
+        # Many runners for many repos share ONE network namespace on the self-hosted host,
+        # so a fixed 5173 collides whenever two Vite e2e suites overlap. Ask the OS for a
+        # free port instead. playwright.config.ts reads E2E_PORT and passes Vite
+        # --strictPort, so a port taken in the gap before Vite binds fails the run loudly
+        # rather than silently testing whatever else is listening on it - which is exactly
+        # what happened on 2026-08-31 (the suite ran against Factory Cockpit and passed).
+        run: |
+          PORT=$(node -e "const s=require('net').createServer();s.listen(0,()=>{const p=s.address().port;s.close(()=>console.log(p))})")
+          echo "E2E_PORT=$PORT" >> "$GITHUB_ENV"
+          echo "dev server port: $PORT"
+
       - name: Run critical path tests
         run: npx playwright test e2e/critical-path.spec.ts
         env:
