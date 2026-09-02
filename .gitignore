@@ -11,3 +11,10 @@ playwright/.auth/
 coverage/
 docs/Credentials.txt
 supabase/.temp/
+
+# A backup of the credentials file is still the credentials file. Untracked is not
+# enough: one `git add .` commits it permanently, and this org has a leak still
+# unresolved with GitHub support since 2026-08-24. Added 2026-09-02.
+Credentials.txt.bak-*
+docs/Credentials.txt.bak-*
+*.bak-*-before-*
