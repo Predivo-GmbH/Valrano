@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4'
 import { reportToSentry } from './sentry.ts'
+import { describeError } from './describe-error.ts'
 
 export async function logError(
   functionName: string,
@@ -18,7 +19,12 @@ export async function logError(
     await client.from('error_log').insert({
       function_name: functionName,
       operation,
-      error_message: error instanceof Error ? error.message : String(error),
+      // describeError, not String(): a supabase-js failure is a PostgrestError - a plain
+      // object, not an Error - and String() wrote "[object Object]" into this column, losing
+      // the only text that could explain the failure (proven on ChannelMover, 2026-08-28/29:
+      // a kill-switch read that silently skipped a tick of live customer email was
+      // undiagnosable for four days until this was fixed there).
+      error_message: describeError(error),
       // Pass the OBJECT, not a string. `context` is jsonb; JSON.stringify here
       // double-encoded it, so every row landed as the jsonb STRING "{}" rather than
       // the object {}, making `context->>'user_id'` permanently null. Verified on

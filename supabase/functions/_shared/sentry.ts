@@ -1,3 +1,4 @@
+import { describeError, describeErrorName } from './describe-error.ts'
 /**
  * Dependency-free Sentry reporter for Supabase edge functions (Deno).
  *
@@ -84,8 +85,10 @@ export async function reportToSentry(
   try {
     const id = eventId()
     const nowSec = Date.now() / 1000
-    const errName = error instanceof Error ? error.name : 'Error'
-    const errMsg = error instanceof Error ? error.message : String(error)
+    // A non-Error (a PostgrestError, say) used to arrive here as String(error) =
+    // "[object Object]", which is what hid a real ChannelMover fault for four days.
+    const errName = describeErrorName(error)
+    const errMsg = describeError(error)
     const stack = error instanceof Error && error.stack ? String(error.stack).slice(0, 4000) : undefined
 
     const event = {
