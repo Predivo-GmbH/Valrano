@@ -109,46 +109,78 @@ test.describe('Dashboard', () => {
 
 // ---------------------------------------------------------------------------
 // Navigation — all main routes
+//
+// ONE TEST PER NAVIGATION, deliberately.
+//
+// Playwright's `timeout: 45000` in playwright.staging.config.ts is a PER-TEST
+// budget, not a per-action one. Until 2026-09-03 a single test walked seven
+// routes, so all seven goto+networkidle pairs shared ONE 45s budget while every
+// other test in this file spends that same budget on a single navigation. The
+// budget was never the defect — putting seven navigations behind one budget was.
+//
+// The arithmetic, measured on the real runner (see the commit for this change):
+//   quiet box  — the whole 42-test suite finishes in 1.5-2.0m, one navigation
+//                costs ~2s, and 7 x ~2s = ~14s fits inside 45s, so it passed.
+//   busy box   — the SAME 42 tests take 8-9m because this repo has only two
+//                self-hosted runners and four gate jobs contend for them; one
+//                navigation costs ~10s, and 7 x ~10s = ~70s cannot fit in 45s.
+// So the test failed whenever the runner was loaded and passed when it was not:
+// red in runs 33625068986, 33680545284, 33682955779 and 33734154907 (which is
+// the production promotion it blocked), green in the 05:31 nightly 33719192002
+// — same commit, same product, only the machine load differed. It always failed
+// at `page.waitForLoadState` (line 122), never at the `/login` assertion, and
+// ProtectedRoute renders a spinner while `loading` is true, so no signed-in user
+// is ever bounced to /login: this was not a product bug.
+//
+// Every assertion below is the one the walking test made. No timeout is raised,
+// no retry is added, no route is dropped and nothing is skipped — each
+// navigation simply gets the same budget every other test in this file gets.
 // ---------------------------------------------------------------------------
 
-test.describe('Navigation', () => {
-  test('all main nav links work without errors', async ({ page }) => {
-    await page.goto('/dashboard')
-    await page.waitForLoadState('networkidle')
+const MAIN_ROUTES = [
+  '/dashboard',
+  '/competitors',
+  '/my-company',
+  '/analytics',
+  '/reports',
+  '/settings',
+  '/account',
+]
 
-    const routes = ['/competitors', '/my-company', '/analytics', '/reports', '/settings', '/account']
-    for (const route of routes) {
+// from -> the path it must land on
+const REDIRECT_ROUTES: ReadonlyArray<readonly [string, string]> = [
+  ['/peers', '/competitors'],
+  ['/upload', '/competitors'],
+  ['/calendar', '/competitors'], // /calendar -> /competitors?tab=calendar
+  ['/documents', '/reports'],
+]
+
+test.describe('Navigation', () => {
+  for (const route of MAIN_ROUTES) {
+    test(`${route} works without errors`, async ({ page }) => {
       await page.goto(route)
       await page.waitForLoadState('networkidle')
-      const url = page.url()
-      expect(url).not.toContain('/login')
+
+      // Web-first, so it retries. A one-shot read of page.url() right after
+      // networkidle is the same trap already fixed in the sign-out test below:
+      // ProtectedRoute shows a spinner while the Supabase session resolves and
+      // networkidle can be reached inside that window. A route that genuinely
+      // parks a signed-in user on /login still fails this.
+      await expect(page).not.toHaveURL(/\/login/)
+
       // Should not show error boundary
       const body = await page.textContent('body')
       expect(body).not.toContain('Something went wrong')
-    }
-  })
+    })
+  }
 
-  test('redirect routes work correctly', async ({ page }) => {
-    // /peers → /competitors
-    await page.goto('/peers')
-    await page.waitForLoadState('networkidle')
-    expect(page.url()).toContain('/competitors')
-
-    // /upload → /competitors
-    await page.goto('/upload')
-    await page.waitForLoadState('networkidle')
-    expect(page.url()).toContain('/competitors')
-
-    // /calendar → /competitors?tab=calendar
-    await page.goto('/calendar')
-    await page.waitForLoadState('networkidle')
-    expect(page.url()).toContain('/competitors')
-
-    // /documents → /reports
-    await page.goto('/documents')
-    await page.waitForLoadState('networkidle')
-    expect(page.url()).toContain('/reports')
-  })
+  for (const [from, to] of REDIRECT_ROUTES) {
+    test(`${from} redirects to ${to}`, async ({ page }) => {
+      await page.goto(from)
+      await page.waitForLoadState('networkidle')
+      await expect(page).toHaveURL(new RegExp(to))
+    })
+  }
 })
 
 // ---------------------------------------------------------------------------

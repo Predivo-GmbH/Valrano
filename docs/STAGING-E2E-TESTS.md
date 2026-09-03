@@ -1,10 +1,12 @@
 # Valrano — Staging E2E Test Documentation
 
-Total: **39 tests** (27 authenticated + 12 public)
+Total: **51 tests** — 39 authenticated + 11 public + 1 auth-setup project
+(`auth.setup.ts` runs as its own Playwright project, so `npx playwright test` reports it
+in the count: it printed `Running 42 tests` before this split and `Running 51 tests` after.)
 
 ---
 
-## Authenticated Tests (`e2e/staging/authenticated.spec.ts`) — 27 tests
+## Authenticated Tests (`e2e/staging/authenticated.spec.ts`) — 39 tests
 
 ### Dashboard (4 tests)
 
@@ -15,61 +17,86 @@ Total: **39 tests** (27 authenticated + 12 public)
 | 3 | `dashboard shows Valrano branding` | Loads `/dashboard` and verifies that a DOM element containing the text "Valrano" is visible within 10 seconds. |
 | 4 | `sidebar navigation is visible` | Loads `/dashboard` and counts navigation links within `nav` or `aside` elements. Asserts at least 3 navigation links are present. |
 
-### Navigation (2 tests)
+### Navigation (11 tests — one per navigation)
+
+Every route gets its own test on purpose. Playwright's `timeout` in
+`playwright.staging.config.ts` is a **per-test** budget, so the single test that used to
+walk seven routes gave all seven `goto` + `networkidle` pairs one 45s budget between them
+while every other test here spends that budget on one navigation. It therefore passed on a
+quiet runner (whole suite 1.5-2.0m) and failed on a busy one (same suite 8-9m), which is
+what blocked the production promotion in run 33734154907. Splitting it kept every
+assertion; no timeout was raised and no route was dropped.
 
 | # | Test Name | Description |
 |---|-----------|-------------|
-| 5 | `all main nav links work without errors` | Navigates sequentially to 6 routes (`/competitors`, `/my-company`, `/analytics`, `/reports`, `/settings`, `/account`). For each route, verifies: (a) no redirect to `/login`, (b) no error boundary text "Something went wrong". |
-| 6 | `redirect routes work correctly` | Tests 4 legacy redirects: `/peers` → `/competitors`, `/upload` → `/competitors`, `/calendar` → `/competitors`, `/documents` → `/reports`. Verifies each final URL contains the expected target path. |
+| 5 | `/dashboard works without errors` | Navigates to `/dashboard`, waits for network idle, asserts the URL does not settle on `/login` (web-first, retrying) and that the body does not contain "Something went wrong". |
+| 6 | `/competitors works without errors` | Same checks for `/competitors`. |
+| 7 | `/my-company works without errors` | Same checks for `/my-company`. |
+| 8 | `/analytics works without errors` | Same checks for `/analytics`. |
+| 9 | `/reports works without errors` | Same checks for `/reports`. |
+| 10 | `/settings works without errors` | Same checks for `/settings`. |
+| 11 | `/account works without errors` | Same checks for `/account`. |
+| 12 | `/peers redirects to /competitors` | Navigates to the legacy `/peers` path and asserts the final URL contains `/competitors`. |
+| 13 | `/upload redirects to /competitors` | Same for `/upload`. |
+| 14 | `/calendar redirects to /competitors` | Same for `/calendar` (lands on `/competitors?tab=calendar`). |
+| 15 | `/documents redirects to /reports` | Same for `/documents`, expecting `/reports`. |
 
 ### Competitors Page (4 tests)
 
 | # | Test Name | Description |
 |---|-----------|-------------|
-| 7 | `competitors page loads` | Navigates to `/competitors`, verifies URL and that page body has content. |
-| 8 | `add peer button is visible` | Loads `/competitors` and asserts a button with name matching `/add/i` is visible within 10 seconds. |
-| 9 | `competitor search autocomplete opens` | Loads `/competitors`, clicks the "Add" button, then verifies at least one text input (for company search autocomplete) appears within 500ms. |
-| 10 | `tabs are present on competitors page` | Loads `/competitors` and verifies the page body has substantial content (length > 100 characters), indicating tabs and interactive elements are rendered. |
+| 16 | `competitors page loads` | Navigates to `/competitors`, verifies URL and that page body has content. |
+| 17 | `add peer button is visible` | Loads `/competitors` and asserts a button with name matching `/add/i` is visible within 10 seconds. |
+| 18 | `competitor search autocomplete opens` | Loads `/competitors`, clicks the "Add" button, then verifies at least one text input (for company search autocomplete) appears. |
+| 19 | `tabs are present on competitors page` | Loads `/competitors` and verifies the page body has substantial content (length > 100 characters), indicating tabs and interactive elements are rendered. |
 
 ### My Company Page (2 tests)
 
 | # | Test Name | Description |
 |---|-----------|-------------|
-| 11 | `my company page loads` | Navigates to `/my-company`, verifies URL, checks body has content, and asserts no error boundary text. |
-| 12 | `my company page has tabs` | Loads `/my-company` and counts elements with `role="tab"` or `button` tags. Asserts at least 1 tab/button exists. |
+| 20 | `my company page loads` | Navigates to `/my-company`, verifies URL, checks body has content, and asserts no error boundary text. |
+| 21 | `my company page has tabs` | Loads `/my-company` and counts elements with `role="tab"` or `button` tags. Asserts at least 1 tab/button exists. |
 
 ### Analytics Page (1 test)
 
 | # | Test Name | Description |
 |---|-----------|-------------|
-| 13 | `analytics page loads` | Navigates to `/analytics`, verifies URL, checks body has content, and asserts no error boundary text. |
+| 22 | `analytics page loads` | Navigates to `/analytics`, verifies URL, checks body has content, and asserts no error boundary text. |
 
 ### Reports Page (1 test)
 
 | # | Test Name | Description |
 |---|-----------|-------------|
-| 14 | `reports page loads` | Navigates to `/reports`, verifies URL, checks body has content, and asserts no error boundary text. |
+| 23 | `reports page loads` | Navigates to `/reports`, verifies URL, checks body has content, and asserts no error boundary text. |
 
 ### Settings Page (1 test)
 
 | # | Test Name | Description |
 |---|-----------|-------------|
-| 15 | `settings page loads with user info` | Navigates to `/settings`, verifies URL, checks body has content, and asserts no error boundary text. |
+| 24 | `settings page loads with user info` | Navigates to `/settings`, verifies URL, checks body has content, and asserts no error boundary text. |
 
 ### Account Page (1 test)
 
 | # | Test Name | Description |
 |---|-----------|-------------|
-| 16 | `account page shows subscription info` | Navigates to `/account` and checks the page body contains at least one subscription-related keyword: "starter", "professional", "enterprise", "subscription", "plan", or "account" (case-insensitive). |
+| 25 | `account page shows subscription info` | Navigates to `/account` and checks the page body contains at least one subscription-related keyword: "starter", "professional", "enterprise", "subscription", "plan", or "account" (case-insensitive). |
 
-### Onboarding Wizard (4 tests)
+### Onboarding Wizard (6 tests)
 
 | # | Test Name | Description |
 |---|-----------|-------------|
-| 17 | `onboarding page loads without crash` | Temporarily un-dismisses onboarding via Supabase Auth API (`onboarding_dismissed: false`), navigates to `/onboarding`, verifies no error boundary, checks for wizard content ("Accounting Framework", "Valrano", or "Skip setup"), then re-dismisses onboarding. |
-| 18 | `onboarding wizard shows step 1 (Accounting Framework)` | Un-dismisses onboarding, loads `/onboarding`, verifies Step 1 content: "Accounting Framework" text, upload UI (upload/drag/drop keywords), "Skip setup" button visible, and breadcrumb steps ("Add Competitors", "Analyze Reports", "Publication Schedule"). Re-dismisses after. |
-| 19 | `onboarding skip setup works` | Un-dismisses onboarding, loads `/onboarding`, clicks "Skip setup" button, verifies navigation to `/dashboard` within 10 seconds. Re-dismisses after. |
-| 20 | `onboarding step navigation works (breadcrumb clicks)` | Un-dismisses onboarding, loads `/onboarding`, verifies no error boundary, checks that the "Back" button is disabled on Step 1, and that the "Continue" button is visible. Re-dismisses after. |
+| 26 | `onboarding page loads without crash` | Temporarily un-dismisses onboarding via the Supabase Auth API (`onboarding_dismissed: false`), navigates to `/onboarding`, verifies no error boundary, checks for wizard content ("Accounting Framework", "Valrano", or "Skip setup"), then re-dismisses onboarding. |
+| 27 | `wizard shows step 1 (Accounting Framework)` | Un-dismisses onboarding, loads `/onboarding`, verifies Step 1 content: "Accounting Framework" text, the other three step labels, upload UI (upload/drag/drop keywords) and a visible "Skip setup" button. Re-dismisses after. |
+| 28 | `skip setup shows SetupProgressBanner on dashboard` | Un-dismisses onboarding and clears the banner dismissal, clicks "Skip setup", waits for `/dashboard`, then asserts the "Complete Setup" banner is visible and the body matches `Setup \d/3 complete`. |
+| 29 | `Complete Setup button on banner returns to wizard` | Skips setup to reach the dashboard, clicks "Complete Setup" on the banner, waits for `/onboarding` and asserts the wizard stepper ("Accounting Framework") becomes visible. |
+| 30 | `dismissing banner with X hides it` | Skips setup to reach the dashboard, clicks the "Dismiss setup banner" X, asserts the banner disappears, reloads and asserts it stays hidden (persisted in localStorage + user metadata). |
+| 31 | `step navigation works (breadcrumb clicks)` | Un-dismisses onboarding, loads `/onboarding`, verifies no error boundary, checks that the "Back" button is disabled on Step 1 and that the "Continue" button is visible. Re-dismisses after. |
+
+### Auth Flows (1 test)
+
+| # | Test Name | Description |
+|---|-----------|-------------|
+| 32 | `sign out redirects to landing page` | Loads `/dashboard`, opens the "User menu" dropdown, clicks "Sign out", and asserts (web-first, retrying) that the browser leaves `/dashboard` and `/competitors`. |
 
 ### No Crashes on Any Page (7 tests — dynamically generated)
 
@@ -77,19 +104,19 @@ For each of the 7 authenticated routes (`/dashboard`, `/my-company`, `/competito
 
 | # | Test Name | Description |
 |---|-----------|-------------|
-| 21 | `/dashboard does not show error boundary` | Navigates to the route, listens for `pageerror` events, verifies body does not contain "Something went wrong" or "An unexpected error occurred", and asserts zero uncaught JS exceptions. |
-| 22 | `/my-company does not show error boundary` | Same as above for `/my-company`. |
-| 23 | `/competitors does not show error boundary` | Same as above for `/competitors`. |
-| 24 | `/analytics does not show error boundary` | Same as above for `/analytics`. |
-| 25 | `/reports does not show error boundary` | Same as above for `/reports`. |
-| 26 | `/settings does not show error boundary` | Same as above for `/settings`. |
-| 27 | `/account does not show error boundary` | Same as above for `/account`. |
+| 33 | `/dashboard does not show error boundary` | Navigates to the route, listens for `pageerror` events, verifies body does not contain "Something went wrong" or "An unexpected error occurred", and asserts zero uncaught JS exceptions. |
+| 34 | `/my-company does not show error boundary` | Same as above for `/my-company`. |
+| 35 | `/competitors does not show error boundary` | Same as above for `/competitors`. |
+| 36 | `/analytics does not show error boundary` | Same as above for `/analytics`. |
+| 37 | `/reports does not show error boundary` | Same as above for `/reports`. |
+| 38 | `/settings does not show error boundary` | Same as above for `/settings`. |
+| 39 | `/account does not show error boundary` | Same as above for `/account`. |
 
 ---
 
-## Public Tests (`e2e/staging/public.spec.ts`) — 12 tests
+## Public Tests (`e2e/staging/public.spec.ts`) — 11 tests
 
-### Public Pages (12 tests)
+### Public Pages (11 tests)
 
 | # | Test Name | Description |
 |---|-----------|-------------|
@@ -107,4 +134,4 @@ For each of the 7 authenticated routes (`/dashboard`, `/my-company`, `/competito
 
 ---
 
-*Generated 2026-05-27. Source files: `e2e/staging/authenticated.spec.ts`, `e2e/staging/public.spec.ts`.*
+*Generated 2026-05-27; authenticated section re-checked against the source files on 2026-09-03 (it had drifted: the Onboarding wizard had grown from 4 tests to 6 and the Auth Flows test was missing entirely, so the stated total was 39 when the suite ran 42). Source files: `e2e/staging/authenticated.spec.ts`, `e2e/staging/public.spec.ts`.*
