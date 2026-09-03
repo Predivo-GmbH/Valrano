@@ -300,7 +300,13 @@ jobs:
           RC=$?
           REMOTE_ID=$(echo "$OUT" | tr -d '[:space:]')
           if [ $RC -ne 0 ]; then
-            if echo "$OUT" | grep -qiE '530|login (incorrect|failed)|timed? ?out|connection refused|couldn.t connect'; then
+            # 530 is an FTP REPLY CODE, so it only counts where a reply code can actually appear: at
+            # the start of a line, or straight after lftp's "Access failed:", and followed by
+            # whitespace + a word. A bare '530' substring matched a hashed ASSET FILENAME on
+            # 2026-09-02 (Inter_100Thin_Italic.1b97f7df9b976cfe530c18c09598e6f6.ttf) and killed a
+            # perfectly healthy deploy with "stale secret, not retrying" - the one verdict that
+            # deliberately does NOT retry. Shared test: gate-kit test/ftp-reply-code-guard.test.mjs.
+            if echo "$OUT" | grep -qiE '(^|[^[:alnum:]])530[[:space:]]+[A-Za-z]|login (incorrect|failed)|timed? ?out|connection refused|couldn.t connect'; then
               echo "::error::Site-id guard INCONCLUSIVE — FTP connection/auth failure, refusing to deploy blind. Output: $OUT"
               exit 1
             fi
@@ -361,7 +367,13 @@ jobs:
             RC=$?
             echo "$OUT"
             [ $RC -eq 0 ] && break
-            echo "$OUT" | grep -qiE '530|login (incorrect|failed)' && { echo "::error::FTP auth 530 - not retrying"; exit 1; }
+            # 530 is an FTP REPLY CODE, so it only counts where a reply code can actually appear: at
+            # the start of a line, or straight after lftp's "Access failed:", and followed by
+            # whitespace + a word. A bare '530' substring matched a hashed ASSET FILENAME on
+            # 2026-09-02 (Inter_100Thin_Italic.1b97f7df9b976cfe530c18c09598e6f6.ttf) and killed a
+            # perfectly healthy deploy with "stale secret, not retrying" - the one verdict that
+            # deliberately does NOT retry. Shared test: gate-kit test/ftp-reply-code-guard.test.mjs.
+            echo "$OUT" | grep -qiE '(^|[^[:alnum:]])530[[:space:]]+[A-Za-z]|login (incorrect|failed)' && { echo "::error::FTP auth 530 - not retrying"; exit 1; }
             n=$((n+1))
             [ $n -ge 4 ] && { echo "::error::Upload to staging failed after 4 attempts"; exit 1; }
             echo "::warning::Upload to staging attempt $n failed - retrying in 25s..."
@@ -837,7 +849,13 @@ jobs:
           RC=$?
           REMOTE_ID=$(echo "$OUT" | tr -d '[:space:]')
           if [ $RC -ne 0 ]; then
-            if echo "$OUT" | grep -qiE '530|login (incorrect|failed)|timed? ?out|connection refused|couldn.t connect'; then
+            # 530 is an FTP REPLY CODE, so it only counts where a reply code can actually appear: at
+            # the start of a line, or straight after lftp's "Access failed:", and followed by
+            # whitespace + a word. A bare '530' substring matched a hashed ASSET FILENAME on
+            # 2026-09-02 (Inter_100Thin_Italic.1b97f7df9b976cfe530c18c09598e6f6.ttf) and killed a
+            # perfectly healthy deploy with "stale secret, not retrying" - the one verdict that
+            # deliberately does NOT retry. Shared test: gate-kit test/ftp-reply-code-guard.test.mjs.
+            if echo "$OUT" | grep -qiE '(^|[^[:alnum:]])530[[:space:]]+[A-Za-z]|login (incorrect|failed)|timed? ?out|connection refused|couldn.t connect'; then
               echo "::error::Site-id guard INCONCLUSIVE — FTP connection/auth failure, refusing to deploy blind. Output: $OUT"
               exit 1
             fi
@@ -880,7 +898,13 @@ jobs:
             RC=$?
             echo "$OUT"
             [ $RC -eq 0 ] && break
-            echo "$OUT" | grep -qiE '530|login (incorrect|failed)' && { echo "::error::FTP auth 530 - not retrying"; exit 1; }
+            # 530 is an FTP REPLY CODE, so it only counts where a reply code can actually appear: at
+            # the start of a line, or straight after lftp's "Access failed:", and followed by
+            # whitespace + a word. A bare '530' substring matched a hashed ASSET FILENAME on
+            # 2026-09-02 (Inter_100Thin_Italic.1b97f7df9b976cfe530c18c09598e6f6.ttf) and killed a
+            # perfectly healthy deploy with "stale secret, not retrying" - the one verdict that
+            # deliberately does NOT retry. Shared test: gate-kit test/ftp-reply-code-guard.test.mjs.
+            echo "$OUT" | grep -qiE '(^|[^[:alnum:]])530[[:space:]]+[A-Za-z]|login (incorrect|failed)' && { echo "::error::FTP auth 530 - not retrying"; exit 1; }
             n=$((n+1))
             [ $n -ge 4 ] && { echo "::error::Upload new hashed assets failed after 4 attempts"; exit 1; }
             echo "::warning::Upload new hashed assets attempt $n failed - retrying in 25s..."
@@ -918,7 +942,13 @@ jobs:
             RC=$?
             echo "$OUT"
             [ $RC -eq 0 ] && break
-            echo "$OUT" | grep -qiE '530|login (incorrect|failed)' && { echo "::error::FTP auth 530 - not retrying"; exit 1; }
+            # 530 is an FTP REPLY CODE, so it only counts where a reply code can actually appear: at
+            # the start of a line, or straight after lftp's "Access failed:", and followed by
+            # whitespace + a word. A bare '530' substring matched a hashed ASSET FILENAME on
+            # 2026-09-02 (Inter_100Thin_Italic.1b97f7df9b976cfe530c18c09598e6f6.ttf) and killed a
+            # perfectly healthy deploy with "stale secret, not retrying" - the one verdict that
+            # deliberately does NOT retry. Shared test: gate-kit test/ftp-reply-code-guard.test.mjs.
+            echo "$OUT" | grep -qiE '(^|[^[:alnum:]])530[[:space:]]+[A-Za-z]|login (incorrect|failed)' && { echo "::error::FTP auth 530 - not retrying"; exit 1; }
             n=$((n+1))
             [ $n -ge 4 ] && { echo "::error::Upload root files failed after 4 attempts"; exit 1; }
             echo "::warning::Upload root files attempt $n failed - retrying in 25s..."
