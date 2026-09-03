@@ -42,12 +42,16 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
+          # cache: npm removed deliberately - see the "NPM CACHE / self-hosted runner" note in deploy.yml
 
       - run: npm ci
 
       - name: Cache Playwright browsers
         id: playwright-cache
+        # Skipped on the persistent self-hosted runner: the path already survives there,
+        # so the save post-step is a multi-minute upload that buys nothing and can blow
+        # the job timeout. see the "NPM CACHE / self-hosted runner" note in deploy.yml
+        if: runner.environment != 'self-hosted'
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright

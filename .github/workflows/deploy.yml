@@ -58,6 +58,45 @@ env:
   # Needed by npm ci: .npmrc points @predivo-gmbh at GitHub Packages.
   NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
 
+# ===========================================================================
+# NPM CACHE / self-hosted runner — deliberately absent.
+# Do not add `cache: npm` back to setup-node, and do not remove the
+# `runner.environment != 'self-hosted'` guards on the actions/cache steps.
+#
+# These jobs run on a PERSISTENT self-hosted runner (vars.RUNNER_LABEL =
+# predivo-wsl). There, ~/.npm and ~/.cache/ms-playwright are not throwaway
+# caches a job populates and discards: they are directories holding everything
+# this machine has ever installed, for every repo on it. The cache-save runs as
+# a POST-STEP INSIDE the job's own timeout-minutes budget, so when it is slow it
+# does not merely waste time — it KILLS the job.
+#
+# And it misses precisely when it matters: the cache key is derived from
+# package-lock.json, so the save fires on exactly the dependency-changing
+# commits a security gate exists to inspect. Every other commit gets a cache hit
+# and sails through, which is why this stayed invisible for so long.
+#
+# GitHub records a timeout as `cancelled`, NOT `failed`. Every real step inside
+# the job shows green, the run page looks clean, and downstream jobs with
+# `needs:` are silently SKIPPED — so a production promotion can be lost without
+# anything showing red. Verify the deploy JOB, never the run colour.
+#
+# Measured, not inferred (2026-09-02/03):
+#   BoatBuddy   run 33718969126 gate-integration: npm ci 18s, tests 3s, then
+#               Post Run actions/setup-node cancelled after 9m34s at
+#               "Sent 1006632960 of 1811836788 (55.6%)" — a 1.81 GB upload.
+#   launchready run 33664843636 gate-security cancelled -> deploy SKIPPED.
+#   arivioo     runs 33659826937 / 33662539216 gate-security cancelled (~9m35s).
+#   predivo     run 33792521636 critical-path killed by the PLAYWRIGHT cache
+#               save (544s) — the same fault, a different cache.
+#   signalscore run 33729943705 gates: Playwright cache save cancelled at 779s.
+#
+# The fix is to REMOVE the work that does not belong inside the budget, never to
+# widen the timeout — a wider timeout hides this instead of fixing it. npm ci
+# already reads the host's ~/.npm directly, so the cache bought nothing here.
+# The guards keep the caches working on GitHub-hosted runners, where they are a
+# genuine win and the machine is thrown away afterwards.
+# ===========================================================================
+
 jobs:
   # ===========================================================================
   # EDGE-FUNCTION TYPE CHECK - the only thing in this repo that compiles
@@ -194,7 +233,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
+          # cache: npm removed deliberately - see the "NPM CACHE / self-hosted runner" note in deploy.yml
 
       - run: npm ci
 
@@ -517,7 +556,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
+          # cache: npm removed deliberately - see the "NPM CACHE / self-hosted runner" note in deploy.yml
 
       - run: npm ci
 
@@ -554,12 +593,16 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
+          # cache: npm removed deliberately - see the "NPM CACHE / self-hosted runner" note in deploy.yml
 
       - run: npm ci
 
       - name: Cache Playwright browsers
         id: playwright-cache
+        # Skipped on the persistent self-hosted runner: the path already survives there,
+        # so the save post-step is a multi-minute upload that buys nothing and can blow
+        # the job timeout. see the "NPM CACHE / self-hosted runner" note in deploy.yml
+        if: runner.environment != 'self-hosted'
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
@@ -805,7 +848,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
+          # cache: npm removed deliberately - see the "NPM CACHE / self-hosted runner" note in deploy.yml
 
       - run: npm ci
 
