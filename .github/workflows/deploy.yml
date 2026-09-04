@@ -689,6 +689,33 @@ jobs:
           node-version: 22
       - name: Dependency audit (blocking at high)
         run: npm audit --audit-level=high
+
+      # ─────────────────────────────────────────────────────────────────────────────────────
+      # OPEN-RELAY GUARD — asks the LIVE endpoints, because the bug lived where no file could
+      # see it (signal-fleet:send-auth-email:unauthenticated-relay, closed on Valrano
+      # production 2026-09-04).
+      #
+      # send-auth-email verified a Standard-Webhooks signature ONLY when one was present, and
+      # this project's Send-Email hook is an UNSIGNED pg_net call — so "no signature" meant
+      # "no check" and any holder of the public website key could make Valrano mail a login or
+      # password-reset code to an address of their choosing. Measured on production the day it
+      # was closed: a forged unsigned payload answered 200. It actually sent.
+      #
+      # THE CODE FIX WAS COMMITTED ON 2026-09-02 AND PRODUCTION WAS STILL OPEN TWO DAYS LATER,
+      # because enforcement is inert until a secret exists in two places that appear in NO
+      # file in this repo — a Vault row and an edge-function env var. Every source-reading
+      # test was green throughout. That is precisely why this step is a network probe and not
+      # a unit test, and why it lives in a job that runs NIGHTLY and on EVERY PROMOTION rather
+      # than only when someone edits the function.
+      #
+      # Needs no credentials — being refused without one is the whole assertion. Blocking: a
+      # promotion must not ship while the relay is open, and the nightly run is what catches a
+      # `supabase db reset` or a re-provision silently dropping the Vault row (it is DATA, not
+      # schema). Recovery is scripts/seed-email-relay-vault.mjs; read its header first, the
+      # ORDER matters and getting it wrong rejects every auth email in between.
+      # ─────────────────────────────────────────────────────────────────────────────────────
+      - name: 'Open-relay guard: send-auth-email refuses unauthenticated callers (live probe)'
+        run: node supabase/functions/send-auth-email/relay-auth.prod.test.mjs
       # SAST — code-level security (fleet-hardening Wave 2, proven route from project-starter).
       # A different layer than npm audit (deps) + gitleaks (secrets in git): semgrep reads OUR
       # code for injection / XSS / hardcoded secrets. `.semgrepignore` excludes test/dev files
