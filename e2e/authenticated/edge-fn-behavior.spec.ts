@@ -87,18 +87,43 @@ test.describe('Edge Function Behavior', () => {
   })
 
   // ---------------------------------------------------------------------------
-  // 4. send-auth-email with invalid signature returns 401 or rejection
+  // 4. send-auth-email refuses an unauthenticated caller (open-relay guard)
+  //
+  // THIS ASSERTION USED TO ACCEPT 400, AND THAT IS WHY IT WAS GREEN THROUGH THE HOLE.
+  // signal-fleet:send-auth-email:unauthenticated-relay — the function verified a
+  // Standard-Webhooks signature only WHEN ONE WAS PRESENT, so an unsigned POST was never
+  // checked at all and anyone could make this product mail a login or password-reset code to
+  // an address of their choosing. Measured on production 2026-09-04, before the cutover: a
+  // forged unsigned payload answered 200 — it actually sent. `{}` answered 400.
+  //
+  // 400 IS THE FAILING SHAPE, NOT A PASSING ONE: 400 'No email in payload' is a complaint
+  // about the BODY, which is only reached AFTER authentication. Accepting it here made the
+  // vulnerability the contract. The only correct answer is 401.
+  //
+  // The live equivalent that does not depend on a browser or on CI is
+  // supabase/functions/send-auth-email/relay-auth.prod.test.mjs, which checks BOTH projects.
   // ---------------------------------------------------------------------------
-  test('send-auth-email with invalid signature returns 401 or rejection', async () => {
+  test('send-auth-email refuses an unauthenticated caller with 401', async () => {
     const res = await callEdgeFn('send-auth-email', {
-      body: { user: { email: 'fake@example.com' } },
+      // A well-formed payload, so a 401 can only come from the caller check and never from
+      // body validation. The recipient is an RFC 2606 `.invalid` address that can never
+      // resolve, so even a regressed deployment could not mail a real person because of it.
+      body: {
+        user: { email: 'relay-guard@valrano-test.invalid' },
+        email_data: {
+          token: '000000',
+          token_hash: 'RELAY-GUARD',
+          redirect_to: 'https://valrano.com',
+          email_action_type: 'recovery',
+          site_url: 'https://valrano.com',
+        },
+      },
       headers: {
-        'x-webhook-signature': 'invalid-signature',
+        'x-supabase-webhook-signature': 'v1,invalid-signature',
       },
     })
 
-    // Should reject — either 401 (missing auth) or 400 (bad signature)
-    expect([400, 401, 403]).toContain(res.status)
+    expect(res.status).toBe(401)
   })
 
   // ---------------------------------------------------------------------------
