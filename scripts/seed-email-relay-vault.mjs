@@ -48,11 +48,25 @@
  * to run unless `handle_send_email` already sends the header and Vault already holds the secret —
  * the two preconditions whose absence turns this step into an outage.
  *
+ * EXIT CODES — the whole contract, because a caller may not read anything else:
+ *   0  both sides hold the same secret; enforcement is on and consistent.
+ *   1  the script stopped and AUTH EMAIL IS STILL FLOWING (a bad argument, a refused
+ *      precondition, or an edge write that failed before enforcement was ever turned on).
+ *   2  the script stopped and AUTH EMAIL IS NOT BEING DELIVERED: the relay signs with the value
+ *      now in Vault while the edge function enforces a different one. Act now — re-run, or remove
+ *      SEND_EMAIL_INTERNAL_SECRET from the project to turn enforcement off and restore delivery.
+ * There is no caller in CI today (deploy.yml only names this script as the manual recovery path),
+ * so 2 is additive: anything that treats non-zero as failure keeps behaving exactly as before.
+ * Which of 1 and 2 applies is DECIDED, never assumed, by scripts/lib/relay-enforcement-verdict.mjs
+ * from the edge digest read BEFORE the write — see that file for why the old wording was wrong.
+ *
  * Ported from BackOffice/scripts/seed-email-relay-vault.mjs (itself ported from ChannelMover and
- * Distribution-OS). Diff them before changing any of them.
+ * Distribution-OS). Diff them before changing any of them. NOTE 2026-09-09: BackOffice's copy still
+ * carries the old "auth email still flows" line at its line 156 and needs this same change.
  */
 
 import crypto from 'node:crypto'
+import { enforcementVerdict } from './lib/relay-enforcement-verdict.mjs'
 
 const API = 'https://api.supabase.com/v1/projects'
 
@@ -105,35 +119,60 @@ async function replaceVaultSecret(name, value, description) {
   )
 }
 
+/** SHA-256 the Management API reports for an edge secret, or null when it is not set. */
+async function readEdgeSecretDigest() {
+  const res = await fetch(`${API}/${ref}/secrets`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) return null
+  const list = await res.json()
+  return list.find((s) => s.name === 'SEND_EMAIL_INTERNAL_SECRET')?.value ?? null
+}
+
 /** Set the edge variable and prove both sides hold the same value without displaying either. */
 async function setEdgeSecretAndVerify(relaySecret) {
+  const expected = crypto.createHash('sha256').update(relaySecret).digest('hex')
+
+  // Read the edge side BEFORE writing it. If the write fails, this is the only thing that can tell
+  // "enforcement was never on" from "enforcement is on with the previous value and the relay has
+  // already moved to the new one" — and only the second of those is an auth-email outage. Taken
+  // before, because after a failed POST the state is ambiguous.
+  const digestBefore = await readEdgeSecretDigest()
+
   const setRes = await fetch(`${API}/${ref}/secrets`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify([{ name: 'SEND_EMAIL_INTERNAL_SECRET', value: relaySecret }]),
   })
   if (![200, 201].includes(setRes.status)) {
+    const verdict = enforcementVerdict({
+      edgeSecretExistedBefore: digestBefore !== null,
+      edgeDigestBefore: digestBefore,
+      vaultDigestNow: expected,
+    })
     console.error(
       `ERROR: SEND_EMAIL_INTERNAL_SECRET failed (HTTP ${setRes.status}) for ${ref} — ` +
-      'enforcement is OFF, which is the safe side: auth email still flows. Re-run this script.',
+      verdict.message,
     )
-    process.exit(1)
+    process.exit(verdict.authEmailBroken ? 2 : 1)
   }
 
-  const expected = crypto.createHash('sha256').update(relaySecret).digest('hex')
   const vaultRows = await query(
     "select encode(digest(decrypted_secret,'sha256'),'hex') as digest" +
     " from vault.decrypted_secrets where name = 'send_email_internal_secret'",
   )
-  const listRes = await fetch(`${API}/${ref}/secrets`, { headers: { Authorization: `Bearer ${token}` } })
-  const edgeDigest = (await listRes.json()).find((s) => s.name === 'SEND_EMAIL_INTERNAL_SECRET')?.value
+  const edgeDigest = await readEdgeSecretDigest()
 
   const vaultOk = vaultRows[0]?.digest === expected
   const edgeOk = edgeDigest === expected
   console.log(`digest match — vault: ${vaultOk ? 'YES' : 'NO'}, edge: ${edgeOk ? 'YES' : 'NO'}`)
   if (!vaultOk || !edgeOk) {
-    console.error('ERROR: the two sides do not hold the same value. Re-run before trusting the gate.')
-    process.exit(1)
+    // The write reported success and the two sides still disagree, so the relay is signing with one
+    // value while the edge function enforces another: this IS the rejecting state, not a warning.
+    console.error(
+      'ERROR: the two sides do not hold the same value, so send-auth-email is rejecting the relay ' +
+      'and auth email is not being delivered. Re-run this script; if it keeps failing, remove ' +
+      'SEND_EMAIL_INTERNAL_SECRET from the project to turn enforcement off and restore delivery.',
+    )
+    process.exit(2)
   }
   console.log(`OK: relay secret set on both sides for ${ref}; send-auth-email now rejects unsigned callers.`)
 }
