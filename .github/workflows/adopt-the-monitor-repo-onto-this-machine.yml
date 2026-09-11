@@ -71,3 +71,20 @@ jobs:
           echo
           echo "== can I write a systemd unit directly? =="
           if [ -w /etc/systemd/system ]; then echo "  /etc/systemd/system: WRITABLE"; else echo "  /etc/systemd/system: not writable"; fi
+
+      - name: Read the install state from inside WSL
+        run: |
+          echo "== install log =="
+          cat /tmp/pminstall.log 2>/dev/null || echo "  (no log - the detached run never started)"
+          echo
+          echo "== target dir =="
+          du -sh /opt/gh-runners/production-monitor 2>/dev/null || echo "  not created"
+          echo
+          echo "== is anything still copying/configuring? =="
+          pgrep -fa "install-pm-runners|config.sh" | head -5 || echo "  nothing running"
+          echo
+          echo "== token file still lying about? =="
+          ls -l /tmp/pmtok 2>/dev/null || echo "  /tmp/pmtok: gone (consumed or never written)"
+          echo
+          echo "== disk =="
+          df -h / | tail -1
