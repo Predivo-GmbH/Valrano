@@ -51,3 +51,23 @@ jobs:
           echo
           echo "== runner version =="
           cat "$HOME"/actions-runner*/.runner_version 2>/dev/null | head -2 || ls -d "$HOME"/actions-runner* 2>/dev/null | head -2
+
+      - name: What can this user actually do
+        run: |
+          echo "== where do the existing runners really live? =="
+          systemctl cat actions.runner.Predivo-GmbH-Valrano.wsl-LAPTOP-88N97BGG-Valrano.service 2>/dev/null | grep -E "ExecStart|WorkingDirectory|User=" || echo "  systemctl cat unavailable"
+          echo
+          echo "== sudoers: is anything allowed without a password? =="
+          sudo -n -l 2>&1 | head -20 || echo "  sudo -l refused"
+          echo
+          echo "== can I use a USER systemd instance (no root needed)? =="
+          systemctl --user is-system-running 2>&1 | head -2
+          echo "  lingering: $(loginctl show-user "$(whoami)" -p Linger 2>&1 | head -1)"
+          echo
+          echo "== is there a writable place with the runner already unpacked? =="
+          for d in /home/runner/* /opt/* /srv/*; do
+            [ -x "$d/config.sh" ] && echo "  runner package at: $d"
+          done
+          echo
+          echo "== can I write a systemd unit directly? =="
+          if [ -w /etc/systemd/system ]; then echo "  /etc/systemd/system: WRITABLE"; else echo "  /etc/systemd/system: not writable"; fi
