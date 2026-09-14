@@ -99,10 +99,21 @@ serve(async (req: Request) => {
     // ------------------------------------------------------------------
     // 1. Load all active publication events (scheduled, due_today, overdue)
     // ------------------------------------------------------------------
-    const { data: events, error: eventsError } = await adminClient
+    // This read is the first thing a freshly booted isolate does, and from 2026-09-11 to 09-14
+    // about one cron-time call in eight got a bare "Gateway Timeout" back from PostgREST after
+    // exactly 5 s, with the database idle (1 row, 0.09 ms plan, 17 of 60 connections) and every
+    // hand-fired call fast. The 2-minute poll can afford one second try after the platform has
+    // had a moment; a second failure is still an error and still logged by errorResponse.
+    const loadEvents = () => adminClient
       .from('publication_events')
       .select('id, expected_date, expected_time, status, last_checked_at')
       .in('status', ['scheduled', 'due_today', 'overdue'])
+    let { data: events, error: eventsError } = await loadEvents()
+    if (eventsError) {
+      console.warn(`Events query failed once (${eventsError.message}); trying again in 1.5 s`)
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      ;({ data: events, error: eventsError } = await loadEvents())
+    }
 
     if (eventsError) throw new Error(`Events query failed: ${eventsError.message}`)
     if (!events || events.length === 0) {
