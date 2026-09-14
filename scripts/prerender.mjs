@@ -9,6 +9,7 @@ import puppeteer from 'puppeteer'
 import { createServer } from 'http'
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join, extname, dirname } from 'path'
+import { gotoWithRetries } from './lib/goto-with-retries.mjs'
 
 const DIST = join(import.meta.dirname, '..', 'dist')
 // Bind an EPHEMERAL port (0 = OS-assigned), not a fixed 4173. On the persistent
@@ -81,7 +82,14 @@ async function prerender() {
     const url = `${BASE}${route.path}`
     console.log(`  Rendering ${route.path}...`)
 
-    await page.goto(url, { waitUntil: 'networkidle0', timeout: 15000 })
+    // A busy shared runner is not a broken page: see scripts/lib/goto-with-retries.mjs. Only a
+    // navigation TIMEOUT is retried, with a bigger budget each time; every other error still
+    // fails on the first attempt, and exhausting all budgets still fails the build.
+    const attempts = await gotoWithRetries(page, url, {
+      onRetry: ({ attempt, spentMs, nextMs }) =>
+        console.warn(`  ${route.path}: navigation attempt ${attempt} ran out of time after ${spentMs}ms on a busy machine -- retrying with ${nextMs}ms`),
+    })
+    if (attempts > 1) console.warn(`  ${route.path}: rendered on attempt ${attempts}`)
     // Wait for React to render content
     await page.waitForSelector('h1', { timeout: 5000 }).catch(() => {})
 
