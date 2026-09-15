@@ -11,7 +11,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://api.anthropic.com https://www.wikidata.org https://api.stripe.com https://*.ingest.de.sentry.io https://*.sentry.io; frame-src 'self' https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <!-- https://challenges.cloudflare.com in BOTH script-src and frame-src is what lets
+         the Cloudflare Turnstile widget load at all: Turnstile pulls turnstile/v0/api.js
+         (script-src) and then renders the challenge inside an IFRAME (frame-src). Miss either
+         one and the widget is silently blocked while the deploy's bundle assertion still
+         PASSES — the site key is in the JS, every monitor green, and every customer locked out
+         the moment captcha is enforced server-side. This meta CSP and public/.htaccess are
+         BOTH enforced (the browser applies each policy separately), so both had to change. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://*.supabase.in wss://*.supabase.co https://api.anthropic.com https://www.wikidata.org https://api.stripe.com https://*.ingest.de.sentry.io https://*.sentry.io https://challenges.cloudflare.com; frame-src 'self' https://js.stripe.com https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <!-- X-Frame-Options cannot be set via <meta> (browsers reject it with a console
          error) — it is sent as a real header from .htaccess, plus CSP frame-ancestors -->

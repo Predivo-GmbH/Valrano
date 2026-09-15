@@ -254,6 +254,33 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          # PUBLIC Cloudflare Turnstile site key. Without this line the bundle ships with NO
+          # captcha widget at all — see the assertion below, which is what makes that impossible
+          # to miss.
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
+
+      - name: Assert the Turnstile site key actually landed in the bundle (blocking)
+        # A CAPTCHA THE CLIENT CANNOT ANSWER IS A WORSE OUTAGE THAN THE HOLE IT CLOSES.
+        # `vite build` inlines VITE_* at BUILD time, and src/components/TurnstileWidget.tsx
+        # deliberately renders NOTHING when VITE_TURNSTILE_SITE_KEY is unset. So an empty, missing
+        # or wrong secret produces a widget-less bundle that looks completely healthy: every
+        # runtime monitor stays green, and it becomes a TOTAL customer lockout — login, signup and
+        # password reset all refused — the instant security_captcha_enabled is switched on
+        # project-wide. ReplyFlow hit exactly this shape ("dead sitekey, green monitors").
+        # `gh secret list` proves only that a NAME exists; this step is what proves the VALUE.
+        # The site key is PUBLIC (it ships in every visitor's browser), so it is pinned literally
+        # here and compared — a secret that is merely non-empty is not good enough.
+        run: |
+          set -euo pipefail
+          expected='0x4AAAAAAEz4tSh-Lly_5idd'
+          if ! grep -rq "$expected" ./dist/; then
+            echo "::error::The Turnstile site key ($expected) is NOT in the staging bundle."
+            echo "  vite build inlines VITE_* at build time; the repository secret"
+            echo "  VITE_TURNSTILE_SITE_KEY is empty, wrong, or was not passed to the build step."
+            echo "  Shipping this renders no captcha widget at all. Nothing was deployed."
+            exit 1
+          fi
+          echo "ok - Turnstile site key is present in the staging bundle ($(grep -rl "$expected" ./dist/ | wc -l) file(s))."
 
       - name: Install Supabase CLI
         run: npm install -g supabase@2.109.1
@@ -901,6 +928,35 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          # PUBLIC Cloudflare Turnstile site key. Without this line the bundle ships with NO
+          # captcha widget at all — see the assertion below, which is what makes that impossible
+          # to miss.
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
+
+      - name: Assert the Turnstile site key actually landed in the bundle (blocking)
+        # A CAPTCHA THE CLIENT CANNOT ANSWER IS A WORSE OUTAGE THAN THE HOLE IT CLOSES.
+        # `vite build` inlines VITE_* at BUILD time, and src/components/TurnstileWidget.tsx
+        # deliberately renders NOTHING when VITE_TURNSTILE_SITE_KEY is unset. So an empty, missing
+        # or wrong secret produces a widget-less bundle that looks completely healthy: every
+        # runtime monitor stays green, and it becomes a TOTAL customer lockout — login, signup and
+        # password reset all refused — the instant security_captcha_enabled is switched on
+        # project-wide. ReplyFlow hit exactly this shape ("dead sitekey, green monitors").
+        # `gh secret list` proves only that a NAME exists; this step is what proves the VALUE.
+        # The site key is PUBLIC (it ships in every visitor's browser), so it is pinned literally
+        # here and compared — a secret that is merely non-empty is not good enough.
+        run: |
+          set -euo pipefail
+          expected='0x4AAAAAAEz4tSh-Lly_5idd'
+          if ! grep -rq "$expected" ./dist/; then
+            echo "::error::The Turnstile site key ($expected) is NOT in the production bundle."
+            echo "  vite build inlines VITE_* at build time; the repository secret"
+            echo "  VITE_TURNSTILE_SITE_KEY is empty, wrong, or was not passed to the build step."
+            echo "  Shipping this renders no captcha widget at all, and enabling captcha"
+            echo "  server-side afterwards would lock every real customer out of login, signup"
+            echo "  and password reset. Nothing was deployed."
+            exit 1
+          fi
+          echo "ok - Turnstile site key is present in the production bundle ($(grep -rl "$expected" ./dist/ | wc -l) file(s))."
 
       - name: Install lftp
         run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp

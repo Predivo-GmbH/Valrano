@@ -175,13 +175,23 @@ async function anonKeyFor(project) {
   return null
 }
 
-// A tokenless /otp request looks like the exact abuse: an OTP send with no captcha proof. GoTrue
-// carries the captcha token in gotrue_meta_security.captcha_token; we deliberately omit it.
-async function tokenlessOtpRefused(project, anon) {
-  const res = await fetch(`https://${project.ref}.supabase.co/auth/v1/otp`, {
+// /recover IS THE SHARP ENDPOINT, NOT /otp — and reading /otp instead is what almost buried this.
+// Measured live across the fleet 2026-09-15: a tokenless, unauthenticated POST /auth/v1/recover
+// returns 200 and really does make the product email a password-reset link to any address a
+// stranger names, 30/hour per project, on the Postmark sending reputation the whole fleet shares.
+// /otp answers `422 otp_disabled "Signups not allowed for otp"`, which READS like a refusal and is
+// the opposite of safe: it is GoTrue's USER-LOOKUP verdict, reached only AFTER the captcha
+// middleware has already let the request through. So a 422 proves the gate is NOT there.
+// `400` + a captcha error is the ONLY closed signal, and it is what this asserts.
+//
+// GoTrue carries the captcha token in gotrue_meta_security.captcha_token; we deliberately omit it.
+// The probe address is reserved and undeliverable (.local TLD) — NEVER point this at a real
+// mailbox. An open endpoint really does reach the mailer, which would make the test the attack.
+async function tokenlessRecoverRefused(project, anon) {
+  const res = await fetch(`https://${project.ref}.supabase.co/auth/v1/recover`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: anon, Authorization: `Bearer ${anon}` },
-    body: JSON.stringify({ email: PROBE_EMAIL, create_user: false }),
+    body: JSON.stringify({ email: PROBE_EMAIL }),
   })
   const text = await res.text()
   // Closed state: GoTrue rejects for a captcha reason (400 + captcha in the error).
@@ -212,15 +222,15 @@ for (const p of PROJECTS) {
   if (p.enforced) coveredEnforced++
   console.log(`     ${p.name}: probing with the public key from ${source}`)
   try {
-    const r = await tokenlessOtpRefused(p, anon)
+    const r = await tokenlessRecoverRefused(p, anon)
     assert.ok(
       r.status !== 401,
       `${p.name}: the key was REFUSED (401) — this run tested nothing about captcha. Use the ` +
         `current publishable key. Body: ${r.body}`
     )
     if (p.enforced) {
-      assert.ok(r.ok, `${p.name}: tokenless /otp must be refused for captcha (400/captcha); got ${r.status}: ${r.body}`)
-      console.log(`ok - ${p.name} (${p.ref}): tokenless OTP request refused (captcha enforced)`)
+      assert.ok(r.ok, `${p.name}: tokenless /recover must be refused for captcha (400/captcha); got ${r.status}: ${r.body}`)
+      console.log(`ok - ${p.name} (${p.ref}): tokenless /recover request refused (captcha enforced)`)
     } else {
       // Not a pass for doing nothing: this asserts the OPPOSITE state, and says why it is the
       // right one today and exactly what has to happen before it changes.
@@ -254,7 +264,7 @@ if (failures > 0) {
   process.exit(1)
 }
 console.log(
-  `\nAll ${covered} covered project(s) are in the recorded state: ${coveredEnforced} enforcing captcha on ` +
-    `tokenless OTP, ${covered - coveredEnforced} deliberately open. Sign-in bot protection is enforced where it must be.`
+  `\nAll ${covered} covered project(s) are in the recorded state: ${coveredEnforced} enforcing captcha on a ` +
+    `tokenless /recover, ${covered - coveredEnforced} deliberately open. Sign-in bot protection is enforced where it must be.`
 )
 process.exit(0)
