@@ -44,6 +44,15 @@ jobs:
           node-version: 22
           # cache: npm removed deliberately - see the "NPM CACHE / self-hosted runner" note in deploy.yml
 
+      # BEFORE npm ci, BECAUSE IT NEEDS NOTHING AND GUARDS WHAT THE REST OF THIS JOB RUNS.
+      # Nothing else in this repo executes a *.test.mjs in CI, so without this step the guard
+      # would sit in the tree and never in a gate - which is how the four *.test.mjs already in
+      # scripts/ came to run nowhere. It asserts that every playwright*.config.* registers the
+      # error-context stripper FIRST; a config added without it is a suite that leaves ARIA
+      # snapshots of a signed-in page on a runner 19 repositories share.
+      - name: The e2e suite keeps no error context on the runner
+        run: node --test scripts/the-runner-keeps-no-error-context.test.mjs
+
       - run: npm ci
 
       - name: Cache Playwright browsers
