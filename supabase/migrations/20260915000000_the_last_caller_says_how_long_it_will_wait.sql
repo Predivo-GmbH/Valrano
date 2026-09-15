@@ -132,14 +132,43 @@ BEGIN
 END
 $migration$;
 
--- ── The check this file must leave behind, so it can prove its own claim ─────────────────────
--- Same shape as BackOffice 173's closing check, raised to an EXCEPTION: if ANY function on this
--- database still dispatches HTTP without saying how long it will wait, this migration fails rather
--- than passing quietly. That is the guard that would have caught all three of the misses above.
+-- ── This file proves its OWN claim, and only warns about anybody else's ──────────────────────
+--
+-- TWO CHECKS, AND THE DIFFERENCE BETWEEN THEM IS DELIBERATE.
+--
+-- The first RAISES: `public.fire_edge_function` — the one function this migration exists to change
+-- — must actually state a timeout when this file is finished. That is this migration's own claim
+-- about its own work, it is true or false on whatever database is running it, and if it is false
+-- the migration failed and the deploy must stop. "It ran" is not "it took effect".
+--
+-- The second only WARNS, which is what BackOffice 173 did. A fleet-wide sweep raised to an
+-- EXCEPTION would fail the deploy on any environment holding an http_post caller nobody could see
+-- beforehand — and the machine that wrote this file cannot read THIS database at all (both of its
+-- Supabase management tokens answer HTTP 403 on this project), let alone whatever staging
+-- environment the migration passes through first. A hard stop on a predicate nobody can verify is
+-- a deploy that fails for a reason nobody can reproduce. Enforcing the fleet-wide rule is a
+-- monitor's job, where a finding becomes a work row somebody owns; a migration's job is to be
+-- right about the change it makes.
 DO $verify$
 DECLARE
-  missed_fns text;
+  has_timeout boolean;
+  missed_fns  text;
 BEGIN
+  SELECT (p.prosrc ILIKE '%timeout_milliseconds%') INTO has_timeout
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public' AND p.proname = 'fire_edge_function' AND p.prokind = 'f';
+
+  IF has_timeout IS NULL THEN
+    RAISE EXCEPTION
+      '20260915000000: public.fire_edge_function does not exist after this migration ran.';
+  END IF;
+  IF NOT has_timeout THEN
+    RAISE EXCEPTION
+      '20260915000000: public.fire_edge_function still does not state a timeout after this '
+      'migration ran, so its answers are still discarded after 5000 ms. The rewrite did not take '
+      'effect.';
+  END IF;
+
   SELECT string_agg(n.nspname || '.' || p.proname, ', ' ORDER BY n.nspname, p.proname)
     INTO missed_fns
     FROM pg_proc p
@@ -149,13 +178,13 @@ BEGIN
      AND p.prosrc NOT ILIKE '%timeout_milliseconds%';
 
   IF missed_fns IS NOT NULL THEN
-    RAISE EXCEPTION
-      '20260915000000: these functions still dispatch HTTP without stating a timeout, so their '
-      'answers are discarded after 5000 ms: %', missed_fns;
+    RAISE WARNING
+      '20260915000000: these functions dispatch HTTP without stating a timeout, so their answers '
+      'are discarded after 5000 ms: %', missed_fns;
+  ELSE
+    RAISE NOTICE
+      '20260915000000: every function on this database that dispatches HTTP now states how long it '
+      'will wait.';
   END IF;
-
-  RAISE NOTICE
-    '20260915000000: every function on this database that dispatches HTTP now states how long it '
-    'will wait.';
 END
 $verify$;
