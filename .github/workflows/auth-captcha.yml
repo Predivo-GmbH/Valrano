@@ -79,13 +79,50 @@ jobs:
       # /recover — NOT /otp — is the sharp endpoint: it is the one that actually mails a stranger a
       # link, and /otp's 422 otp_disabled is GoTrue's USER-LOOKUP answer, reached only after the
       # captcha middleware already let the request through. 400 + captcha is the only closed signal.
-      - name: Prove it against the live project
-        # Also on the schedule: a daily read that never probes would report the SETTING and not the
-        # BEHAVIOUR, and it is the behaviour that went stale for twelve hours on ReplyFlow.
+      #
+      # TWO STEPS, NOT ONE, AND THE DIFFERENCE IS THE WHOLE POINT.
+      #
+      # On ENABLE the probe must RETRY, briefly. GoTrue does not apply the new auth config the
+      # instant the PATCH returns. Measured on Beize Jass Tour 2026-09-15: the switch really did
+      # move to captcha=true/turnstile, the probe ran ~0.6s later and still got 422 otp_disabled,
+      # and the run concluded FAILURE — a red that meant "flipped fine, checked too early" and is
+      # indistinguishable from "the flip failed". Re-probed a minute later, every endpoint answered
+      # 400 captcha_failed. LaunchReady hit the same thing on 2026-09-14 and it was re-run rather
+      # than fixed, so the flaw travelled with the template into every product. Whoever reads that
+      # red next either rolls back a healthy switch or learns to ignore a red enable run.
+      #
+      # On the SCHEDULE it must NOT retry. That run is the standing daily guard, and a retry loop
+      # there would paper over a genuine regression. The bound is safe precisely because it is
+      # narrow: a project that is really open is still open sixty seconds later, so retrying on the
+      # enable path alone cannot hide anything. The retry lives HERE and never inside the guard
+      # script, which both paths share.
+      - name: Prove the switch actually took (GoTrue needs a moment to propagate)
+        if: inputs.mode == 'enable'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          # The guard's PUBLIC publishable keys. production is normally read straight out of the
+          # live bundle; these are the fallbacks so a run can never SKIP quietly and read as a pass.
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5 6; do
+            if node supabase/functions/_shared/signin-captcha.prod.test.mjs; then exit 0; fi
+            echo "not propagated yet (attempt $i of 6); waiting 10s"
+            sleep 10
+          done
+          echo "::error::60s after the PATCH the project still does not refuse a tokenless /recover."
+          echo "          That is no longer propagation delay — the switch did not take, or the client"
+          echo "          half is not what it must be. Roll back with mode=disable."
+          exit 1
+
+      - name: Daily read — prove the live BEHAVIOUR, not just the setting (single shot, no retry)
+        # A daily read that never probes would report the SETTING and not the BEHAVIOUR, and it is
+        # the behaviour that went stale for twelve hours on ReplyFlow.
         #
         # THIS STEP IS RED UNTIL HALF 2 IS FLIPPED, AND THAT IS CORRECT — the hole really is open
         # until then. It goes green the moment, and only the moment, captcha is actually enforced.
-        if: inputs.mode == 'enable' || github.event_name == 'schedule'
+        if: github.event_name == 'schedule'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           # The guard's PUBLIC publishable keys. production is normally read straight out of the
