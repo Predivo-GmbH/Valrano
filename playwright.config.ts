@@ -19,6 +19,7 @@ const BASE_URL = `http://localhost:${PORT}`
 
 export default defineConfig({
   testDir: './e2e',
+  reporter: process.env.CI ? [['./e2e/strip-runner-artifacts.reporter.ts'], ['list']] : undefined,
   timeout: 30000,
   retries: process.env.CI ? 1 : 0,
   use: {
