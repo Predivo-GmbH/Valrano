@@ -36,8 +36,11 @@ on:
       - 'docs/**'
       - 'LICENSE'
       - '.gitignore'
+  # NIGHTLY, AND IT IS NOT A REPEAT OF THE PUSH RUN. Removed 2026-09-12 on the stated ground
+  # that push already covers it; measured 2026-09-13, push SKIPS gate-integration, gate-security
+  # and gate-e2e (ChannelMover run 34719595752), so this cron is the only daily run of them. The
+  # 2026-09-09 security advisory that blocked five products was caught by exactly this run.
   schedule:
-    # Nightly full gauntlet against whatever is currently live on staging.
     - cron: '45 4 * * *'
   workflow_dispatch:
     inputs:
@@ -46,13 +49,45 @@ on:
         required: true
         default: ''
 
+# ===========================================================================
+# A PUSH MUST NOT CANCEL THE RECEIPT A RELEASE NEEDS (2026-09-14).
+#
+# `deploy` refuses to promote a commit unless a green PUSH staging run exists for THAT EXACT SHA
+# (the "Verify staging gate" step below). Until today this block cancelled the in-flight push run
+# the moment the next commit landed on main. A staging run takes 10-37 minutes on our one
+# self-hosted laptop; commits land faster than that, so the window closes before any run can finish,
+# no commit ever earns the receipt, and THE REPOSITORY BECOMES UNPROMOTABLE - with no test failing
+# and nothing red to point at.
+#
+# MEASURED ON CHANNELMOVER, which is simply the busiest repo and hit it first (deploy.yml on main):
+#   8de7ee9  13:00:34Z  push      SUCCESS    <- the last green staging run
+#   2a0ceff  13:31:34Z  push      cancelled
+#   2a0ceff  13:41:05Z  dispatch  cancelled  <- a promotion attempt
+#   b15fd51  14:08:11Z  push      cancelled
+#   4d962e5  14:18:38Z  push      cancelled
+# Four commits in 49 minutes. It does not self-heal and it gets WORSE the more work we do.
+# THIS REPOSITORY CARRIES THE IDENTICAL SHAPE - the same gate step and the same expression - so it
+# deadlocks the same way as soon as commits land faster than a staging run finishes.
+#
+# WHY `false` DOES NOT PILE UP RUNS. GitHub keeps at most ONE run PENDING per concurrency group: a
+# third push supersedes the waiting one, it does not join a line. The running one always finishes
+# and the newest always gets the next slot.
+#
+# AND IT IS WHAT THE FLEET ALREADY LEARNED. Cockpit's deploy.yml carries the same note after a
+# cancelled mid-flight mirror "leaves staging half-uploaded and loses its E2E verdict".
+# deploy-staging FTP-mirrors the staging site with the same lftp step and the same shared host as
+# production; "staging" is not a synonym for "goes somewhere else" (2026-09-09).
+#
+# INVARIANT, from ClaudeShared/hooks/fleet-deploy-queue: NO PATH THAT USED TO DENY MAY NOW ALLOW.
+# This changes only whether a run is allowed to FINISH. Not one line of the promotion gate moves.
+# ===========================================================================
 concurrency:
   # Production promotions (workflow_dispatch) keep their own serialized, NEVER-cancelled
   # group: cancelling a mid-flight FTP mirror can leave prod half-uploaded.
   # Pushes (the staging pipeline) get a per-ref group that DOES cancel — when several
   # commits land in a row only the newest needs a staging deploy + E2E.
   group: ${{ github.event_name == 'workflow_dispatch' && 'deploy-production' || format('staging-{0}', github.ref) }}
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+  cancel-in-progress: false
 
 env:
   # Needed by npm ci: .npmrc points @predivo-gmbh at GitHub Packages.
@@ -178,6 +213,33 @@ jobs:
   # prod-promotion gauntlet below, NOT here.
   # ===========================================================================
   deploy-staging:
+    # ---------------------------------------------------------------------------
+    # SINGLE WRITER FOR THE ONE STAGING SITE (added 2026-09-09, board row
+    # a-production-release-test-can-be-failed-by-an-unrelated).
+    #
+    # The workflow-level `concurrency:` above deliberately puts pushes and promotions in
+    # DIFFERENT groups, and each half of that is right on its own: a mid-flight FTP mirror to
+    # PRODUCTION must never be cancelled, and a burst of pushes only needs the newest staged.
+    # Together they mean a promotion and a push can run AT THE SAME TIME on the same ref - and
+    # then `deploy-staging` is FTP-mirroring new files over the staging site while the release
+    # gates are driving a browser against exactly that site. A release test then fails on a
+    # half-uploaded site with nothing wrong with the release at all. Measured on ReplyFlow
+    # 2026-09-02: dispatch 33627614494 (12:00:54Z) overlapped push 33627544651 (12:00:13Z) on
+    # the same commit; the health check passed against the OLD staging still up, then a page
+    # navigation timed out on all three attempts inside the FTP replacement window. The same
+    # gate had passed twice that day with no deploy in flight.
+    #
+    # This is a JOB-level group, not a change to the workflow-level one, and that is the point:
+    # it serialises only the jobs that touch the staging site, so pushes still cancel each other
+    # and promotions still refuse to be cancelled. cancel-in-progress MUST stay false -
+    # cancelling either half is the failure this exists to prevent, not the remedy.
+    #
+    # Proven on ReplyFlow first; this is the same change on the rest of the fleet, which the
+    # 2026-09-02 finding named explicitly as sharing the shape.
+    # ---------------------------------------------------------------------------
+    concurrency:
+      group: staging-site-${{ github.ref }}
+      cancel-in-progress: false
     if: github.event_name == 'push'
     # A push must not put an edge function on staging that does not compile.
     needs: [gate-edge-typecheck]
@@ -574,6 +636,59 @@ jobs:
   # staging site/DB (which the push above already deployed).
   # ===========================================================================
   gate-integration:
+    # ---------------------------------------------------------------------------
+    # SINGLE WRITER FOR THE ONE STAGING SITE (added 2026-09-09, board row
+    # a-production-release-test-can-be-failed-by-an-unrelated).
+    #
+    # The workflow-level `concurrency:` above deliberately puts pushes and promotions in
+    # DIFFERENT groups, and each half of that is right on its own: a mid-flight FTP mirror to
+    # PRODUCTION must never be cancelled, and a burst of pushes only needs the newest staged.
+    # Together they mean a promotion and a push can run AT THE SAME TIME on the same ref - and
+    # then `deploy-staging` is FTP-mirroring new files over the staging site while the release
+    # gates are driving a browser against exactly that site. A release test then fails on a
+    # half-uploaded site with nothing wrong with the release at all. Measured on ReplyFlow
+    # 2026-09-02: dispatch 33627614494 (12:00:54Z) overlapped push 33627544651 (12:00:13Z) on
+    # the same commit; the health check passed against the OLD staging still up, then a page
+    # navigation timed out on all three attempts inside the FTP replacement window. The same
+    # gate had passed twice that day with no deploy in flight.
+    #
+    # This is a JOB-level group, not a change to the workflow-level one, and that is the point:
+    # it serialises only the jobs that touch the staging site, so pushes still cancel each other
+    # and promotions still refuse to be cancelled. cancel-in-progress MUST stay false -
+    # cancelling either half is the failure this exists to prevent, not the remedy.
+    #
+    # Proven on ReplyFlow first; this is the same change on the rest of the fleet, which the
+    # 2026-09-02 finding named explicitly as sharing the shape.
+    # ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
+    # NO staging-site LOCK ON THIS JOB, and that is a correction, not an omission (2026-09-14).
+    #
+    # It used to carry `concurrency: group: staging-site-${{ github.ref }}` alongside
+    # `deploy-staging` and `gate-e2e`. That lock exists for ONE measured reason, from 2026-09-02:
+    # while `deploy-staging` is FTP-mirroring new files over the staging WEBSITE, a gate DRIVING A
+    # BROWSER against that website fails on a half-uploaded page with nothing wrong with the release
+    # (ReplyFlow dispatch 33627614494 overlapping push 33627544651). `gate-e2e` still carries it.
+    #
+    # THIS JOB NEVER TOUCHES THE WEBSITE. It runs the integration suite against the staging SUPABASE
+    # project - no browser, no page, no website URL anywhere in it. So it was serialised against a
+    # writer it does not contend with.
+    #
+    # WHAT THAT COST. GitHub allows exactly ONE job PENDING per concurrency group;
+    # `cancel-in-progress: false` protects a RUNNING job, never the queue. With `deploy-staging`
+    # holding the group and BOTH gates queued behind it, the older pending one was CANCELLED
+    # OUTRIGHT. Measured on ChannelMover, run 34850759426: gate-integration `cancelled` at
+    # 13:41:07Z with ZERO steps, two seconds after the run started, while gate-e2e stayed pending.
+    # A cancelled gate is not a failing gate - `deploy` is SKIPPED rather than blocked, so the run
+    # looks green and ships nothing.
+    #
+    # NO PATH THAT USED TO DENY MAY NOW ALLOW: dropping a lock cannot turn a refusal into an
+    # approval. The only change is that this suite now runs instead of being erased, which can only
+    # ever ADD a red. `deploy` still needs it green.
+    #
+    # If this job is ever given a step that loads a page from the staging WEBSITE, put the lock back
+    # in the same commit - and then gate-e2e and this one must be merged into ONE job, or they will
+    # start erasing each other again.
+    # ---------------------------------------------------------------------------
     if: github.event_name != 'push'
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 20
@@ -596,6 +711,33 @@ jobs:
           STAGING_TEST_PASSWORD: ${{ secrets.STAGING_TEST_PASSWORD }}
 
   gate-e2e:
+    # ---------------------------------------------------------------------------
+    # SINGLE WRITER FOR THE ONE STAGING SITE (added 2026-09-09, board row
+    # a-production-release-test-can-be-failed-by-an-unrelated).
+    #
+    # The workflow-level `concurrency:` above deliberately puts pushes and promotions in
+    # DIFFERENT groups, and each half of that is right on its own: a mid-flight FTP mirror to
+    # PRODUCTION must never be cancelled, and a burst of pushes only needs the newest staged.
+    # Together they mean a promotion and a push can run AT THE SAME TIME on the same ref - and
+    # then `deploy-staging` is FTP-mirroring new files over the staging site while the release
+    # gates are driving a browser against exactly that site. A release test then fails on a
+    # half-uploaded site with nothing wrong with the release at all. Measured on ReplyFlow
+    # 2026-09-02: dispatch 33627614494 (12:00:54Z) overlapped push 33627544651 (12:00:13Z) on
+    # the same commit; the health check passed against the OLD staging still up, then a page
+    # navigation timed out on all three attempts inside the FTP replacement window. The same
+    # gate had passed twice that day with no deploy in flight.
+    #
+    # This is a JOB-level group, not a change to the workflow-level one, and that is the point:
+    # it serialises only the jobs that touch the staging site, so pushes still cancel each other
+    # and promotions still refuse to be cancelled. cancel-in-progress MUST stay false -
+    # cancelling either half is the failure this exists to prevent, not the remedy.
+    #
+    # Proven on ReplyFlow first; this is the same change on the rest of the fleet, which the
+    # 2026-09-02 finding named explicitly as sharing the shape.
+    # ---------------------------------------------------------------------------
+    concurrency:
+      group: staging-site-${{ github.ref }}
+      cancel-in-progress: false
     if: github.event_name != 'push'
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 20
@@ -715,7 +857,11 @@ jobs:
         with:
           node-version: 22
       - name: Dependency audit (blocking at high)
-        run: npm audit --audit-level=high
+        # --omit=dev: PRODUCTION dependencies only. A dev-only advisory (build tooling, scaffolding
+        # CLIs) never reaches a customer, so it must not block a release (Roger 2026-09-03). Dev/
+        # build-time deps are covered by the scheduled fleet audit, which files a work item instead of
+        # blocking. Both directions proven: production-monitor/test/audit-scope-both-directions.test.mjs
+        run: npm audit --omit=dev --audit-level=high
 
       # ─────────────────────────────────────────────────────────────────────────────────────
       # OPEN-RELAY GUARD — asks the LIVE endpoints, because the bug lived where no file could
@@ -859,35 +1005,53 @@ jobs:
           OK=$(json "$API/actions/workflows/deploy.yml/runs?branch=main&event=push&head_sha=$SHA&per_page=50" \
                  | grep -c '"conclusion": *"success"' || true)
           if [ "${OK:-0}" -lt 1 ]; then
-            echo "HEAD $SHA has no direct staging run; checking if only docs/chore changed since the last staged commit ..."
+            echo "HEAD $SHA has no direct staging run; checking if only docs/chore changed since a recently staged commit ..."
             SAFE='^(docs/|.*\.md$|README|LICENSE|\.gitignore$|\.gitleaks\.toml$|\.gitleaksignore$)'
+            # The refuse path USED TO download a full compare diff per base (application/vnd.github.diff,
+            # each capped at the 30s curl timeout) for ~100 bases, so a genuine refusal could exceed the
+            # 20-min job timeout and surface to the operator as "timed out" instead of its real reason.
+            # Two changes make refusal cheap WITHOUT weakening the gate (verdict is unchanged):
+            #   1. ONE JSON compare per base yields BOTH the top-level ahead/identical status AND the
+            #      changed files (files[].filename / .previous_filename) - no separate full-diff download.
+            #   2. A hard cap on bases walked: bases come newest-first, so the legitimate docs-only case
+            #      (a docs commit pushed right after a staged app commit) resolves in the first iteration.
+            #      If none of the most recent MAX_BASES staged commits match, we REFUSE explicitly
+            #      (fail-closed) with a message that says so - never silently, never past the timeout.
+            MAX_BASES=30
             PROMOTABLE=0
-            # status=success returns ONLY green runs, so every head_sha here is by definition a
-            # commit that passed staging - again no field pairing.
+            # status=success returns ONLY green runs, so every head_sha here is by definition a commit
+            # that passed staging - and newest-first, so the common case resolves immediately.
             BASES=$(json "$API/actions/workflows/deploy.yml/runs?branch=main&event=push&status=success&per_page=100" \
                       | grep -o '"head_sha": *"[0-9a-f]\{40\}"' | awk -F'"' '{print $4}')
+            i=0
             for BASE in $BASES; do
-              # The first "status" in a compare payload is the top-level one; the per-file
-              # "status" values live later, inside .files.
-              STATUS=$(json "$API/compare/$BASE...$SHA" | grep -o '"status": *"[a-z]*"' | head -1 | awk -F'"' '{print $4}')
+              i=$((i+1))
+              if [ "$i" -gt "$MAX_BASES" ]; then
+                echo "::error::Commit $SHA has no staging run and still differs in app files from each of the $MAX_BASES most recently staged commits. Push to main, let staging go green, then promote."
+                exit 1
+              fi
+              # ONE JSON compare gives the top-level status AND the file list. The first "status" in a
+              # compare payload is the top-level one; the per-file "status" values live later inside
+              # .files, so head -1 is the compare status. A failed request yields empty (curl -f), so a
+              # 406/403/429 body can never be parsed as content.
+              CMP=$(json "$API/compare/$BASE...$SHA")
+              STATUS=$(printf '%s' "$CMP" | grep -o '"status": *"[a-z]*"' | head -1 | awk -F'"' '{print $4}')
               case "${STATUS:-}" in ahead|identical) ;; *) continue ;; esac
-              # Capture the diff ONCE, then PROVE it is a real diff before trusting its emptiness.
-              # A failed compare request (a 406 on an oversized diff, a 403/429 rate-limit body, a
-              # timeout, a dropped connection) yields a body with no "diff --git" header; reading
-              # that empty result as "only docs changed" is fail-OPEN and would promote untested
-              # code off a transient API blip. So an 'ahead' compare must SHOW a diff header or we
-              # skip this base. 'identical' is the one legitimately empty diff, so it is exempt.
-              DIFF=$(api "$API/compare/$BASE...$SHA" 'application/vnd.github.diff')
+              # Real JSON keys are "filename":/"previous_filename": (clean quotes); the same strings
+              # appearing INSIDE a patch body are backslash-escaped (\"filename\":) and do NOT match, so
+              # diff content cannot spoof a path. Both sides of a rename are read, so a rename cannot
+              # slip an app file past this on either name.
+              FILES=$(printf '%s' "$CMP" \
+                        | grep -oE '"(filename|previous_filename)": *"[^"]*"' | awk -F'"' '{print $4}' | sort -u)
+              # Fail-CLOSED on a truncated/empty payload: an 'ahead' compare ALWAYS lists at least one
+              # changed file, so no filenames means the request failed (an oversized-compare 406, a
+              # rate-limit body, a timeout). Reading that as "nothing changed" would promote untested
+              # code off a transient API blip, so skip this base. 'identical' is the one legitimately
+              # empty compare, so it is exempt.
               case "$STATUS" in
-                identical) ;;
-                *) printf '%s' "$DIFF" | grep -q '^diff --git ' || continue ;;
+                ahead) [ -z "$FILES" ] && continue ;;
               esac
-              # The diff media type gives the changed paths as plain text, so there is no JSON
-              # to walk at all. Both sides of the header are checked, so a rename cannot slip an
-              # app file past this on its new name. NONDOC is derived from the SAME proven $DIFF.
-              NONDOC=$(printf '%s' "$DIFF" \
-                         | awk '/^diff --git /{print substr($3,3); print substr($4,3)}' \
-                         | sort -u | grep -vE "$SAFE" || true)
+              NONDOC=$(printf '%s' "$FILES" | grep -vE "$SAFE" || true)
               if [ -z "$NONDOC" ]; then echo "Only docs/chore changed since staged commit $BASE (status=$STATUS); app tree matches a staged state. Promoting."; PROMOTABLE=1; break; fi
             done
             if [ "$PROMOTABLE" -ne 1 ]; then

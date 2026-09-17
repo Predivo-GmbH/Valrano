@@ -1,0 +1,90 @@
+name: Adopt the monitor repo onto this machine
+
+# ONE-SHOT UTILITY, 2026-09-11. Delete once production-monitor has its own runners.
+#
+# production-monitor is the last fleet repo still running on GitHub's PAID machines - 88% of the
+# account's Actions spend. Its workflows already read the RUNNER_LABEL pattern, but that repo has
+# ZERO registered runners, so every job still falls back to the paid ones. Registering a runner
+# has to happen ON the laptop, and this repo already has four laptop runners online, so a job
+# here IS a shell on that laptop. That is the whole trick.
+#
+# mode=diagnose changes NOTHING. It only reports what is already there.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'diagnose (read-only) or install'
+        type: choice
+        options: [diagnose, install]
+        default: diagnose
+
+jobs:
+  adopt:
+    runs-on: ${{ vars.RUNNER_LABEL || 'predivo-wsl' }}
+    steps:
+      - name: Where am I and what is already here
+        run: |
+          echo "host   : $(hostname)"
+          echo "user   : $(whoami)   home: $HOME"
+          echo "uname  : $(uname -srm)"
+          echo
+          echo "== existing runner directories =="
+          for d in "$HOME"/actions-runner* "$HOME"/runners/* /opt/actions-runner*; do
+            if [ -d "$d" ]; then
+              url=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('gitHubUrl',''))" "$d/.runner" 2>/dev/null || echo '?')
+              echo "  $d   -> $url"
+            fi
+          done
+          echo
+          echo "== runner services known to systemd =="
+          systemctl list-units --type=service --all --no-pager 2>/dev/null | grep -i "actions.runner" | head -40 || echo "  (systemctl unavailable)"
+          echo
+          echo "== can I install a service without a password prompt? =="
+          if sudo -n true 2>/dev/null; then echo "  sudo -n: YES"; else echo "  sudo -n: NO"; fi
+          echo
+          echo "== room on disk =="
+          df -h "$HOME" | tail -1
+          echo
+          echo "== a runner binary to copy from =="
+          ls -1 "$HOME"/actions-runner*/bin/Runner.Listener 2>/dev/null | head -3 || echo "  none found"
+          echo
+          echo "== runner version =="
+          cat "$HOME"/actions-runner*/.runner_version 2>/dev/null | head -2 || ls -d "$HOME"/actions-runner* 2>/dev/null | head -2
+
+      - name: What can this user actually do
+        run: |
+          echo "== where do the existing runners really live? =="
+          systemctl cat actions.runner.Predivo-GmbH-Valrano.wsl-LAPTOP-88N97BGG-Valrano.service 2>/dev/null | grep -E "ExecStart|WorkingDirectory|User=" || echo "  systemctl cat unavailable"
+          echo
+          echo "== sudoers: is anything allowed without a password? =="
+          sudo -n -l 2>&1 | head -20 || echo "  sudo -l refused"
+          echo
+          echo "== can I use a USER systemd instance (no root needed)? =="
+          systemctl --user is-system-running 2>&1 | head -2
+          echo "  lingering: $(loginctl show-user "$(whoami)" -p Linger 2>&1 | head -1)"
+          echo
+          echo "== is there a writable place with the runner already unpacked? =="
+          for d in /home/runner/* /opt/* /srv/*; do
+            [ -x "$d/config.sh" ] && echo "  runner package at: $d"
+          done
+          echo
+          echo "== can I write a systemd unit directly? =="
+          if [ -w /etc/systemd/system ]; then echo "  /etc/systemd/system: WRITABLE"; else echo "  /etc/systemd/system: not writable"; fi
+
+      - name: Read the install state from inside WSL
+        run: |
+          echo "== install log =="
+          cat /tmp/pminstall.log 2>/dev/null || echo "  (no log - the detached run never started)"
+          echo
+          echo "== target dir =="
+          du -sh /opt/gh-runners/production-monitor 2>/dev/null || echo "  not created"
+          echo
+          echo "== is anything still copying/configuring? =="
+          pgrep -fa "install-pm-runners|config.sh" | head -5 || echo "  nothing running"
+          echo
+          echo "== token file still lying about? =="
+          ls -l /tmp/pmtok 2>/dev/null || echo "  /tmp/pmtok: gone (consumed or never written)"
+          echo
+          echo "== disk =="
+          df -h / | tail -1

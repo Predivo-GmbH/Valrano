@@ -373,17 +373,32 @@ test.describe('AUTH-FLOW-007: Auth Confirm Page', () => {
 
   test('with invalid token_hash shows error or redirects', async ({ page }) => {
     await page.goto('/auth/confirm?token_hash=invalid-hash&type=signup')
-    await page.waitForLoadState('networkidle')
 
-    // Should either show an error message or redirect to /login
-    const body = await page.textContent('body')
-    const hasExpectedContent =
-      body?.includes('Verification failed') ||
-      body?.includes('expired') ||
-      body?.includes('invalid') ||
-      body?.includes('Back to login') ||
-      page.url().includes('/login')
-    expect(hasExpectedContent).toBe(true)
+    // networkidle is NOT "the confirmation answered". Run 34315430901 caught this page
+    // twice in two different states BEFORE any answer existed: once still on the app's
+    // lazy-chunk skeleton ("Loading data"), once mounted with verifyOtp in flight
+    // ("Confirming..."). Sampling body text once after networkidle therefore reads the
+    // page mid-load whenever the runner is busy. Poll the outcome instead - the same
+    // acceptable endings, given time to arrive. (Same fix as AUTH-FLOW-006 above.)
+    await expect
+      .poll(
+        async () => {
+          // textContent throws mid-navigation if the page redirects to /login
+          const body = await page.textContent('body').catch(() => '')
+          return Boolean(
+            body?.includes('Verification failed') ||
+              body?.includes('expired') ||
+              body?.includes('invalid') ||
+              body?.includes('Back to login') ||
+              page.url().includes('/login'),
+          )
+        },
+        {
+          timeout: 20000,
+          message: 'auth/confirm never showed an error and never redirected to /login',
+        },
+      )
+      .toBe(true)
   })
 
   test('shows confirming spinner initially', async ({ page }) => {
