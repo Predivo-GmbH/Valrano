@@ -24,6 +24,7 @@
 import { readFileSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { execFileSync } from 'child_process'
+import { fileURLToPath } from 'url'
 
 const args = process.argv.slice(2)
 const val = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : null }
@@ -41,7 +42,10 @@ function defaultRange() {
 }
 
 // ── what arrived in this change ─────────────────────────────────────────────────────────────
-const here = new URL('./recognise-functionality.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
+// fileURLToPath, never .pathname: a hand-rolled conversion leaves %20 for every space, and this
+// fleet lives under "C:\Business\Internal Projects\...". It passed in CI only because a GitHub
+// runner's checkout path has no spaces in it.
+const here = fileURLToPath(new URL('./recognise-functionality.mjs', import.meta.url))
 let added
 try {
   const out = execFileSync(process.execPath, [here, '--root', ROOT, '--diff', RANGE, '--json'], {
