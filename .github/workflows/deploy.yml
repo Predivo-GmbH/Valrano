@@ -1079,6 +1079,11 @@ jobs:
       - name: Coverage
         run: npm run test:coverage
 
+      # Nothing new ships untested (installed 2026-09-17). BLOCKING - never continue-on-error.
+      # What counts as a functionality: docs/WHAT-COUNTS-AS-A-FUNCTIONALITY.md
+      - name: Nothing new shipped without its test (BLOCKING)
+        run: node scripts/check-new-functionality-registered.mjs
+
       - name: Feature Coverage Check
         run: node scripts/check-feature-coverage.mjs
 
