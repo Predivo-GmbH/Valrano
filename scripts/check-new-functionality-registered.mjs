@@ -29,19 +29,48 @@ import { fileURLToPath } from 'url'
 const args = process.argv.slice(2)
 const val = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : null }
 const ROOT = resolve(val('--root') || process.cwd())
-const RANGE = val('--diff') || defaultRange()
+// Guard the CLI body so importing this module (to unit-test defaultRange) runs nothing and never
+// calls process.exit — the same pattern recognise-functionality.mjs uses.
+const IS_CLI = process.argv[1] && process.argv[1].endsWith('check-new-functionality-registered.mjs')
 
-function defaultRange() {
-  for (const base of ['origin/main', 'origin/master', 'main', 'master']) {
-    try {
-      execFileSync('git', ['rev-parse', '--verify', base], { cwd: ROOT, stdio: 'ignore' })
-      return `${base}...HEAD`
-    } catch { /* try the next one */ }
+function revParse(ref, cwd) {
+  try {
+    // stderr ignored: a ref that does not exist here (origin/main on a repo with no origin) is an
+    // expected miss, not an error to print.
+    return execFileSync('git', ['rev-parse', '--verify', ref], {
+      cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+  } catch { return null }
+}
+
+// The range the gate diffs when nothing is passed on the command line.
+//
+// THE EMPTY-RANGE BUG this replaces: it returned `${base}...HEAD` for the first of origin/main,
+// origin/master, main, master that resolved. On a production deploy the checkout IS main, so
+// `main...HEAD` (or `origin/main...HEAD`) is EMPTY — the gate diffed a commit against itself, saw
+// zero changes, and passed everything. The gate was a guaranteed no-op on the exact event it was
+// installed to guard (a workflow_dispatch production promotion off main).
+//
+// FIX: a base that resolves to the same commit as HEAD yields an empty range and is useless, so
+// skip it. An explicit FUNCTIONALITY_GATE_BASE (e.g. the last-deployed production sha, set by the
+// deploy workflow) wins when present. If every candidate equals HEAD — the normal case on a main
+// deploy — fall back to the tip commit being shipped, which is never empty.
+export function defaultRange(cwd = ROOT) {
+  const head = revParse('HEAD', cwd)
+  const envBase = process.env.FUNCTIONALITY_GATE_BASE
+  const candidates = envBase ? [envBase] : ['origin/main', 'origin/master', 'main', 'master']
+  for (const base of candidates) {
+    const b = revParse(base, cwd)
+    if (!b) continue
+    if (b === head) continue // base IS HEAD -> empty range -> the gate would check nothing
+    return `${base}...HEAD`
   }
-  return 'HEAD~1'
+  return 'HEAD~1...HEAD'
 }
 
 // ── what arrived in this change ─────────────────────────────────────────────────────────────
+if (IS_CLI) {
+const RANGE = val('--diff') || defaultRange(ROOT)
 // fileURLToPath, never .pathname: a hand-rolled conversion leaves %20 for every space, and this
 // fleet lives under "C:\Business\Internal Projects\...". It passed in CI only because a GitHub
 // runner's checkout path has no spaces in it.
@@ -170,3 +199,4 @@ console.error(
   `\n    ### F-0NN: <what the user can do>\n    - **Status:** tested\n    - **Test Files:** E2E: \`e2e/<name>.spec.ts\`\n`
 )
 process.exit(1)
+}
