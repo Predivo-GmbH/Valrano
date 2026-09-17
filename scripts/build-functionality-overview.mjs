@@ -21,6 +21,7 @@
 import { readFileSync, existsSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
 import { execFileSync } from 'child_process'
+import { fileURLToPath } from 'url'
 
 const args = process.argv.slice(2)
 const val = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : null }
@@ -30,7 +31,8 @@ const OUT = resolve(val('--out') || join(ROOT, 'docs', 'FUNCTIONALITY-OVERVIEW.h
 const product = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8')).name || 'this product'
 
 // ── what the code has ───────────────────────────────────────────────────────────────────────
-const recogniser = new URL('./recognise-functionality.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
+// fileURLToPath, never .pathname — see the note in check-new-functionality-registered.mjs
+const recogniser = fileURLToPath(new URL('./recognise-functionality.mjs', import.meta.url))
 let recognised = { total: 0, unclassified: 0, items: [] }
 try {
   recognised = JSON.parse(execFileSync(process.execPath, [recogniser, '--root', ROOT, '--json'], {
