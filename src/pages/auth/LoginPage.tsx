@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useRef, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { Eye, EyeOff } from 'lucide-react'
@@ -7,6 +7,7 @@ import { loginSchema } from '@/lib/validation'
 import AuthLayout from '@/components/auth/AuthLayout'
 import OtpInput from '@/components/auth/OtpInput'
 import ResendTimer from '@/components/auth/ResendTimer'
+import TurnstileWidget, { type TurnstileHandle } from '@/components/TurnstileWidget'
 import { friendlyAuthError } from '@/lib/utils'
 import { useWaitlist } from '@/features/waitlist/useWaitlist'
 import { REGISTRATIONS_OPEN } from '@/features/waitlist/config'
@@ -23,6 +24,14 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  // Cloudflare Turnstile tokens for the two sign-in forms. Managed mode solves invisibly for
+  // real users; the token is single-use, so reset() after each submit to fetch a fresh one.
+  // The token is passed to Supabase but only enforced once CAPTCHA is on in Auth settings, so
+  // this is a no-op until that server switch is flipped (outage-safe deploy).
+  const [passwordToken, setPasswordToken] = useState<string | null>(null)
+  const [codeToken, setCodeToken] = useState<string | null>(null)
+  const passwordTurnstileRef = useRef<TurnstileHandle>(null)
+  const codeTurnstileRef = useRef<TurnstileHandle>(null)
   const { signInWithPassword, sendLoginOtp, verifyOtp, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
@@ -39,11 +48,12 @@ export default function LoginPage() {
     }
     setLoading(true)
     try {
-      await signInWithPassword(email, password)
+      await signInWithPassword(email, password, passwordToken ?? undefined)
       navigate('/dashboard')
     } catch (err) {
       setError(friendlyAuthError(err, 'Login failed'))
     } finally {
+      passwordTurnstileRef.current?.reset()
       setLoading(false)
     }
   }
@@ -53,11 +63,12 @@ export default function LoginPage() {
     setError(null)
     setLoading(true)
     try {
-      await sendLoginOtp(email)
+      await sendLoginOtp(email, codeToken ?? undefined)
       setCodeStep('verify')
     } catch (err) {
       setError(friendlyAuthError(err, 'Failed to send login code'))
     } finally {
+      codeTurnstileRef.current?.reset()
       setLoading(false)
     }
   }
@@ -77,9 +88,11 @@ export default function LoginPage() {
 
   async function handleResend() {
     try {
-      await sendLoginOtp(email)
+      await sendLoginOtp(email, codeToken ?? undefined)
     } catch (err) {
       setError(friendlyAuthError(err, 'Failed to resend code'))
+    } finally {
+      codeTurnstileRef.current?.reset()
     }
   }
 
@@ -160,6 +173,7 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+          <TurnstileWidget ref={passwordTurnstileRef} onToken={setPasswordToken} />
           <button type="submit" disabled={loading}
             className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-medium text-white transition-all hover:brightness-110 hover:shadow-lg hover:shadow-[var(--color-accent)]/25 active:scale-[0.98] disabled:opacity-50 cursor-pointer">
             {loading ? 'Signing in...' : 'Sign In'}
@@ -181,6 +195,7 @@ export default function LoginPage() {
               className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 sm:text-sm"
               placeholder="you@company.com" />
           </div>
+          <TurnstileWidget ref={codeTurnstileRef} onToken={setCodeToken} />
           <button type="submit" disabled={loading}
             className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-medium text-white transition-all hover:brightness-110 hover:shadow-lg hover:shadow-[var(--color-accent)]/25 active:scale-[0.98] disabled:opacity-50 cursor-pointer">
             {loading ? 'Sending code...' : 'Send Sign-In Code'}

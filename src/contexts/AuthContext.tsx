@@ -6,13 +6,16 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 export interface AuthContextValue {
   user: SupabaseUser | null
   loading: boolean
-  signInWithPassword: (email: string, password: string) => Promise<void>
-  sendOtp: (email: string) => Promise<void>
-  sendLoginOtp: (email: string) => Promise<void>
+  /** Traditional email+password sign in. captchaToken is a Cloudflare Turnstile token,
+   *  required once CAPTCHA is enabled in Auth settings (no-op before that). */
+  signInWithPassword: (email: string, password: string, captchaToken?: string) => Promise<void>
+  sendOtp: (email: string, captchaToken?: string) => Promise<void>
+  sendLoginOtp: (email: string, captchaToken?: string) => Promise<void>
   verifyOtp: (email: string, token: string) => Promise<{ isNewUser: boolean }>
   hasCompletedProfile: () => boolean
   completeProfile: (password: string, fullName: string) => Promise<void>
-  resetPassword: (email: string) => Promise<void>
+  /** Send password reset email. captchaToken required once CAPTCHA is enabled (no-op before). */
+  resetPassword: (email: string, captchaToken?: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>
   deleteAccount: () => Promise<void>
   signOut: () => Promise<void>
@@ -121,26 +124,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [queryClient])
 
-  const signInWithPassword = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const signInWithPassword = useCallback(async (email: string, password: string, captchaToken?: string) => {
+    // captchaToken is threaded through to GoTrue's /token endpoint. It is IGNORED by the server
+    // until CAPTCHA is enabled in the project's Auth settings, so passing it (or not) is a no-op
+    // today — which is exactly what makes shipping this client change outage-safe.
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: captchaToken ? { captchaToken } : undefined,
+    })
     if (error) throw error
   }, [])
 
-  const sendOtp = useCallback(async (email: string) => {
+  const sendOtp = useCallback(async (email: string, captchaToken?: string) => {
     // Sign out any existing session before starting signup flow —
     // prevents stale session data leaking into the new user's onboarding
     await supabase.auth.signOut().catch(() => {})
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true },
+      options: { shouldCreateUser: true, ...(captchaToken ? { captchaToken } : {}) },
     })
     if (error) throw error
   }, [])
 
-  const sendLoginOtp = useCallback(async (email: string) => {
+  const sendLoginOtp = useCallback(async (email: string, captchaToken?: string) => {
+    // shouldCreateUser: false — only sends OTP if account exists. Supabase returns 200
+    // regardless (prevents email enumeration), so a still-tokenless request cannot be told apart
+    // from a legitimate one at this level — captchaToken guards the /otp endpoint itself, once
+    // CAPTCHA is enabled server-side. No-op until that switch is flipped.
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: false },
+      options: { shouldCreateUser: false, ...(captchaToken ? { captchaToken } : {}) },
     })
     if (error) throw error
   }, [])
@@ -168,9 +182,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  const resetPassword = useCallback(async (email: string) => {
+  const resetPassword = useCallback(async (email: string, captchaToken?: string) => {
+    // captchaToken guards the /recover endpoint (also captcha-protected project-wide once
+    // enabled); no-op until CAPTCHA is enabled server-side.
     const redirectTo = `${window.location.origin}/reset-password`
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+      ...(captchaToken ? { captchaToken } : {}),
+    })
     if (error) throw error
   }, [])
 

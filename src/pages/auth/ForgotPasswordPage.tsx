@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useRef, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useAuth } from '@/hooks/useAuth'
 import AuthLayout from '@/components/auth/AuthLayout'
+import TurnstileWidget, { type TurnstileHandle } from '@/components/TurnstileWidget'
 import { friendlyAuthError } from '@/lib/utils'
 
 export default function ForgotPasswordPage() {
@@ -10,6 +11,10 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
+  // Turnstile token — no-op until CAPTCHA is enabled server-side; /recover is captcha-protected
+  // project-wide once that switch is flipped, so this form carries a token like the sign-in forms.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileHandle>(null)
   const { resetPassword } = useAuth()
 
   async function handleSubmit(e: FormEvent) {
@@ -17,11 +22,12 @@ export default function ForgotPasswordPage() {
     setError(null)
     setLoading(true)
     try {
-      await resetPassword(email)
+      await resetPassword(email, captchaToken ?? undefined)
       setSent(true)
     } catch (err) {
       setError(friendlyAuthError(err, 'Failed to send reset email'))
     } finally {
+      turnstileRef.current?.reset()
       setLoading(false)
     }
   }
@@ -65,6 +71,7 @@ export default function ForgotPasswordPage() {
                 className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-3 text-base text-[var(--color-foreground)] placeholder:text-[var(--color-muted-foreground)] focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 sm:text-sm"
                 placeholder="you@company.com" />
             </div>
+            <TurnstileWidget ref={turnstileRef} onToken={setCaptchaToken} />
             <button type="submit" disabled={loading}
               className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-3 text-sm font-medium text-accent-foreground transition-colors hover:opacity-90 disabled:opacity-50">
               {loading ? 'Sending...' : 'Send Reset Link'}

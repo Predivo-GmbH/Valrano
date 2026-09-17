@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useRef, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { Eye, EyeOff } from 'lucide-react'
@@ -7,6 +7,7 @@ import { signupProfileSchema } from '@/lib/validation'
 import AuthLayout from '@/components/auth/AuthLayout'
 import OtpInput from '@/components/auth/OtpInput'
 import ResendTimer from '@/components/auth/ResendTimer'
+import TurnstileWidget, { type TurnstileHandle } from '@/components/TurnstileWidget'
 import PasswordStrength from '@/components/auth/PasswordStrength'
 import { getPasswordScore } from '@/components/auth/password-utils'
 import { friendlyAuthError } from '@/lib/utils'
@@ -39,17 +40,22 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  // Cloudflare Turnstile token for the signup email step. No-op until CAPTCHA is enabled
+  // server-side; see TurnstileWidget.tsx.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileHandle>(null)
 
   async function handleSendCode(e: FormEvent) {
     e.preventDefault()
     setError(null)
     setLoading(true)
     try {
-      await sendOtp(email)
+      await sendOtp(email, captchaToken ?? undefined)
       setStep('verify')
     } catch (err) {
       setError(friendlyAuthError(err, 'Failed to send verification code'))
     } finally {
+      turnstileRef.current?.reset()
       setLoading(false)
     }
   }
@@ -96,9 +102,11 @@ export default function SignUpPage() {
 
   async function handleResend() {
     try {
-      await sendOtp(email)
+      await sendOtp(email, captchaToken ?? undefined)
     } catch (err) {
       setError(friendlyAuthError(err, 'Failed to resend code'))
+    } finally {
+      turnstileRef.current?.reset()
     }
   }
 
@@ -148,6 +156,7 @@ export default function SignUpPage() {
               <label htmlFor="signup-email" className="block text-sm font-medium text-[var(--color-foreground)]">Business email</label>
               <input id="signup-email" type="email" required autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} placeholder="you@company.com" aria-describedby={error ? 'signup-error' : undefined} />
             </div>
+            <TurnstileWidget ref={turnstileRef} onToken={setCaptchaToken} />
             <button type="submit" disabled={loading} className={btnCls}>{loading ? 'Sending code...' : 'Continue'}</button>
           </form>
           <p className="mt-6 text-center text-sm text-[var(--color-muted-foreground)]">
