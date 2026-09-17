@@ -19,7 +19,7 @@
  */
 
 import { execFileSync } from 'child_process'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import assert from 'node:assert/strict'
@@ -140,5 +140,23 @@ console.log('functionality-gate-diffs.test.mjs')
   ok('gate passes when the new functionality has a row and a real test file')
 }
 
-console.log(`\n${passed}/5 checks passed`)
-assert.equal(passed, 5)
+// ── WIRING: the prod deploy job fetches full history, or the fixed range breaks in real CI ────
+// The fix only works if the deploy job's checkout has `fetch-depth: 0`: a default depth-1 checkout
+// has no HEAD~1, so the fixed defaultRange (main==HEAD -> HEAD~1...HEAD) would make `git diff` fail
+// and the gate would exit 1 on EVERY promotion. This guard fails if someone removes fetch-depth: 0
+// from the job that runs the gate — a regression the full-history fixtures above cannot see.
+{
+  const yml = readFileSync(join(HERE, '..', '.github', 'workflows', 'deploy.yml'), 'utf-8')
+  // isolate the `deploy:` job (2-space indented, the last top-level job) through end of file
+  const m = /^ {2}deploy:\s*$/m.exec(yml)
+  assert.ok(m, 'deploy.yml must have a `deploy:` job')
+  const deployJob = yml.slice(m.index)
+  assert.match(deployJob, /check-new-functionality-registered\.mjs/,
+    'the deploy job must still run the functionality gate')
+  assert.match(deployJob, /fetch-depth:\s*0/,
+    'the deploy job that runs the gate must checkout with fetch-depth: 0, or the fixed range fails in a depth-1 CI checkout')
+  ok('deploy job runs the gate AND fetches full history (fetch-depth: 0)')
+}
+
+console.log(`\n${passed}/6 checks passed`)
+assert.equal(passed, 6)

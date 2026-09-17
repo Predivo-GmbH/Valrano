@@ -1062,6 +1062,14 @@ jobs:
           echo "Staging gate passed - commit $SHA has a green staging run. Promoting to production."
 
       - uses: actions/checkout@v5
+        with:
+          # fetch-depth: 0 is REQUIRED by the functionality gate below. A prod promotion is a
+          # workflow_dispatch off main, so the checkout IS main and origin/main == HEAD — the gate's
+          # defaultRange skips that empty base and diffs HEAD~1...HEAD (the tip commit's own change).
+          # A default depth-1 checkout has no HEAD~1, so that diff would fail and the gate would
+          # exit 1 on EVERY promotion. Full history makes the fallback (and any FUNCTIONALITY_GATE_BASE)
+          # resolvable. gate-security already fetches full history for the same class of reason.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -1081,6 +1089,9 @@ jobs:
 
       # Nothing new ships untested (installed 2026-09-17). BLOCKING - never continue-on-error.
       # What counts as a functionality: docs/WHAT-COUNTS-AS-A-FUNCTIONALITY.md
+      # The gate diffs HEAD~1...HEAD here (see defaultRange in the script) — a real, non-empty range
+      # only because the checkout above fetches full history. It caught nothing before this fix
+      # because origin/main == HEAD made the range empty. See docs/RECORD-functionality-gate-empty-range-fixed-2026-09-17.md
       - name: Nothing new shipped without its test (BLOCKING)
         run: node scripts/check-new-functionality-registered.mjs
 
