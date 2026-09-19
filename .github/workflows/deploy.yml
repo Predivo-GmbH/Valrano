@@ -1087,11 +1087,54 @@ jobs:
       - name: Coverage
         run: npm run test:coverage
 
+      # Resolve the base the functionality gate diffs against: the commit CURRENTLY LIVE IN
+      # PRODUCTION — the head_sha of the last successful prod promotion (a workflow_dispatch run of
+      # this workflow that concluded success; a `push` run is a staging deploy, not a promotion).
+      # base...HEAD then covers EVERY commit shipping in this promotion, not just the tip.
+      #
+      # WHY THIS STEP EXISTS: with FUNCTIONALITY_GATE_BASE unset, the script's defaultRange sees
+      # origin/main == HEAD on a workflow_dispatch off main, skips that empty base, and falls back to
+      # HEAD~1...HEAD (the tip commit only). A promotion after N pushes then checked commit N and
+      # shipped 1..N-1 unchecked. See docs/RECORD-functionality-gate-tip-commit-only-on-promotion-2026-09-19.md
+      #
+      # FAIL-CLOSED: if the base cannot be resolved (no prior successful prod promotion yet, or the
+      # GitHub API request failed) we exit 1 rather than let the gate silently fall back to the
+      # tip-only range. A gate that cannot establish what is already live cannot certify what is new.
+      - name: Resolve functionality-gate base (last production promotion)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          API="https://api.github.com/repos/$GH_REPO"
+          # Same fail-closed curl helper as the staging-gate step above: -f makes a non-2xx yield
+          # empty output (never a error-body parsed as content); `|| true` keeps "failed request =>
+          # empty" literally true so the emptiness check below fires instead of aborting the step.
+          api() { curl -fsS -m 30 -H "Authorization: Bearer $GH_TOKEN" -H "Accept: $2" "$1" || true; }
+          json() { api "$1" 'application/vnd.github+json'; }
+          # status=success returns ONLY green runs, newest-first; event=workflow_dispatch selects PROD
+          # promotions. The current in-flight run is not "success" yet, so it never appears here — the
+          # first head_sha is therefore the commit last promoted to production.
+          BASE=$(json "$API/actions/workflows/deploy.yml/runs?branch=main&event=workflow_dispatch&status=success&per_page=1" \
+                   | grep -o '"head_sha": *"[0-9a-f]\{40\}"' | head -1 | awk -F'"' '{print $4}')
+          if [ -z "$BASE" ]; then
+            echo "::error::Could not resolve the last successful production promotion (no prior green workflow_dispatch run of deploy.yml, or the GitHub API request failed). The functionality gate cannot establish what is already live, so this promotion is blocked (fail-closed). Retry once a prior production deploy exists and the API is reachable."
+            exit 1
+          fi
+          # fetch-depth: 0 was fetched above, but a base older than the fetched history would make the
+          # diff fail — and defaultRange would then silently drop back to HEAD~1...HEAD. Verify the
+          # base commit is present and fail-closed if not, so the tip-only fallback can never happen.
+          if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            echo "::error::The last production commit $BASE is not present in the checkout history, so the functionality-gate range cannot be computed. Blocking (fail-closed)."
+            exit 1
+          fi
+          echo "Functionality-gate base = $BASE (commit last promoted to production)."
+          echo "FUNCTIONALITY_GATE_BASE=$BASE" >> "$GITHUB_ENV"
+
       # Nothing new ships untested (installed 2026-09-17). BLOCKING - never continue-on-error.
       # What counts as a functionality: docs/WHAT-COUNTS-AS-A-FUNCTIONALITY.md
-      # The gate diffs HEAD~1...HEAD here (see defaultRange in the script) — a real, non-empty range
-      # only because the checkout above fetches full history. It caught nothing before this fix
-      # because origin/main == HEAD made the range empty. See docs/RECORD-functionality-gate-empty-range-fixed-2026-09-17.md
+      # The gate diffs FUNCTIONALITY_GATE_BASE...HEAD — the base is the last production commit,
+      # resolved and exported by the step above (which fails closed if it cannot be resolved). This
+      # replaces the old HEAD~1...HEAD tip-only range that shipped intermediate commits unchecked.
       - name: Nothing new shipped without its test (BLOCKING)
         run: node scripts/check-new-functionality-registered.mjs
 

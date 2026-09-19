@@ -158,5 +158,33 @@ console.log('functionality-gate-diffs.test.mjs')
   ok('deploy job runs the gate AND fetches full history (fetch-depth: 0)')
 }
 
-console.log(`\n${passed}/6 checks passed`)
-assert.equal(passed, 6)
+// ── WIRING: the deploy job resolves an explicit production base BEFORE the gate, and fails closed ─
+// The empty-range fix above stops the gate diffing main against itself, but on a promotion off main
+// defaultRange still falls back to HEAD~1...HEAD (the TIP commit only) unless FUNCTIONALITY_GATE_BASE
+// is set. A promotion after N pushes would then check commit N and ship 1..N-1 unchecked. The deploy
+// job must resolve the last production promotion's head_sha, export it as the base, and FAIL CLOSED
+// (exit 1) when it cannot — never let the gate quietly fall back to the tip-only range. This guard
+// fails against the pre-fix workflow, which set the base nowhere.
+{
+  const yml = readFileSync(join(HERE, '..', '.github', 'workflows', 'deploy.yml'), 'utf-8')
+  const m = /^ {2}deploy:\s*$/m.exec(yml)
+  assert.ok(m, 'deploy.yml must have a `deploy:` job')
+  const deployJob = yml.slice(m.index)
+  // The base is the last SUCCESSFUL PROD PROMOTION (a workflow_dispatch run), not the last staged push.
+  assert.match(deployJob, /event=workflow_dispatch&status=success/,
+    'the deploy job must resolve the base from the last successful workflow_dispatch (prod promotion) run')
+  // It must EXPORT that base so the gate script picks it up as FUNCTIONALITY_GATE_BASE.
+  const exportIdx = deployJob.search(/FUNCTIONALITY_GATE_BASE=\$BASE"?\s*>>\s*"?\$GITHUB_ENV/)
+  assert.ok(exportIdx >= 0, 'the deploy job must export FUNCTIONALITY_GATE_BASE to $GITHUB_ENV')
+  // It must FAIL CLOSED when the base cannot be resolved — an exit 1 guarded by an empty-base test.
+  assert.match(deployJob, /if \[ -z "\$BASE" \][\s\S]{0,400}exit 1/,
+    'the deploy job must exit 1 (fail-closed) when the production base cannot be resolved')
+  // The base must be resolved+exported BEFORE the gate runs, or the export is useless.
+  const gateIdx = deployJob.search(/check-new-functionality-registered\.mjs/)
+  assert.ok(gateIdx >= 0, 'the deploy job must still run the functionality gate')
+  assert.ok(exportIdx < gateIdx, 'FUNCTIONALITY_GATE_BASE must be exported BEFORE the gate step runs')
+  ok('deploy job resolves+exports the production base before the gate and fails closed if it cannot')
+}
+
+console.log(`\n${passed}/7 checks passed`)
+assert.equal(passed, 7)
