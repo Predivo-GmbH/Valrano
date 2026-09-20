@@ -205,6 +205,30 @@ jobs:
           fi
           echo "OK - no new type errors."
 
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          # cache: npm removed deliberately - see the "NPM CACHE / self-hosted runner" note in deploy.yml
+
+      # The scripts/*.test.mjs finish-tests run in NO other job: vitest only collects
+      # src/**/*.test.{ts,tsx}, so without this step these guards execute nowhere and the
+      # wiring they pin can be deleted with every check staying green.
+      # functionality-gate-diffs is the one that pins the 'Resolve functionality-gate base'
+      # step in the prod job below: if that step is edited away, reordered after the gate,
+      # or loses its fail-closed exit 1, THIS step goes red - otherwise nothing would.
+      # The two *.live.test.mjs mailbox suites are deliberately NOT here: they are named
+      # .live. because they need the gitignored credentials file and the network, neither
+      # of which a CI runner has. A guard that reds for want of a dependency it cannot
+      # have is not stricter, it is broken.
+      - name: Wiring guards - scripts/*.test.mjs suites no other job runs
+        run: |
+          node scripts/functionality-gate-diffs.test.mjs
+          node scripts/a-starved-prerender-is-not-a-broken-build.test.mjs
+          node scripts/lib/relay-enforcement-verdict.test.mjs
+          node scripts/the-nightly-gauntlet-still-has-a-clock.test.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # ===========================================================================
   # FAST STAGING DEPLOY — every push. One job, one runner, one npm ci, build once.
   # lint + unit tests are the per-push gates (the test pyramid's fast base): a
