@@ -144,7 +144,9 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: v11-gates-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            !playwright-report/data/**
           retention-days: 7
 
   # ---------------------------------------------------------------------------------------
@@ -259,5 +261,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: v11-gates-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            !playwright-report/data/**
           retention-days: 7

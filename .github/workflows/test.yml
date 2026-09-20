@@ -107,4 +107,5 @@ jobs:
           name: critical-path-results
           path: |
             playwright-report/
-            test-results/
+            !playwright-report/data/**
+            test-results/**/*.json
