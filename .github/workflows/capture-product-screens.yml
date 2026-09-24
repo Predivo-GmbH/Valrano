@@ -29,6 +29,12 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - name: Take the test user's address from the staging checks (masked, never printed)
+        run: |
+          for k in STAGING_TEST_EMAIL STAGING_HTTP_USER; do
+            v=$(grep -oE "^\s*$k:\s*\S+" .github/workflows/staging-gates.yml | head -1 | sed -E "s/^\s*$k:\s*//; s/^['\"]//; s/['\"]$//")
+            if [ -n "$v" ] && [ "${v#\$\{\{}" = "$v" ]; then echo "::add-mask::$v"; echo "$k=$v" >> "$GITHUB_ENV"; echo "$k: taken"; else echo "$k: not set there"; fi
+          done
       - name: Sign in as the staging test user (the staging checks' own setup)
         run: npx playwright test --config playwright.staging.config.ts --project=staging-auth-setup --trace=off
       - name: Capture the screens
