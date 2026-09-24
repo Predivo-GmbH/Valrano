@@ -46,6 +46,18 @@ jobs:
           ls -l pdfs
       - name: Give the test user real content through Valrano's own screens (cost-guarded)
         run: node scripts/fill-staging-demo.mjs
+      - name: Diagnose the test copy (bucket names and the functions' last error messages only)
+        if: always()
+        env:
+          SB_URL: ${{ secrets.SUPABASE_STAGING_URL }}
+          SB_SERVICE: ${{ secrets.SUPABASE_STAGING_SERVICE_ROLE_KEY }}
+          SB_MGMT: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "storage buckets:"; curl -s "$SB_URL/storage/v1/bucket" -H "Authorization: Bearer $SB_SERVICE" -H "apikey: $SB_SERVICE" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);console.log(Array.isArray(j)?j.map(b=>b.name).join(', '):('answer: '+(j.message||j.error||'?')))}catch{console.log('unreadable answer')}})"
+          START=$(date -u -d '-90 min' +%Y-%m-%dT%H:%M:%SZ); END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          SQL="select timestamp, event_message from function_logs order by timestamp desc limit 200"
+          curl -s -G "https://api.supabase.com/v1/projects/vfwpcgdkrwqhdivfzmrg/analytics/endpoints/logs.all" --data-urlencode "sql=$SQL" --data-urlencode "iso_timestamp_start=$START" --data-urlencode "iso_timestamp_end=$END" -H "Authorization: Bearer $SB_MGMT" \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);const r=(j.result||[]).map(x=>String(x.event_message||'').replace(/\s+/g,' ').slice(0,300)).filter(m=>/error|fail|upload|bucket|storage|denied|violat/i.test(m));console.log(r.length?r.slice(0,25).join('\n'):('no matching log lines; answer keys: '+Object.keys(j).join(',')+(j.error?(' error: '+JSON.stringify(j.error).slice(0,200)):'')))}catch{console.log('unreadable answer')}})"
       - name: Capture the screens
         if: always()
         run: node scripts/capture-product-screens.mjs
