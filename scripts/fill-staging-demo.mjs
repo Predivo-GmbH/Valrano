@@ -50,7 +50,15 @@ try {
   else {
     await go('/onboarding')
     await snap('onboarding')
-    await page.locator('input[type="file"][accept*="pdf"]').first().setInputFiles(PDF.own)
+    /* as a person does it: click the drop zone, pick the file in the chooser (setting the hidden input
+       directly left the drop zone untouched on the first run, 2026-09-24) */
+    const zone = page.getByRole('button', { name: /Upload PDF file/i }).or(page.getByText(/Drop your latest annual report/i)).first()
+    await zone.waitFor({ timeout: 30000 })
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser', { timeout: 15000 }), zone.click()])
+    await chooser.setFiles(PDF.own)
+    await page.waitForTimeout(8000)
+    await snap('onboarding-uploading')
+    if (await page.getByText(/Drop your latest annual report/i).count()) { note('own company: the drop zone did not take the file'); throw new Error('upload did not start') }
     note('own company: Geberit report uploaded, waiting for the analysis')
     await page.getByText(/Report analyzed/i).first().waitFor({ timeout: 12 * 60000 })
     await snap('onboarding-analyzed')
