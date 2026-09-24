@@ -37,6 +37,17 @@ await ctx.addInitScript(() => {
     document.querySelectorAll('[data-sonner-toast]').forEach(t => { const x = t.innerText.replace(/s+/g, ' ').trim(); if (x && !window.__toasts.includes(x)) window.__toasts.push(x) })
   }).observe(document, { subtree: true, childList: true })
 })
+/* Valrano's functions allow browser calls only from valrano.com and localhost (supabase/functions/_shared/
+   cors.ts), so on staging.valrano.com the browser refuses every function call - uploads included
+   (found 2026-09-24). Changing that means a Valrano deploy, and Valrano is parked. So THIS browser, and
+   only this one, passes its function calls on from the job itself and marks the answer as allowed for the
+   staging address. Nothing in Valrano or its test copy changes. */
+await ctx.route(/\.supabase\.co\/functions\/v1\//, async (route) => {
+  const cors = { 'access-control-allow-origin': 'https://staging.valrano.com', 'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type', 'access-control-allow-methods': 'POST, GET, OPTIONS' }
+  if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 200, headers: cors })
+  const res = await route.fetch({ timeout: 15 * 60000 })
+  await route.fulfill({ response: res, headers: { ...res.headers(), ...cors } })
+})
 const page = await ctx.newPage()
 page.on('dialog', d => d.accept())
 /* which request died, and what each function answered - paths and status codes only, never bodies */
