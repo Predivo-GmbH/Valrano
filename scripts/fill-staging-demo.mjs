@@ -31,6 +31,12 @@ const ctx = await browser.newContext({
   viewport: { width: 1440, height: 900 }, storageState: STATE,
   httpCredentials: { username: process.env.STAGING_HTTP_USER || 'staging', password: process.env.STAGING_HTTP_PASS || '' },
 })
+await ctx.addInitScript(() => {
+  window.__toasts = []
+  new MutationObserver(() => {
+    document.querySelectorAll('[data-sonner-toast]').forEach(t => { const x = t.innerText.replace(/s+/g, ' ').trim(); if (x && !window.__toasts.includes(x)) window.__toasts.push(x) })
+  }).observe(document, { subtree: true, childList: true })
+})
 const page = await ctx.newPage()
 page.on('dialog', d => d.accept())   // the duplicate-upload confirm
 let shot = 0
@@ -41,7 +47,8 @@ page.on('response', async r => {
   try { const j = await r.json(); const u = j.usage || j.usageMetadata; if (u) usage.push({ fn: r.url().split('/').pop(), u }) } catch {}
 })
 /* the pop-up messages Valrano shows (sonner toasts) - the only place its errors appear */
-const toasts = async () => (await page.locator('[data-sonner-toast], [role="status"], [role="alert"]').allInnerTexts()).map(t => t.replace(/s+/g, ' ').trim()).filter(Boolean).join(' | ')
+let seen = 0
+const toasts = async () => { const all = await page.evaluate(() => window.__toasts || []).catch(() => []); const fresh = all.slice(seen); seen = all.length; return fresh.join(' | ') }
 const go = async (p) => { await page.goto(BASE + p, { waitUntil: 'load', timeout: 60000 }); await page.waitForTimeout(3000) }
 
 try {
@@ -50,7 +57,7 @@ try {
   /* wait until the page has decided: the empty state, or the company's own Upload Report button */
   await page.getByText(/No company configured/i).or(page.getByRole('button', { name: /Upload Report/i })).first().waitFor({ timeout: 45000 })
   await snap('my-company')
-  const hasCompany = !(await page.getByText(/No company configured/i).count())
+  const hasCompany = !(await page.getByText(/No company configured/i).count()) && !(await page.getByText(/Pending Analysis/).count())
   if (hasCompany) note('own company: already set up - skipped')
   else {
     await go('/onboarding')
@@ -66,7 +73,14 @@ try {
     note('own company: messages after upload: ' + (await toasts() || 'none'))
     if (await page.getByText(/Drop your latest annual report/i).count()) { note('own company: the drop zone did not take the file'); throw new Error('upload did not start') }
     note('own company: Geberit report uploaded, waiting for the analysis')
-    await page.getByText(/Report analyzed/i).first().waitFor({ timeout: 12 * 60000 })
+    const until = Date.now() + 12 * 60000
+    while (Date.now() < until) {
+      const m = await toasts(); if (m) note('own company: message: ' + m)
+      if (await page.getByText(/Report analyzed/i).count()) break
+      if (/error|failed|could not|unable/i.test(m)) throw new Error('Valrano said: ' + m)
+      await page.waitForTimeout(5000)
+    }
+    if (!(await page.getByText(/Report analyzed/i).count())) throw new Error('no "Report analyzed" within 12 minutes')
     await snap('onboarding-analyzed')
     const u = usage.map(x => x.u)
     const inTok = u.reduce((a, x) => a + (x.input_tokens || x.promptTokenCount || 0), 0)
@@ -105,6 +119,8 @@ try {
       const opt = page.locator('ul[role="listbox"] li[role="option"]').filter({ hasText: new RegExp(name, 'i') }).first()
       if (await opt.count()) await opt.dispatchEvent('mousedown')
       await page.waitForTimeout(4000)
+      await page.getByPlaceholder(/e.g. HOLN/i).click()   // closes the search list that covered the form
+      await page.waitForTimeout(800)
       await snap(`add-peer-${name}-form`)
       await page.getByRole('button', { name: /^Add Company$/ }).click()
       await page.waitForTimeout(6000); await snap(`add-peer-${name}-after`)
