@@ -16,7 +16,7 @@ permissions:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     env:
       NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
       STAGING_URL: https://staging.valrano.com
@@ -37,10 +37,23 @@ jobs:
           done
       - name: Sign in as the staging test user (the staging checks' own setup)
         run: npx playwright test --config playwright.staging.config.ts --project=staging-auth-setup --trace=off
+      - name: Fetch three public 2025 annual reports (Geberit, Sika, Belimo)
+        run: |
+          mkdir -p pdfs
+          curl -sfL -A "Mozilla/5.0" -o pdfs/geberit-2025.pdf "https://www.geberit.com/assets/downloads/publications/2026/annual_report_2025_en.pdf"
+          curl -sfL -A "Mozilla/5.0" -o pdfs/sika-2025.pdf "https://www.sika.com/dms/getdocument.get/25912ef3-3470-49d7-b658-f41ccfb7a317/glo-ar-25-annual-report.pdf"
+          curl -sfL -A "Mozilla/5.0" -o pdfs/belimo-2025.pdf "https://report.belimo.com/ar25/app/uploads/Annual-Report-2025.pdf"
+          ls -l pdfs
+      - name: Give the test user real content through Valrano's own screens (cost-guarded)
+        run: node scripts/fill-staging-demo.mjs
       - name: Capture the screens
+        if: always()
         run: node scripts/capture-product-screens.mjs
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: valrano-screens
-          path: screens/
+          path: |
+            screens/
+            fill-debug/
           retention-days: 7
