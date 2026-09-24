@@ -40,11 +40,16 @@ page.on('response', async r => {
   if (!/functions\/v1\/(analyze-accounting-profile|extract-kpis)/.test(r.url())) return
   try { const j = await r.json(); const u = j.usage || j.usageMetadata; if (u) usage.push({ fn: r.url().split('/').pop(), u }) } catch {}
 })
+/* the pop-up messages Valrano shows (sonner toasts) - the only place its errors appear */
+const toasts = async () => (await page.locator('[data-sonner-toast], [role="status"], [role="alert"]').allInnerTexts()).map(t => t.replace(/s+/g, ' ').trim()).filter(Boolean).join(' | ')
 const go = async (p) => { await page.goto(BASE + p, { waitUntil: 'load', timeout: 60000 }); await page.waitForTimeout(3000) }
 
 try {
   /* ---- 1. own company: onboarding step 1 with Geberit's report ---- */
-  await go('/my-company')
+  await go('/my-company?tab=profile')
+  /* wait until the page has decided: the empty state, or the company's own Upload Report button */
+  await page.getByText(/No company configured/i).or(page.getByRole('button', { name: /Upload Report/i })).first().waitFor({ timeout: 45000 })
+  await snap('my-company')
   const hasCompany = !(await page.getByText(/No company configured/i).count())
   if (hasCompany) note('own company: already set up - skipped')
   else {
@@ -58,6 +63,7 @@ try {
     await chooser.setFiles(PDF.own)
     await page.waitForTimeout(8000)
     await snap('onboarding-uploading')
+    note('own company: messages after upload: ' + (await toasts() || 'none'))
     if (await page.getByText(/Drop your latest annual report/i).count()) { note('own company: the drop zone did not take the file'); throw new Error('upload did not start') }
     note('own company: Geberit report uploaded, waiting for the analysis')
     await page.getByText(/Report analyzed/i).first().waitFor({ timeout: 12 * 60000 })
@@ -99,8 +105,10 @@ try {
       const opt = page.locator('ul[role="listbox"] li[role="option"]').filter({ hasText: new RegExp(name, 'i') }).first()
       if (await opt.count()) await opt.dispatchEvent('mousedown')
       await page.waitForTimeout(4000)
+      await snap(`add-peer-${name}-form`)
       await page.getByRole('button', { name: /^Add Company$/ }).click()
-      await page.waitForTimeout(4000); note(`peer ${name}: added through "Add Peer"`)
+      await page.waitForTimeout(6000); await snap(`add-peer-${name}-after`)
+      note(`peer ${name}: "Add Company" pressed - messages: ` + (await toasts() || 'none'))
       await go('/competitors')
       link = page.locator('a[href*="/companies/"]').filter({ hasText: new RegExp(name, 'i') }).first()
     }
