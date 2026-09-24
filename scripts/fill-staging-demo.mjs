@@ -38,7 +38,10 @@ await ctx.addInitScript(() => {
   }).observe(document, { subtree: true, childList: true })
 })
 const page = await ctx.newPage()
-page.on('dialog', d => d.accept())   // the duplicate-upload confirm
+page.on('dialog', d => d.accept())
+/* which request died, and what each function answered - paths and status codes only, never bodies */
+page.on('requestfailed', r => { const u = new URL(r.url()); if (/supabase|valrano/.test(u.host)) note(`request failed: ${r.method()} ${u.host.split('.')[0]}${u.pathname} - ${r.failure()?.errorText}`) })
+page.on('response', r => { const u = new URL(r.url()); if (/functions/v1|storage/v1/.test(u.pathname)) note(`answer: ${r.request().method()} ${u.pathname} -> ${r.status()}`) })   // the duplicate-upload confirm
 let shot = 0
 const snap = async (name) => { if (!/\/login/.test(page.url())) await page.screenshot({ path: `fill-debug/${String(++shot).padStart(2, '0')}-${name}.png` }) }
 const usage = []
