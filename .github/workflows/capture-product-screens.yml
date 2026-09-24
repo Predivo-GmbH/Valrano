@@ -1,0 +1,40 @@
+name: Capture product screens for predivo.ch
+
+# Roger, 2026-09-24 (option A): Valrano's page on predivo.ch shows Valrano's REAL screens. They exist
+# only behind sign-in, so they are captured here, inside GitHub, on the TEST copy (staging) as the test
+# user the staging checks already use: the password never leaves GitHub and no customer's data can
+# reach the public site. Runs only on a push to its own branch - never on main, so it cannot deploy.
+# Keeps ONLY the screenshots: no trace, no test report (a Playwright trace records what is typed).
+
+on:
+  push:
+    branches: [capture/product-screens]
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN }}
+      STAGING_URL: https://staging.valrano.com
+      STAGING_HTTP_PASS: ${{ secrets.STAGING_HTTP_PASS }}
+      STAGING_TEST_PASSWORD: ${{ secrets.STAGING_TEST_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Sign in as the staging test user (the staging checks' own setup)
+        run: npx playwright test --config playwright.staging.config.ts --project=staging-auth-setup --trace=off
+      - name: Capture the screens
+        run: node scripts/capture-product-screens.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: valrano-screens
+          path: screens/
+          retention-days: 7
