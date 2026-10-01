@@ -88,6 +88,14 @@ test('the schedule actually fired recently and the gates ran green in it', () =>
       + `${MAX_AGE_HOURS}h window. A nightly that stops firing produces no run, and no run is not a red run - `
       + 'so nothing else would report this.',
   )
+
+  // Inside a scheduled run, THIS run's own gates judge the code, so the previous night's verdict
+  // must not be re-judged here: a guard that runs inside the nightly and fails whenever the last
+  // nightly failed makes one red night permanent (2026-09-30 audit red, fixed the same morning,
+  // still red on 10-01 and every night after). The conclusion of the newest run is still
+  // asserted everywhere else (push/PR/manual), and production-monitor's nightly-gauntlet spec
+  // judges every scheduled run's conclusion from outside.
+  if (process.env.GITHUB_EVENT_NAME === 'schedule') return
   assert.equal(newest.conclusion, 'success', `scheduled run ${newest.databaseId} concluded "${newest.conclusion}"`)
 
   const jobs = JSON.parse(gh(['run', 'view', String(newest.databaseId), '--repo', REPO, '--json', 'jobs']))
