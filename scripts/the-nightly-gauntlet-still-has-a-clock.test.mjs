@@ -21,10 +21,21 @@
  * WHAT IT ASSERTS, and why each half is needed:
  *   1. THE CLOCK IS IN THE FILE ON main. A cron can be deleted in one line by an honest tidy-up.
  *      Read from GitHub, not from the working tree: a branch checkout proves nothing about main.
- *   2. THE CLOCK ACTUALLY FIRED, recently, AND THE GATES RAN GREEN IN IT. A cron that GitHub has
+ *   2. THE CLOCK ACTUALLY FIRED, recently, AND THE GATES RAN IN IT. A cron that GitHub has
  *      disabled (60 days of repo inactivity), or a scheduled run in which the gate jobs were
  *      skipped, looks exactly like a healthy nightly if you only read the file. A workflow that
  *      stops being scheduled produces NO run, and no run is not a red run, so nothing reports it.
+ *
+ * "RAN", NOT "RAN GREEN" (2026-10-01). This used to assert the previous scheduled run concluded
+ * success. This file runs INSIDE deploy.yml (gate-edge-typecheck, the wiring-guards step), so that
+ * turned one red nightly into a permanent latch: run 36670756113 (2026-09-30) went red on a
+ * gate-security advisory, 7a37a24 fixed it the same morning, and then the push run carrying that
+ * fix (36685619112) and the next nightly (36817102615) both failed HERE, because the run before
+ * them was red - and each failure becomes the "run before" for the next one. deploy-staging and
+ * the prod `deploy` both need gate-edge-typecheck, so nothing could ship again, ever.
+ * Whether a gate PASSED is already enforced by the gate itself, by that run's own red, by the
+ * prod `deploy` job's needs:, and by the production-monitor nightly-gauntlet alert. This file's
+ * job is the one nothing else does: prove the clock fires and the gates execute.
  *
  * The freshness window is 50 hours, not 24: GitHub demonstrably drops scheduled ticks under load,
  * so one missed night is a scheduler artefact and must not redden this. Two missed nights is the
@@ -39,6 +50,9 @@ import { execFileSync } from 'node:child_process'
 const REPO = 'Predivo-GmbH/Valrano'
 const WORKFLOW = 'deploy.yml'
 const GATE_JOBS = ['gate-integration', 'gate-security', 'gate-e2e']
+// The conclusions that mean a gate EXECUTED and reached a verdict. Pass or fail is not this file's
+// question (see the header); "did it run at all" is.
+const GATE_VERDICTS = ['success', 'failure', 'timed_out']
 const MAX_AGE_HOURS = 50
 
 const gh = (args) =>
@@ -70,7 +84,7 @@ test('deploy.yml on main still carries a schedule: trigger', () => {
   )
 })
 
-test('the schedule actually fired recently and the gates ran green in it', () => {
+test('the schedule actually fired recently and the gates ran in it', () => {
   const runs = JSON.parse(gh([
     'run', 'list', '--repo', REPO, '--workflow', WORKFLOW, '--event', 'schedule',
     '--limit', '10', '--json', 'databaseId,conclusion,createdAt,status',
@@ -88,17 +102,19 @@ test('the schedule actually fired recently and the gates ran green in it', () =>
       + `${MAX_AGE_HOURS}h window. A nightly that stops firing produces no run, and no run is not a red run - `
       + 'so nothing else would report this.',
   )
-  assert.equal(newest.conclusion, 'success', `scheduled run ${newest.databaseId} concluded "${newest.conclusion}"`)
+  // No assertion on the run's own conclusion - see "RAN, NOT RAN GREEN" in the header. A red
+  // run here would make this run red too, and the next one, forever.
 
   const jobs = JSON.parse(gh(['run', 'view', String(newest.databaseId), '--repo', REPO, '--json', 'jobs']))
   const byName = new Map((jobs.jobs || []).map((j) => [j.name, j.conclusion]))
   for (const name of GATE_JOBS) {
     assert.ok(byName.has(name), `scheduled run ${newest.databaseId} has no job named "${name}"`)
-    assert.equal(
-      byName.get(name),
-      'success',
+    // A verdict of its own: the gate executed and judged. skipped / cancelled / neutral / empty
+    // mean it tested nothing, which is what this file exists to catch.
+    assert.ok(
+      GATE_VERDICTS.includes(byName.get(name)),
       `job "${name}" in scheduled run ${newest.databaseId} concluded "${byName.get(name)}" - a scheduled run in `
-        + 'which the gates are skipped is the same nothing as no scheduled run.',
+        + 'which the gates did not execute is the same nothing as no scheduled run.',
     )
   }
 })
