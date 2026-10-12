@@ -15,6 +15,8 @@
     "coverage gaps (seeded-fixture and fresh-identity routes) with a 2026-09-30 deadline. Only those 5 carry",
     "`expires`; redirects and structural exclusions do not.",
     "",
+    "2026-10-12 [board-drainer]: the 2026-09-30 deadline lapsed with no fixtures built (Gate A red 3 nights). Re-justified: the 5 gaps are unchanged and still need seeded rows / a fresh identity. Deadline moved to 2026-11-30; it must be closed by building fixtures, not extended again.",
+    "",
     "2026-08-21: '/' moved from excluded to swept with the shared-engine conversion — the crawl now runs an",
     "anonymous identity that is the only one RedirectIfAuthenticated lets see the landing page (and its two",
     "dialog surfaces, the demo-request and waitlist modals)."
@@ -50,12 +52,12 @@
     {
       "route": "/onboarding",
       "reason": "AUTHENTICATED onboarding flow. The e2e identity is already onboarded, so entering it directly would leave that shared account in a half-configured state. Needs a dedicated fresh identity, the way ReplyFlow seeds one.",
-      "expires": "2026-09-30"
+      "expires": "2026-11-30"
     },
-    { "route": "/companies/:id", "reason": "Needs a seeded company row; the crawl has no fixture data yet.", "expires": "2026-09-30" },
-    { "route": "/documents/:id", "reason": "Needs a seeded document row.", "expires": "2026-09-30" },
-    { "route": "/reports/:id", "reason": "Needs a seeded report row.", "expires": "2026-09-30" },
-    { "route": "/uploaded-reports/:id", "reason": "Needs a seeded uploaded-report row.", "expires": "2026-09-30" },
+    { "route": "/companies/:id", "reason": "Needs a seeded company row; the crawl has no fixture data yet.", "expires": "2026-11-30" },
+    { "route": "/documents/:id", "reason": "Needs a seeded document row.", "expires": "2026-11-30" },
+    { "route": "/reports/:id", "reason": "Needs a seeded report row.", "expires": "2026-11-30" },
+    { "route": "/uploaded-reports/:id", "reason": "Needs a seeded uploaded-report row.", "expires": "2026-11-30" },
     { "route": "/settings?tab=company", "reason": "Query variant of /settings, which is swept." },
     { "route": "/login", "reason": "Auth form page, no dialog-class surface; covered by the auth e2e specs." },
     { "route": "/signup", "reason": "Auth form page, see /login." },
