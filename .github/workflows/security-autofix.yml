@@ -59,13 +59,6 @@ jobs:
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
     steps:
-      - name: Keep this schedule switched on
-        # GitHub switches a scheduled workflow off after 60 days without repository activity, and a
-        # parked repository has none. Enabling it again on every run restarts that clock.
-        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/security-autofix.yml/enable"
-        env:
-          GH_TOKEN: ${{ github.token }}
-
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.repository.default_branch }}
@@ -74,16 +67,50 @@ jobs:
         with:
           node-version: 22
 
-      # --ignore-scripts on both: this job holds a token that can push, and the new package versions
-      # are exactly the code nobody has looked at yet. They first run in the test job, which can't.
-      # The install itself is needed: npm 10's `audit fix --package-lock-only` dies with "Cannot read
-      # properties of null (reading 'edgesOut')" when there is no node_modules (measured 2026-10-26).
+      - name: Keep this schedule switched on
+        # GitHub switches a scheduled workflow off after 60 days without repository activity, and a
+        # parked repository has none. Enabling it again on every run restarts that clock. Node's fetch,
+        # not `gh`: the self-hosted runner has no gh (exit 127 on arivioo, 2026-10-26). A warning, not
+        # a failure - a lapse here must never stop today's fix.
+        run: |
+          node -e '
+            fetch(`https://api.github.com/repos/${process.env.REPO}/actions/workflows/security-autofix.yml/enable`, {
+              method: "PUT", headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: "application/vnd.github+json" },
+            }).then((r) => console.log(r.ok ? "schedule kept on" : `::warning::could not keep the schedule on (HTTP ${r.status})`))
+              .catch((e) => console.log(`::warning::could not keep the schedule on (${e.message})`))'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+
+      # --ignore-scripts everywhere: this job holds a token that can push, and the new package versions
+      # are exactly the code nobody has looked at yet. They first run in the test job, which can't push.
       - run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: npm audit fix (no --force)
-        # Exits non-zero whenever something is left that only --force could fix; what matters is
-        # whether the lockfile moved, which the next step checks.
-        run: npm audit fix --ignore-scripts --no-fund || true
+        # npm 10 cannot do this step: its `audit fix` dies with "Cannot read properties of null (reading
+        # 'edgesOut')", with or without node_modules (measured on this job, 2026-10-26). npm 11 computes
+        # the fix; npm 10 - the npm `npm ci` in test.yml uses - then rewrites the lockfile so CI accepts it.
+        # A CRASH IS NEVER "NOTHING TO FIX": the first version swallowed it with `|| true` and went green
+        # having fixed nothing. Any `npm error` line fails the job, and so does a fixable high/critical
+        # advisory that leaves the lockfile untouched.
+        run: |
+          fixable() { npm audit --json 2>/dev/null | node -e '
+            let s = ""; process.stdin.on("data", (d) => s += d).on("end", () => {
+              const v = Object.values(JSON.parse(s || "{}").vulnerabilities || {})
+              console.log(v.filter((x) => ["high", "critical"].includes(x.severity) && x.fixAvailable &&
+                (x.fixAvailable === true || !x.fixAvailable.isSemVerMajor)).length) })'; }
+          before=$(fixable)
+          echo "high/critical with a non-breaking fix, before: $before"
+          set +e
+          npx -y npm@11 audit fix --ignore-scripts --no-fund > fix.log 2>&1
+          set -e
+          cat fix.log
+          if grep -q '^npm error' fix.log; then echo "::error::npm audit fix crashed - that is not 'nothing to fix'"; exit 1; fi
+          rm -f fix.log
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          if [ "$before" -gt 0 ] && git diff --quiet -- package.json package-lock.json; then
+            echo "::error::$before fixable high/critical advisories, yet the lockfile did not move"; exit 1
+          fi
 
       - name: Commit the fix to a side branch
         id: commit
@@ -96,9 +123,12 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b security-autofix
           git add package.json package-lock.json
-          left=$(npm audit --audit-level=high 2>/dev/null | tail -n 3 | tr '\n' ' ')
+          left=$(npm audit --json 2>/dev/null | node -e '
+            let s = ""; process.stdin.on("data", (d) => s += d).on("end", () => {
+              const m = (JSON.parse(s || "{}").metadata || {}).vulnerabilities || {}
+              console.log(`critical ${m.critical ?? "?"}, high ${m.high ?? "?"}, moderate ${m.moderate ?? "?"}`) })')
           git commit -m "Security autofix: npm audit fix (no --force)" \
-            -m "Daily job .github/workflows/security-autofix.yml. Merged only after test.yml passed on this commit. Still reported afterwards: ${left:-nothing}"
+            -m "Daily job .github/workflows/security-autofix.yml. Merged only after test.yml passed on this commit. Left in the full tree afterwards: ${left}"
           git push --force origin security-autofix
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
