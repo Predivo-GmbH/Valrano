@@ -1,0 +1,138 @@
+name: Security autofix
+
+# WHY THIS EXISTS (Roger, 2026-10-26). This product is PARKED: nobody is working on it, but its
+# dependency flaws still have to be fixed - by GitHub, not by a Claude session. The weekly fleet
+# dependency audit (production-monitor, Mondays 07:10 UTC) kept putting parked products back on the
+# board. Not because a fix failed: the 15.10 fixes held, and every one of the 9 advisories found on
+# 26.10 was added to npm's list between 20.10 and 23.10, against packages already in use. That will
+# keep happening, and until now every round cost a session.
+#
+# WHY NOT DEPENDABOT. Dependabot's pull requests run without this repository's Actions secrets, and
+# the tests here need them (Supabase keys for the e2e build; the repos that use the private
+# @predivo-gmbh/gate-kit package need a registry token just to `npm ci`). There is no branch
+# protection, so GitHub's own auto-merge cannot be switched on either. This job runs in the
+# repository's own context instead, with the same secrets the normal test run has.
+#
+# WHAT IT DOES, once a day:
+#   1. `npm audit fix` on Linux with node 22 / npm 10 - the npm CI uses, so the lockfile it writes is
+#      one `npm ci` accepts (a lockfile written with the laptop's npm 11 broke CI on 2026-10-15).
+#      No --force: only fixes inside the version ranges package.json already allows.
+#   2. If that changed anything, it runs THIS repository's own test.yml on the fixed commit.
+#   3. Only if those tests pass, it fast-forwards the default branch to exactly that commit.
+# Nothing here deploys: a push made with GITHUB_TOKEN starts no other workflow, so staging and
+# production stay where they are (a parked product gets no deploys, Roger 2026-09-14).
+# What it cannot fix (no fixed version yet, or only a breaking upgrade) stays visible: the Monday
+# audit still raises a board row for it.
+
+on:
+  schedule:
+    - cron: '20 5 * * *' # daily; lands before the Monday fleet audit at 07:10 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Fix and test, but do not merge'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# A literal name on purpose: test.yml groups on "<workflow>-<ref>", and a called workflow takes the
+# caller's workflow name, so the same pattern here would make the two runs wait on each other.
+concurrency:
+  group: security-autofix
+  cancel-in-progress: false
+
+env:
+  # .npmrc points @predivo-gmbh at GitHub Packages where a repo uses gate-kit; unused elsewhere.
+  # Same fallback as test.yml: an empty secret is falsy, so GITHUB_TOKEN (packages: read) steps in.
+  NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_READ_TOKEN || secrets.GITHUB_TOKEN }}
+
+jobs:
+  fix:
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 15
+    permissions:
+      contents: write # push the side branch
+      packages: read # gate-kit, where used
+      actions: write # keep this schedule switched on (first step)
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - name: Keep this schedule switched on
+        # GitHub switches a scheduled workflow off after 60 days without repository activity, and a
+        # parked repository has none. Enabling it again on every run restarts that clock.
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/security-autofix.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # --ignore-scripts on both: this job holds a token that can push, and the new package versions
+      # are exactly the code nobody has looked at yet. They first run in the test job, which can't.
+      # The install itself is needed: npm 10's `audit fix --package-lock-only` dies with "Cannot read
+      # properties of null (reading 'edgesOut')" when there is no node_modules (measured 2026-10-26).
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: npm audit fix (no --force)
+        # Exits non-zero whenever something is left that only --force could fix; what matters is
+        # whether the lockfile moved, which the next step checks.
+        run: npm audit fix --ignore-scripts --no-fund || true
+
+      - name: Commit the fix to a side branch
+        id: commit
+        run: |
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "npm audit fix changed nothing: nothing here is fixable without a breaking upgrade."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b security-autofix
+          git add package.json package-lock.json
+          left=$(npm audit --audit-level=high 2>/dev/null | tail -n 3 | tr '\n' ' ')
+          git commit -m "Security autofix: npm audit fix (no --force)" \
+            -m "Daily job .github/workflows/security-autofix.yml. Merged only after test.yml passed on this commit. Still reported afterwards: ${left:-nothing}"
+          git push --force origin security-autofix
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: fix
+    if: needs.fix.outputs.sha != ''
+    # The repository's real test suite, not a copy of it, on the exact commit that would be merged.
+    uses: ./.github/workflows/test.yml
+    with:
+      ref: ${{ needs.fix.outputs.sha }}
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+
+  merge:
+    needs: [fix, test]
+    if: needs.fix.outputs.sha != '' && !inputs.dry_run
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Fast-forward the default branch to the tested commit
+        # --ff-only: if anything landed on the default branch while the tests ran, this refuses
+        # rather than merging an untested combination; tomorrow's run starts from the new head.
+        run: |
+          git fetch origin security-autofix
+          git merge --ff-only "${{ needs.fix.outputs.sha }}"
+          git push origin "HEAD:${{ github.event.repository.default_branch }}"
+          git push origin --delete security-autofix
