@@ -53,7 +53,7 @@ jobs:
   # it here to read the previous run's manifest is the defect, not the fix.
   # ---------------------------------------------------------------------------------------
   gates:
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     timeout-minutes: 15
     if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' }}
     env:
@@ -154,7 +154,7 @@ jobs:
   # Byte-identical to what used to run after every deploy; only its cadence changed.
   # ---------------------------------------------------------------------------------------
   full:
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     timeout-minutes: 75
     if: ${{ github.event_name != 'workflow_run' }}
     env:

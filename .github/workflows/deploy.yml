@@ -162,7 +162,7 @@ jobs:
   # One Deno, no npm install, ~1 min on the self-hosted runner.
   # ===========================================================================
   gate-edge-typecheck:
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -226,6 +226,7 @@ jobs:
           node scripts/a-starved-prerender-is-not-a-broken-build.test.mjs
           node scripts/lib/relay-enforcement-verdict.test.mjs
           node scripts/the-nightly-gauntlet-still-has-a-clock.test.mjs
+          node scripts/no-job-lands-on-ubuntu-latest.test.mjs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -267,7 +268,7 @@ jobs:
     if: github.event_name == 'push'
     # A push must not put an edge function on staging that does not compile.
     needs: [gate-edge-typecheck]
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     timeout-minutes: 20
     steps:
       - name: Verify FTP credentials (fail fast on a stale secret)
@@ -714,7 +715,7 @@ jobs:
     # start erasing each other again.
     # ---------------------------------------------------------------------------
     if: github.event_name != 'push'
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
@@ -763,7 +764,7 @@ jobs:
       group: staging-site-${{ github.ref }}
       cancel-in-progress: false
     if: github.event_name != 'push'
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     timeout-minutes: 20
     env:
       # `npx playwright install chromium` refuses to run on a Linux distro newer than the one
@@ -863,7 +864,7 @@ jobs:
   # ===========================================================================
   gate-security:
     if: github.event_name != 'push'
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -946,7 +947,7 @@ jobs:
     # main deploys STAGING only. Same pattern as ReplyFlow/BoatBuddy/SignalScore.
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'deploy'
     needs: [gate-integration, gate-e2e, gate-security, gate-edge-typecheck]
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     timeout-minutes: 30
     permissions:
       actions: read

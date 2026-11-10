@@ -50,7 +50,7 @@ env:
 
 jobs:
   fix:
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     timeout-minutes: 15
     permissions:
       contents: write # push the side branch
@@ -148,7 +148,7 @@ jobs:
   merge:
     needs: [fix, test]
     if: needs.fix.outputs.sha != '' && !inputs.dry_run
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     timeout-minutes: 5
     permissions:
       contents: write
