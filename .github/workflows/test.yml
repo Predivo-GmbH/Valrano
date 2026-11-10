@@ -30,7 +30,7 @@ env:
 
 jobs:
   critical-path:
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     timeout-minutes: 10
     env:
       # Ubuntu 26.04 (what our self-hosted runners came up on, 2026-08-25) has no Playwright

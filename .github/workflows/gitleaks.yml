@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   gitleaks:
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-24.04' }}
     steps:
       - uses: actions/checkout@v5
         with:
