@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
-import { AuthContext, type AuthContextValue } from '@/contexts/AuthContext'
+import { AuthContext, type AuthContextValue } from '@/contexts/auth-context'
 
 // Import after context is available
 import { useAuth } from '@/hooks/useAuth'

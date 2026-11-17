@@ -1,27 +1,8 @@
-import { createContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
-
-export interface AuthContextValue {
-  user: SupabaseUser | null
-  loading: boolean
-  /** Traditional email+password sign in. captchaToken is a Cloudflare Turnstile token,
-   *  required once CAPTCHA is enabled in Auth settings (no-op before that). */
-  signInWithPassword: (email: string, password: string, captchaToken?: string) => Promise<void>
-  sendOtp: (email: string, captchaToken?: string) => Promise<void>
-  sendLoginOtp: (email: string, captchaToken?: string) => Promise<void>
-  verifyOtp: (email: string, token: string) => Promise<{ isNewUser: boolean }>
-  hasCompletedProfile: () => boolean
-  completeProfile: (password: string, fullName: string) => Promise<void>
-  /** Send password reset email. captchaToken required once CAPTCHA is enabled (no-op before). */
-  resetPassword: (email: string, captchaToken?: string) => Promise<void>
-  updatePassword: (password: string) => Promise<void>
-  deleteAccount: () => Promise<void>
-  signOut: () => Promise<void>
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null)
+import { AuthContext } from './auth-context'
 
 // ---------------------------------------------------------------------------
 // Prefetch critical data on login — eliminates cold-start waterfalls on
@@ -239,5 +220,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   )
 }
-
-export { AuthContext }
